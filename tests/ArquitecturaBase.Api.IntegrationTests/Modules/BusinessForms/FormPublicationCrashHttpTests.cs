@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -127,7 +128,14 @@ public sealed partial class FormDraftEndpointsTests
         otherClient.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, otherId.ToString());
         using var readOnlyClient = host.CreateClient();
         readOnlyClient.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, readOnlyId.ToString());
-        var statusPath = $"/api/forms/definitions/{definitionId}/publications/{requestId}";
+        // F3: the other publisher learns the operation from the form itself, without knowing its id beforehand.
+        using var detail = await otherClient.GetAsync($"/api/forms/definitions/{definitionId}", Ct);
+        var open = (await detail.ReadJsonAsync()).GetProperty("publication").GetProperty("currentOperation");
+        var statusPath = open.GetProperty("recoveryPath").GetString()!;
+        Assert.Equal(requestId, open.GetProperty("requestId").GetGuid());
+        using var readOnlyDetail = await readOnlyClient.GetAsync($"/api/forms/definitions/{definitionId}", Ct);
+        var hiddenOperation = (await readOnlyDetail.ReadJsonAsync()).GetProperty("publication").GetProperty("currentOperation");
+        Assert.False(hiddenOperation.TryGetProperty("requestId", out var hiddenId) && hiddenId.ValueKind != JsonValueKind.Null);
         using var seen = await otherClient.GetAsync(statusPath, Ct);
         Assert.Equal(HttpStatusCode.OK, seen.StatusCode);
         Assert.Equal("Uncertain", (await seen.ReadJsonAsync()).GetProperty("state").GetString());
@@ -142,6 +150,10 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.NoContent, discarded.StatusCode);
         var closed = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>().SingleAsync(row => row.Id == operationId, Ct));
         Assert.Equal(FormPublicationState.Failed, closed.State);
+        // F3: whoever closed it reads «Failed», not an error, when they ask again.
+        using var after = await otherClient.GetAsync(statusPath, Ct);
+        Assert.Equal(HttpStatusCode.OK, after.StatusCode);
+        Assert.Equal("Failed", (await after.ReadJsonAsync()).GetProperty("state").GetString());
         using var again = await otherClient.PostAsJsonAsync(statusPath + "/discard", new { expectedRevision = draftRevision }, Ct);
         Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
 

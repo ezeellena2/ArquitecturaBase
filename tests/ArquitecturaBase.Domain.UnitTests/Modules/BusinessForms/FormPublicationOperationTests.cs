@@ -43,12 +43,11 @@ public sealed class FormPublicationOperationTests
     }
 
     [Fact]
-    public void Discarding_closes_an_open_operation_as_failed_and_fences_the_worker_that_held_it()
+    public void Discarding_closes_an_unconfirmed_operation_as_failed_and_fences_the_worker_that_held_it()
     {
         var operation = NewOperation();
         var fence = operation.Reserve(Now, TimeSpan.FromMinutes(1)).Value;
         Assert.True(operation.RecordChannelResult(fence, Now, "Uncertain", "Create").IsSuccess);
-        var held = operation.Reserve(Now.AddMinutes(1), TimeSpan.FromMinutes(1)).Value;
 
         Assert.True(operation.Discard(Now.AddMinutes(1)).IsSuccess);
 
@@ -56,8 +55,23 @@ public sealed class FormPublicationOperationTests
         Assert.False(operation.IsOpen);
         Assert.Equal("Discarded", operation.Stage);
         Assert.Null(operation.NextCheckAtUtc);
-        Assert.True(operation.RecordChannelResult(held, Now.AddMinutes(1), "Published", "Verify").IsFailure);
+        Assert.True(operation.RecordChannelResult(fence + 1, Now.AddMinutes(1), "Published", "Verify").IsFailure);
         Assert.True(operation.Discard(Now.AddMinutes(2)).IsFailure);
+    }
+
+    [Fact]
+    public void An_operation_that_is_still_moving_cannot_be_discarded()
+    {
+        var accepted = NewOperation();
+        Assert.True(accepted.Discard(Now).IsFailure);
+        Assert.Equal(FormPublicationState.Accepted, accepted.State);
+
+        var held = NewOperation();
+        var fence = held.Reserve(Now, TimeSpan.FromMinutes(1)).Value;
+        Assert.True(held.Discard(Now).IsFailure);
+        Assert.True(held.RecordChannelResult(fence, Now, "Publishing", "Create").IsSuccess);
+        Assert.True(held.Discard(Now).IsFailure);
+        Assert.Equal(FormPublicationState.Publishing, held.State);
     }
 
     [Fact]
