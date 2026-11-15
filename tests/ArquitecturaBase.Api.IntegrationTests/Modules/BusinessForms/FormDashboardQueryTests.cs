@@ -2,7 +2,6 @@ using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
-using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -115,7 +114,7 @@ public sealed class FormDashboardQueryTests(ApiFactory factory)
         var recorder = new FormResponseCommandRecorder();
         await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
             services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
-        var responses = new FormResponseReader(db, new FormRecordReader(db, services.GetRequiredService<IFormPublicationProtector>()));
+        var responses = new FormResponseReader(db, new FormRecordReader(db));
         var reader = new FormDashboardReader(db);
         var definition = await responses.FindDefinitionAsync(definitionId, Ct);
         Assert.NotNull(definition);

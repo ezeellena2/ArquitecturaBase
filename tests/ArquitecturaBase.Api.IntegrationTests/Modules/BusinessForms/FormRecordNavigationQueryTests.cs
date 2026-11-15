@@ -4,9 +4,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
-using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
 using ArquitecturaBase.Infrastructure.Persistence;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -114,7 +112,7 @@ public sealed class FormRecordNavigationQueryTests
     private static ApplicationDbContext Database() => new(new DbContextOptionsBuilder<ApplicationDbContext>()
         .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
     private static FormResponseReader Reader(ApplicationDbContext db) => new(db,
-        new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));
+        new FormRecordReader(db));
     private static CanonicalFormField Field(string type) => new(Guid.NewGuid(), "value", type == "catalog" ? "choice" : type,
         new Dictionary<string, string> { ["es"] = "Valor" }, null, false, null,
         type == "choice" ? [new(Guid.NewGuid(), new Dictionary<string, string> { ["es"] = "Opción" })] : null,

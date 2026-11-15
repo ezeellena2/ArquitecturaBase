@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
-using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
@@ -46,7 +45,7 @@ public sealed partial class FormDraftEndpointsTests
             var recorder = new FormResponseCommandRecorder();
             await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
                 services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
-            var reader = new FormResponseReader(db, new FormRecordReader(db, services.GetRequiredService<IFormPublicationProtector>()));
+            var reader = new FormResponseReader(db, new FormRecordReader(db));
 
             var definition = await reader.FindDefinitionAsync(seeded.Id, Ct);
 

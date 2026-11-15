@@ -2,14 +2,13 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
-internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IFormPublicationProtector protector) : IFormDefinitionReader
+internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFormDefinitionReader
 {
     public Task<FormDefinitionStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         WithAudit(dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(definition => definition.Id == id))
@@ -27,15 +26,12 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                                join operation in dbContext.Set<BusinessFormPublicationOperation>() on version.Id equals operation.VersionId
                                where version.DefinitionId == id && operation.DefinitionId == id
                                select new { VersionId = version.Id, version.Number, operation.DraftRevision, OperationId = operation.Id,
-                                   Actor = operation.OperatorUserId, operation.RequestId, operation.ProtectedManifest, version.AppOnly,
-                                   version.PublishedCultures, ReadsDocuments = version.DocumentReadingJson != null }).SingleOrDefaultAsync(cancellationToken);
+                                   version.AppOnly, version.PublishedCultures, ReadsDocuments = version.DocumentReadingJson != null }).SingleOrDefaultAsync(cancellationToken);
         FormActiveVersionResponse? active = null;
         if (activeRow is not null)
         {
-            var manifest = protector.ReadManifest(new(activeRow.OperationId, activeRow.Actor, activeRow.RequestId, id, activeRow.VersionId), activeRow.ProtectedManifest);
-            // A version published only in the app has no channel profiles: its languages are the ones it sealed (SA3-A).
-            active = new(activeRow.VersionId, activeRow.Number, activeRow.DraftRevision, activeRow.AppOnly ? activeRow.PublishedCultures ?? []
-                : manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray(),
+            // The languages are the ones the version sealed: reading them does not open the protected manifest (F27).
+            active = new(activeRow.VersionId, activeRow.Number, activeRow.DraftRevision, activeRow.PublishedCultures ?? [],
                 activeRow.AppOnly ? true : null, activeRow.ReadsDocuments ? true : null);
         }
         var latest = await dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking().Where(value => value.DefinitionId == id)

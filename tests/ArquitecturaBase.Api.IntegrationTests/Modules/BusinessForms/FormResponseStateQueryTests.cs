@@ -1,5 +1,3 @@
-using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
-using Microsoft.AspNetCore.DataProtection;
 using System.Reflection;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -21,7 +19,7 @@ public sealed class FormResponseStateQueryTests
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader = new FormResponseReader(db, new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));
+        var reader = new FormResponseReader(db, new FormRecordReader(db));
         var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", "{\"format\":1,\"questions\":[]}", "es", ["es", "en"]);
         var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "TEST", version.Id, [version]);
         var request = JsonSerializer.Deserialize<ListFormRecordsRequest>(JsonSerializer.Serialize(new { state }), JsonSerializerOptions.Web)!;

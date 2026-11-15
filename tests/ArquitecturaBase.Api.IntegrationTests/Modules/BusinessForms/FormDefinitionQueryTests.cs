@@ -2,9 +2,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
-using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
 using ArquitecturaBase.Infrastructure.Persistence;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -20,7 +18,7 @@ public sealed class FormDefinitionQueryTests
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader = new FormDefinitionReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider()));
+        var reader = new FormDefinitionReader(db);
         var method = typeof(FormDefinitionReader).GetMethod("ListQuery", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(method);
         var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(reader,

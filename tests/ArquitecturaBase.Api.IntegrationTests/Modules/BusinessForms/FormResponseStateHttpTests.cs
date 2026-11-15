@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -105,7 +104,7 @@ public sealed partial class FormDraftEndpointsTests
         {
             var recorder = new FormResponseCommandRecorder();
             await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
-            var reader = new FormResponseReader(db, new FormRecordReader(db, services.GetRequiredService<IFormPublicationProtector>()));
+            var reader = new FormResponseReader(db, new FormRecordReader(db));
             var definition = await reader.FindDefinitionAsync(seeded.Id, Ct); Assert.NotNull(definition);
             recorder.Commands.Clear();
             await reader.ListAsync(definition, new() { PageSize = 1 }, Ct);

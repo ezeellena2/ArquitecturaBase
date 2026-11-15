@@ -1,5 +1,3 @@
-using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
-using Microsoft.AspNetCore.DataProtection;
 using System.Reflection;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -17,7 +15,7 @@ public sealed class FormResponseQueryTests
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader = new FormResponseReader(db, new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));
+        var reader = new FormResponseReader(db, new FormRecordReader(db));
         var first = new CanonicalFormChoice(Guid.NewGuid(), Text("Anterior A", "Previous A"));
         var second = new CanonicalFormChoice(Guid.NewGuid(), Text("Opción B", "Choice B"));
         var field = new CanonicalFormField(Guid.NewGuid(), "choice", "choice", Text("Elección", "Choice"), null, false, null, [first, second]);
@@ -45,7 +43,7 @@ public sealed class FormResponseQueryTests
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader = new FormResponseReader(db, new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));
+        var reader = new FormResponseReader(db, new FormRecordReader(db));
         var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", "{\"format\":1,\"questions\":[]}", "es", ["es", "en"]);
         var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "TEST", version.Id, [version]);
         var filtering = typeof(FormResponseReader).GetMethod("Filter", BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -61,7 +59,7 @@ public sealed class FormResponseQueryTests
     {
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider()));
+        var reader=new FormRecordReader(db);
         var method=typeof(FormRecordReader).GetMethod("QueryRows",BindingFlags.NonPublic|BindingFlags.Instance);
         Assert.NotNull(method);
         var query=Assert.IsAssignableFrom<IQueryable>(method.Invoke(reader,[new[]{Guid.NewGuid()}]));
@@ -77,7 +75,7 @@ public sealed class FormResponseQueryTests
     {
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new FormResponseReader(db,new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));var catalogId=Guid.NewGuid();
+        var reader=new FormResponseReader(db,new FormRecordReader(db));var catalogId=Guid.NewGuid();
         var field=new CanonicalFormField(Guid.NewGuid(),"branch","choice",Text("Sucursal","Branch"),null,false,null,null,Source:new(catalogId));
         var version=Version(1,field);var definition=new FormResponseDefinitionRow(Guid.NewGuid(),"TEST",version.Id,[version]);
         var ordered=typeof(FormResponseReader).GetMethod("Ordered",BindingFlags.NonPublic|BindingFlags.Instance)!;

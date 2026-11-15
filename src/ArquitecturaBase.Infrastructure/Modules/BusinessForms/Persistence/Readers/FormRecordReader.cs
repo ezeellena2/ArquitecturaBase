@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Files;
@@ -8,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 
-internal sealed partial class FormRecordReader(ApplicationDbContext dbContext, IFormPublicationProtector protector) : IFormRecordReader
+internal sealed partial class FormRecordReader(ApplicationDbContext dbContext) : IFormRecordReader
 {
     public async Task<IReadOnlyDictionary<Guid, string>> ListAmendmentsAsync(IReadOnlyCollection<Guid> sourceReceiptIds, CancellationToken cancellationToken) =>
         await dbContext.Set<BusinessFormRecord>().AsNoTracking()

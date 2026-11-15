@@ -3,9 +3,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
-using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
 using ArquitecturaBase.Infrastructure.Persistence;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -34,7 +32,7 @@ public sealed class FormRowsQueryTests
     private static ApplicationDbContext Db() => new(new DbContextOptionsBuilder<ApplicationDbContext>()
         .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
     private static FormResponseReader Reader(ApplicationDbContext db) => new(db,
-        new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider())));
+        new FormRecordReader(db));
     private static IQueryable<BusinessFormRecord> Filter(FormResponseReader reader, FormResponseDefinitionRow definition, ListFormRecordsRequest request)
     {
         var method = typeof(FormResponseReader).GetMethod("Filter", BindingFlags.NonPublic | BindingFlags.Instance);

@@ -2,9 +2,7 @@ using System.Data;
 using System.Reflection;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
-using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
 using ArquitecturaBase.Infrastructure.Persistence;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -66,7 +64,7 @@ public sealed class FormApprovalContinuationQueryTests
         .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
     private static FormApprovalReader Reader(ApplicationDbContext db)
     {
-        var records = new FormRecordReader(db, new DataProtectionFormPublicationProtector(new EphemeralDataProtectionProvider()));
+        var records = new FormRecordReader(db);
         return new(db, new FormResponseReader(db, records), records);
     }
     private static IQueryable Query(FormApprovalReader reader, Guid anchor, Guid actor, FormApprovalContinuationRequest request)

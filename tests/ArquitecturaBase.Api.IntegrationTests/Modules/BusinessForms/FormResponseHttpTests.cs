@@ -1,7 +1,6 @@
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -410,7 +409,7 @@ public sealed partial class FormDraftEndpointsTests
         {
             var recorder=new FormResponseCommandRecorder();
             await using var db=new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
-            var records=new FormRecordReader(db, services.GetRequiredService<IFormPublicationProtector>());var reader=new FormResponseReader(db,records);
+            var records=new FormRecordReader(db);var reader=new FormResponseReader(db,records);
             var definition=await reader.FindDefinitionAsync(seeded.Id,Ct);Assert.NotNull(definition);Assert.Equal(2,definition.Versions.Count);
             recorder.Commands.Clear();var page=await reader.ListAsync(definition,new(){PageSize=20},Ct);Assert.Equal(4,page.Items.Count);
             Assert.DoesNotContain(recorder.Commands,command=>command.Sql.Contains("NameJson",StringComparison.Ordinal)||command.Sql.Contains("SchemaJson",StringComparison.Ordinal));
@@ -442,7 +441,7 @@ public sealed partial class FormDraftEndpointsTests
             var recorder = new FormResponseCommandRecorder();
             await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
                 services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
-            var reader = new FormResponseReader(db, new FormRecordReader(db, services.GetRequiredService<IFormPublicationProtector>()));
+            var reader = new FormResponseReader(db, new FormRecordReader(db));
             var definition = await reader.FindDefinitionAsync(definitionId, Ct);
             Assert.NotNull(definition);
             recorder.Commands.Clear();

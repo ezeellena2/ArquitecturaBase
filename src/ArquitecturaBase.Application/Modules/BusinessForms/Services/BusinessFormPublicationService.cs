@@ -100,10 +100,8 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         var currentCultures = cultures.Where(culture => culture.IsComplete).Select(culture => culture.Culture).Order(StringComparer.Ordinal).ToArray();
         var active = await _publicationReader.FindActiveVersionAsync(id, ct);
         if (active is null) return new(null, saved.Draft.Fields.Select(field => field.FieldId).ToArray(), [], [], currentCultures, []);
-        var manifest = _protector.ReadManifest(new(active.Id, active.Actor, active.RequestId, active.DefinitionId, active.VersionId), active.ProtectedManifest);
-        // A version published only in the app has no channel profiles: its languages are the ones it sealed.
-        var previousCultures = active.AppOnly ? (active.PublishedCultures ?? []).ToArray()
-            : manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray();
+        // The languages are the ones the version sealed: the check does not open the protected manifest (F27).
+        var previousCultures = (active.PublishedCultures ?? []).ToArray();
         var schema = System.Text.Json.JsonSerializer.Deserialize<FormVersionSchema>(active.SchemaJson, System.Text.Json.JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The active form schema is invalid.");
         var previous = schema.Questions.ToDictionary(field => field.FieldId);

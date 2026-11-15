@@ -2,11 +2,15 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
+using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -190,6 +194,74 @@ public sealed partial class FormDraftEndpointsTests
         using var inbox = await decider.GetAsync($"/api/forms/approvals?definitionId={id}", Ct);
         Assert.Equal(HttpStatusCode.OK, inbox.StatusCode);
         Assert.Equal(taskId, Assert.Single((await inbox.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
+    }
+
+    // F27: the editor, the sheet, the detail and the approvals read the languages the version sealed; a manifest that cannot be
+    // opened (a newer app wrote it, or the key ring changed) does not take them down.
+    [Fact]
+    public async Task An_unreadable_publication_manifest_does_not_stop_the_editor_the_sheet_the_detail_or_the_approvals()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish,
+            BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead]);
+        using var decider = await OperatorAsync([BusinessFormsPermissions.ApprovalsDecide]);
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IFormPublicationProtector>();
+            services.AddSingleton(provider => new UnreadableFormPublicationProtector(new DataProtectionFormPublicationProtector(
+                provider.GetRequiredService<IDataProtectionProvider>())));
+            services.AddSingleton<IFormPublicationProtector>(provider => provider.GetRequiredService<UnreadableFormPublicationProtector>());
+        }));
+        HttpClient As(HttpClient original) { var client = host.CreateClient();
+            client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, original.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single()); return client; }
+        using var writer = As(author); using var approver = As(decider);
+        var form = Payload("Unreadable manifest " + Guid.NewGuid().ToString("N")[..10]); form["draft"]!["appOnly"] = true;
+        var saved = await CreateAsync(writer, form);
+        var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var fieldId = saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
+        using var check = await writer.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        var attempt = CheckPayload(saved); attempt["requestId"] = Guid.NewGuid().ToString();
+        attempt["checkToken"] = (await check.ReadJsonAsync()).GetProperty("checkToken").GetString();
+        using var accepted = await writer.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
+        var receipt = await accepted.ReadJsonAsync();
+        var versionId = receipt.GetProperty("versionId").GetGuid();
+        using var sent = await writer.PostAsync($"/api/forms/entries/{id}", new MultipartFormDataContent
+        {
+            { new StringContent(Guid.NewGuid().ToString("D")), "requestId" },
+            { new StringContent(versionId.ToString("D")), "versionId" },
+            { new StringContent(JsonSerializer.Serialize(new[] { new { fieldId, value = "Ana Ruiz" } }, JsonSerializerOptions.Web)), "answers" },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
+        var recordId = (await sent.ReadJsonAsync()).GetProperty("recordId").GetGuid();
+        var taskId = await factory.ExecuteDbContextAsync(async db =>
+        {
+            var deciderId = Guid.Parse(decider.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+            var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+            var roleId = await db.UserRoles.Where(link => link.UserId == deciderId).Select(link => link.RoleId).SingleAsync(Ct);
+            var version = await db.Set<BusinessFormVersion>().SingleAsync(value => value.Id == versionId, Ct);
+            var approval = new FormRuleAction(Guid.NewGuid(), "RequestApproval", roleId, null, false);
+            var received = new FormRule(Guid.NewGuid(), "Received", [], [approval]);
+            var ruleSet = BusinessFormRuleSet.Create(id, 1, version.Culture!, FormDraftPolicy.Serialize(new[] { received }), true, version.SchemaJson);
+            var at = factory.Clock.GetUtcNow().UtcDateTime;
+            var run = BusinessFormActionRun.Create(id, recordId, ruleSet.Id, received.Id, approval.Id, "Received", "RequestApproval", 0, null,
+                FormDraftPolicy.Serialize(new FormActionSnapshot(roleId, null, null, [])), true, at);
+            var task = BusinessFormTask.Open(id, recordId, ruleSet.Id, run.Id, roleId, authorId, at);
+            db.Set<BusinessFormRuleSet>().Add(ruleSet); db.Set<BusinessFormActionRun>().Add(run); db.Set<BusinessFormTask>().Add(task);
+            await db.SaveChangesAsync(Ct);
+            return task.Id;
+        });
+        host.Services.GetRequiredService<UnreadableFormPublicationProtector>().FailReadOperationId = receipt.GetProperty("operationId").GetGuid();
+
+        using var editor = await writer.GetAsync($"/api/forms/definitions/{id}", Ct);
+        Assert.Equal(HttpStatusCode.OK, editor.StatusCode);
+        Assert.Equal("es", (await editor.ReadJsonAsync()).GetProperty("publication").GetProperty("activeVersion").GetProperty("cultures")[0].GetString());
+        using var sheet = await writer.PostAsJsonAsync($"/api/forms/definitions/{id}/records/search", new { }, Ct);
+        Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
+        using var detail = await writer.GetAsync($"/api/forms/records/{recordId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        using var opened = await approver.GetAsync($"/api/forms/approvals/{taskId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+        using var inbox = await approver.GetAsync($"/api/forms/approvals?definitionId={id}", Ct);
+        Assert.Equal(HttpStatusCode.OK, inbox.StatusCode);
     }
 
     [Fact]
