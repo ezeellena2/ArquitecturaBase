@@ -13,17 +13,20 @@ internal sealed class ArcaRobotStoppedException(ArcaRobotFailure failure) : Exce
 /// <summary>
 /// Una sesión del navegador en ARCA (ADR 0026): el portal después del ingreso y la página del servicio abierto. Sus acciones
 /// esperan lo que dice <see cref="ArcaRobotScreens"/> y traducen lo que no aparece a un motivo: un captcha, una validación
-/// extra o una pantalla cambiada. Nunca guarda ni devuelve lo que se escribió.
+/// extra, ARCA sin responder (una página que no cargó a tiempo, la red caída o un 5xx, H18) o una pantalla cambiada (una
+/// página cargada sin lo esperado). Nunca guarda ni devuelve lo que se escribió.
 /// </summary>
 internal sealed class ArcaRobotSession
 {
     private readonly IPage portal;
+    private readonly Dictionary<IPage, NavigationWatch> watches = [];
 
     public ArcaRobotSession(IBrowserContext context, IPage portal)
     {
         Context = context;
         this.portal = portal;
         Page = portal;
+        watches[portal] = new NavigationWatch(portal);
     }
 
     public IBrowserContext Context { get; }
@@ -33,7 +36,7 @@ internal sealed class ArcaRobotSession
     /// <summary>Entra con la CUIT o CUIL y la clave; la clave se escribe en el campo y no queda en ningún otro lado.</summary>
     public async Task LoginAsync(Uri loginUrl, string loginCuit, Func<string> key)
     {
-        var response = await Guard(() => portal.GotoAsync(loginUrl.ToString()));
+        var response = await Guard(() => portal.GotoAsync(loginUrl.ToString()), navigation: true);
         if (response is null || response.Status >= 500) throw new ArcaRobotStoppedException(ArcaRobotFailure.Unavailable);
         await ThrowIfBlockedAsync();
         await Guard(() => portal.Locator(ArcaRobotScreens.LoginCuit).FillAsync(loginCuit));
@@ -52,8 +55,9 @@ internal sealed class ArcaRobotSession
         await Guard(() => portal.Locator(ArcaRobotScreens.PortalSearch).FillAsync(service));
         var link = portal.GetByRole(AriaRole.Link, new() { NameRegex = ArcaRobotScreens.Loose(service) }).First;
         var opened = await Guard(() => portal.RunAndWaitForPopupAsync(() => link.ClickAsync()));
-        await Guard(() => opened.WaitForLoadStateAsync(LoadState.DOMContentLoaded));
         Page = opened;
+        watches[opened] = new NavigationWatch(opened);
+        await Guard(() => opened.WaitForLoadStateAsync(LoadState.DOMContentLoaded), navigation: true);
         await ThrowIfBlockedAsync();
 
         var chooser = Page.GetByText(ArcaRobotScreens.Pattern("represent"));
@@ -91,7 +95,7 @@ internal sealed class ArcaRobotSession
     {
         var select = Page.Locator(selector).First;
         var labels = await Guard(() => select.Locator("option").AllInnerTextsAsync());
-        var match = labels.FirstOrDefault(option.IsMatch) ?? throw new ArcaRobotStoppedException(ArcaRobotFailure.ScreenChanged);
+        var match = labels.FirstOrDefault(option.IsMatch) ?? throw await ChangedAsync(Page);
         await Guard(() => select.SelectOptionAsync(new SelectOptionValue { Label = match }));
     }
 
@@ -124,6 +128,12 @@ internal sealed class ArcaRobotSession
 
     public Task CloseServiceAsync() => Page == portal ? Task.CompletedTask : Page.CloseAsync();
 
+    /// <summary>
+    /// H18: por qué no apareció lo esperado en la página abierta. Si su última navegación sigue sin respuesta o falló la red, o si
+    /// el documento cargado es un 5xx, ARCA no respondió; si cargó sin lo esperado, la pantalla cambió.
+    /// </summary>
+    public Task<ArcaRobotStoppedException> ChangedAsync() => ChangedAsync(Page);
+
     private ILocator Clickable(string text, bool exact = true)
     {
         var name = ArcaRobotScreens.Loose(text, exact);
@@ -143,14 +153,15 @@ internal sealed class ArcaRobotSession
         }
         catch (TimeoutException)
         {
+            if (Unanswered(portal)) throw new ArcaRobotStoppedException(ArcaRobotFailure.Unavailable);
             await ThrowIfBlockedAsync();
-            throw new ArcaRobotStoppedException(ArcaRobotFailure.ScreenChanged);
+            throw await ChangedAsync(portal);
         }
 
         if (await portal.Locator(expected).CountAsync() > 0 && await portal.Locator(expected).First.IsVisibleAsync()) return;
         await ThrowIfBlockedAsync();
         if (await portal.Locator(ArcaRobotScreens.LoginError).CountAsync() > 0) throw new ArcaRobotStoppedException(ArcaRobotFailure.LoginRejected);
-        throw new ArcaRobotStoppedException(ArcaRobotFailure.ScreenChanged);
+        throw await ChangedAsync(portal);
     }
 
     private async Task ThrowIfBlockedAsync()
@@ -163,18 +174,25 @@ internal sealed class ArcaRobotSession
 
     /// <summary>
     /// Traduce las fallas de Playwright a un motivo, sin su mensaje (puede repetir lo escrito): lo que no aparece es una
-    /// pantalla cambiada, salvo un captcha o un trámite extra; una red caída es ARCA sin responder.
+    /// pantalla cambiada, salvo un captcha, un trámite extra o ARCA sin responder; una red caída o una navegación que no
+    /// termina a tiempo son ARCA sin responder (H18).
     /// </summary>
-    private async Task<T> Guard<T>(Func<Task<T>> action)
+    private async Task<T> Guard<T>(Func<Task<T>> action, bool navigation = false)
     {
         try
         {
             return await action();
         }
+        catch (TimeoutException) when (navigation)
+        {
+            throw new ArcaRobotStoppedException(ArcaRobotFailure.Unavailable);
+        }
         catch (TimeoutException)
         {
+            // H18: lo que dice el vigía al vencer la espera. Mirar la página antes esperaría a la navegación que ARCA no contesta.
+            if (Unanswered(Page)) throw new ArcaRobotStoppedException(ArcaRobotFailure.Unavailable);
             await ThrowIfBlockedAsync();
-            throw new ArcaRobotStoppedException(ArcaRobotFailure.ScreenChanged);
+            throw await ChangedAsync(Page);
         }
         catch (PlaywrightException exception) when (exception.Message.Contains("net::", StringComparison.Ordinal))
         {
@@ -182,15 +200,92 @@ internal sealed class ArcaRobotSession
         }
         catch (PlaywrightException)
         {
+            if (Unanswered(Page)) throw new ArcaRobotStoppedException(ArcaRobotFailure.Unavailable);
             await ThrowIfBlockedAsync();
-            throw new ArcaRobotStoppedException(ArcaRobotFailure.ScreenChanged);
+            throw await ChangedAsync(Page);
         }
     }
 
-    private Task<bool> Guard(Func<Task> action) => Guard(async () =>
+    private Task<bool> Guard(Func<Task> action, bool navigation = false) => Guard(async () =>
     {
         await action();
         return true;
-    });
+    }, navigation);
+
+    private async Task<ArcaRobotStoppedException> ChangedAsync(IPage page) =>
+        new(Unanswered(page) || await ServerErrorAsync(page) ? ArcaRobotFailure.Unavailable : ArcaRobotFailure.ScreenChanged);
+
+    private bool Unanswered(IPage page) => watches.TryGetValue(page, out var watch) && watch.Unanswered;
+
+    // El estado HTTP del documento cargado (Navigation Timing); sin documento o a mitad de una navegación no hay un 5xx.
+    private static async Task<bool> ServerErrorAsync(IPage page)
+    {
+        try
+        {
+            return await page.EvaluateAsync<int>("() => performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0") >= 500;
+        }
+        catch (PlaywrightException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// H18: las navegaciones del marco principal de una página, para saber si una espera vencida es ARCA sin responder: una que
+    /// sigue sin respuesta, o la última, cortada por la red. Una navegación que reemplaza a otra la corta con ERR_ABORTED: eso no
+    /// es ARCA sin responder.
+    /// </summary>
+    private sealed class NavigationWatch
+    {
+        private readonly Lock gate = new();
+        private readonly HashSet<IRequest> pending = [];
+        private bool failed;
+
+        public NavigationWatch(IPage page)
+        {
+            page.Request += (_, request) =>
+            {
+                if (!Main(page, request)) return;
+                lock (gate)
+                {
+                    pending.Add(request);
+                    failed = false;
+                }
+            };
+            page.Response += (_, response) => Settle(page, response.Request, failedNow: false);
+            page.RequestFinished += (_, request) => Settle(page, request, failedNow: false);
+            page.RequestFailed += (_, request) =>
+                Settle(page, request, failedNow: request.Failure?.Contains("ERR_ABORTED", StringComparison.Ordinal) != true);
+        }
+
+        public bool Unanswered
+        {
+            get
+            {
+                lock (gate) return pending.Count > 0 || failed;
+            }
+        }
+
+        private void Settle(IPage page, IRequest request, bool failedNow)
+        {
+            if (!Main(page, request)) return;
+            lock (gate)
+            {
+                if (pending.Remove(request) && failedNow) failed = true;
+            }
+        }
+
+        private static bool Main(IPage page, IRequest request)
+        {
+            try
+            {
+                return request.IsNavigationRequest && request.Frame == page.MainFrame;
+            }
+            catch (PlaywrightException)
+            {
+                return false;
+            }
+        }
+    }
 
 }

@@ -351,7 +351,8 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
 - **Cada paso mira antes si ya está hecho,** y sus claves son las de la guía de la etapa 5 más `company.login`,
   `platform.login`, `platform.certificate` y `verify`, para que la pantalla abra la guía donde se frenó.
 - **Motivos:** ingreso rechazado, captcha, validación extra, pantalla cambiada, ARCA no responde e interrumpida. El robot no
-  resuelve captchas ni pide un segundo factor. Del lado de la plataforma, ARCA sin responder reintenta con espera creciente
+  resuelve captchas ni pide un segundo factor. ARCA no responde es una página que no carga a tiempo, la red caída o un 5xx en
+  cualquier página; pantalla cambiada, una página cargada a la que le falta lo esperado (H18). Del lado de la plataforma, ARCA sin responder reintenta con espera creciente
   (`RetryDelay`, hasta `MaxAttempts`); lo demás frena, y un ingreso rechazado no se reintenta para no bloquear la clave (H5):
   ni al volver a delegar ni al terminar a mano. Lo vuelve a probar sólo quien tiene `arca.manage`, después de actualizarla,
   con «Volver a probar la clave de la plataforma» en la zona del robot.

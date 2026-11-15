@@ -107,6 +107,20 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
         Assert.Single(web.Relations);
     }
 
+    // H18: a page that does not load in time or answers a 5xx is ARCA not answering, which the platform side retries; a changed
+    // screen is a loaded page that lacks what is expected.
+    [Theory]
+    [InlineData("pos")]
+    [InlineData("pos-5xx")]
+    public async Task A_page_that_does_not_load_or_answers_a_server_error_is_arca_not_answering(string down)
+    {
+        web.Down = down;
+
+        var outcome = await robot.RunCompanyAsync(CompanyJob(), Client(), new RecordingProgress(), Ct);
+
+        Assert.Equal(ArcaRobotOutcome.Stopped(ArcaRobotFailure.Unavailable, ArcaPointOfSaleRobotStep.StepKey), outcome);
+    }
+
     [Fact]
     public async Task A_lost_lease_stops_the_robot_without_another_step()
     {

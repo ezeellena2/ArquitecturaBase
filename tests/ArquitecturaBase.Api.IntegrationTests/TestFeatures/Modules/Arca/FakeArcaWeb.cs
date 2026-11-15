@@ -59,6 +59,9 @@ internal sealed class FakeArcaWeb : IAsyncDisposable
     /// <summary>Un servicio que responde una pantalla distinta de la esperada: «relations», «certs» o «pos».</summary>
     public string? Broken { get; set; }
 
+    /// <summary>H18: los puntos de venta no cargan a tiempo («pos») o contestan un 5xx («pos-5xx»).</summary>
+    public string? Down { get; set; }
+
     /// <summary>Cómo emite ARCA el certificado de un pedido; sin él, el alta del alias falla.</summary>
     public Func<string, string>? IssueCertificate { get; set; }
 
@@ -81,6 +84,7 @@ internal sealed class FakeArcaWeb : IAsyncDisposable
             Captcha = false;
             ExtraValidation = false;
             Broken = null;
+            Down = null;
             IssueCertificate = null;
             logins.Clear();
             Keys.Clear();
@@ -273,8 +277,10 @@ internal sealed class FakeArcaWeb : IAsyncDisposable
     private void MapPoints(WebApplication routes)
     {
         routes.MapGet("/svc/pos/home", (string rep) => Page("Puntos de venta", $"<a href=\"/pos/abm?rep={rep}\">A/B/M de Puntos de venta</a>"));
-        routes.MapGet("/pos/abm", (string rep) =>
+        routes.MapGet("/pos/abm", async (string rep) =>
         {
+            if (Down == "pos") await Task.Delay(TimeSpan.FromSeconds(6));
+            if (Down == "pos-5xx") return Page("Error", "<p>Servicio no disponible.</p>", StatusCodes.Status503ServiceUnavailable);
             if (Broken == "pos") return Page("Mantenimiento", "<p>El servicio está en mantenimiento.</p>");
             var rows = Points.Where(point => point.Owner == rep).Select(point =>
                 $"<tr><td>{point.Number:0000}</td><td>{Encode(point.System)}</td><td>{(point.Dropped ? "Baja" : "Vigente")}</td></tr>");
@@ -322,9 +328,9 @@ internal sealed class FakeArcaWeb : IAsyncDisposable
         + "<form method=\"post\" action=\"/login/next\"><label for=\"F1:username\">CUIT/CUIL</label><input id=\"F1:username\" name=\"username\">"
         + "<button id=\"F1:btnSiguiente\" type=\"submit\">Siguiente</button></form>";
 
-    private static IResult Page(string title, string body) => Results.Content(
+    private static IResult Page(string title, string body, int statusCode = StatusCodes.Status200OK) => Results.Content(
         $"<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><title>{Encode(title)}</title></head><body>{body}</body></html>",
-        "text/html; charset=utf-8");
+        "text/html; charset=utf-8", statusCode: statusCode);
 
     private static string User(HttpRequest request) => request.Cookies["fake-arca"] ?? string.Empty;
 

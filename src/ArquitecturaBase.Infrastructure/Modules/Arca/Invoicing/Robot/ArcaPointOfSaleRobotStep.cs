@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
-using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Robot;
 
 namespace ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Robot;
@@ -45,7 +44,7 @@ internal sealed partial class ArcaPointOfSaleRobotStep : IArcaRobotCompanyStep
         // Playwright compara con el texto de la fila sin separar las celdas («0002Factura…»): el borde es un no dígito.
         var created = session.Rows(ArcaRobotScreens.Pattern(ArcaRobotScreens.WebServicesSystem))
             .Filter(new() { HasTextRegex = new Regex($@"(^|\D)0*{number}(\D|$)", RegexOptions.None, TimeSpan.FromSeconds(1)) });
-        if (await created.CountAsync() == 0) throw new ArcaRobotStoppedException(ArcaRobotFailure.ScreenChanged);
+        if (await created.CountAsync() == 0) throw await session.ChangedAsync();
         return number.ToString(CultureInfo.InvariantCulture);
     }
 
