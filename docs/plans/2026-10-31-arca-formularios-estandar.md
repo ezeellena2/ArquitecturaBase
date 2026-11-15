@@ -523,6 +523,19 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     si ya está en la tabla, así repetir la corrida no da de alta otro (ADR 0026, decisión 5). En el mismo paso espera la tabla
     después del clic (O9). La regla de ARCA deja de decir «o usa el que ya hay». Chico.
 
+**Hecha el 2026-11-15:** H5 en 237ea6df (front ba0761e4), H18 en 3c0b4d3a, H19 en f4e5a372 (front 341cea32), H20 en 8749f436,
+H21 en 51bfc96a, H22 en e322d9b5 y O10 en 02029be2.
+- **Cambios:** H5 rearma con `POST …/robot-runs/current/platform-rearm` y un error propio (`RobotPlatformNotRejected`), y el
+  correo del aviso dice cómo. En H18 la sesión vigila las navegaciones de cada página y, al vencer una espera, lee el vigía
+  antes de mirar la página, porque mirarla esperaría a la navegación que ARCA no contesta; un 5xx se reconoce por el estado
+  HTTP del documento. En H19 también avisa el certificado que falta, y cada lado dice en `alerted` si el aviso salió. En H20
+  el latido es cada `StepTimeout` (la reserva cubre cuatro) y de mejor esfuerzo. En O10 lo que dejan los pasos sobrevive a
+  reiniciar la corrida, y la espera de O9 es el «Agregar» de la tabla y la fila nueva. De H22 quedan para la corrida real la
+  medición y, si no entra, correr un lado por vez por host.
+- **Pruebas:** el build sin advertencias; Domain (1168), Application (6046) y ArchitectureTests (226) enteros; la integración
+  del robot (31, con Chromium y por HTTP); en el front, los tests de la conexión de ARCA, tipos y oxlint.
+- **Revisión:** propia, porque el cupo ya pasaba el 85 %.
+
 ### Etapa 8: lo que se ve y lo que se sigue
 
 31. **H11. Por WhatsApp, quien cargó se entera si la emisión falla.** Cuando la emisión termina fallida, se avisa a quien cargó,
