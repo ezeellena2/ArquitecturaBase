@@ -223,8 +223,11 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public bool HidesAcceptedRequests { get; set; }
     // The same for only the next lookups, counted down: a request that looks before the other one commits and again after.
     public int HiddenAcceptedLookups { get; set; }
+    // Runs before each lookup: what changes between one lookup and the next (a permission taken away).
+    public Action? BeforeLookup { get; set; }
     public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid actor, Guid request, CancellationToken ct)
     {
+        BeforeLookup?.Invoke();
         LastReadActor = actor; LastReadRequest = request;
         if (HidesAcceptedRequests) return Task.FromResult<AiAssistantTurnRow?>(null);
         if (HiddenAcceptedLookups > 0)

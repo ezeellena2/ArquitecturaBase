@@ -51,11 +51,14 @@ internal sealed class AiAssistantAudioService(IAssistantOperations operations, A
         });
 
     // The normalization another upload of the same request accepted meanwhile, compared with this recording; null when there is none.
+    // Another failure of the lookup (the permission taken away in between) answers as itself, never as the conflict (I13, review).
     private async Task<Result<AiAssistantAudioResponse>?> RecoverAsync(AssistantChannelContext context, SubmitAiAssistantAudioRequest request,
         string mediaType, CancellationToken ct)
     {
         var found = await operations.GetAsync(context, request.RequestId, ct);
-        return found.IsSuccess ? Recovered(found.Value, request, mediaType) : null;
+        if (found.IsSuccess) return Recovered(found.Value, request, mediaType);
+        if (found.Error == AiAssistantErrors.NotFound) return null;
+        return found.Error;
     }
 
     public Task<Result<AiAssistantAudioResponse>> GetAsync(Guid requestId, string culture, CancellationToken cancellationToken) =>

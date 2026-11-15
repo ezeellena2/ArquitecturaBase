@@ -56,12 +56,15 @@ internal sealed class AiAssistantDocumentService(IAssistantOperations operations
             return await RecoverAsync(context, request, name, cancellationToken) ?? accepted.Error;
         });
 
-    // The reading another upload of the same request accepted meanwhile, compared with this file; null when there is none.
+    // The reading another upload of the same request accepted meanwhile, compared with this file; null when there is none. Another
+    // failure of the lookup (the permission taken away in between) answers as itself, never as the conflict (I13, review).
     private async Task<Result<AiAssistantDocumentResponse>?> RecoverAsync(AssistantChannelContext context, SubmitAiAssistantDocumentRequest request,
         string name, CancellationToken ct)
     {
         var found = await operations.GetAsync(context, request.RequestId, ct);
-        return found.IsSuccess ? Recovered(found.Value, request, name) : null;
+        if (found.IsSuccess) return Recovered(found.Value, request, name);
+        if (found.Error == AiAssistantErrors.NotFound) return null;
+        return found.Error;
     }
 
     public Task<Result<AiAssistantDocumentResponse>> GetAsync(Guid requestId, string culture, CancellationToken cancellationToken) =>

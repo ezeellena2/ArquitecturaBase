@@ -290,6 +290,23 @@ public sealed class AiAssistantHomeDocumentTests
             (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
     }
 
+    // I13, review: when the acceptance meets the other upload's and the lookup after it fails for another reason (here the permission was
+    // taken away in between), that reason answers, and not the conflict, which the browser would take for another file.
+    [Fact]
+    public async Task An_overlapping_upload_whose_second_lookup_fails_answers_that_failure_and_not_a_conflict()
+    {
+        var host = new Host();
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(requestId: requestId)).IsSuccess);
+        host.Fixture.Clock.Advance(TimeSpan.FromMinutes(1));
+        host.Fixture.Store.HiddenAcceptedLookups = 1;
+        var lookups = 0;
+        host.Fixture.Store.BeforeLookup = () => { if (++lookups == 2) host.Fixture.Permissions.Permissions[host.ActorId] = []; };
+
+        Assert.Equal(AiAssistantErrors.Forbidden, (await host.UploadAsync(requestId: requestId)).Error);
+        Assert.Equal((2, 1, 1), (lookups, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
+    }
+
     // B2: a reading belongs to its person and its request: changing the language or the zone while it is read does not lose it, neither
     // for its status nor for a retry, and another person with the same request never finds it.
     [Fact]
