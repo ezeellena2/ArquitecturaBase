@@ -10,10 +10,17 @@ public static class BusinessFormsApiRegistration
     public const string WritePolicy = "forms-write";
     // The official preview and the status of a publication ask Meta several times per request: ten a minute per person (F17).
     public const string MetaReadPolicy = "forms-meta-read";
+    // Exports and imports (records and catalogs) heavy enough to hold the copy's memory: at most this many at once per copy (F11, F12).
+    public const int GlobalExportLimit = 2;
     public static IServiceCollection AddBusinessFormsApi(this IServiceCollection services)
     {
         services.Configure<RateLimiterOptions>(options =>
         {
+            // Chained with the endpoint policy by the middleware: the per-person slot stays, and the whole copy shares a small cap.
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                context.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName == ExportPolicy
+                    ? RateLimitPartition.GetConcurrencyLimiter(ExportPolicy, _ => new ConcurrencyLimiterOptions { PermitLimit = GlobalExportLimit, QueueLimit = 0 })
+                    : RateLimitPartition.GetNoLimiter(string.Empty));
             options.AddPolicy(ExportPolicy, context => RateLimitPartition.GetConcurrencyLimiter(
                 context.RequestServices.GetRequiredService<ICurrentUser>().UserId?.ToString() ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
                 _ => new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 }));
