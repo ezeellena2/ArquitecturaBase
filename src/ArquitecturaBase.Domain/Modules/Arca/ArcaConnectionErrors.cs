@@ -16,6 +16,8 @@ public static class ArcaConnectionErrors
     public static readonly Error CertificateExpired = Error.Validation("Arca.Connection.CertificateExpired", "The certificate has expired.");
     public static readonly Error NoPendingRequest = Error.Validation("Arca.Connection.NoPendingRequest", "There is no pending certificate request.");
     public static readonly Error RevisionConflict = Error.Conflict("Arca.Connection.RevisionConflict", "The connection changed. Review its current revision.");
+    public static readonly Error ServiceNotChosen = Error.Validation("Arca.Connection.ServiceNotChosen", "The ARCA connection has not chosen that service.");
+    public static readonly Error NotActive = Error.Validation("Arca.Connection.NotActive", "The ARCA connection is not active.");
     public static readonly Error NotConnected = Error.NotFound("Arca.Connection.NotConnected", "There is no ARCA connection.");
     public static readonly Error CertificateNotLoaded = Error.Validation("Arca.Connection.CertificateNotLoaded", "Upload the certificate first.");
     public static readonly Error ServiceNotAuthorized = Error.Validation("Arca.Connection.ServiceNotAuthorized", "ARCA did not authorize the service for the certificate.");

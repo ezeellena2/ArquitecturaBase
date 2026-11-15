@@ -48,13 +48,17 @@ internal static class ArcaPersistenceScenario
         var request = credentials.CreateRequest(connectionId, certificateId, Cuit, "plataforma");
         var issued = authority.Issue(request.RequestPem, ArcaEnvironment.Testing, nowUtc.AddYears(1));
         var inspected = credentials.Inspect(connectionId, certificateId, request.ProtectedPrivateKey, issued, Cuit, ArcaEnvironment.Testing, nowUtc).Value;
-        await factory.InTransactionAsync(services =>
+        await factory.InTransactionAsync(async services =>
         {
             var certificate = ArcaCertificate.Request(certificateId, connectionId, "plataforma", request.RequestPem, request.ProtectedPrivateKey).Value;
             certificate.Load(inspected.CertificatePem, inspected.NotBeforeUtc, inspected.NotAfterUtc, inspected.Thumbprint);
             certificate.Promote();
-            services.GetRequiredService<IArcaConnectionRepository>().Add(certificate);
-            return Task.CompletedTask;
+            var repository = services.GetRequiredService<IArcaConnectionRepository>();
+            repository.Add(certificate);
+            // Active, as the alta leaves it after a passing test: what reads only from an active connection (H4) reads.
+            var connection = (await repository.GetConnectionAsync(TestContext.Current.CancellationToken))!;
+            connection.CertificateLoaded();
+            connection.RecordTest(passed: true, familiesComplete: true, nowUtc);
         });
         return new ArcaCertificateRef(connectionId, certificateId, Cuit, ArcaEnvironment.Testing, request.ProtectedPrivateKey, inspected.CertificatePem);
     }

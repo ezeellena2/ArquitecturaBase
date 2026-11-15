@@ -1,3 +1,6 @@
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Connection;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.Arca;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -47,6 +50,44 @@ public sealed class ArcaStructuredCatalogFeedTests(ApiFactory factory) : IDispos
                 .Single(feed => feed.Catalogs.Any(catalog => catalog.Key == (feedOf ?? key))).ReadAsync(key, ct);
         }
     }
+
+    // H4: without Facturación chosen, or with the connection asking for attention (a service added waits for a passing test), the
+    // feed answers why without asking ARCA for a ticket that would not serve.
+    [Fact]
+    public async Task Without_invoicing_chosen_or_an_active_connection_the_feed_does_not_ask_for_a_ticket()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = factory.Services.GetRequiredService<FakeArca>();
+        arca.Reset();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            await ChooseAsync([]);
+            Assert.Equal("Arca.Connection.ServiceNotChosen", (await ReadAsync("arca.concepts")).FailureCode);
+            await ChooseAsync([Wsfe]);
+            Assert.Equal("Arca.Connection.NotActive", (await ReadAsync("arca.concepts")).FailureCode);
+            Assert.Equal(0, arca.Calls("loginCms", Wsfe.Value));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+
+        Task ChooseAsync(ArcaServiceCode[] chosen) => factory.InTransactionAsync(async services =>
+        {
+            var connection = (await services.GetRequiredService<IArcaConnectionRepository>().GetConnectionAsync(ct))!;
+            Assert.True(connection.ChooseServices(chosen, [Wsfe, Registry], [Registry]).IsSuccess);
+        });
+
+        async Task<StructuredFeedReadResponse> ReadAsync(string key)
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetServices<IStructuredCatalogFeed>().Single(feed => feed.Catalogs.Any(catalog => catalog.Key == key)).ReadAsync(key, ct);
+        }
+    }
+
+    private static readonly ArcaServiceCode Wsfe = ArcaServiceCode.Create("wsfe")!.Value;
+    private static readonly ArcaServiceCode Registry = ArcaServiceCode.Create("ws_sr_constancia_inscripcion")!.Value;
 
     public void Dispose() => authority.Dispose();
 }

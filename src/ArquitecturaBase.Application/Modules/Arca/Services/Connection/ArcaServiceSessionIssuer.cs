@@ -27,6 +27,19 @@ internal sealed class ArcaServiceSessionIssuer(IArcaConnectionReader reader, IAr
     public Task<Result<ArcaServiceSession>> OpenAsSignerAsync(ArcaServiceCode service, CancellationToken cancellationToken) =>
         OpenAsync(service, onBehalfOfCompany: false, cancellationToken);
 
+    /// <summary>
+    /// H4: for a read that can wait (the tables of ARCA as catalogs), only a service the connection chose while it is active;
+    /// otherwise it answers why without asking ARCA for a ticket that would not serve. A service just added waits for a passing
+    /// test (B4).
+    /// </summary>
+    public async Task<Result<ArcaServiceSession>> OpenChosenAsync(ArcaServiceCode service, CancellationToken cancellationToken)
+    {
+        if (await reader.FindAsync(cancellationToken) is not { } connection) return ArcaConnectionErrors.NotConnected;
+        if (!connection.EnabledServices.Contains(service.Value, StringComparer.Ordinal)) return ArcaConnectionErrors.ServiceNotChosen;
+        if (connection.Status != ArcaConnectionStatus.Active) return ArcaConnectionErrors.NotActive;
+        return await OpenAsync(service, cancellationToken);
+    }
+
     private async Task<Result<ArcaServiceSession>> OpenAsync(ArcaServiceCode service, bool onBehalfOfCompany, CancellationToken cancellationToken)
     {
         if (await reader.FindSigningCertificateAsync(ArcaCertificateRole.Active, cancellationToken) is not { } certificate)

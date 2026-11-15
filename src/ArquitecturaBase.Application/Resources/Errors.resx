@@ -173,6 +173,8 @@
   <data name="Arca.Connection.NoPendingRequest" xml:space="preserve"><value>No hay un pedido de certificado pendiente.</value></data>
   <data name="Arca.Connection.RevisionConflict" xml:space="preserve"><value>Otra persona cambió la conexión. Leé lo actual y volvé a intentar.</value></data>
   <data name="Arca.Connection.NotConnected" xml:space="preserve"><value>Todavía no hay una conexión con ARCA.</value></data>
+  <data name="Arca.Connection.ServiceNotChosen" xml:space="preserve"><value>La conexión con ARCA no tiene elegido ese servicio.</value></data>
+  <data name="Arca.Connection.NotActive" xml:space="preserve"><value>La conexión con ARCA no está activa.</value></data>
   <data name="Arca.Connection.CertificateNotLoaded" xml:space="preserve"><value>Subí el certificado de ARCA antes de seguir.</value></data>
   <data name="Arca.Connection.ServiceNotAuthorized" xml:space="preserve"><value>ARCA no autorizó ese servicio para el certificado. Asocialo en el Administrador de Relaciones de ARCA y volvé a probar.</value></data>
   <data name="Arca.Connection.ClockSkew" xml:space="preserve"><value>ARCA rechazó el pedido porque la hora del servidor no coincide con la suya. Revisá la hora del servidor.</value></data>
