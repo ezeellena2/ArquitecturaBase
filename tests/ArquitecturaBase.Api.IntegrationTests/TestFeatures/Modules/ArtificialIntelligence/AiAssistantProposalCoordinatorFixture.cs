@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Ser
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 
@@ -16,6 +17,8 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     private readonly Action? stopAfterAdvance;
     private readonly bool normalize;
     private readonly bool read;
+    private readonly TimeProvider clock;
+    private int monitorReads;
     public AssistantNormalizedAudio? CompletedAudio { get; private set; }
     public StructuredDocumentReading? CompletedReading { get; private set; }
     public LlmConversationUsage? CompletedUsage { get; private set; }
@@ -31,11 +34,14 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public int RecordCalls { get; private set; }
     public int FailCalls { get; private set; }
     public bool CompletionTokenWasCanceled { get; private set; }
+    /// <summary>B3: the cancellation monitor's first read fails, as in a brief database outage, while the provider answers.</summary>
+    public bool FailFirstMonitorRead { get; init; }
     public AiAssistantProposalCoordinatorFixture(TimeProvider clock, Action? stopAfterAdvance, bool normalize = false, bool read = false)
     {
         this.normalize = normalize;
         this.read = read;
         this.stopAfterAdvance = stopAfterAdvance;
+        this.clock = clock;
         var now = clock.GetUtcNow().UtcDateTime;
         var actor = Guid.NewGuid();
         var conversation = AiConversation.Create(actor, now, "fixture-proposal");
@@ -62,12 +68,25 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
         return Task.FromResult(Result.Success(BeginCalls == 1));
     }
     public Task<Result<AiAssistantExecutionContextResponse>> PrepareAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken) => Task.FromResult(Result.Success(context));
-    public Task<Result<LlmConversationResponse>> CallProviderAsync(AiAssistantExecutionContextResponse accepted, CancellationToken cancellationToken)
+    public async Task<Result<LlmConversationResponse>> CallProviderAsync(AiAssistantExecutionContextResponse accepted, CancellationToken cancellationToken)
     {
         ProviderCalls++;
-        if (ProviderError is { } error) return Task.FromResult(Result.Failure<LlmConversationResponse>(error));
-        if (read) return Task.FromResult<Result<LlmConversationResponse>>(new LlmConversationResponse(LlmDocumentReadingResponse.Read, [], null, new(1200, 300)));
-        return Task.FromResult<Result<LlmConversationResponse>>(new LlmConversationResponse(normalize ? "normalizedAudio" : "tools", [], null, normalize ? new(null, null) { AudioSeconds = 2.75m } : new(10, 2)));
+        if (FailFirstMonitorRead) await AnswerAfterTwoMonitorReadsAsync(cancellationToken);
+        if (ProviderError is { } error) return Result.Failure<LlmConversationResponse>(error);
+        if (read) return new LlmConversationResponse(LlmDocumentReadingResponse.Read, [], null, new(1200, 300));
+        return new LlmConversationResponse(normalize ? "normalizedAudio" : "tools", [], null, normalize ? new(null, null) { AudioSeconds = 2.75m } : new(10, 2));
+    }
+
+    // The provider answers once the monitor read twice (the first read failed); a canceled turn aborts the request, as a real
+    // provider call does. The fake clock moves the monitor's 500 ms wait; the short real wait lets its continuation run.
+    private async Task AnswerAfterTwoMonitorReadsAsync(CancellationToken cancellationToken)
+    {
+        while (Volatile.Read(ref monitorReads) < 2 && !cancellationToken.IsCancellationRequested)
+        {
+            ((FakeTimeProvider)clock).Advance(TimeSpan.FromMilliseconds(500));
+            await Task.Delay(TimeSpan.FromMilliseconds(10), CancellationToken.None);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
     }
     public Task<Result<AiAssistantAdvanceResponse>> AdvanceAsync(AiAssistantExecutionContextResponse accepted, LlmConversationResponse response, CancellationToken cancellationToken)
     {
@@ -100,7 +119,10 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
         return Task.FromResult(Result.Success());
     }
     private AiAssistantTurnRow Row => CompleteCalls > 0 ? context.Turn with { State = AiAssistantTurnState.Completed } : context.Turn;
-    public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurnRow?>(Row);
+    public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) =>
+        FailFirstMonitorRead && Interlocked.Increment(ref monitorReads) == 1
+            ? throw new TimeoutException("Fictional brief database outage.")
+            : Task.FromResult<AiAssistantTurnRow?>(Row);
     public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid actor, Guid requestId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurnRow?>(Row);
     public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid actor, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();

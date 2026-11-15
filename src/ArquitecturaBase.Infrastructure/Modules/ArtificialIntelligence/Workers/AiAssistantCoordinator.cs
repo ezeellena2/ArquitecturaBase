@@ -128,9 +128,9 @@ internal sealed partial class AiAssistantCoordinator(
 
     private async Task ObserveCancellationAsync(AiAssistantClaimResponse claim, CancellationTokenSource execution, CancellationToken cancellationToken)
     {
-        try
+        while (!cancellationToken.IsCancellationRequested)
         {
-            while (!cancellationToken.IsCancellationRequested)
+            try
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(500), timeProvider, cancellationToken);
                 await using var scope = scopes.CreateAsyncScope();
@@ -141,12 +141,13 @@ internal sealed partial class AiAssistantCoordinator(
                     return;
                 }
             }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        catch (Exception exception)
-        {
-            LogExecutionFailed(logger, claim.TurnId, exception.GetType().Name);
-            await execution.CancelAsync();
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return; }
+            catch (Exception exception)
+            {
+                // A failed check (a brief database outage) is not a cancellation: the next check follows, and the final
+                // confirmation verifies fence, state and cancellation again.
+                LogCancellationCheckFailed(logger, claim.TurnId, exception.GetType().Name);
+            }
         }
     }
 
@@ -195,6 +196,8 @@ internal sealed partial class AiAssistantCoordinator(
     private static partial void LogUnitRejected(ILogger logger, string unit, string code);
     [LoggerMessage(Level = LogLevel.Warning, Message = "Assistant turn {TurnId} stopped with {ExceptionType}; no provider request is repeated.")]
     private static partial void LogExecutionFailed(ILogger logger, Guid turnId, string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Assistant turn {TurnId} cancellation check failed with {ExceptionType}; the next check follows.")]
+    private static partial void LogCancellationCheckFailed(ILogger logger, Guid turnId, string exceptionType);
     [LoggerMessage(Level = LogLevel.Warning, Message = "Assistant result persistence failed with {ExceptionType}; only its commit is retried.")]
     private static partial void LogCompletionFailed(ILogger logger, string exceptionType);
 }

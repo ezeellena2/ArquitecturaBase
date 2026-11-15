@@ -39,4 +39,27 @@ public sealed class AiAssistantProposalCoordinatorTests
         Assert.False(await coordinator.ProcessNextAsync(TestContext.Current.CancellationToken));
         Assert.Equal(1, fixture.ProviderCalls);
     }
+
+    // B3: a check of the cancellation monitor that fails, as in a brief database outage, is not a cancellation. The final
+    // confirmation checks fence, state and cancellation again.
+    [Fact]
+    public async Task A_failed_cancellation_check_does_not_cancel_the_turn_and_it_ends_with_the_providers_response()
+    {
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, null) { FailFirstMonitorRead = true };
+        var services = new ServiceCollection();
+        services.AddSingleton<IAiAssistantDispatchService>(fixture);
+        services.AddSingleton<IAiAssistantExecutionService>(fixture);
+        services.AddSingleton<IAiAssistantReader>(fixture);
+        await using var provider = services.BuildServiceProvider();
+        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), clock,
+            Options.Create(new AiAssistantOptions()), NullLogger<AiAssistantCoordinator>.Instance);
+
+        Assert.True(await coordinator.ProcessNextAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(1, fixture.ProviderCalls);
+        Assert.Equal(0, fixture.FailCalls);
+        Assert.Equal(1, fixture.CompleteCalls);
+        Assert.Equal(fixture.Proposal.Id, fixture.CompletedProposal!.Id);
+    }
 }
