@@ -62,14 +62,19 @@ public sealed class ArcaConnection : Entity, IAuditable
         return Create(mode, cuit, platform, environment, chosen, installed, required);
     }
 
-    /// <summary>Reemplaza los servicios elegidos; los obligatorios quedan siempre.</summary>
+    /// <summary>
+    /// Reemplaza los servicios elegidos; los obligatorios quedan siempre. Un servicio que se suma a una conexión activa la deja
+    /// «requiere atención» hasta que una prueba dé verde, porque antes hay que autorizarlo en ARCA; no se prueba solo (B4).
+    /// </summary>
     public Result ChooseServices(
         IReadOnlyCollection<ArcaServiceCode> chosen,
         IReadOnlyCollection<ArcaServiceCode> installed,
         IReadOnlyCollection<ArcaServiceCode> required)
     {
         if (Services(chosen, installed, required) is not { } services) return ArcaConnectionErrors.ServiceNotInstalled;
+        var added = services.Except(EnabledServices, StringComparer.Ordinal).Any();
         EnabledServices = services;
+        if (added && Status == ArcaConnectionStatus.Active) (Status, LastTestPassed) = (ArcaConnectionStatus.NeedsAttention, null);
         Advance();
         return Result.Success();
     }
@@ -99,9 +104,10 @@ public sealed class ArcaConnection : Entity, IAuditable
     /// <summary>Vuelve a calcular el estado cuando una familia completó o perdió su configuración, sin otra prueba.</summary>
     public void ReevaluateFamilies(bool familiesComplete) => Evaluate(familiesComplete);
 
+    /// <summary>El certificado activo venció: una conexión activa requiere atención; en el alta, sigue sin verificar (B4).</summary>
     public void CertificateExpired()
     {
-        if (Status is ArcaConnectionStatus.Active or ArcaConnectionStatus.Unverified) Status = ArcaConnectionStatus.NeedsAttention;
+        if (Status == ArcaConnectionStatus.Active) Status = ArcaConnectionStatus.NeedsAttention;
         Advance();
     }
 

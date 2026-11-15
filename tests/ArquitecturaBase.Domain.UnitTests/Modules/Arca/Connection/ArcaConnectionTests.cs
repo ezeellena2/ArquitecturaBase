@@ -159,6 +159,35 @@ public sealed class ArcaConnectionTests
         Assert.Equal(revision + 1, connection.Revision);
     }
 
+    // B4: in the alta an expired certificate leaves the connection unverified, as the rule says; only an active one needs attention.
+    [Fact]
+    public void An_expired_certificate_leaves_an_unverified_connection_unverified()
+    {
+        var connection = Loaded();
+
+        connection.CertificateExpired();
+
+        Assert.Equal(ArcaConnectionStatus.Unverified, connection.Status);
+    }
+
+    // B4 (decision 5): a service added to an active connection asks for attention until a test passes, without testing on its own;
+    // taking one out does not.
+    [Fact]
+    public void Adding_a_service_to_an_active_connection_needs_attention_until_a_passing_test()
+    {
+        var connection = Active();
+        Assert.True(connection.ChooseServices([], Installed, Required).IsSuccess);
+        Assert.Equal(ArcaConnectionStatus.Active, connection.Status);
+
+        Assert.True(connection.ChooseServices([Invoicing], Installed, Required).IsSuccess);
+        Assert.Equal((ArcaConnectionStatus.NeedsAttention, (bool?)null), (connection.Status, connection.LastTestPassed));
+        connection.ReevaluateFamilies(familiesComplete: true);
+        Assert.Equal(ArcaConnectionStatus.NeedsAttention, connection.Status);
+
+        connection.RecordTest(passed: true, familiesComplete: true, Now.AddMinutes(5));
+        Assert.Equal(ArcaConnectionStatus.Active, connection.Status);
+    }
+
     [Fact]
     public void The_text_representation_masks_the_cuit()
     {

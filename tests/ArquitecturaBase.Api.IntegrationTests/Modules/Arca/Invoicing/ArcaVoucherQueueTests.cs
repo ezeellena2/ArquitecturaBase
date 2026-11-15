@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.Arca;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca;
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca.Registry;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
@@ -767,6 +768,33 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
             var issued = await VoucherAsync(taken.RequestKey);
             Assert.Equal((ArcaVoucherState.Authorized, (long?)14), (issued.State, issued.Number));
             Assert.Equal(3, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // B4: an expired certificate is cut before calling ARCA: the voucher waits for the connection, without asking for a number.
+    [Fact]
+    public async Task With_an_expired_certificate_the_voucher_waits_for_the_connection_without_calling_arca()
+    {
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var order = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(order);
+            await factory.ExecuteScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<ArcaCertificate>()
+                .Where(certificate => certificate.Role == ArcaCertificateRole.Active)
+                .ExecuteUpdateAsync(set => set.SetProperty(certificate => certificate.NotAfterUtc, factory.Clock.GetUtcNow().UtcDateTime.AddMinutes(-1)),
+                    TestContext.Current.CancellationToken));
+
+            Assert.False(await ProcessAsync());
+
+            var waiting = await VoucherAsync(order.RequestKey);
+            Assert.Equal((ArcaVoucherState.Queued, "Arca.Connection.CertificateExpired"), (waiting.State, waiting.FailureCode));
+            Assert.Equal((0, 0), (arca.Calls("FECompUltimoAutorizado", FakeArca.InvoicingService), arca.Calls("FECAESolicitar", FakeArca.InvoicingService)));
         }
         finally
         {

@@ -44,9 +44,12 @@ Sin conexión → esperando el certificado → sin verificar → activa ⇄ requ
 - Subir el primer certificado lo prueba y deja la conexión sin verificar, o activa si todo salió bien.
 - Una prueba en verde con el certificado vigente y las familias elegidas completas lleva a «activa».
 - Una prueba fallida, un certificado vencido o una familia elegida sin su configuración llevan una conexión activa a
-  «requiere atención»; en el alta, la dejan sin verificar.
-- El servidor guarda el resultado general de la última prueba y su hora, no el de cada servicio. Elegir servicios sólo
-  guarda la elección: la pantalla vuelve a probar.
+  «requiere atención»; en el alta, la dejan sin verificar. El vencimiento se calcula al leer, y con el certificado vencido
+  nadie llama a ARCA: las familias reciben `Arca.Connection.CertificateExpired`, la cola espera por la conexión y «Probar»
+  responde ese código (B4).
+- El servidor guarda el resultado general de la última prueba y su hora, no el de cada servicio. Elegir servicios guarda la
+  elección; sumar uno a una conexión activa la deja «requiere atención» hasta que una prueba dé verde, porque antes hay que
+  autorizarlo en ARCA, y la pantalla no prueba sola (B4).
 
 ## Contrato HTTP
 

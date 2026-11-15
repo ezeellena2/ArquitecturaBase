@@ -148,7 +148,7 @@ internal static class ArcaInvoiceIssuePolicy
     private static readonly HashSet<string> ConnectionCodes = new(StringComparer.Ordinal)
     {
         ArcaConnectionErrors.NotConnected.Code, ArcaConnectionErrors.ServiceNotAuthorized.Code, ArcaConnectionErrors.ServiceNotDelegated.Code,
-        ArcaConnectionErrors.ServiceBlocked(0).Code, ArcaConnectionErrors.ClockSkew.Code,
+        ArcaConnectionErrors.ServiceBlocked(0).Code, ArcaConnectionErrors.ClockSkew.Code, ArcaConnectionErrors.CertificateExpired.Code,
     };
 
     private static string WaitingKey(ArcaVoucherResponse voucher) =>

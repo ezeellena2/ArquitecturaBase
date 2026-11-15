@@ -22,17 +22,27 @@ public sealed record ArcaConnectionResponse(
     DateTime? LastTestedAtUtc,
     long Revision)
 {
-    public static ArcaConnectionResponse From(ArcaConnectionRow? row, IEnumerable<ArcaInstalledService> installed, ArcaPlatformResponse? platform)
+    /// <summary>
+    /// La conexión como la ve la pantalla. El vencimiento del certificado se calcula al leer (B4): una conexión activa con el
+    /// certificado activo vencido requiere atención, sin esperar otra prueba.
+    /// </summary>
+    public static ArcaConnectionResponse From(ArcaConnectionRow? row, IEnumerable<ArcaInstalledService> installed, ArcaPlatformResponse? platform,
+        DateTime nowUtc)
     {
         IReadOnlyList<ArcaInstalledServiceResponse> services =
             [.. installed.Select(service => new ArcaInstalledServiceResponse(service.Code.Value, service.Family, service.Required, service.Delegated))];
         return row is null
             ? new(null, null, null, null, null, platform, services, [], [], null, null, 0)
-            : new(row.Status, row.Mode, row.Environment, row.Cuit, row.PlatformCuit, platform, services, row.EnabledServices,
+            : new(StatusAt(row, nowUtc), row.Mode, row.Environment, row.Cuit, row.PlatformCuit, platform, services, row.EnabledServices,
                 [.. row.Certificates.Select(certificate => new ArcaCertificateResponse(certificate.Role, certificate.Alias, certificate.IsLoaded,
                     certificate.NotBeforeUtc, certificate.NotAfterUtc, certificate.Thumbprint))],
                 row.LastTestPassed, row.LastTestedAtUtc, row.Revision);
     }
+
+    private static ArcaConnectionStatus StatusAt(ArcaConnectionRow row, DateTime nowUtc) =>
+        row.Status == ArcaConnectionStatus.Active
+        && row.Certificates.Any(certificate => certificate.Role == ArcaCertificateRole.Active && certificate.NotAfterUtc <= nowUtc)
+            ? ArcaConnectionStatus.NeedsAttention : row.Status;
 
     public override string ToString() =>
         $"ArcaConnectionResponse {{ cuit: {(Cuit is null ? null : CuitNumber.Mask(Cuit))}, status: {Status}, revision: {Revision} }}";

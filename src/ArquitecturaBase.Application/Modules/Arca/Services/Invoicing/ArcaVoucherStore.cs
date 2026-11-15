@@ -93,6 +93,13 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
             return Nothing(sequence, owner, fence);
         }
 
+        // B4: with the certificate expired it waits for the connection, without calling ARCA.
+        if (certificate.NotAfterUtc <= nowUtc)
+        {
+            Wait(voucher, ArcaConnectionErrors.CertificateExpired.Code, nowUtc);
+            return Nothing(sequence, owner, fence);
+        }
+
         if (voucher.Number is null && !ArcaIssueDateWindow.Admits(voucher.Concept, voucher.RequestedOn, ArcaIssueDateWindow.Today(nowUtc)))
         {
             voucher.RequireReview(ArcaVoucherReviewReason.DateOutOfRange, nowUtc);

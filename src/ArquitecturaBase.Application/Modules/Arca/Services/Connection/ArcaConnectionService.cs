@@ -134,7 +134,7 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
     }
 
     private async Task<ArcaConnectionResponse> ResponseAsync(CancellationToken cancellationToken) =>
-        ArcaConnectionResponse.From(await reader.FindAsync(cancellationToken), catalog.Installed, modes.Platform);
+        ArcaConnectionResponse.From(await reader.FindAsync(cancellationToken), catalog.Installed, modes.Platform, timeProvider.GetUtcNow().UtcDateTime);
 
     /// <summary>Los códigos pedidos; null si alguno no es un código de servicio válido.</summary>
     private static ArcaServiceCode[]? Codes(IReadOnlyCollection<string> services)

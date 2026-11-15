@@ -31,6 +31,8 @@ internal sealed class ArcaServiceSessionIssuer(IArcaConnectionReader reader, IAr
     {
         if (await reader.FindSigningCertificateAsync(ArcaCertificateRole.Active, cancellationToken) is not { } certificate)
             return await reader.FindAsync(cancellationToken) is null ? ArcaConnectionErrors.NotConnected : ArcaConnectionErrors.CertificateNotLoaded;
+        // B4: an expired certificate does not ask ARCA for a ticket.
+        if (certificate.NotAfterUtc <= timeProvider.GetUtcNow().UtcDateTime) return ArcaConnectionErrors.CertificateExpired;
 
         var reference = onBehalfOfCompany ? certificate.ToRef(new HashSet<string>(StringComparer.Ordinal) { service.Value }) : certificate.ToRef();
         var outcome = await tickets.GetAsync(reference, service, cancellationToken);

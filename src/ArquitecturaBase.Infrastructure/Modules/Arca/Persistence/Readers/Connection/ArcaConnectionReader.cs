@@ -36,7 +36,7 @@ internal sealed class ArcaConnectionReader(ApplicationDbContext dbContext) : IAr
          join connection in dbContext.Set<ArcaConnection>().AsNoTracking() on certificate.ConnectionId equals connection.Id
          where certificate.Role == role && certificate.CertificatePem != null
          select new ArcaSigningCertificateRow(connection.Id, certificate.Id, connection.Cuit, connection.Environment,
-             certificate.ProtectedPrivateKey, certificate.CertificatePem!, connection.PlatformCuit))
+             certificate.ProtectedPrivateKey, certificate.CertificatePem!, connection.PlatformCuit) { NotAfterUtc = certificate.NotAfterUtc })
             .SingleOrDefaultAsync(cancellationToken);
 
     public Task<ArcaTicketRow?> FindTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken) =>

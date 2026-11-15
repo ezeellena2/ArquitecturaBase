@@ -164,7 +164,7 @@ public sealed class ArcaConnectionPersistenceTests(ApiFactory factory)
                 var reader = services.GetRequiredService<IArcaConnectionReader>();
                 Assert.Equal(new ArcaPendingRequestRow("renovacion", "-----BEGIN CERTIFICATE REQUEST-----"), await reader.FindPendingRequestAsync(ct));
                 Assert.Equal(new ArcaSigningCertificateRow(connectionId, active.Id, "20000000060", ArcaEnvironment.Testing, "protected-key",
-                    "-----BEGIN CERTIFICATE-----"), await reader.FindSigningCertificateAsync(ArcaCertificateRole.Active, ct));
+                    "-----BEGIN CERTIFICATE-----") { NotAfterUtc = NotBeforeUtc.AddYears(2) }, await reader.FindSigningCertificateAsync(ArcaCertificateRole.Active, ct));
                 Assert.Null(await reader.FindSigningCertificateAsync(ArcaCertificateRole.Pending, ct));
             });
         }

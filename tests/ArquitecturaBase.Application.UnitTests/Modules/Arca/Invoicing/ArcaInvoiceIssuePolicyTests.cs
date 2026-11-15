@@ -77,6 +77,7 @@ public sealed class ArcaInvoiceIssuePolicyTests
     [InlineData("Arca.Connection.Unavailable", "ARCA no responde. Tu factura sale apenas vuelva.")]
     [InlineData("Arca.Connection.NotConnected", "La conexión con ARCA necesita atención. El comprobante sale cuando se resuelva.")]
     [InlineData("Arca.Connection.ServiceNotAuthorized", "La conexión con ARCA necesita atención. El comprobante sale cuando se resuelva.")]
+    [InlineData("Arca.Connection.CertificateExpired", "La conexión con ARCA necesita atención. El comprobante sale cuando se resuelva.")]
     [InlineData("Arca.Invoicing.VersionUnknown", "La app se está actualizando. El comprobante sale en unos minutos.")]
     public void A_wait_says_whose_it_is(string failureCode, string notice)
     {
