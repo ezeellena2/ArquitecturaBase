@@ -102,6 +102,12 @@ public sealed partial class FormDraftEndpointsTests
             .Where(catalog => catalog.Key == TestFormStandardSource.CustomersCatalog).Select(catalog => new { catalog.Id, catalog.FieldsJson }).ToListAsync(Ct));
         var catalog = Assert.Single(catalogs);
         Assert.Contains("\"cuit\"", catalog.FieldsJson);
+        // B5: the options of «Clientes» carry their initial, the field the customer question chooses first by.
+        var initial = System.Text.Json.JsonDocument.Parse(catalog.FieldsJson!).RootElement.EnumerateArray()
+            .Single(field => field.GetProperty("key").GetString() == "initial").GetProperty("id").GetGuid();
+        var initials = await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogItem>()
+            .Where(item => item.CatalogId == catalog.Id).OrderBy(item => item.Position).Select(item => item.FieldValuesJson).ToListAsync(Ct));
+        Assert.All(initials, (values, index) => Assert.Contains(index == 0 ? "\"C\"" : "\"O\"", values));
         // The catalog comes once with the options the standard declares, in their order; the second copy does not add them again.
         var options = await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogItem>()
             .Where(item => item.CatalogId == catalog.Id).OrderBy(item => item.Position).Select(item => new { item.Id, item.Code, item.TextEs, item.IsActive }).ToListAsync(Ct));
@@ -112,6 +118,8 @@ public sealed partial class FormDraftEndpointsTests
             var definition = (await created.ReadJsonAsync()).GetProperty("definition");
             var fields = definition.GetProperty("draft").GetProperty("fields");
             Assert.Equal(catalog.Id, fields[0].GetProperty("source").GetProperty("catalog").GetGuid());
+            // B5: the field named by its key is the catalog's «initial», in the copy that created the catalog and in the one that found it.
+            Assert.Equal(initial, fields[0].GetProperty("source").GetProperty("groupBy").GetGuid());
             // «code:other» became that option's identity: in the copy that created the catalog and in the one that found it.
             var showWhen = fields[1].GetProperty("showWhen");
             Assert.Equal(fields[0].GetProperty("fieldId").GetGuid(), showWhen.GetProperty("questionId").GetGuid());
@@ -136,6 +144,10 @@ public sealed partial class FormDraftEndpointsTests
         using var missingCode = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.MissingCodeKey}/copies", Add(Guid.NewGuid(), Prefix()), Ct);
         Assert.Equal(HttpStatusCode.Conflict, missingCode.StatusCode);
         Assert.Equal("Forms.Library.CatalogUnavailable", (await missingCode.ReadJsonAsync()).GetProperty("code").GetString());
+        // B5: so does a field to choose first by that the catalog does not have.
+        using var missingField = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.MissingFieldKey}/copies", Add(Guid.NewGuid(), Prefix()), Ct);
+        Assert.Equal(HttpStatusCode.Conflict, missingField.StatusCode);
+        Assert.Equal("Forms.Library.CatalogUnavailable", (await missingField.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     [Fact]

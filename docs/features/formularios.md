@@ -1307,6 +1307,12 @@ aparece.
   porque los ids de las opciones son de cada instalación: «Agregar» los cambia por el id de la opción activa con ese código,
   también en un catálogo propio creado en el mismo guardado. Un código que el catálogo no tiene frena con
   `Forms.Library.CatalogUnavailable`.
+- **El campo por el que elige primero una pregunta de catálogo (B5).** El estándar lo nombra por su clave (`GroupBy`:
+  `localId → clave del campo`, como «Cliente» por la «Inicial» de «Clientes») y «Agregar» lo cambia por el id del campo
+  activo con esa clave, también en un catálogo propio creado en el mismo guardado, para `source.groupBy`
+  ([LD1-A](#elegir-primero-por-un-campo--ld1-a-2026-11-07)). Un catálogo sin ese campo, o con el campo dado de baja, frena con
+  `Forms.Library.CatalogUnavailable`. Las primeras opciones de un catálogo propio pueden traer valores de sus campos por clave
+  (`Fields`, como la inicial de «Consumidor final»), que se escriben con la política de los campos del catálogo.
 - **La opción con que empieza una pregunta de catálogo atada (IV1-A).** El estándar la declara por código (`Defaults`:
   `localId → código`, como «Alícuota» en 21 %, el código 5) sólo para una pregunta de elegir una de un catálogo, y «Agregar» la
   cambia por el id de la opción activa con ese código, igual que una condición (un código que el catálogo no tiene frena con

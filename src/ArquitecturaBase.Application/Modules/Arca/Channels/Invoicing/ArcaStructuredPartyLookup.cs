@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Channels.Connection;
@@ -26,7 +27,7 @@ internal sealed class ArcaStructuredPartyLookup(IArcaPartySource parties) : IStr
 
     /// <summary>
     /// A party in the fields of «Clientes», by their keys. The whole name also goes in its field: the text of an option admits 30
-    /// characters.
+    /// characters. B5: with the initial of the name, what «Cliente» chooses first by.
     /// </summary>
     public static IReadOnlyDictionary<string, string> Fields(ArcaParty party)
     {
@@ -37,6 +38,17 @@ internal sealed class ArcaStructuredPartyLookup(IArcaPartySource parties) : IStr
             [ArcaCustomersCatalog.VatCondition] = party.VatConditionId.ToString(CultureInfo.InvariantCulture),
         };
         if (party.FiscalAddress is { } address) fields[ArcaCustomersCatalog.Address] = address;
+        if (Initial(party.LegalName) is { } initial) fields[ArcaCustomersCatalog.Initial] = initial;
         return fields;
+    }
+
+    // B5: the first letter or digit of the name, in upper case and without its accent («Álvarez» goes with the A), except the Ñ, a
+    // letter of its own; a name without one goes without it, under «Sin inicial».
+    private static string? Initial(string name)
+    {
+        var first = name.FirstOrDefault(char.IsLetterOrDigit);
+        if (first == default) return null;
+        var upper = char.ToUpperInvariant(first);
+        return upper == 'Ñ' ? "Ñ" : upper.ToString().Normalize(NormalizationForm.FormD)[..1];
     }
 }

@@ -13,6 +13,9 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 /// in each new item (IV1-A). «Mandar copia al cliente» asks for the copy by email of the fiscal PDF, which goes to the email of
 /// the customer of «Clientes» (without one, it does not apply). A copy starts with the rule «Cuando llega»: issue the invoice, tell
 /// whoever loaded it with the fiscal PDF and send the copy; a form that asks for approval moves it to «Cuando se aprueba» by hand.
+/// Version 2 (B5): «Cliente» chooses first by the «Inicial» of «Clientes» (LD1-A), because WhatsApp offers up to 200 options to
+/// choose one: the limit goes for each initial. The issuer and «Completar con ARCA» write it, it is corrected by hand, and
+/// «Consumidor final» and «Otro» bring theirs.
 /// </summary>
 internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
 {
@@ -61,7 +64,7 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
 
     public IReadOnlyList<StructuredFormStandard> Standards { get; } =
     [
-        new(ArcaInvoiceStandard.Key, 1, new Dictionary<string, string> { ["es"] = "Factura", ["en"] = "Invoice" },
+        new(ArcaInvoiceStandard.Key, 2, new Dictionary<string, string> { ["es"] = "Factura", ["en"] = "Invoice" },
             new Dictionary<string, string>
             {
                 ["es"] = "Emití la factura en ARCA al recibir el formulario: el cliente, el concepto, los ítems y el total.",
@@ -92,13 +95,21 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
                             "catalog", "arca.vat-conditions"),
                         new(ArcaCustomersCatalog.Address, new Dictionary<string, string> { ["es"] = "Domicilio", ["en"] = "Address" }, "text", MaxLength: 200),
                         new(ArcaCustomersCatalog.Email, new Dictionary<string, string> { ["es"] = "Correo", ["en"] = "Email" }, "text", MaxLength: 254),
+                        new(ArcaCustomersCatalog.Initial, new Dictionary<string, string> { ["es"] = "Inicial", ["en"] = "Initial" }, "text", MaxLength: 1),
                     ],
                     [
-                        new(ArcaInvoiceStandard.FinalConsumer, new Dictionary<string, string> { ["es"] = "Consumidor final", ["en"] = "Final consumer" }),
-                        new(ArcaInvoiceStandard.OtherCustomer, new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT", ["en"] = "Other: write the CUIT" }),
+                        new(ArcaInvoiceStandard.FinalConsumer, new Dictionary<string, string> { ["es"] = "Consumidor final", ["en"] = "Final consumer" })
+                        {
+                            Fields = new Dictionary<string, string> { [ArcaCustomersCatalog.Initial] = "C" },
+                        },
+                        new(ArcaInvoiceStandard.OtherCustomer, new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT", ["en"] = "Other: write the CUIT" })
+                        {
+                            Fields = new Dictionary<string, string> { [ArcaCustomersCatalog.Initial] = "O" },
+                        },
                     ]),
             ],
-            Arca, new Dictionary<string, string> { [VatRate] = GeneralVatRate }, Rules),
+            Arca, new Dictionary<string, string> { [VatRate] = GeneralVatRate }, Rules,
+            GroupBy: new Dictionary<string, string> { [Customer] = ArcaCustomersCatalog.Initial }),
     ];
 
     // The voucher's name is a datum in Spanish, as the fiscal document: the English texts name the invoice by its number.

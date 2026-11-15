@@ -16,7 +16,7 @@ internal sealed class FormLibraryReader(ApplicationDbContext db) : IFormLibraryR
     public async Task<IReadOnlyDictionary<string, ArquitecturaBase.Application.Modules.BusinessForms.Models.FormLibraryCatalogRow>> ListCatalogsByKeyAsync(
         IReadOnlyList<string> catalogKeys, CancellationToken cancellationToken) =>
         await db.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalogKeys.Contains(catalog.Key))
-            .ToDictionaryAsync(catalog => catalog.Key, catalog => new ArquitecturaBase.Application.Modules.BusinessForms.Models.FormLibraryCatalogRow(catalog.Id, catalog.IsActive), cancellationToken);
+            .ToDictionaryAsync(catalog => catalog.Key, catalog => new ArquitecturaBase.Application.Modules.BusinessForms.Models.FormLibraryCatalogRow(catalog.Id, catalog.IsActive, catalog.FieldsJson), cancellationToken);
 
     public async Task<IReadOnlySet<string>> ListPrefixesAsync(IReadOnlyList<string> stems, CancellationToken cancellationToken)
     {

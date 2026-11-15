@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
+using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.Arca.Invoicing;
@@ -102,11 +103,37 @@ public sealed class ArcaInvoiceStandardSourceTests
 
         Assert.All(standard.Catalogs!.Values, key => Assert.True(tables.Contains(key) || key == ArcaCustomersCatalog.Key));
         Assert.Equal(ArcaCustomersCatalog.Key, customers.Key);
-        Assert.Equal(["tax_id", "legal_name", "vat_condition", "address", "email"], customers.Fields.Select(field => field.Key));
+        Assert.Equal(["tax_id", "legal_name", "vat_condition", "address", "email", "initial"], customers.Fields.Select(field => field.Key));
         // The option text admits 30 characters: the whole legal name has its own text field, as long as a catalog text field admits.
         var legalName = customers.Fields.Single(field => field.Key == ArcaCustomersCatalog.LegalName);
         Assert.Equal(("text", (int?)200, "Razón social", "Legal name"), (legalName.Type, legalName.MaxLength, legalName.Name["es"], legalName.Name["en"]));
         Assert.Contains(customers.Fields.Single(field => field.Key == "vat_condition").SourceCatalog!, tables);
         Assert.Equal(["final", "other"], customers.Items!.Select(item => item.Code));
     }
+
+    // B5: WhatsApp offers up to 200 options to choose one, so «Cliente» chooses first by the initial of «Clientes» (LD1-A), a text of
+    // one character; «Consumidor final» and «Otro» bring theirs. It is the version 2 of the invoice.
+    [Fact]
+    public void The_customer_chooses_first_by_the_initial_of_the_customers_and_the_first_options_bring_theirs()
+    {
+        var standard = Assert.Single(new ArcaInvoiceStandardSource().Standards);
+        var customer = standard.Bindings.Single(pair => pair.Value == ArcaInvoiceStandard.Customer).Key;
+        var customers = Assert.Single(standard.OwnCatalogs!);
+        var initial = customers.Fields.Single(field => field.Key == ArcaCustomersCatalog.Initial);
+
+        Assert.Equal(2, standard.Version);
+        Assert.Equal(new Dictionary<string, string> { [customer] = ArcaCustomersCatalog.Initial }, standard.GroupBy);
+        Assert.Equal(("text", (int?)1, "Inicial", "Initial"), (initial.Type, initial.MaxLength, initial.Name["es"], initial.Name["en"]));
+        Assert.Equal([("final", "C"), ("other", "O")], customers.Items!.Select(item => (item.Code, item.Fields![ArcaCustomersCatalog.Initial])));
+    }
+
+    // B5: a customer the issuer or «Completar con ARCA» brings has the initial of its name: its first letter or digit, in upper case
+    // and without its accent («Álvarez» goes with the A), except the Ñ, a letter of its own.
+    [Theory]
+    [InlineData("Lácteos del Oeste SRL", "L")]
+    [InlineData("álvarez hnos", "A")]
+    [InlineData("Ñandú SA", "Ñ")]
+    [InlineData("«3M» Argentina", "3")]
+    public void A_customer_brings_the_initial_of_its_name(string name, string initial) =>
+        Assert.Equal(initial, ArcaStructuredPartyLookup.Fields(new ArcaParty("30500010912", name, 1, null))[ArcaCustomersCatalog.Initial]);
 }

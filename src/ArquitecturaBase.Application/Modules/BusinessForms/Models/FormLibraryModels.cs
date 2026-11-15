@@ -49,7 +49,7 @@ public sealed record FormDraftStandardOrigin(string Key, int Version, IReadOnlyD
     public override string ToString() => "FormDraftStandardOrigin { Content = [REDACTED] }";
 }
 /// <summary>A catalog a standard names, by Key: whether it is active.</summary>
-public sealed record FormLibraryCatalogRow(Guid Id, bool IsActive);
+public sealed record FormLibraryCatalogRow(Guid Id, bool IsActive, string? FieldsJson = null);
 
 /// <summary>Where a form came from (BI1-A): its standard, the version and the bound questions, by datum key and field id.</summary>
 public sealed record FormDefinitionStandardResponse(string Key, int Version, IReadOnlyDictionary<string, Guid> Bound)

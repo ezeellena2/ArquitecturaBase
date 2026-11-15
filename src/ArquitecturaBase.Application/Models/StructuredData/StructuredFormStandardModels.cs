@@ -9,12 +9,14 @@ namespace ArquitecturaBase.Application.Models.StructuredData;
 // choosing one from a catalog, by its local id, the code of the option a new answer starts with (IV1-A: «Alícuota» in 21 %). A bound
 // question of the draft may also declare toggles (IV2-A), yes-or-no settings with their default value that the issuer receives.
 // Rules are the rules a copy starts with, as the first revision of its rules. Reading (DOC1) says a copy reads documents, and a
-// bound short text of the draft may declare its fixed validation ("bankAccount" or "taxId").
+// bound short text of the draft may declare its fixed validation ("bankAccount" or "taxId"). GroupBy (B5), for a catalog question by
+// its local id, the key of the field of its catalog whose value is chosen first (LD1-A: the initial of «Clientes»).
 public sealed record StructuredFormStandard(string Key, int Version, IReadOnlyDictionary<string, string> Name,
     IReadOnlyDictionary<string, string> Description, string Prefix, string DraftJson, IReadOnlyDictionary<string, string> Bindings,
     IReadOnlyDictionary<string, string>? Catalogs = null, StructuredFormStandardFolder? Folder = null, IReadOnlyList<StructuredFormStandardCatalog>? OwnCatalogs = null,
     IReadOnlyDictionary<string, string>? Source = null, IReadOnlyDictionary<string, string>? Defaults = null,
-    IReadOnlyList<StructuredFormStandardRule>? Rules = null, StructuredFormStandardReading? Reading = null)
+    IReadOnlyList<StructuredFormStandardRule>? Rules = null, StructuredFormStandardReading? Reading = null,
+    IReadOnlyDictionary<string, string>? GroupBy = null)
 {
     public override string ToString() => "StructuredFormStandard { Content = [REDACTED] }";
 }
@@ -52,6 +54,9 @@ public sealed record StructuredFormStandardCatalog(string Key, string OriginalCu
 public sealed record StructuredFormStandardCatalogItem(string Code, IReadOnlyDictionary<string, string> Text,
     IReadOnlyDictionary<string, string>? Detail = null)
 {
+    /// <summary>B5: values of the catalog's fields, by their key (the initial of «Consumidor final» in «Clientes»).</summary>
+    public IReadOnlyDictionary<string, string>? Fields { get; init; }
+
     public override string ToString() => "StructuredFormStandardCatalogItem { Content = [REDACTED] }";
 }
 public sealed record StructuredFormStandardCatalogField(string Key, IReadOnlyDictionary<string, string> Name, string Type,

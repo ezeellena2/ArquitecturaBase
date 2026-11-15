@@ -53,9 +53,11 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
                 """, new Dictionary<string, string> { [Buyer] = "customer" }, new Dictionary<string, string> { [Buyer] = CustomersCatalog },
             Folder: new(SalesFolder, new Dictionary<string, string> { ["es"] = "Ventas de prueba", ["en"] = "Test sales" }),
             OwnCatalogs: [new(CustomersCatalog, "es", new Dictionary<string, string> { ["es"] = "Clientes de prueba" }, new Dictionary<string, string>(),
-                [new("cuit", new Dictionary<string, string> { ["es"] = "CUIT" }, "text", MaxLength: 11)],
-                [new("final", new Dictionary<string, string> { ["es"] = "Consumidor final" }), new("other", new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT" })])],
-            Defaults: new Dictionary<string, string> { [Buyer] = "final" }),
+                [new("cuit", new Dictionary<string, string> { ["es"] = "CUIT" }, "text", MaxLength: 11),
+                    new("initial", new Dictionary<string, string> { ["es"] = "Inicial" }, "text", MaxLength: 1)],
+                [new("final", new Dictionary<string, string> { ["es"] = "Consumidor final" }) { Fields = new Dictionary<string, string> { ["initial"] = "C" } },
+                    new("other", new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT" }) { Fields = new Dictionary<string, string> { ["initial"] = "O" } }])],
+            Defaults: new Dictionary<string, string> { [Buyer] = "final" }, GroupBy: new Dictionary<string, string> { [Buyer] = "initial" }),
         new(MissingKey, 1, new Dictionary<string, string> { ["es"] = "Sin catálogo" }, new Dictionary<string, string> { ["es"] = "Nombra un catálogo que no está." },
             "SCP", $$$"""
                 {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
@@ -68,6 +70,13 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
                 {"localId":"{{{BuyerTaxId}}}","type":"shortText","label":{"es":"CUIT del cliente"},"required":false,"maxLength":11,
                  "showWhen":{"questionId":"{{{Buyer}}}","values":["code:nobody"]}}]}
                 """, new Dictionary<string, string>(), new Dictionary<string, string> { [Buyer] = CustomersCatalog }),
+        // B5: chooses first by a field its catalog does not have.
+        new(MissingFieldKey, 1, new Dictionary<string, string> { ["es"] = "Sin campo" }, new Dictionary<string, string> { ["es"] = "Elige primero por un campo que el catálogo no tiene." },
+            "SCA", $$$"""
+                {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
+                {"localId":"{{{Buyer}}}","type":"choice","label":{"es":"Cliente"},"required":true}]}
+                """, new Dictionary<string, string>(), new Dictionary<string, string> { [Buyer] = CustomersCatalog },
+            GroupBy: new Dictionary<string, string> { [Buyer] = "region" }),
         Voucher,
         new(AccountKey, 1, new Dictionary<string, string> { ["es"] = "Pago de prueba" }, new Dictionary<string, string> { ["es"] = "Una cuenta y su CUIT, con sus validaciones fijas." },
             "PGP", $$$"""
@@ -102,6 +111,6 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
         VoucherPriority = "0196f2a0-0000-7000-8000-0000000000f2", VoucherCopy = "0196f2a0-0000-7000-8000-0000000000f3",
         VoucherChannel = "0196f2a0-0000-7000-8000-0000000000f4", VoucherByMail = "0196f2a0-0000-7000-8000-0000000000f5";
     public const string CustomersKey = "test.sale", MissingKey = "test.missing-catalog", MissingCodeKey = "test.missing-code",
-        CustomersCatalog = "test.customers", SalesFolder = "test.sales",
+        MissingFieldKey = "test.missing-field", CustomersCatalog = "test.customers", SalesFolder = "test.sales",
         Buyer = "0196f2a0-0000-7000-8000-0000000000e1", BuyerTaxId = "0196f2a0-0000-7000-8000-0000000000e2";
 }

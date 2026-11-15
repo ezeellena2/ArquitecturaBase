@@ -198,10 +198,16 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   Vencimiento del pago (opcionales y siempre a la vista: WhatsApp no muestra una pregunta por varias opciones de un catálogo,
   y la cola los exige con servicios), el bloque de ítems (Descripción, Cantidad, Precio unitario, Alícuota
   e Importe calculado), el Total calculado y «Mandar copia al cliente» (sí o no, no obligatoria), cada pregunta atada a su dato. Trae «Clientes» (`arca.customers`: CUIT, Razón social, Condición
-  frente al IVA sobre la tabla de ARCA, Domicilio y Correo) con «Consumidor final» y «Otro: escribir la CUIT», y va con su copia
+  frente al IVA sobre la tabla de ARCA, Domicilio, Correo e Inicial) con «Consumidor final» y «Otro: escribir la CUIT», y va con su copia
   a la carpeta «ARCA». El texto de una opción admite 30 caracteres y es lo que se ve en las listas y en WhatsApp; la razón
   social entera va en «Razón social» (`legal_name`, texto de hasta 200, el mismo tope que la cola pone al nombre del receptor), y
-  de ahí sale el nombre del receptor. Necesita las tablas de ARCA (se crean cuando la conexión responde). Con «Otro», el emisor completa el
+  de ahí sale el nombre del receptor. Desde la versión 2 (B5), «Cliente» elige primero por la «Inicial»
+  ([LD1-A](formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07)) porque un Flow de WhatsApp ofrece hasta 200 opciones
+  para elegir una: el tope vale para cada inicial, y con más de 200 clientes en una misma inicial la «Factura» deja de poder
+  mandarse por WhatsApp (`Forms.Record.CatalogTooLarge`). La inicial es la primera letra o cifra de la razón social, en
+  mayúscula y sin tilde (la Ñ es una letra propia); la escriben el emisor y «Completar con ARCA», se corrige a mano, y
+  «Consumidor final» y «Otro» traen la C y la O. El asistente no prellena esa pregunta. Un «Clientes» creado por la versión 1
+  no tiene «Inicial»: agregar la «Factura» frena con `Forms.Library.CatalogUnavailable`. Necesita las tablas de ARCA (se crean cuando la conexión responde). Con «Otro», el emisor completa el
   cliente con el padrón antes de la vista previa y de encolar; sin la CUIT, `Arca.Invoicing.ReceiverInvalid`. Al encolar guarda
   el tipo de persona del padrón, y recién con la factura emitida (H31) devuelve el cliente de toda CUIT (`CatalogItem`: la CUIT
   como código, la razón social y los campos del padrón, con la razón social entera en `legal_name`, y sin el domicilio de una

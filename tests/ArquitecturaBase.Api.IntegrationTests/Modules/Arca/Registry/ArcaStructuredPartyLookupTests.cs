@@ -38,7 +38,8 @@ public sealed class ArcaStructuredPartyLookupTests(ApiFactory factory) : IDispos
             arca.Person = new FakeArcaPerson(legalName, null, null, "Ruta 9 km 400", "Marcos Juárez", "CORDOBA", [30], false, []);
             var found = await FindAsync("30-50001091-2");
             Assert.Equal(legalName, found.Name);
-            Assert.Equal(("30500010912", legalName, "1"), (found.Fields!["tax_id"], found.Fields["legal_name"], found.Fields["vat_condition"]));
+            // B5: with the initial «Cliente» chooses first by.
+            Assert.Equal(("30500010912", legalName, "1", "C"), (found.Fields!["tax_id"], found.Fields["legal_name"], found.Fields["vat_condition"], found.Fields["initial"]));
             Assert.Contains("Ruta 9 km 400", found.Fields["address"], StringComparison.Ordinal);
 
             arca.Person = null;

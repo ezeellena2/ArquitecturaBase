@@ -1,4 +1,6 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Common.Logging;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -85,21 +87,40 @@ internal sealed class FormLibraryService : IFormLibraryService
                 if (catalog.Fields.Any(field => field.SourceCatalog is { } source && !ids.ContainsKey(source))) return FormLibraryErrors.CatalogUnavailable;
                 var entity = BusinessFormCatalog.CreateManual(catalog.OriginalCulture, catalog.Name, catalog.Description);
                 entity.AssignStandardKey(catalog.Key);
-                var fields = entity.SetFields(catalog.Fields.Select((field, position) => new BusinessFormCatalogField(BusinessFormCatalogField.CreateIdentity(),
+                BusinessFormCatalogField[] defined = [.. catalog.Fields.Select((field, position) => new BusinessFormCatalogField(BusinessFormCatalogField.CreateIdentity(),
                     field.Key, field.Name, field.Type, field.SourceCatalog is { } source ? ids[source] : null, false, false, null, null, field.MaxLength,
-                    "data", position, true)).ToArray(), null);
+                    "data", position, true))];
+                var fields = entity.SetFields(defined, null);
                 if (fields.IsFailure) throw new InvalidOperationException("A library standard declares invalid catalog fields.");
                 var items = (catalog.Items ?? []).Select((item, position) => entity.AddManualItem(item.Code, item.Text.GetValueOrDefault("es"),
                     item.Text.GetValueOrDefault("en"), item.Detail?.GetValueOrDefault("es"), item.Detail?.GetValueOrDefault("en"), position)).ToArray();
                 if (items.Any(item => item.IsFailure)) throw new InvalidOperationException("A library standard declares invalid catalog options.");
+                // B5: an option of the standard may bring values of the catalog's fields, by their key (the initial of «Clientes»); they
+                // are written as the values of every option are, by the catalog field policy.
+                if (OptionValues(catalog, defined, [.. items.Select(item => item.Value)]) is { Count: > 0 } requested
+                    && FormCatalogFieldPolicy.ValidateItems(entity, [.. items.Select(item => item.Value)], [], requested,
+                        new FormCatalogFieldContext(defined, new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid>(),
+                            new HashSet<Guid>(), defined.ToDictionary(field => field.Id), catalog.OriginalCulture)).IsFailure)
+                    throw new InvalidOperationException("A library standard declares invalid values of its catalog fields.");
                 createdItems.AddRange(items.Select(item => item.Value));
                 createdCodes[entity.Id] = items.ToDictionary(item => item.Value.Code, item => item.Value.Id, StringComparer.Ordinal);
                 created.Add(entity);
                 ids[catalog.Key] = entity.Id;
             }
             if (named.Values.Any(catalogKey => !ids.ContainsKey(catalogKey))) return FormLibraryErrors.CatalogUnavailable;
+            // B5: a question that chooses first by a field of its catalog names it by its key: the copy takes the identity of the active
+            // field with that key, also in a catalog created in this save; a catalog without it stops the copy, as a missing option does.
+            var groupBy = new Dictionary<string, Guid>(StringComparer.Ordinal);
+            foreach (var (localId, fieldKey) in standard.GroupBy ?? new Dictionary<string, string>())
+            {
+                var fieldsJson = created.FirstOrDefault(entity => entity.Key == named[localId])?.FieldsJson ?? existing.GetValueOrDefault(named[localId])?.FieldsJson;
+                if (FormCatalogFieldPolicy.ReadFields(fieldsJson).FirstOrDefault(field => field.Key == fieldKey && field.IsActive) is not { } field)
+                    return FormLibraryErrors.CatalogUnavailable;
+                groupBy[localId] = field.Id;
+            }
             draft = draft with { Fields = draft.Fields.Select(field => named.TryGetValue(field.LocalId, out var catalogKey)
-                ? field with { Source = (field.Source ?? new FormQuestionSource(null)) with { Catalog = ids[catalogKey] } } : field).ToArray() };
+                ? field with { Source = (field.Source ?? new FormQuestionSource(null)) with { Catalog = ids[catalogKey],
+                    GroupBy = groupBy.TryGetValue(field.LocalId, out var groupField) ? groupField : field.Source?.GroupBy } } : field).ToArray() };
             var coded = await NameOptionsAsync(draft, named, standard.Defaults ?? new Dictionary<string, string>(), ids, createdCodes, cancellationToken);
             if (coded.IsFailure) return coded.Error;
             var rules = await _rules.PrepareAsync(standard, named, ids, createdCodes, cancellationToken);
@@ -110,6 +131,13 @@ internal sealed class FormLibraryService : IFormLibraryService
                     { RecordAsync = _copies.Prepare(created, createdItems, rules.Value, request.FolderId, standard.Folder) },
             }, cancellationToken);
         });
+
+    // B5: the values an option of the standard brings, by the identity of their field, as the catalog field policy takes them.
+    private static Dictionary<Guid, Dictionary<string, JsonElement>> OptionValues(StructuredFormStandardCatalog catalog,
+        IReadOnlyList<BusinessFormCatalogField> fields, IReadOnlyList<BusinessFormCatalogItem> items) =>
+        (catalog.Items ?? []).Select((item, position) => (item, created: items[position])).Where(pair => pair.item.Fields is { Count: > 0 })
+            .ToDictionary(pair => pair.created.Id, pair => pair.item.Fields!.ToDictionary(value => fields.Single(field => field.Key == value.Key).Id.ToString("D"),
+                value => JsonSerializer.SerializeToElement(value.Value), StringComparer.Ordinal));
 
     // A condition on a catalog question names the options by «code:<code>», and the option a question starts with (IV1-A) is declared
     // by its code: the copy takes the identity of the active option with that code in this installation, also in a catalog created in

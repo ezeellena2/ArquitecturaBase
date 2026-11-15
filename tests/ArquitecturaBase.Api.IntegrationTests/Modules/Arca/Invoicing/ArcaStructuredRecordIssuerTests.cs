@@ -266,6 +266,7 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
             Assert.Equal<IReadOnlyDictionary<string, string>>(new Dictionary<string, string>
             {
                 ["tax_id"] = "30500010912", ["legal_name"] = "Lácteos del Oeste SRL", ["vat_condition"] = "1", ["address"] = "Ruta 5 km 30, Trenque Lauquen, BUENOS AIRES",
+                ["initial"] = "L",
             }, customer.Fields);
             // H31: a human person goes without the address, as the registry says by its kind of person.
             arca.Person = new FakeArcaPerson(null, "Lucía", "Gómez", "Belgrano 120", "Pergamino", "BUENOS AIRES", [30], false, []);
