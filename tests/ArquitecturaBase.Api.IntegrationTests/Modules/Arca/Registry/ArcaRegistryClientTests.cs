@@ -75,7 +75,7 @@ public sealed class ArcaRegistryClientTests(ApiFactory factory)
 
         var reply = await Client().FindPersonAsync(Certificate, Ticket, "30000000007", TestContext.Current.CancellationToken);
 
-        Assert.Equal((ArcaServiceCheckStatus.Failed, "registry.fault"), (reply.Status, reply.FailureCode));
+        Assert.Equal((ArcaServiceCheckStatus.Failed, "registry.not-found"), (reply.Status, reply.FailureCode));
     }
 
     private FakeArca Arca()

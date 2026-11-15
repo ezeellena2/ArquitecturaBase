@@ -60,6 +60,9 @@ internal sealed class FakeArca(TimeProvider time)
     /// <summary>La persona del padrón; null responde la falla SOAP de una CUIT que no existe.</summary>
     public FakeArcaPerson? Person { get; set; } = Company;
 
+    /// <summary>Otra falla del padrón que la de una CUIT que no existe (H14): su texto.</summary>
+    public string? PersonFault { get; set; }
+
     /// <summary>
     /// Las CUIT representadas que van en las relaciones del token, como un <c>&lt;sso&gt;</c> en base64; null emite el token
     /// corto de siempre, que no se lee.
@@ -90,6 +93,7 @@ internal sealed class FakeArca(TimeProvider time)
         PointsOfSale = [];
         PointsOfSaleError = null;
         Person = Company;
+        PersonFault = null;
         Relations = null;
         Vouchers.Reset();
     }
@@ -166,6 +170,7 @@ internal sealed class FakeArca(TimeProvider time)
     // Los elementos de la respuesta del padrón van sin calificar, como dice su WSDL.
     private HttpResponseMessage PersonResponse()
     {
+        if (PersonFault is { } fault) return Fault("ns0:Server", fault);
         if (Person is not { } person) return Fault("ns0:Server", "No existe persona con ese Id");
         var general = new XElement("datosGenerales",
             Optional("apellido", person.LastName),

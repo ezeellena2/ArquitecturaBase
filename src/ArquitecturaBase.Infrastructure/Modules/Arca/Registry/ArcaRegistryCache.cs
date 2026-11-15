@@ -17,11 +17,21 @@ internal sealed class ArcaRegistryCache(RedisCache cache) : IArcaRegistryCache
 {
     private static readonly TimeSpan Expiration = TimeSpan.FromMinutes(10);
 
-    public Task<ArcaServiceReply<ArcaRegistryPerson>> FindPersonAsync(ArcaServiceSession session, string cuit, CancellationToken cancellationToken) =>
-        cache.GetOrCreateInOwnScopeAsync<IArcaRegistryClient, (ArcaServiceSession Session, string Cuit), ArcaServiceReply<ArcaRegistryPerson>>(
-            Key(session.Certificate.ConnectionId, cuit), (session, cuit),
-            static (client, state, ct) => client.FindPersonAsync(state.Session.Certificate, state.Session.Ticket, state.Cuit, ct),
-            Expiration, static reply => reply is { Status: ArcaServiceCheckStatus.Ready, Value: not null }, cancellationToken);
+    public async Task<ArcaServiceReply<ArcaRegistryPerson>> FindPersonAsync(ArcaServiceSession session, string cuit, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await cache.GetOrCreateInOwnScopeAsync<IArcaRegistryClient, (ArcaServiceSession Session, string Cuit), ArcaServiceReply<ArcaRegistryPerson>>(
+                Key(session.Certificate.ConnectionId, cuit), (session, cuit),
+                static (client, state, ct) => client.FindPersonAsync(state.Session.Certificate, state.Session.Ticket, state.Cuit, ct),
+                Expiration, static reply => reply is { Status: ArcaServiceCheckStatus.Ready, Value: not null }, cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            // H13: waiting for another one that asks ARCA the same CUIT ran out: ARCA did not answer in time.
+            return ArcaServiceReply.Failed<ArcaRegistryPerson>(ArcaServiceCheckStatus.Unavailable);
+        }
+    }
 
     private static RedisCacheKey Key(Guid connectionId, string cuit) =>
         new($"arca:registry:person:{connectionId:N}:{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(cuit)))}");

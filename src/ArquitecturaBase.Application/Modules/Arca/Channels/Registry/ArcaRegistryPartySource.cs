@@ -28,8 +28,8 @@ internal sealed class ArcaRegistryPartySource(ArcaServiceSessionIssuer access, I
         var session = await access.OpenAsSignerAsync(Constancia, cancellationToken);
         if (session.IsFailure) return session.Error;
         var reply = await registry.FindPersonAsync(session.Value, cuit, cancellationToken);
-        // El padrón contesta con una falla una CUIT que no conoce.
-        if (reply.FailureCode == "registry.fault") return ArcaRegistryErrors.PersonNotFound;
+        // El padrón contesta con una falla una CUIT que no conoce; otra falla es ARCA que rechazó el pedido (H14).
+        if (reply.FailureCode == "registry.not-found") return ArcaRegistryErrors.PersonNotFound;
         if (reply is not { Status: ArcaServiceCheckStatus.Ready, Value: { } person }) return ArcaServiceSessionIssuer.Failure(reply.Status);
         if (!ArcaCompanyDataPolicy.HasData(person)) return ArcaRegistryErrors.PersonNotFound;
         // B3: without the data that decide the VAT condition it is not inferred (it would be a B instead of an A, kept in «Clientes»).

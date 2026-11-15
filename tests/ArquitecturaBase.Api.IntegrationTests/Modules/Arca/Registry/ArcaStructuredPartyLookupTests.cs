@@ -48,6 +48,11 @@ public sealed class ArcaStructuredPartyLookupTests(ApiFactory factory) : IDispos
             arca.Person = new FakeArcaPerson("Agro del Sur S.A.", null, null, "Ruta 8 km 225", "Pergamino", "BUENOS AIRES", [], false, [],
                 ["No cumple con las condiciones para enviar datos del regimen general"]);
             Assert.Equal("Arca.Registry.VatConditionUnclear", (await FindAsync("30712345671")).FailureCode);
+
+            // H14: only the fault of a CUIT that does not exist says so; another one is ARCA refusing the request.
+            arca.PersonFault = "Error interno de la aplicacion";
+            Assert.Equal("Arca.Connection.ServiceRejected", (await FindAsync("20111111112")).FailureCode);
+            arca.PersonFault = null;
         }
         finally
         {
@@ -114,6 +119,44 @@ public sealed class ArcaStructuredPartyLookupTests(ApiFactory factory) : IDispos
         Assert.Equal("Arca.Connection.NotConnected", (await FindAsync("20000000087", Guid.NewGuid())).FailureCode);
         // What runs without a person, like the issuance in the background, has no quota.
         Assert.Equal("Arca.Connection.NotConnected", (await FindAsync("20000000087")).FailureCode);
+    }
+
+    // H13: whoever waits for another lookup of the same CUIT and runs out of time gets «ARCA no respondió», not an error.
+    [Fact]
+    public async Task Waiting_too_long_for_another_lookup_of_the_same_cuit_is_arca_not_answering()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("Caching:WaitSeconds", "1"));
+        var arca = host.Services.GetRequiredService<FakeArca>();
+        arca.Reset();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            // The ticket first, so only the lookup of the registry waits.
+            Assert.Null((await FindInAsync("20123456786")).FailureCode);
+            arca.Hold();
+            var first = FindInAsync("30500010912");
+            using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                timeout.CancelAfter(TimeSpan.FromSeconds(30));
+                while (arca.Calls("getPersona_v2", FakeArca.RegistryService) < 2) await Task.Delay(20, timeout.Token);
+            }
+
+            Assert.Equal("Arca.Connection.Unavailable", (await FindInAsync("30500010912")).FailureCode);
+            arca.Release();
+            await first;
+        }
+        finally
+        {
+            arca.Release();
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+
+        async Task<Application.Models.StructuredData.StructuredPartyLookupResponse> FindInAsync(string taxId)
+        {
+            await using var scope = host.Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetServices<IStructuredPartyLookup>().Single(lookup => lookup.CatalogKey == "arca.customers").FindAsync(taxId, ct);
+        }
     }
 
     public void Dispose() => authority.Dispose();

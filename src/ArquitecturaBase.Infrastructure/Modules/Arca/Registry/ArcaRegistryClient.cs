@@ -21,6 +21,9 @@ internal sealed class ArcaRegistryClient(IHttpClientFactory httpClients, IOption
     private static readonly XNamespace Registry = "http://a5.soap.ws.server.puc.sr/";
     private static readonly string[] ErrorGroups = ["errorConstancia", "errorRegimenGeneral", "errorMonotributo"];
 
+    /// <summary>El código de una CUIT que el padrón no tiene (H14).</summary>
+    public const string NotFound = "registry.not-found";
+
     // B3: the groups that decide the VAT condition.
     private static readonly string[] VatGroups = ["errorRegimenGeneral", "errorMonotributo"];
 
@@ -38,6 +41,9 @@ internal sealed class ArcaRegistryClient(IHttpClientFactory httpClients, IOption
         return result switch
         {
             SoapResult.Success { Content: var content } when content.Element("personaReturn") is { } persona => ArcaServiceReply.Ready(Person(persona)),
+            // H14: only a CUIT the registry does not have says so; any other fault is ARCA refusing the request.
+            SoapResult.Fault { Message: var message } when message.Contains("no existe", StringComparison.OrdinalIgnoreCase) =>
+                ArcaServiceReply.Failed<ArcaRegistryPerson>(ArcaServiceCheckStatus.Failed, NotFound),
             SoapResult.Fault => ArcaServiceReply.Failed<ArcaRegistryPerson>(ArcaServiceCheckStatus.Failed, "registry.fault"),
             _ => ArcaServiceReply.Failed<ArcaRegistryPerson>(ArcaServiceCheckStatus.Unavailable),
         };

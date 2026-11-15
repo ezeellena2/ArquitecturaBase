@@ -216,7 +216,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
 - **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, en Facturación, con el padrón por `IArcaPartySource`): la constancia de un tercero completa los
   «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social (entera también en `legal_name`), la
   condición frente al IVA como receptor (1, 4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no
-  tiene, `Arca.Registry.PersonNotFound`. Una constancia con errores en lo que decide la condición frente al IVA (el régimen
+  tiene, `Arca.Registry.PersonNotFound`: se reconoce por el texto de la falla («No existe persona…»); otra falla del padrón es
+  `Arca.Connection.ServiceRejected` y una espera que se corta (también la de otra consulta de la misma CUIT en la caché),
+  `Arca.Connection.Unavailable` (H13 y H14). Una constancia con errores en lo que decide la condición frente al IVA (el régimen
   general o el monotributo) no la infiere, porque sería una B en vez de una A guardada en «Clientes»: responde
   `Arca.Registry.VatConditionUnclear` y pide revisarla en ARCA (B3). Consulta en nombre de quien firma: en delegación, la plataforma con su CUIT, sin que la
   empresa delegue la constancia. Los cupos de formularios no cuidan a ARCA, así que el padrón cuida lo suyo: cada persona
