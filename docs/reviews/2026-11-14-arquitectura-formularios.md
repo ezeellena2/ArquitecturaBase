@@ -398,6 +398,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   nombre (`BusinessFormMissingTopic.cs:27-31`).
 - **Arreglo:** que un tema nuevo, o uno descartado que reabre otro pedido, no se ofrezca a otras personas hasta que lo revise
   alguien con «Diseñar formularios», y que el modelo reciba sólo el nombre, sin la descripción. Chico a mediano.
+- **Arreglado en parte el 2026-11-15** en `39812a81`: el asistente recibe sólo el nombre; falta el estado de revisión.
 
 #### F8. Un rechazo de la captura en la app no dice qué pregunta falla y queda pegado al envío
 
@@ -524,6 +525,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   muestra que el corte es a propósito; la regla sólo dice «marca parcial» (`formularios.md:457`).
 - **Arreglo:** separar la completitud de los formularios, que sí hace falta para afirmar que algo falta, de la de los temas; o
   escribir que se acepta y avisar en «Formularios que faltan» cuando se llega al tope. Chico.
+- **Arreglado el 2026-11-15** en `39812a81`.
 
 #### F15. Cada lectura de la planilla recorre todas las opciones de catálogo elegidas en el formulario
 

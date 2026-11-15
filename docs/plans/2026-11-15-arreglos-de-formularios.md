@@ -73,6 +73,8 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
    descripción. La completitud de los temas se separa de la de los formularios (`BusinessFormAssistantCapabilitySource.cs:102,107,114`),
    y el registro sigue encontrando el tema por su nombre. La pantalla de «Formularios que faltan» muestra los temas sin revisar con
    su acción. Mediano.
+   F14 y el nombre solo de F7, hechos el 2026-11-15 en `39812a81`; el estado de revisión, después de la prueba integral (pide
+   dibujar la pantalla).
 5. **F20. El menú muestra sólo lo que la persona puede abrir.** `ListMenuFormsAsync` recibe a la persona y sus permisos y usa el
    mismo filtro de formularios visibles que el árbol, conservando el de los dados de baja; el test del menú suma una cuenta que
    sólo decide aprobaciones. Chico.
