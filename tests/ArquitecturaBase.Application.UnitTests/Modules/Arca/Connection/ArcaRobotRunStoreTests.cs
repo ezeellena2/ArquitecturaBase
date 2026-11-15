@@ -242,6 +242,20 @@ public sealed class ArcaRobotRunStoreTests
         Assert.True(await host.RobotStore.CompleteStepAsync(platform.Id, owner, ArcaRobotSteps.PlatformLogin, null, Ct));
     }
 
+    // O10: what a pass recorded comes back in the job of the next one, so the robot takes its point of sale instead of adding another.
+    [Fact]
+    public async Task A_restarted_company_side_brings_what_the_last_pass_recorded()
+    {
+        using var host = new ArcaApplicationHost(withRobot: true);
+        var (run, owner) = await StartCompanyAsync(host);
+        Assert.True(await host.RobotStore.RecordStepOutputAsync(run, owner, "company.point-of-sale", "7", Ct));
+        await host.RobotStore.FinishCompanyAsync(run, owner, ArcaRobotOutcome.Stopped(ArcaRobotFailure.Unavailable, "company.point-of-sale"), Ct);
+
+        await RestartCompanyAsync(host);
+
+        Assert.Equal("7", host.RobotQueue.Jobs[^1].Job.Outputs["company.point-of-sale"]);
+    }
+
     [Fact]
     public async Task A_rejected_platform_login_fails_at_once_and_alerts()
     {

@@ -112,6 +112,9 @@ internal sealed partial class ArcaRobotProcessor(IServiceScopeFactory scopes, IA
         public Task<bool> CompleteAsync(string step, string? output, CancellationToken cancellationToken) =>
             processor.StepAsync(store => store.CompleteStepAsync(runId, owner, step, output, cancellationToken));
 
+        public Task<bool> RecordAsync(string step, string output, CancellationToken cancellationToken) =>
+            processor.StepAsync(store => store.RecordStepOutputAsync(runId, owner, step, output, cancellationToken));
+
         public Task<bool> RenewAsync(CancellationToken cancellationToken) =>
             processor.StepAsync(store => store.RenewLeaseAsync(runId, owner, cancellationToken));
 

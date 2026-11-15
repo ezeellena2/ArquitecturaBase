@@ -33,6 +33,9 @@ public interface IArcaRobotProgress
 
     Task<bool> CompleteAsync(string step, string? output, CancellationToken cancellationToken);
 
+    /// <summary>O10: guarda en la corrida lo que un paso va a dar en ARCA antes de confirmarlo; false sin la reserva.</summary>
+    Task<bool> RecordAsync(string step, string output, CancellationToken cancellationToken);
+
     /// <summary>H20: renueva la reserva mientras corre un paso largo; false si otro host ya la tomó.</summary>
     Task<bool> RenewAsync(CancellationToken cancellationToken);
 

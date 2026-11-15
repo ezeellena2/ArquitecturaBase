@@ -32,6 +32,9 @@ public interface IArcaRobotRunStore
     /// </summary>
     Task<Result> CompleteCompanyByHandAsync(CancellationToken cancellationToken);
 
+    /// <summary>O10: lo que un paso va a dar en ARCA, antes de confirmarlo, con la reserva propia.</summary>
+    Task<bool> RecordStepOutputAsync(Guid runId, Guid owner, string step, string output, CancellationToken cancellationToken);
+
     /// <summary>H20: el latido de un paso que sigue corriendo renueva la reserva propia; false si ya no lo es.</summary>
     Task<bool> RenewLeaseAsync(Guid runId, Guid owner, CancellationToken cancellationToken);
 

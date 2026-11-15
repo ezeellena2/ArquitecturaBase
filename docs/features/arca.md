@@ -338,8 +338,10 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
   venta), el motivo y el paso de la falla, y su reserva. Nunca la clave ni la CUIT o CUIL de quien entró.
 - **El lado del cliente corre en el host que recibió la clave,** por una cola en memoria: la clave no va a la base, a la cola
   cifrada ni a otro host. Entra a ARCA, elige la empresa si quien entra la administra, delega cada servicio delegable en la
-  CUIT de la plataforma y corre los pasos de cada familia: Facturación da de alta el punto de venta de web service con el
-  sistema «… Web Services» que ARCA ofrezca, o usa el que ya hay. Si el host se cae, la reserva vence y la corrida se lee
+  CUIT de la plataforma y corre los pasos de cada familia: Facturación da de alta su propio punto de venta de web service
+  con el sistema «… Web Services» que ARCA ofrezca, nunca el de otro sistema de la empresa (O10). Antes de confirmarlo guarda
+  en la corrida el número que va a dar, y una pasada siguiente toma ese número si ya está vigente en la tabla, así repetir la
+  corrida no da de alta otro; después de cada clic espera la tabla (O9). Si el host se cae, la reserva vence y la corrida se lee
   interrumpida. La reserva acompaña al paso (H20): un latido la renueva cada `StepTimeout` mientras corre un paso, de
   cualquier lado, y la del cliente se renueva al salir de la cola; un paso más largo que la reserva no deja que otro host la
   tome.

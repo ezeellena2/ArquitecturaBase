@@ -9,7 +9,7 @@ namespace ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 /// todos los elegidos, para los pasos de cada familia.
 /// </summary>
 public sealed record ArcaCompanyRobotWorkResponse(Guid RunId, Guid Owner, string CompanyCuit, string PlatformCuit,
-    IReadOnlyList<string> DelegatedServices, IReadOnlyList<string> EnabledServices)
+    IReadOnlyList<string> DelegatedServices, IReadOnlyList<string> EnabledServices, IReadOnlyDictionary<string, string> Outputs)
 {
     public override string ToString() => $"ArcaCompanyRobotWorkResponse {{ run: {RunId}, company: {CuitNumber.Mask(CompanyCuit)} }}";
 }

@@ -285,6 +285,22 @@ public sealed class ArcaRobotRunTests
         Assert.False(run.Renew(Owner, Now.AddMinutes(6), Lease));
     }
 
+    // O10: a step records what it is about to give in ARCA before confirming it, with its own lease, and a restart keeps it, so
+    // the next pass takes it instead of adding another.
+    [Fact]
+    public void A_step_records_its_output_before_confirming_and_a_restart_keeps_it()
+    {
+        var run = ArcaRobotRun.StartCompany(ConnectionId, Guid.CreateVersion7(), Owner, Now, Lease);
+
+        Assert.True(run.Record("company.point-of-sale", "7", Owner, Now, Lease));
+        Assert.False(run.Record("company.point-of-sale", "8", Guid.CreateVersion7(), Now, Lease));
+        run.Fail(ArcaRobotFailure.Unavailable, "company.point-of-sale", Owner, Now);
+
+        Assert.True(run.RestartCompany(Guid.CreateVersion7(), Owner, Now.AddMinutes(1), Lease).IsSuccess);
+        Assert.Equal("7", run.Outputs["company.point-of-sale"]);
+        Assert.Empty(run.CompletedSteps);
+    }
+
     private static ArcaRobotRun RejectedPlatform()
     {
         var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);

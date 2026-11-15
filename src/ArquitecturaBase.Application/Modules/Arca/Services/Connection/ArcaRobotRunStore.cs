@@ -29,6 +29,9 @@ internal sealed class ArcaRobotRunStore(IArcaConnectionRepository connections, I
     public Task<bool> BeginStepAsync(Guid runId, Guid owner, string step, CancellationToken cancellationToken) =>
         ChangeAsync(runId, (run, _, nowUtc) => run.Begin(step, owner, nowUtc, options.Value.Lease), cancellationToken);
 
+    public Task<bool> RecordStepOutputAsync(Guid runId, Guid owner, string step, string output, CancellationToken cancellationToken) =>
+        ChangeAsync(runId, (run, _, nowUtc) => run.Record(step, output, owner, nowUtc, options.Value.Lease), cancellationToken);
+
     public Task<bool> RenewLeaseAsync(Guid runId, Guid owner, CancellationToken cancellationToken) =>
         ChangeAsync(runId, (run, _, nowUtc) => run.Renew(owner, nowUtc, options.Value.Lease), cancellationToken);
 
@@ -133,7 +136,8 @@ internal sealed class ArcaRobotRunStore(IArcaConnectionRepository connections, I
 
         var delegated = catalog.DelegatedCodes;
         return new ArcaCompanyRobotWorkResponse(company.Id, owner, connection.Cuit, platformCuit,
-            [.. connection.EnabledServices.Where(delegated.Contains)], [.. connection.EnabledServices]);
+            [.. connection.EnabledServices.Where(delegated.Contains)], [.. connection.EnabledServices],
+            new Dictionary<string, string>(company.Outputs, StringComparer.Ordinal));
     }
 
     private async Task<Result<ArcaPlatformRobotWorkResponse?>> ReservePlatformCoreAsync(Guid runId, Guid owner, CancellationToken cancellationToken)

@@ -14,6 +14,10 @@ internal interface IArcaRobotCompanyStep
 
     bool AppliesTo(IReadOnlyCollection<string> enabledServices);
 
-    /// <summary>Corre el paso en la sesión del cliente; devuelve lo que la pantalla tiene que mostrar (el número), sin secretos.</summary>
-    Task<string?> RunAsync(ArcaRobotSession session, ArcaCompanyRobotWorkResponse job, CancellationToken cancellationToken);
+    /// <summary>
+    /// Corre el paso en la sesión del cliente; devuelve lo que la pantalla tiene que mostrar (el número), sin secretos. Con
+    /// <paramref name="record"/> guarda en la corrida lo que va a dar antes de confirmarlo en ARCA (O10); false sin la reserva.
+    /// </summary>
+    Task<string?> RunAsync(ArcaRobotSession session, ArcaCompanyRobotWorkResponse job, Func<string, Task<bool>> record,
+        CancellationToken cancellationToken);
 }

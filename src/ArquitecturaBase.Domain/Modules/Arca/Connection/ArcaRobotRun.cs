@@ -48,7 +48,10 @@ public sealed class ArcaRobotRun : Entity
     public string[] CompletedSteps { get; private set; } = [];
     public string? CurrentStep { get; private set; }
 
-    /// <summary>Lo que dejó un paso para la pantalla, por ejemplo el punto de venta que dio de alta. Sin secretos.</summary>
+    /// <summary>
+    /// Lo que dejó un paso para la pantalla, por ejemplo el punto de venta que dio de alta. Sin secretos. Sobrevive a reiniciar
+    /// la corrida (O10): el punto de venta propio que guardó una pasada lo toma la siguiente.
+    /// </summary>
     public Dictionary<string, string> Outputs { get; private set; } = new(StringComparer.Ordinal);
     public ArcaRobotFailure? Failure { get; private set; }
     public string? FailedStep { get; private set; }
@@ -179,6 +182,15 @@ public sealed class ArcaRobotRun : Entity
         return true;
     }
 
+    /// <summary>O10: lo que un paso va a dar en ARCA, guardado antes de confirmarlo, con la reserva propia.</summary>
+    public bool Record(string step, string output, Guid owner, DateTime nowUtc, TimeSpan lease)
+    {
+        if (!Owns(owner, nowUtc)) return false;
+        Outputs = new(Outputs, StringComparer.Ordinal) { [step] = output };
+        Hold(owner, nowUtc, lease);
+        return true;
+    }
+
     public bool Complete(string step, string? output, Guid owner, DateTime nowUtc, TimeSpan lease)
     {
         if (!Owns(owner, nowUtc)) return false;
@@ -242,7 +254,6 @@ public sealed class ArcaRobotRun : Entity
         StartedAtUtc = nowUtc;
         FinishedAtUtc = null;
         CompletedSteps = [];
-        Outputs = new(StringComparer.Ordinal);
         CurrentStep = null;
         Attempts = 1;
         ClearFailure();

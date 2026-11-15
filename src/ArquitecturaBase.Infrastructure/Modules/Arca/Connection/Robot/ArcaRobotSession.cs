@@ -83,6 +83,12 @@ internal sealed class ArcaRobotSession
 
     public ILocator Rows(Regex text) => Page.Locator("tr").Filter(new() { HasTextRegex = text });
 
+    /// <summary>O9: espera lo que confirma que la página cargó o que el clic hizo efecto; si no llega, ARCA no respondió o la pantalla cambió.</summary>
+    public Task WaitForAsync(ILocator target) => Guard(() => target.First.WaitForAsync());
+
+    /// <summary>O9: espera un botón o un enlace, por ejemplo el «Agregar» de una tabla que ya cargó.</summary>
+    public Task WaitForClickableAsync(string text) => WaitForAsync(Clickable(text));
+
     public Task FillAsync(string selector, string value) => Guard(() => Page.Locator(selector).First.FillAsync(value));
 
     public Task<string> ValueAsync(string selector) => Guard(() => Page.Locator(selector).First.InputValueAsync());

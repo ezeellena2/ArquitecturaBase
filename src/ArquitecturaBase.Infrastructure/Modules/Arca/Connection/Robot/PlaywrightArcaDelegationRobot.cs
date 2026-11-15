@@ -41,7 +41,7 @@ internal sealed partial class PlaywrightArcaDelegationRobot(IEnumerable<IArcaRob
             }
 
             foreach (var step in companySteps.Where(step => step.AppliesTo(job.EnabledServices)))
-                await steps.RunAsync(step.Key, () => step.RunAsync(session, job, token));
+                await steps.RunAsync(step.Key, () => step.RunAsync(session, job, output => progress.RecordAsync(step.Key, output, token), token));
         }, cancellationToken);
 
     public async Task<ArcaRobotOutcome> RunPlatformAsync(ArcaPlatformRobotWorkResponse job, IArcaRobotProgress progress, CancellationToken cancellationToken)

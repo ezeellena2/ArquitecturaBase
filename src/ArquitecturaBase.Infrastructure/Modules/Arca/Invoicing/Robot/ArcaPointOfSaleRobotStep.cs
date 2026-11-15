@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Robot;
+using Microsoft.Playwright;
 
 namespace ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Robot;
 
@@ -19,17 +21,18 @@ internal sealed partial class ArcaPointOfSaleRobotStep : IArcaRobotCompanyStep
 
     public bool AppliesTo(IReadOnlyCollection<string> enabledServices) => enabledServices.Contains(Wsfe, StringComparer.Ordinal);
 
-    public async Task<string?> RunAsync(ArcaRobotSession session, ArcaCompanyRobotWorkResponse job, CancellationToken cancellationToken)
+    public async Task<string?> RunAsync(ArcaRobotSession session, ArcaCompanyRobotWorkResponse job, Func<string, Task<bool>> record,
+        CancellationToken cancellationToken)
     {
         await session.OpenServiceAsync(ArcaRobotScreens.PointsOfSaleService, job.CompanyCuit);
         await session.ClickAsync(ArcaRobotScreens.PointsOfSaleAbm);
+        // O9: la tabla se lee cuando la página cargó, con su «Agregar».
+        await session.WaitForClickableAsync(ArcaRobotScreens.Add);
 
-        var rows = session.Rows(ArcaRobotScreens.Pattern(ArcaRobotScreens.WebServicesSystem));
-        foreach (var text in await rows.AllInnerTextsAsync())
-        {
-            if (ArcaRobotScreens.Pattern(ArcaRobotScreens.DroppedPoint).IsMatch(text)) continue;
-            if (Number(text) is { } existing) return existing.ToString(CultureInfo.InvariantCulture);
-        }
+        // O10: un punto de venta propio: el que guardó una pasada anterior, si sigue vigente en la tabla; nunca el de otro sistema.
+        if (job.Outputs.GetValueOrDefault(StepKey) is { } recorded
+            && int.TryParse(recorded, NumberStyles.None, CultureInfo.InvariantCulture, out var own) && await Point(session, own).CountAsync() > 0)
+            return recorded;
 
         var used = (await session.Rows(ArcaRobotScreens.Pattern(@"^\s*\d")).AllInnerTextsAsync()).Select(Number).OfType<int>().DefaultIfEmpty(0).Max();
         await session.ClickAsync(ArcaRobotScreens.Add);
@@ -38,15 +41,22 @@ internal sealed partial class ArcaPointOfSaleRobotStep : IArcaRobotCompanyStep
         await session.FillAsync(ArcaRobotScreens.PointNumberInput, number.ToString(CultureInfo.InvariantCulture));
         await session.SelectAsync(ArcaRobotScreens.SystemSelect, ArcaRobotScreens.Pattern(ArcaRobotScreens.WebServicesSystem));
         await session.SelectIfPresentAsync(ArcaRobotScreens.AddressSelect, ArcaRobotScreens.Pattern("\\S"));
+        // O10: antes de confirmarlo en ARCA, la corrida guarda el número: si la pasada se corta, la próxima lo toma de la tabla.
+        if (!await record(number.ToString(CultureInfo.InvariantCulture))) throw new ArcaRobotStoppedException(ArcaRobotFailure.Interrupted);
         await session.ClickAsync(ArcaRobotScreens.Accept);
         await session.ClickIfPresentAsync(ArcaRobotScreens.ConfirmPoint);
 
-        // Playwright compara con el texto de la fila sin separar las celdas («0002Factura…»): el borde es un no dígito.
-        var created = session.Rows(ArcaRobotScreens.Pattern(ArcaRobotScreens.WebServicesSystem))
-            .Filter(new() { HasTextRegex = new Regex($@"(^|\D)0*{number}(\D|$)", RegexOptions.None, TimeSpan.FromSeconds(1)) });
-        if (await created.CountAsync() == 0) throw await session.ChangedAsync();
+        // O9: espera la fila nueva después del clic.
+        await session.WaitForAsync(Point(session, number));
         return number.ToString(CultureInfo.InvariantCulture);
     }
+
+    // Una fila vigente de web service con ese número. Playwright compara con el texto de la fila sin separar las celdas
+    // («0002Factura…»): el borde es un no dígito.
+    private static ILocator Point(ArcaRobotSession session, int number) =>
+        session.Rows(ArcaRobotScreens.Pattern(ArcaRobotScreens.WebServicesSystem))
+            .Filter(new() { HasTextRegex = new Regex($@"(^|\D)0*{number}(\D|$)", RegexOptions.None, TimeSpan.FromSeconds(1)) })
+            .Filter(new() { HasNotTextRegex = ArcaRobotScreens.Pattern(ArcaRobotScreens.DroppedPoint) });
 
     /// <summary>El número de punto de venta con que empieza una fila de la tabla.</summary>
     private static int? Number(string row) =>

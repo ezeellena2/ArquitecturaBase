@@ -62,14 +62,45 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
     [Fact]
     public async Task Running_the_company_side_again_duplicates_nothing()
     {
-        await robot.RunCompanyAsync(CompanyJob(), Client(), new RecordingProgress(), Ct);
+        var first = new RecordingProgress();
+        await robot.RunCompanyAsync(CompanyJob(), Client(), first, Ct);
         var again = new RecordingProgress();
 
-        Assert.Equal(ArcaRobotOutcome.Success, await robot.RunCompanyAsync(CompanyJob(), Client(), again, Ct));
+        Assert.Equal(ArcaRobotOutcome.Success, await robot.RunCompanyAsync(CompanyJob(first.Outputs), Client(), again, Ct));
 
         Assert.Single(web.Relations);
         Assert.Equal(2, web.Points.Count(point => point.Owner == FakeArcaWeb.Company));
         Assert.Equal("2", again.Outputs["company.point-of-sale"]);
+    }
+
+    // O10: the robot adds a point of sale of its own: a web service one of another system of the company is not taken.
+    [Fact]
+    public async Task A_web_service_point_of_sale_of_another_system_is_not_taken()
+    {
+        web.Points.Add(new FakeArcaWebPoint(FakeArcaWeb.Company, 3, "Otro sistema - Web Services", false));
+        var progress = new RecordingProgress();
+
+        Assert.Equal(ArcaRobotOutcome.Success, await robot.RunCompanyAsync(CompanyJob(), Client(), progress, Ct));
+
+        Assert.Equal("4", progress.Outputs["company.point-of-sale"]);
+        Assert.Equal(3, web.Points.Count(point => point.Owner == FakeArcaWeb.Company));
+    }
+
+    // O10: the number is recorded before confirming it in ARCA: a pass cut after the confirmation leaves it, and the next pass
+    // takes it from the table instead of adding another.
+    [Fact]
+    public async Task A_point_of_sale_confirmed_before_a_cut_is_taken_by_the_next_pass()
+    {
+        var cut = new RecordingProgress { LoseAtComplete = "company.point-of-sale" };
+
+        Assert.Equal(ArcaRobotOutcome.Stopped(ArcaRobotFailure.Interrupted, "company.point-of-sale"),
+            await robot.RunCompanyAsync(CompanyJob(), Client(), cut, Ct));
+        Assert.Equal("2", cut.Outputs["company.point-of-sale"]);
+
+        var again = new RecordingProgress();
+        Assert.Equal(ArcaRobotOutcome.Success, await robot.RunCompanyAsync(CompanyJob(cut.Outputs), Client(), again, Ct));
+        Assert.Equal("2", again.Outputs["company.point-of-sale"]);
+        Assert.Equal(2, web.Points.Count(point => point.Owner == FakeArcaWeb.Company));
     }
 
     [Fact]
@@ -240,8 +271,9 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
     public void Any_debug_with_a_star_or_pw_counts_as_playwright_debugging(string name, string value, bool on) =>
         Assert.Equal(on, ArcaRobotBrowserCheck.PlaywrightDebugging(variable => variable == name ? value : null));
 
-    private static ArcaCompanyRobotWorkResponse CompanyJob() =>
-        new(Guid.NewGuid(), Guid.NewGuid(), FakeArcaWeb.Company, FakeArcaWeb.Platform, [Wsfe], [Registry, Wsfe]);
+    private static ArcaCompanyRobotWorkResponse CompanyJob(IReadOnlyDictionary<string, string>? outputs = null) =>
+        new(Guid.NewGuid(), Guid.NewGuid(), FakeArcaWeb.Company, FakeArcaWeb.Platform, [Wsfe], [Registry, Wsfe],
+            new Dictionary<string, string>(outputs ?? new Dictionary<string, string>(), StringComparer.Ordinal));
 
     private static ArcaPlatformRobotWorkResponse PlatformJob(string? request, bool companyDone) =>
         new(Guid.NewGuid(), Guid.NewGuid(), FakeArcaWeb.Company, FakeArcaWeb.Platform, Alias, request, [], companyDone, [Wsfe], [Registry]);
@@ -255,6 +287,9 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
         public Dictionary<string, string> Outputs { get; } = new(StringComparer.Ordinal);
         public List<string> Certificates { get; } = [];
         public string? LoseAfter { get; init; }
+
+        /// <summary>O10: el paso cuyo cierre ya no se guarda, como si la reserva se perdiera después de confirmarlo en ARCA.</summary>
+        public string? LoseAtComplete { get; init; }
         public bool RejectCertificate { get; init; }
 
         public int Renewals => Volatile.Read(ref renewals);
@@ -270,8 +305,15 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
         public Task<bool> BeginAsync(string step, CancellationToken cancellationToken) =>
             Task.FromResult(LoseAfter is null || !Completed.Contains(LoseAfter));
 
+        public Task<bool> RecordAsync(string step, string output, CancellationToken cancellationToken)
+        {
+            Outputs[step] = output;
+            return Task.FromResult(true);
+        }
+
         public Task<bool> CompleteAsync(string step, string? output, CancellationToken cancellationToken)
         {
+            if (step == LoseAtComplete) return Task.FromResult(false);
             Completed.Add(step);
             if (output is not null) Outputs[step] = output;
             return Task.FromResult(true);
