@@ -90,6 +90,7 @@ internal sealed class ArcaApplicationHost : IDisposable
     public ServiceProvider Provider { get; }
 
     public IArcaConnectionService Connection => Provider.GetRequiredService<IArcaConnectionService>();
+    public IArcaDisconnectionService Disconnection => Provider.GetRequiredService<IArcaDisconnectionService>();
     public IArcaConnectionTestService Test => Provider.GetRequiredService<IArcaConnectionTestService>();
     public IArcaRobotService Robot => Provider.GetRequiredService<IArcaRobotService>();
     public IArcaRobotRunStore RobotStore => Provider.GetRequiredService<IArcaRobotRunStore>();

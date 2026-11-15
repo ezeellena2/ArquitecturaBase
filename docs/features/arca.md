@@ -266,7 +266,7 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   espera dice su código. De una excepción propia va el mensaje, que está en inglés y sin datos personales; de una ajena, sólo
   el tipo.
   El certificado y la configuración de Facturación son auditables, como la conexión: guardan quién y cuándo los creó o
-  los cambió (`IAuditable`).
+  los cambió (`IAuditable`). Desconectar borra la fila, así que deja un log con la conexión y quién la desconectó.
 - **Numeración:** `ArcaVoucherSequences` tiene una fila por ambiente, CUIT, punto de venta y tipo, con una reserva corta y
   el comprobante pendiente. El worker (`Arca:Invoicing:Worker`) toma una secuencia por vez y su comprobante más viejo sin
   resolver; nadie toma otro número mientras haya un pendiente. El número (último autorizado más 1) y la huella SHA-256 se

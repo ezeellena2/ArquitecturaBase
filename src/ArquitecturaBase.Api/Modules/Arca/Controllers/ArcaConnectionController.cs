@@ -22,7 +22,8 @@ namespace ArquitecturaBase.Api.Modules.Arca.Controllers;
 [HasPermission(ArcaPermissions.Read)]
 [EnableRateLimiting(ArcaApiRegistration.ReadPolicy)]
 [RequestSizeLimit(16384)]
-public sealed class ArcaConnectionController(IArcaConnectionService service, IArcaConnectionTestService tester) : ControllerBase
+public sealed class ArcaConnectionController(IArcaConnectionService service, IArcaConnectionTestService tester,
+    IArcaDisconnectionService disconnection) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<ArcaConnectionResponse>(StatusCodes.Status200OK)]
@@ -98,5 +99,5 @@ public sealed class ArcaConnectionController(IArcaConnectionService service, IAr
     [ProducesProblem(StatusCodes.Status404NotFound)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Disconnect([FromQuery] long expectedRevision, CancellationToken cancellationToken) =>
-        (await service.DisconnectAsync(expectedRevision, cancellationToken)).ToActionResult(this);
+        (await disconnection.DisconnectAsync(expectedRevision, cancellationToken)).ToActionResult(this);
 }

@@ -85,13 +85,6 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
             return Result.Success();
         }, token), cancellationToken));
 
-    public Task<Result> DisconnectAsync(long expectedRevision, CancellationToken cancellationToken) =>
-        OperationLog.RunAsync(logger, "DisconnectArca", () => unitOfWork.ExecuteInTransactionAsync(token => ChangeCoreAsync(expectedRevision, (connection, _) =>
-        {
-            repository.Remove(connection);
-            return Task.FromResult(Result.Success());
-        }, token), CommitPolicy.OnSuccess, cancellationToken));
-
     private async Task<Result> StartCoreAsync(string cuit, ArcaEnvironment environment, string alias, IReadOnlyCollection<ArcaServiceCode> chosen,
         long expectedRevision, ArcaAccessMode mode, CancellationToken cancellationToken)
     {

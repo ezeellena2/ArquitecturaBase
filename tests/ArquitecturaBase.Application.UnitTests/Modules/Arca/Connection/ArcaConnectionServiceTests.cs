@@ -100,11 +100,11 @@ public sealed class ArcaConnectionServiceTests
     {
         using var host = new ArcaApplicationHost();
         var first = (await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [Invoicing], 0, ArcaAccessMode.CompanyCertificate, Ct)).Value;
-        Assert.True((await host.Connection.DisconnectAsync(first.Revision, Ct)).IsSuccess);
+        Assert.True((await host.Disconnection.DisconnectAsync(first.Revision, Ct)).IsSuccess);
         host.Clock.Advance(TimeSpan.FromSeconds(5));
         Assert.True((await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [Invoicing], 0, ArcaAccessMode.CompanyCertificate, Ct)).IsSuccess);
 
-        Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.DisconnectAsync(first.Revision, Ct)).Error);
+        Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Disconnection.DisconnectAsync(first.Revision, Ct)).Error);
         Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.ChooseServicesAsync([], first.Revision, Ct)).Error);
     }
 
@@ -124,7 +124,7 @@ public sealed class ArcaConnectionServiceTests
         Assert.Equal("facturacion", Assert.Single(replaced.Certificates).Alias);
         Assert.Equal(ArcaConnectionErrors.RevisionConflict,
             (await host.Connection.ReplaceAsync("20-00000006-0", ArcaEnvironment.Testing, "otro", [], started.Revision, ArcaAccessMode.CompanyCertificate, Ct)).Error);
-        Assert.True((await host.Connection.DisconnectAsync(replaced.Revision, Ct)).IsSuccess);
+        Assert.True((await host.Disconnection.DisconnectAsync(replaced.Revision, Ct)).IsSuccess);
         Assert.Equal(ArcaConnectionErrors.NotConnected,
             (await host.Connection.ReplaceAsync("20-00000006-0", ArcaEnvironment.Testing, "otro", [], replaced.Revision, ArcaAccessMode.CompanyCertificate, Ct)).Error);
     }
@@ -137,7 +137,7 @@ public sealed class ArcaConnectionServiceTests
 
         Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.ChooseServicesAsync([], started.Revision - 1, Ct)).Error);
         Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.UploadCertificateAsync("CERT", started.Revision - 1, Ct)).Error);
-        Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.DisconnectAsync(started.Revision - 1, Ct)).Error);
+        Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Disconnection.DisconnectAsync(started.Revision - 1, Ct)).Error);
         Assert.Equal(ArcaConnectionErrors.RevisionConflict,
             (await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [], 0, ArcaAccessMode.CompanyCertificate, Ct)).Error);
         Assert.Equal(started.Revision, host.Store.Connection!.Revision);
@@ -206,12 +206,12 @@ public sealed class ArcaConnectionServiceTests
         using var host = new ArcaApplicationHost();
         var active = await host.ActivateAsync(Invoicing);
 
-        Assert.True((await host.Connection.DisconnectAsync(active.Revision, Ct)).IsSuccess);
+        Assert.True((await host.Disconnection.DisconnectAsync(active.Revision, Ct)).IsSuccess);
 
         Assert.Null(host.Store.Connection);
         Assert.Empty(host.Store.Certificates);
         Assert.Null((await host.Connection.GetAsync(Ct)).Value.Status);
-        Assert.Equal(ArcaConnectionErrors.NotConnected, (await host.Connection.DisconnectAsync(0, Ct)).Error);
+        Assert.Equal(ArcaConnectionErrors.NotConnected, (await host.Disconnection.DisconnectAsync(0, Ct)).Error);
     }
 
     [Fact]

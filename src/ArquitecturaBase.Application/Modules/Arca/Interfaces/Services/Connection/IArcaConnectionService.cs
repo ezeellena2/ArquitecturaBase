@@ -39,6 +39,4 @@ public interface IArcaConnectionService
     /// renovación queda pendiente y cargado, y lo promueve la prueba en verde.
     /// </summary>
     Task<Result<ArcaConnectionResponse>> UploadCertificateAsync(string certificatePem, long expectedRevision, CancellationToken cancellationToken);
-
-    Task<Result> DisconnectAsync(long expectedRevision, CancellationToken cancellationToken);
 }
