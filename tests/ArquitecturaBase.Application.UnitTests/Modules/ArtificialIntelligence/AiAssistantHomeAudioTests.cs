@@ -258,6 +258,29 @@ public sealed class AiAssistantHomeAudioTests
         Assert.Equal((1, 1, 1), (host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
     }
 
+    // B2: a recording belongs to its person and its request: changing the language or the zone while it is heard does not lose it,
+    // neither for its status nor for a retry, and another person with the same request never finds it.
+    [Fact]
+    public async Task Another_language_or_zone_finds_the_recording_only_for_its_person()
+    {
+        var host = new OperationsHost();
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(Webm, requestId)).IsSuccess);
+
+        var english = await host.Service.GetAsync(requestId, "en", TestContext.Current.CancellationToken);
+        Assert.True(english.IsSuccess, english.IsFailure ? english.Error.Code : null);
+        await host.Fixture.Users.UpdateProfileAsync(host.ActorId, null, "en", "Europe/Madrid", TestContext.Current.CancellationToken);
+        host.Complete(requestId, "Armame un formulario de visitas");
+        Assert.Equal("Armame un formulario de visitas", (await host.Service.GetAsync(requestId, "en", TestContext.Current.CancellationToken)).Value.Transcript);
+        var retried = await host.UploadAsync(Webm, requestId, "en");
+        Assert.Equal(("completed", "Armame un formulario de visitas"), (retried.Value.State, retried.Value.Transcript));
+        Assert.Equal((1, 1, 1), (host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
+
+        host.Current.UserId = host.OtherId;
+        host.Fixture.Permissions.Permissions[host.OtherId] = [ArtificialIntelligencePermissions.AssistantUse];
+        Assert.Equal(AiAssistantErrors.NotFound, (await host.Service.GetAsync(requestId, "es", TestContext.Current.CancellationToken)).Error);
+    }
+
     private static AiAssistantAccessGuard Guard(AiAssistantAudioModelProfile[] audioProfiles, MemoryPrivateFileStore files)
     {
         var permissions = new FakePermissionService();

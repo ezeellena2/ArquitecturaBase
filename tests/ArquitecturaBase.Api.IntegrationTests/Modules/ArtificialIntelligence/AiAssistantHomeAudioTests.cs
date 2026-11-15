@@ -72,6 +72,13 @@ public sealed class AiAssistantHomeAudioTests(ApiFactory factory)
             var body = await normalized.ReadJsonAsync();
             Assert.Equal(("completed", "Visit at North branch"), (body.GetProperty("state").GetString(), body.GetProperty("transcript").GetString()));
         }
+        // Another language does not lose it (B2).
+        using (var english = new HttpRequestMessage(HttpMethod.Get, $"/api/ai/assistant/audio/{audioRequestId}"))
+        {
+            english.Headers.AcceptLanguage.ParseAdd("en");
+            using var found = await scenario.Client.SendAsync(english, Ct);
+            Assert.Equal("Visit at North branch", (await found.ReadJsonAsync()).GetProperty("transcript").GetString());
+        }
 
         var turnRequestId = Guid.NewGuid();
         using (var submitted = await scenario.Client.PostAsJsonAsync("/api/ai/assistant/turns", new

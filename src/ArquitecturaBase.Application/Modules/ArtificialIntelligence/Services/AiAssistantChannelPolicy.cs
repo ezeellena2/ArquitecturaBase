@@ -61,12 +61,15 @@ internal static class AiAssistantChannelPolicy
     public static bool KnownInstructions(string instructionsId, int version) =>
         instructionsId == "home-system" && version is 1 or HomeInstructionsVersion || instructionsId == "capabilities-v1" && version == 1;
 
+    // B2: a Home recording or reading belongs to its person and its request; a language or zone changed while it runs does not lose it.
+    private static bool IsHomeTechnical(string channelId) => channelId is HomeAudioChannelId or HomeDocumentChannelId;
+
     public static bool SameScope(AssistantChannelContext requested, AssistantChannelContext captured) =>
         requested.ChannelId == captured.ChannelId && requested.ActorUserId == captured.ActorUserId && requested.SubjectUserId == captured.SubjectUserId &&
         requested.InteractionMode == captured.InteractionMode && requested.SourceRecordId == captured.SourceRecordId &&
         requested.FocusDefinitionId == captured.FocusDefinitionId &&
         requested.ChannelConversationId == captured.ChannelConversationId &&
-        requested.Culture == captured.Culture && requested.TimeZoneId == captured.TimeZoneId &&
+        (IsHomeTechnical(captured.ChannelId) || requested.Culture == captured.Culture && requested.TimeZoneId == captured.TimeZoneId) &&
         captured.AllowedCapabilities.All(requested.AllowedCapabilities.Contains) &&
         (captured.PreloadedCapabilities ?? []).All((requested.PreloadedCapabilities ?? []).Contains) &&
         requested.AllowedTerminals.ToHashSet().SetEquals(captured.AllowedTerminals) &&

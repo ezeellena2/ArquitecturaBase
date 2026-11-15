@@ -253,6 +253,29 @@ public sealed class AiAssistantHomeDocumentTests
         Assert.Equal((2, 1, 1, 1), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
     }
 
+    // B2: a reading belongs to its person and its request: changing the language or the zone while it is read does not lose it, neither
+    // for its status nor for a retry, and another person with the same request never finds it.
+    [Fact]
+    public async Task Another_language_or_zone_finds_the_reading_only_for_its_person()
+    {
+        var host = new Host();
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(requestId: requestId)).IsSuccess);
+
+        var english = await host.Documents.GetAsync(requestId, "en", Ct);
+        Assert.True(english.IsSuccess, english.IsFailure ? english.Error.Code : null);
+        await host.Fixture.Users.UpdateProfileAsync(host.ActorId, null, "en", "Europe/Madrid", Ct);
+        host.CompleteReading(requestId, Read);
+        Assert.Equal("partial", (await host.Documents.GetAsync(requestId, "en", Ct)).Value.Document?.Readability);
+        var retried = await host.Documents.SubmitAsync(new(requestId, "en", Pdf, "comprobante.pdf"), Ct);
+        Assert.Equal(("completed", "partial"), (retried.Value.State, retried.Value.Document?.Readability));
+        Assert.Equal((1, 1, 1), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count));
+
+        host.Current.UserId = host.OtherId;
+        host.Fixture.Permissions.Permissions[host.OtherId] = [ArtificialIntelligencePermissions.AssistantUse];
+        Assert.Equal(AiAssistantErrors.NotFound, (await host.Documents.GetAsync(requestId, "es", Ct)).Error);
+    }
+
     [Fact]
     public async Task A_completed_reading_says_the_document_and_how_readable_it_was_only_to_its_person()
     {

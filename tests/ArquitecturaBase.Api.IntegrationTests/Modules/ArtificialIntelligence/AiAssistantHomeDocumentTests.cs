@@ -116,6 +116,13 @@ public sealed class AiAssistantHomeDocumentTests(ApiFactory factory)
         }
         using (var again = await scenario.Client.PostAsync("/api/ai/assistant/documents", Upload(documentRequestId, Pdf), Ct))
             Assert.Equal("completed", (await again.ReadJsonAsync()).GetProperty("state").GetString());
+        // Another language does not lose it (B2).
+        using (var english = new HttpRequestMessage(HttpMethod.Get, $"/api/ai/assistant/documents/{documentRequestId}"))
+        {
+            english.Headers.AcceptLanguage.ParseAdd("en");
+            using var found = await scenario.Client.SendAsync(english, Ct);
+            Assert.Equal("completed", (await found.ReadJsonAsync()).GetProperty("state").GetString());
+        }
         using (var reusedAfter = await scenario.Client.PostAsync("/api/ai/assistant/documents", Upload(documentRequestId, Pdf, "otro.pdf"), Ct))
             Assert.Equal(HttpStatusCode.Conflict, reusedAfter.StatusCode);
         Assert.Equal(1, provider.Calls);
