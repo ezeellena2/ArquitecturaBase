@@ -64,7 +64,8 @@ los comprobantes anteriores conservan exactamente su huella.
 Con la clave configurada y ambos permisos ai.business.read/ai.business.manage, buscar un
 lugar por nombre/ciudad, abrir su ficha, guardar y recargar. Revisar restricciones, cuotas y
 rotación de la clave. Esta prueba puede tener costo y se hace manualmente con la cuenta real.
-Sin clave, el resto del módulo funciona; buscar devuelve error localizado. Los 429 conservan
+Sin clave, el resto del módulo funciona y el buscador no se muestra (`place-search` no se publica; la ruta da 409
+`Ai.Places.NotConfigured`). Los 429 conservan
 espera y requieren una nueva acción; cancelar no demuestra que Google no haya procesado/cobrado.
 
 Suites automatizadas: claves inventadas y dobles HTTP; Docker para PostgreSQL/Redis y

@@ -8,6 +8,7 @@ using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -22,7 +23,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         var foreign = new ForeignCatalogSource();
         var catalog = new AiAssistantCapabilityCatalogPolicy([host.Source, foreign], host.Permissions);
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions, [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}],
-            limits, new FakeCurrentUser { UserId = host.Store.Turn.OwnerUserId }, catalog, new([], [], new MemoryPrivateFileStore()));
+            limits, new FakeCurrentUser { UserId = host.Store.Turn.OwnerUserId }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var service = new AiAssistantDispatchService(host.Store, host.Work,
             new AiAssistantDispatchGuard(host.Store, host.Store, host.Store, guard, catalog),
             new Protector(), limits, host.Clock, NullLogger<AiAssistantDispatchService>.Instance, host.CompletionSignal);

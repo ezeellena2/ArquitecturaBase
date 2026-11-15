@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Places;
 using Microsoft.Extensions.Options;
 
@@ -63,8 +64,14 @@ public sealed class GooglePlacesContractTests
         using var handler = new Handler("{}");
         using var http = new HttpClient(handler);
         using var client = new GooglePlacesClient(http, Options.Create(new GooglePlacesOptions()));
-        Assert.Equal("Ai.Places.NotConfigured", (await client.SearchAsync("Clinic", "en", Ct)).Error.Code);
+        Assert.False(client.IsConfigured);
+        var error = (await client.SearchAsync("Clinic", "en", Ct)).Error;
+        Assert.Equal("Ai.Places.NotConfigured", error.Code);
+        // I7: a search without the key is a capability turned off, never a failure of the server (500).
+        Assert.Equal(ErrorType.Conflict, error.Type);
         Assert.Equal(0, handler.Calls);
+        using var configured = new GooglePlacesClient(http, Options.Create(new GooglePlacesOptions { ApiKey = "fictional-key" }));
+        Assert.True(configured.IsConfigured);
     }
 
     [Fact]

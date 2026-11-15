@@ -54,7 +54,7 @@ internal sealed class AssistantOperationsFixture
             ? [new(AiProvider.OpenAI, "vision-model", "fixture-document", 4, ["application/pdf", "image/jpeg", "image/png"], 10 * 1024 * 1024, 10)] : [];
         var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
         var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
-            new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()));
+            new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, Clock);
         Service = new(Store, guard, submissions, Work, Store, new AiAssistantResponsePolicy(Protector, Clock, catalog), NullLogger<AiAssistantOperations>.Instance);
     }

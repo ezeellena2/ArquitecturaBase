@@ -5,6 +5,8 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
@@ -110,6 +112,56 @@ public sealed class AiAssistantEndpointsTests(ApiFactory factory)
         Assert.Equal("en", (await recovered.ReadJsonAsync()).GetProperty("culture").GetString());
         using var cancel = await actor.PostAsync($"/api/ai/assistant/turns/{requestId}/cancel", null, Ct);
         Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
+    }
+
+    // I7: a saved key the installation can no longer decrypt (a restore without its ring key) says what to do on the connection screen
+    // and leaves the assistant unavailable, so Home accepts no turn that would fail after taking the quota.
+    [Fact]
+    public async Task An_unreadable_saved_key_is_explained_and_the_assistant_takes_no_turn()
+    {
+        var revision = await ConfigureConnectionAsync();
+        try
+        {
+            using var actor = await OperatorAsync([ArtificialIntelligencePermissions.AssistantUse]);
+            using var readable = await actor.GetAsync("/api/ai/assistant/bootstrap", Ct);
+            Assert.Equal("available", (await readable.ReadJsonAsync()).GetProperty("availability").GetString());
+            await factory.InTransactionAsync(async services =>
+            {
+                var db = services.GetRequiredService<ApplicationDbContext>();
+                var connection = await db.Set<AiConnection>().SingleAsync(Ct);
+                db.Entry(connection).Property(row => row.ProtectedApiKey).CurrentValue = "1.missing-ring-key.AAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAA==.AAAA";
+            });
+
+            using var bootstrap = await actor.GetAsync("/api/ai/assistant/bootstrap", Ct);
+            Assert.Equal(HttpStatusCode.OK, bootstrap.StatusCode);
+            var body = await bootstrap.ReadJsonAsync();
+            Assert.Equal("notConfigured", body.GetProperty("availability").GetString());
+            Assert.False(body.GetProperty("audio").GetBoolean());
+            using var submitted = await actor.PostAsJsonAsync("/api/ai/assistant/turns", new { requestId = Guid.NewGuid(), conversationId = (Guid?)null,
+                expectedRevision = (long?)null, expectedConnectionRevision = revision, question = "Question that must not take the quota" }, Ct);
+            Assert.Equal(HttpStatusCode.Conflict, submitted.StatusCode);
+            Assert.Equal("Ai.Assistant.Unavailable", (await submitted.ReadJsonAsync()).GetProperty("code").GetString());
+            var actorId = Guid.Parse(actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+            Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<AiAssistantRequestReceipt>().CountAsync(row => row.OwnerUserId == actorId, Ct)));
+
+            using var manager = await OperatorAsync([ArtificialIntelligencePermissions.Read, ArtificialIntelligencePermissions.Manage]);
+            manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+            foreach (var (path, payload) in new (string, object)[] {
+                ("/api/ai/connection/models", new { provider = "OpenAI", credentialChange = "Keep", expectedRevision = revision }),
+                ("/api/ai/connection/test", new { provider = "OpenAI", model = "fictional-model", credentialChange = "Keep", expectedRevision = revision }) })
+            {
+                using var response = await manager.PostAsJsonAsync(path, payload, Ct);
+                Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+                var problem = await response.ReadJsonAsync();
+                Assert.Equal("Ai.Connection.CredentialUnavailable", problem.GetProperty("code").GetString());
+                Assert.StartsWith("No pudimos leer la clave guardada: reemplazala", problem.GetProperty("detail").GetString(), StringComparison.Ordinal);
+            }
+        }
+        finally
+        {
+            // Replacing the key is the remedy, and it leaves the shared connection readable for the next tests.
+            await ConfigureConnectionAsync();
+        }
     }
 
     private async Task<long> ConfigureConnectionAsync()

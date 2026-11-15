@@ -110,6 +110,14 @@ de su clave de API, sin suponer que sigue activa. Si falta una clave histórica,
 y recuperala del respaldo: no regeneres el mismo keyId. Reemplazar la API restablece la conexión,
 pero no recupera comprobantes HMAC anteriores ni backups todavía cifrados con la clave perdida.
 
+Si la clave de API guardada no se puede descifrar (I7), Inteligencia artificial › Conexión con
+el proveedor dice «No pudimos leer la clave guardada: reemplazala» junto a la clave, con
+**Reemplazar clave** resaltado (cargar modelos y probar responden 409
+`Ai.Connection.CredentialUnavailable`), y el asistente, el audio y los documentos quedan no
+disponibles (`notConfigured`, también para WhatsApp y Formularios): la disponibilidad prueba el
+descifrado sin llamar al proveedor, así nadie gasta cupo en turnos que no pueden andar. Reemplazar
+la clave lo arregla.
+
 Un negocio nuevo clona código, no datos ni secretos. Base nueva, anillo/ID nuevos y credencial
 de proveedor propia. Copiar un backup con sus secretos es una restauración de la instalación
 original, no una instalación independiente. El núcleo puede funcionar sin IA: [retirada](quitar-ia.md).

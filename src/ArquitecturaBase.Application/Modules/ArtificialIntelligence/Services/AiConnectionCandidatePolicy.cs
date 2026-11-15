@@ -23,6 +23,10 @@ internal sealed class AiConnectionCandidatePolicy(IAiSecretProtector protector)
         var key = protector.Unprotect(provider, protectedApiKey);
         return key is null ? AiConnectionErrors.CredentialUnavailable : Result.Success(key);
     }
+    // I7: whether the saved key can be read here, decrypting it locally without calling the provider and discarding it. An unreadable
+    // key leaves the assistant unavailable instead of accepting turns that would fail after taking their quota.
+    public bool CanReveal(AiConnectionRow connection) =>
+        connection.ProtectedApiKey is { } protectedApiKey && protector.Unprotect(connection.Provider, protectedApiKey) is not null;
     public Result<string> RevealCandidate(AiConnectionRow current, AiProvider provider, AiCredentialChange change, string? apiKey)
     {
         if (change == AiCredentialChange.Replace)

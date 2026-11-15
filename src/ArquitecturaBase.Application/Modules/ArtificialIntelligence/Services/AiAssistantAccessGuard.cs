@@ -12,18 +12,28 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionService permissions,
     IReadOnlyCollection<AiAssistantModelProfile> profiles, AiAssistantLimits limits, ICurrentUser currentUser, AiAssistantCapabilityCatalogPolicy catalog,
-    AiAssistantTechnicalProfilePolicy technical)
+    AiAssistantTechnicalProfilePolicy technical, AiConnectionCandidatePolicy credentials)
 {
-    public bool HearsHomeAudio(AiConnectionRow connection) => technical.HearsHomeAudio(connection);
+    // I7: what needs the saved key (the assistant, the audio and the documents) is offered and accepted only while it can be read here,
+    // locally and without the provider, after the cheaper checks.
+    public bool HearsHomeAudio(AiConnectionRow connection) => technical.HearsHomeAudio(connection) && credentials.CanReveal(connection);
 
     public Result<AiAssistantExecutionProfileSnapshot> CaptureAudioProfile(AiConnectionRow connection,
-        AssistantChannelContext channel, AssistantAudioInput audio, DateTime occurredAtUtc) => technical.CaptureAudio(connection, channel, audio, occurredAtUtc);
+        AssistantChannelContext channel, AssistantAudioInput audio, DateTime occurredAtUtc)
+    {
+        var profile = technical.CaptureAudio(connection, channel, audio, occurredAtUtc);
+        return profile.IsSuccess && !credentials.CanReveal(connection) ? AiAssistantErrors.Unavailable : profile;
+    }
 
     // Whether this installation reads documents (ReadDocument): Home's documents route and its bootstrap ask it.
-    public bool ReadsDocuments(AiConnectionRow connection) => technical.ReadsDocuments(connection);
+    public bool ReadsDocuments(AiConnectionRow connection) => technical.ReadsDocuments(connection) && credentials.CanReveal(connection);
 
     public Result<AiAssistantExecutionProfileSnapshot> CaptureDocumentProfile(AiConnectionRow connection,
-        AssistantChannelContext channel, AssistantDocumentInput document, DateTime occurredAtUtc) => technical.CaptureDocument(connection, channel, document, occurredAtUtc);
+        AssistantChannelContext channel, AssistantDocumentInput document, DateTime occurredAtUtc)
+    {
+        var profile = technical.CaptureDocument(connection, channel, document, occurredAtUtc);
+        return profile.IsSuccess && !credentials.CanReveal(connection) ? AiAssistantErrors.Unavailable : profile;
+    }
 
     // A technical purpose takes the model of its sealed profile; an interpretation, the connection's.
     public string? Model(AiAssistantExecutionProfileSnapshot profile, AiConnectionRow connection) => profile.Purpose switch
@@ -129,6 +139,8 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
     {
         if (connection.ProtectedApiKey is null || string.IsNullOrWhiteSpace(connection.Model)) return "notConfigured";
         if (!connection.Enabled) return "paused";
+        // A key that cannot be read is as good as none (I7): the connection needs it replaced, and no turn is accepted meanwhile.
+        if (!credentials.CanReveal(connection)) return "notConfigured";
         return profiles.Any(p => p.Provider == connection.Provider && p.Model == connection.Model && p.SupportsTools &&
             p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes) ? "available" : "modelNotQualified";
     }

@@ -34,6 +34,7 @@ public sealed class BusinessPlacesServiceTests
     }
     private sealed class Client : IBusinessPlacesClient
     {
+        public bool IsConfigured => true;
         public int Calls { get; private set; }
         public string? Input { get; private set; }
         public Task<Result<BusinessPlacesResponse>> SearchAsync(string input, string languageCode, CancellationToken cancellationToken)

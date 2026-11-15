@@ -640,7 +640,7 @@ public sealed class AiAssistantHomeDocumentTests
                 new[] { "users.summary", "roles.list", "roles.permissions", "system.help", "business.information" }
                     .Select(id => PreparedAssistantCapabilitySource.Definition(id)).ToArray())], Fixture.Permissions);
             var guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, limits, Current, catalog,
-                new(Fixture.AudioProfiles, Fixture.DocumentProfiles, Files));
+                new(Fixture.AudioProfiles, Fixture.DocumentProfiles, Files), FictionalCredentials.Policy);
             submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, Fixture.Clock);
             Responses = new(Fixture.Protector, Fixture.Clock, catalog);
             var operations = new AiAssistantOperations(Fixture.Store, guard, submissions, Fixture.Work, Fixture.Store, Responses,

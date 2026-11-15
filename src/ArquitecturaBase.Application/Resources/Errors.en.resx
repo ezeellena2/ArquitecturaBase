@@ -96,7 +96,7 @@
   <data name="Ai.Connection.RequestConflict" xml:space="preserve"><value>This identifier already confirmed another request. Check the saved change.</value></data>
   <data name="Ai.Connection.ChangeNotFound" xml:space="preserve"><value>We have not found a receipt for this save yet.</value></data>
   <data name="Ai.Connection.SessionRequired" xml:space="preserve"><value>Sign in to manage the connection.</value></data>
-  <data name="Ai.Connection.CredentialUnavailable" xml:space="preserve"><value>We could not read the stored credential. Check the installation encryption keys.</value></data>
+  <data name="Ai.Connection.CredentialUnavailable" xml:space="preserve"><value>We could not read the saved key: replace it with “Replace key” in Artificial intelligence › Provider connection.</value></data>
   <data name="Ai.Provider.CredentialInvalid" xml:space="preserve"><value>The provider rejected the key. Review it in your API account.</value></data>
   <data name="Ai.Provider.ModelUnavailable" xml:space="preserve"><value>The model is unavailable to this account or does not support this test.</value></data>
   <data name="Ai.Provider.QuotaExceeded" xml:space="preserve"><value>The API account has no quota available. Review its billing.</value></data>

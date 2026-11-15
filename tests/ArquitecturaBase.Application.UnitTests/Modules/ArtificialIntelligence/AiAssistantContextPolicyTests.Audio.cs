@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -57,7 +58,7 @@ public sealed partial class AiAssistantContextPolicyTests
         AiAssistantAudioModelProfile[] audioProfiles = profile ? [new(AiProvider.OpenAI, "audio-model", "browser-audio", 1, ["audio/webm", "audio/mp4"], 1_000_000)] : [];
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "home" }], limits,
-            new FakeCurrentUser { UserId = host.UserId }, catalog, new(audioProfiles, [], new MemoryPrivateFileStore(storage)));
+            new FakeCurrentUser { UserId = host.UserId }, catalog, new(audioProfiles, [], new MemoryPrivateFileStore(storage)), FictionalCredentials.Policy);
         var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.Equal(audio, result.Value.Audio);

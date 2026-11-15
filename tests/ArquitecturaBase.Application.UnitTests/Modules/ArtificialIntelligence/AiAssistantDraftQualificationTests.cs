@@ -31,7 +31,7 @@ public sealed class AiAssistantDraftQualificationTests
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(users, permissions,
             [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "draft-fixture", Version = 1, QualifiedToDraft = qualified }],
-            limits, new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()));
+            limits, new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var channel = new AssistantChannelContext("fixture-draft", actor.Id, actor.Id, "es", "UTC", new([], []),
             [new("fictional.exact-reply", 1), new("fictional.drafted-reply", 1)], [new("assistant_proposal", 2)])
             { InteractionMode = AssistantInteractionMode.Assistant };

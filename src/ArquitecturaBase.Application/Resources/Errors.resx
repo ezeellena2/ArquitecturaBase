@@ -96,7 +96,7 @@
   <data name="Ai.Connection.RequestConflict" xml:space="preserve"><value>Este identificador ya confirmó otro pedido. Consultá el guardado.</value></data>
   <data name="Ai.Connection.ChangeNotFound" xml:space="preserve"><value>Todavía no encontramos el comprobante de ese guardado.</value></data>
   <data name="Ai.Connection.SessionRequired" xml:space="preserve"><value>Ingresá para administrar la conexión.</value></data>
-  <data name="Ai.Connection.CredentialUnavailable" xml:space="preserve"><value>No pudimos leer la credencial guardada. Revisá las claves de cifrado de la instalación.</value></data>
+  <data name="Ai.Connection.CredentialUnavailable" xml:space="preserve"><value>No pudimos leer la clave guardada: reemplazala con «Reemplazar clave» en Inteligencia artificial › Conexión con el proveedor.</value></data>
   <data name="Ai.Provider.CredentialInvalid" xml:space="preserve"><value>El proveedor rechazó la clave. Revisala en tu cuenta de API.</value></data>
   <data name="Ai.Provider.ModelUnavailable" xml:space="preserve"><value>El modelo no está disponible para esta cuenta o no admite esta prueba.</value></data>
   <data name="Ai.Provider.QuotaExceeded" xml:space="preserve"><value>La cuenta de API no tiene cuota disponible. Revisá su facturación.</value></data>

@@ -9,3 +9,5 @@ AssistantAudioExecutionFixture usa Context/Dispatch/Get reales y descriptores fi
 AssistantAudioExecutionFixture conserva el ChannelId del propósito técnico y permite observar el aviso neutral después del cierre; FakeUnitOfWork mantiene los controles de commit fallido y rollback.
 
 AssistantDocumentExecutionFixture hace lo mismo para ReadDocument, con un descriptor ficticio y DocumentConversationClient.
+
+`FictionalCredentials` es la política de la clave guardada que reciben los guards de prueba (I7): toda clave se lee como una ficticia, salvo `UnreadableKey`, que representa una clave que la instalación ya no puede descifrar.

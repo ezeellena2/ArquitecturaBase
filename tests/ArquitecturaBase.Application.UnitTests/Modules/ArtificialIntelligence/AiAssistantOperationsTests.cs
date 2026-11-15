@@ -28,6 +28,31 @@ public sealed class AiAssistantOperationsTests
         Assert.Equal(0, fixture.Source.Executions);
     }
 
+    // I7: a saved key the installation cannot decrypt leaves the assistant unavailable, probed locally and without the provider, so no
+    // interpretation, audio or document is accepted to fail later after taking its quota.
+    [Fact]
+    public async Task An_unreadable_saved_key_is_not_available_and_accepts_nothing()
+    {
+        var fixture = new AssistantOperationsFixture(audioQualified: true, documentQualified: true);
+        var available = await fixture.Service.GetAvailabilityAsync(Ct);
+        Assert.Equal("available", available.State);
+        Assert.True(available.ReadsDocuments);
+        fixture.Store.Connection = fixture.Store.Connection with { ProtectedApiKey = FictionalCredentials.UnreadableKey };
+
+        var unavailable = await fixture.Service.GetAvailabilityAsync(Ct);
+        Assert.Equal("notConfigured", unavailable.State);
+        Assert.False(unavailable.ReadsDocuments);
+        var request = fixture.Request();
+        var audio = request with { Text = "", Context = request.Context with { SubjectUserId = null, RequiredPermissions = new(["fictional.channel.read"], []),
+            AllowedCapabilities = [], AllowedTerminals = [] },
+            Audio = new("audio/private-object", "audio.ogg", "audio/ogg; codecs=opus", 42, new string('a', 64), request.ContentExpiresAtUtc) };
+        foreach (var submitted in new[] { request, audio, AiAssistantDocumentOperationsTests.DocumentRequest(fixture) })
+            Assert.Equal(AiAssistantErrors.Unavailable, (await fixture.Service.SubmitAsync(submitted, Ct)).Error);
+        Assert.Empty(fixture.Store.Turns);
+        Assert.Empty(fixture.Store.Receipts);
+        Assert.Equal(0, fixture.Work.Commits);
+    }
+
     // Task 8 of the documents: a channel reads a PDF or a photo only where Home would (documentReading), without the person's part.
     [Theory]
     [InlineData(true, true, true, true)]

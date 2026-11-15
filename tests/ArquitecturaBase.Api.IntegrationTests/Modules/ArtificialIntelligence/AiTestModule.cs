@@ -70,6 +70,7 @@ internal sealed class AiTestModule : IApiTestModule
     }
     private sealed class FictionalPlacesClient : IBusinessPlacesClient
     {
+        public bool IsConfigured => true;
         public Task<Result<BusinessPlacesResponse>> SearchAsync(string input, string languageCode, CancellationToken cancellationToken) =>
             Task.FromResult(Result.Success(new BusinessPlacesResponse([new("ChIJ_fictional", "Fictional clinic, Example City")])));
     }

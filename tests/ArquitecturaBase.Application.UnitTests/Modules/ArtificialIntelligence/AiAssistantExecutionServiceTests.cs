@@ -16,6 +16,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -149,7 +150,7 @@ public sealed class AiAssistantExecutionServiceTests
             Permissions.Permissions[UserId] = [ArtificialIntelligencePermissions.AssistantUse, "users.read"];
             var limits = new AiAssistantLimits();
             var catalog = new AiAssistantCapabilityCatalogPolicy([Queries], Permissions);
-            var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits, new FakeCurrentUser { UserId = UserId }, catalog, new([], [], new MemoryPrivateFileStore()));
+            var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits, new FakeCurrentUser { UserId = UserId }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
             Service = new AiAssistantExecutionService(null!, guard, catalog, Queries, Client, limits, Clock,
                 NullLogger<AiAssistantExecutionService>.Instance);
         }

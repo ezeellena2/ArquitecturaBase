@@ -11,5 +11,6 @@ public static class AiConnectionErrors
     public static readonly Error RequestConflict = Error.Conflict("Ai.Connection.RequestConflict", "The request identifier was used with a different payload.");
     public static readonly Error ChangeNotFound = Error.NotFound("Ai.Connection.ChangeNotFound", "The change receipt was not found.");
     public static readonly Error SessionRequired = Error.Unauthorized("Ai.Connection.SessionRequired", "An authenticated operator is required.");
-    public static readonly Error CredentialUnavailable = Error.Failure("Ai.Connection.CredentialUnavailable", "The stored credential cannot be decrypted.");
+    // I7: a saved key that cannot be decrypted is not a bug of the server: whoever administers fixes it by replacing the key.
+    public static readonly Error CredentialUnavailable = Error.Conflict("Ai.Connection.CredentialUnavailable", "The stored credential cannot be decrypted.");
 }

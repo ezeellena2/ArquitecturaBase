@@ -11,6 +11,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -27,7 +28,7 @@ public sealed class AiAssistantPrivacyTests
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
-        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, new([], [], new MemoryPrivateFileStore()));
+        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, RequestValidators.For(), permissions, guard,
             new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), limits, null!);
@@ -48,7 +49,7 @@ public sealed class AiAssistantPrivacyTests
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
-        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()));
+        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, RequestValidators.For(), permissions, guard,
             new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), limits, null!);

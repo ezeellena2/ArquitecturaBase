@@ -11,9 +11,10 @@ internal sealed class GooglePlacesClient(HttpClient http, IOptions<GooglePlacesO
 {
     private const int MaxResponseBytes = 32768;
     private readonly SemaphoreSlim slots = new(4, 4);
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(options.Value.ApiKey);
     public async Task<Result<BusinessPlacesResponse>> SearchAsync(string input, string languageCode, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(options.Value.ApiKey)) return BusinessPlacesErrors.NotConfigured;
+        if (!IsConfigured) return BusinessPlacesErrors.NotConfigured;
         if (!await slots.WaitAsync(0, cancellationToken)) return BusinessPlacesErrors.Busy;
         try
         {

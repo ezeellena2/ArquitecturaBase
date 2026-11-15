@@ -13,6 +13,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -91,7 +92,7 @@ public sealed partial class AiAssistantContextPolicyTests
             var profiles = (profileVersions ?? [1]).Select(version => new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "home", Version = version }).ToArray();
             var catalog = new AiAssistantCapabilityCatalogPolicy(sources ?? [], permissions);
             var guard = new AiAssistantAccessGuard(users, permissions, profiles, limits,
-                new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()));
+                new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
             Guard = guard;
             Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock, catalog),
                 new AiConnectionCandidatePolicy(new SecretProtector()), catalog, limits, clock);

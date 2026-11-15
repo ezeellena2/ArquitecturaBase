@@ -13,6 +13,7 @@ using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -193,7 +194,7 @@ public sealed class AiAssistantHomeAudioTests
     {
         var permissions = new FakePermissionService();
         return new(new InMemoryUserAccounts(), permissions, [], new AiAssistantLimits(), new FakeCurrentUser(),
-            new AiAssistantCapabilityCatalogPolicy([], permissions), new(audioProfiles, [], files));
+            new AiAssistantCapabilityCatalogPolicy([], permissions), new(audioProfiles, [], files), FictionalCredentials.Policy);
     }
 
     private sealed class ServiceHost
@@ -213,7 +214,7 @@ public sealed class AiAssistantHomeAudioTests
             var limits = new AiAssistantLimits();
             var current = new FakeCurrentUser { UserId = ActorId };
             var guard = new AiAssistantAccessGuard(Users, Permissions, [], limits, current,
-                new AiAssistantCapabilityCatalogPolicy([], Permissions), new([], [], Files));
+                new AiAssistantCapabilityCatalogPolicy([], Permissions), new([], [], Files), FictionalCredentials.Policy);
             Service = new(Operations, new AiAssistantHomeAudioPolicy(Files, null!, null!, clock), guard, current, limits, clock,
                 NullLogger<AiAssistantAudioService>.Instance);
         }
