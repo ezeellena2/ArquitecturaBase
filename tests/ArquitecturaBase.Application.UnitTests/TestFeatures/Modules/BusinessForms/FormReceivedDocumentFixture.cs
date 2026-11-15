@@ -108,6 +108,8 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
         Task.FromResult<IReadOnlyList<FormDocumentOriginRow>>([]);
     public Task<IReadOnlyList<Guid>> ListExpiredIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Guid>>(Documents.Where(document => document.DeleteAfterUtc <= nowUtc).Select(document => document.Id).Take(maximum).ToArray());
+    public Task<IReadOnlyList<Guid>> ListStaleProposedIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("The stale proposed documents are covered with PostgreSQL.");
     public Task<IReadOnlyList<string>> ListLiveStorageKeysAsync(IReadOnlyCollection<string> storageKeys, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<string>>(Documents.Select(document => document.StorageKey).OfType<string>().Where(storageKeys.Contains).Distinct().ToArray());
     public Task<IReadOnlyList<FormDocumentVersionRow>> ListVersionsAsync(IReadOnlyCollection<Guid> versionIds, CancellationToken cancellationToken) =>

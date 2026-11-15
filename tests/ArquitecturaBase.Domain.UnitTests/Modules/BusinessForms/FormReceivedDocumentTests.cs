@@ -125,6 +125,39 @@ public sealed class FormReceivedDocumentTests
     }
 
     [Fact]
+    public void A_proposed_document_for_the_team_that_nobody_touched_for_ninety_days_is_discarded_as_expired_and_follows_the_retention()
+    {
+        var later = Now.AddDays(91);
+        var untouched = Proposed(Now.AddHours(5));
+        Audit(untouched, Now);
+        Assert.False(untouched.IsStale(Now.AddDays(90).AddHours(4)));
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, untouched.Expire(Now.AddDays(90).AddHours(4)).Error);
+        Assert.True(untouched.IsStale(Now.AddDays(90).AddHours(6)));
+        Assert.True(untouched.Expire(later).IsSuccess);
+        Assert.Equal((FormReceivedDocumentState.Discarded, FormReceivedDocument.Expired, (DateTime?)later.AddDays(90), 2L),
+            (untouched.State, untouched.ReasonCode, untouched.DeleteAfterUtc, untouched.Revision));
+
+        // A change counts from its moment: a document reopened or touched later is not stale yet, and one still awaiting its person never is.
+        var touched = Proposed(Now.AddHours(5));
+        Audit(touched, Now, modifiedAtUtc: Now.AddDays(30));
+        Assert.False(touched.IsStale(later));
+        Assert.True(touched.IsStale(Now.AddDays(121)));
+        Assert.False(Proposed(Now.AddDays(200)).IsStale(Now.AddDays(150)));
+        var unclassified = Received().Value;
+        Assert.False(unclassified.IsStale(later));
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, unclassified.Expire(later).Error);
+        var withoutReply = Proposed();
+        Audit(withoutReply, Now);
+        Assert.True(withoutReply.IsStale(later));
+    }
+
+    private static void Audit(FormReceivedDocument document, DateTime createdAtUtc, DateTime? modifiedAtUtc = null)
+    {
+        typeof(FormReceivedDocument).GetProperty(nameof(FormReceivedDocument.CreatedAtUtc))!.SetValue(document, createdAtUtc);
+        typeof(FormReceivedDocument).GetProperty(nameof(FormReceivedDocument.ModifiedAtUtc))!.SetValue(document, modifiedAtUtc);
+    }
+
+    [Fact]
     public void Reopening_a_discarded_document_proposes_it_again_with_its_form_for_review_here_or_leaves_it_unclassified_without_one()
     {
         var proposed = Proposed(Now.AddHours(5));

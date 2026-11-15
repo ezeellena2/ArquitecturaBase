@@ -50,6 +50,8 @@ public interface IFormReceivedDocumentReader
     Task<IReadOnlyList<FormDocumentOriginRow>> ListOriginsAsync(IReadOnlyCollection<Guid> sourceReceiptIds, CancellationToken cancellationToken);
     /// <summary>The discarded or unclassified documents whose deletion date passed, the oldest first, up to <paramref name="maximum"/>.</summary>
     Task<IReadOnlyList<Guid>> ListExpiredIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken);
+    /// <summary>F9: the proposed documents for the team that nobody touched for the retention period, the oldest first, up to <paramref name="maximum"/>.</summary>
+    Task<IReadOnlyList<Guid>> ListStaleProposedIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken);
     /// <summary>Of the given copies, those a document still in the inbox keeps.</summary>
     Task<IReadOnlyList<string>> ListLiveStorageKeysAsync(IReadOnlyCollection<string> storageKeys, CancellationToken cancellationToken);
     /// <summary>The sealed name, culture and schema of the given versions.</summary>

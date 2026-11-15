@@ -780,6 +780,32 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_purge_discards_as_expired_a_proposed_document_nobody_touched_for_ninety_days()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var stale = await scenario.SendAsync(Ct);
+        var recent = await scenario.SendAsync(Ct);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var old = now.AddDays(-91);
+        // The audit dates are raw so the interceptor does not move them: the reply expired and nobody touched it since.
+        await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlAsync(
+            $"""UPDATE "FormReceivedDocuments" SET "ReplyExpiresAtUtc" = {old}, "CreatedAtUtc" = {old}, "ModifiedAtUtc" = {old} WHERE "Id" = {stale.Id}""", Ct));
+        await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlAsync(
+            $"""UPDATE "FormReceivedDocuments" SET "ReplyExpiresAtUtc" = {now.AddDays(-10)}, "CreatedAtUtc" = {old}, "ModifiedAtUtc" = {now.AddDays(-10)} WHERE "Id" = {recent.Id}""", Ct));
+
+        Assert.True((await scenario.ScopeAsync(services => services.GetRequiredService<IFormReceivedDocumentRetentionService>().PurgeExpiredAsync(Ct))).IsSuccess);
+
+        var documents = await factory.ExecuteDbContextAsync(db => db.Set<FormReceivedDocument>().AsNoTracking()
+            .Where(document => document.Id == stale.Id || document.Id == recent.Id).ToDictionaryAsync(document => document.Id, Ct));
+        Assert.Equal((FormReceivedDocumentState.Discarded, FormReceivedDocument.Expired, (DateTime?)now.AddDays(90)),
+            (documents[stale.Id].State, documents[stale.Id].ReasonCode, documents[stale.Id].DeleteAfterUtc));
+        Assert.Equal((FormReceivedDocumentState.Proposed, (string?)null), (documents[recent.Id].State, documents[recent.Id].ReasonCode));
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        using var read = await reviewer.GetAsync($"/api/forms/documents/{stale.Id}", Ct);
+        Assert.Equal("expired", (await read.ReadJsonAsync()).GetProperty("document").GetProperty("reasonCode").GetString());
+    }
+
+    [Fact]
     public async Task A_reviewer_passes_the_document_of_a_sender_who_can_no_longer_load_responses()
     {
         await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);

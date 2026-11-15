@@ -214,6 +214,17 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
             .OrderBy(document => document.DeleteAfterUtc).ThenBy(document => document.Id).Select(document => document.Id).Take(maximum)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Guid>> ListStaleProposedIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken)
+    {
+        var cutoff = FormReceivedDocument.StaleCutoff(nowUtc);
+        return await dbContext.Set<FormReceivedDocument>().AsNoTracking()
+            .Where(document => document.State == FormReceivedDocumentState.Proposed
+                && (document.NotSendable || document.ReplyExpiresAtUtc == null || document.ReplyExpiresAtUtc <= nowUtc)
+                && (document.ReplyExpiresAtUtc == null || document.ReplyExpiresAtUtc <= cutoff) && (document.ModifiedAtUtc ?? document.CreatedAtUtc) <= cutoff)
+            .OrderBy(document => document.CreatedAtUtc).ThenBy(document => document.Id).Select(document => document.Id).Take(maximum)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<string>> ListLiveStorageKeysAsync(IReadOnlyCollection<string> storageKeys, CancellationToken cancellationToken) =>
         await dbContext.Set<FormReceivedDocument>().AsNoTracking().Where(document => document.StorageKey != null && storageKeys.Contains(document.StorageKey))
             .Select(document => document.StorageKey!).Distinct().ToListAsync(cancellationToken);

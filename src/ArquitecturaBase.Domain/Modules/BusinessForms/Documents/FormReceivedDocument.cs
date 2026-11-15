@@ -51,6 +51,8 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public const string DiscardedByReviewer = "reviewer";
     /// <summary>The person chose «Otro» in the channel: no form fits it.</summary>
     public const string ChoseOther = "other";
+    /// <summary>F9: nobody of the team passed or discarded it in <see cref="RetentionDays"/> days, so it was discarded for good.</summary>
+    public const string Expired = "expired";
 
     private FormReceivedDocument() { }
     private FormReceivedDocument(Guid id) : base(id) { }
@@ -234,6 +236,26 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     /// <summary>Until when its person is waited for: while it is proposed and not yet for the team; null when nobody is waited for.</summary>
     public static DateTime? AwaitedUntil(FormReceivedDocumentState state, bool notSendable, DateTime? replyExpiresAtUtc, DateTime nowUtc) =>
         state == FormReceivedDocumentState.Proposed && !IsForReview(state, notSendable, replyExpiresAtUtc, nowUtc) ? replyExpiresAtUtc : null;
+
+    /// <summary>
+    /// F9: for the team and untouched for <see cref="RetentionDays"/> days: since its reply expired, or since the last change to it (a document
+    /// reopened or sent again counts from then, as its row is saved). Nobody reviewed it, so <see cref="Expire"/> discards it.
+    /// </summary>
+    public bool IsStale(DateTime nowUtc) => State == FormReceivedDocumentState.Proposed && IsForReview(nowUtc)
+        && (ReplyExpiresAtUtc is null || ReplyExpiresAtUtc <= StaleCutoff(nowUtc)) && (ModifiedAtUtc ?? CreatedAtUtc) <= StaleCutoff(nowUtc);
+
+    /// <summary>The moment before which a proposed one for the team is stale (F9).</summary>
+    public static DateTime StaleCutoff(DateTime nowUtc) => nowUtc.AddDays(-RetentionDays);
+
+    /// <summary>F9: a stale proposed one is discarded with the reason «expired», and follows the retention of the discarded.</summary>
+    public Result Expire(DateTime nowUtc)
+    {
+        if (nowUtc.Kind != DateTimeKind.Utc) return FormReceivedDocumentErrors.ContentInvalid;
+        if (!IsStale(nowUtc)) return FormReceivedDocumentErrors.StateConflict;
+        State = FormReceivedDocumentState.Discarded; ReasonCode = Expired; DeleteAfterUtc = nowUtc.AddDays(RetentionDays);
+        ClearExtraction();
+        return Advance();
+    }
 
     /// <summary>
     /// A reviewer discards a proposed or unclassified one, never while its person can still complete it; it can be reopened until it is

@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
-/// The inbox's retention (decision 9): a batch of the discarded and unclassified documents whose deletion date passed, each read again
+/// The inbox's retention (decision 9, F9): a batch of the proposed documents nobody reviewed for 90 days, discarded as «expired», and a batch of the discarded and unclassified documents whose deletion date passed, each read again
 /// under its lock (one reopened meanwhile stays), deleted with its reading, proposal and history; its copy is no longer kept by the
 /// retention source, so the cleanup of private files deletes it. A confirmed one follows its response and never expires here.
 /// </summary>
@@ -22,6 +22,12 @@ internal sealed class FormReceivedDocumentRetentionService(IFormReceivedDocument
         OperationLog.RunAsync(logger, "PurgeExpiredFormReceivedDocuments", () => unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             var now = clock.GetUtcNow().UtcDateTime;
+            // F9: a proposed one nobody reviewed becomes a discarded one (with its own ninety days) before the deletion looks at the discarded.
+            foreach (var documentId in await reader.ListStaleProposedIdsAsync(now, BatchSize, ct))
+            {
+                await repository.LockAsync(documentId, ct);
+                if (await repository.GetAsync(documentId, ct) is { } stale && stale.IsStale(now)) stale.Expire(now);
+            }
             foreach (var documentId in await reader.ListExpiredIdsAsync(now, BatchSize, ct))
             {
                 await repository.LockAsync(documentId, ct);

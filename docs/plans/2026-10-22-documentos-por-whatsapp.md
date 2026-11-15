@@ -589,7 +589,8 @@ Lo que el diseño no fijaba, resuelto con la opción más simple que cumple el p
    motivo, el tipo de documento, los números para buscar, la respuesta que salió, quién la revisó y el vencimiento de su envío. Un
    propuesto espera a la persona hasta que vence su envío y después queda «para revisar acá»: se calcula al leer, sin otro
    proceso. Un descartado o sin clasificar se borra a los 90 días con su lectura y su copia; uno confirmado sigue la retención de
-   su respuesta.
+   su respuesta. Un propuesto «para revisar acá» que nadie toca en 90 días (desde que vence su envío o su último cambio, por ejemplo
+   haberlo reabierto) pasa a descartado con motivo «venció» y sigue esa retención (F9, 2026-11-15).
 10. **WhatsApp recibe fotos, PDF y Word** de una cuenta vinculada y activa en el Asistente automático que puede armar o cargar:
     un tipo de entrada nuevo, `ReceivedDocument = 15` (el `Document = 10` es saliente y W1-A toma el 13 y el 14), con su descriptor,
     su estado, sus fallas y su migración `AddWhatsAppInboundDocuments`, como la planilla; su `Down` vuelve esos mensajes a `Media`,
