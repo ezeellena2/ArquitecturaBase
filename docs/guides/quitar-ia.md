@@ -20,9 +20,10 @@ Si WhatsApp o Formularios no están instalados, salteá su paso.
 
 2. **IA:** en Configuración › Inteligencia artificial, pasá la conexión a Pausada y guardá. Desde ahí no se acepta
    trabajo nuevo, y lo pendiente o en curso falla en su paso siguiente, sin otra llamada al proveedor.
-3. **Formularios:** sin el módulo, un documento que se está leyendo para otro formulario («Leyendo los datos para…»)
-   queda así para siempre: la consulta contesta «no disponible» y el pedido no vence. Con la conexión pausada, cada
-   lectura en curso falla, y el documento vuelve a como estaba, sin el pedido, cuando alguien la consulta: el servidor
+3. **Formularios:** antes de quitar el módulo, resolvé o descartá las extracciones pendientes: sin él, un documento que se
+   está leyendo para otro formulario («Leyendo los datos para…») no puede terminar, la consulta contesta «no disponible» y
+   el pedido sólo vence a los 7 días de haberse pedido (un «no encontrado» del motor no lo falla antes). Con la conexión
+   pausada, cada lectura en curso falla, y el documento vuelve a como estaba, sin el pedido, cuando alguien la consulta: el servidor
    consulta solo las relecturas de «Armar formulario con la IA», en segundos; las demás, el panel del documento, cuando
    alguien con «Revisar documentos» lo abre en «Documentos recibidos». Comprobá que no quede ninguno y abrí los que
    queden:
