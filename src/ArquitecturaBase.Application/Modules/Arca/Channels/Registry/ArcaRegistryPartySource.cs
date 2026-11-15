@@ -32,6 +32,8 @@ internal sealed class ArcaRegistryPartySource(ArcaServiceSessionIssuer access, I
         if (reply.FailureCode == "registry.fault") return ArcaRegistryErrors.PersonNotFound;
         if (reply is not { Status: ArcaServiceCheckStatus.Ready, Value: { } person }) return ArcaServiceSessionIssuer.Failure(reply.Status);
         if (!ArcaCompanyDataPolicy.HasData(person)) return ArcaRegistryErrors.PersonNotFound;
+        // B3: without the data that decide the VAT condition it is not inferred (it would be a B instead of an A, kept in «Clientes»).
+        if (person.VatConditionErrors.Count > 0) return ArcaRegistryErrors.VatConditionUnclear;
         return new ArcaParty(cuit, ArcaCompanyDataPolicy.LegalName(person), ArcaCompanyDataPolicy.ReceiverVatCondition(person),
             ArcaCompanyDataPolicy.FiscalAddress(person) is { Length: > 0 } address ? address : null);
     }

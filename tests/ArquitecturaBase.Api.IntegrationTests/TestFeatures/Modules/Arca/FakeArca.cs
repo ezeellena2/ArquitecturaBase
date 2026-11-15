@@ -24,7 +24,7 @@ internal sealed record FakeArcaPointOfSale(int Number, string EmissionType, stri
 
 /// <summary>Lo que devuelve <c>getPersona_v2</c> para la CUIT consultada.</summary>
 internal sealed record FakeArcaPerson(string? BusinessName, string? FirstName, string? LastName, string? Street, string? Locality,
-    string? Province, int[] TaxIds, bool Monotax, string[] ConstanciaErrors);
+    string? Province, int[] TaxIds, bool Monotax, string[] ConstanciaErrors, string[]? RegimeErrors = null);
 
 /// <summary>
 /// Hace de ARCA sin red. Enruta por la operación del sobre SOAP, verifica la firma del pedido de ticket, cuenta las
@@ -183,7 +183,8 @@ internal sealed class FakeArca(TimeProvider time)
                 new XElement("impuesto", new XElement("estadoImpuesto", "AC"), new XElement("idImpuesto", id)))),
             person.Monotax ? new XElement("datosMonotributo", new XElement("categoriaMonotributo", "A"),
                 new XElement("impuesto", new XElement("idImpuesto", 20))) : null,
-            person.ConstanciaErrors.Length == 0 ? null : new XElement("errorConstancia", person.ConstanciaErrors.Select(error => new XElement("error", error))));
+            person.ConstanciaErrors.Length == 0 ? null : new XElement("errorConstancia", person.ConstanciaErrors.Select(error => new XElement("error", error))),
+            person.RegimeErrors is not { Length: > 0 } regime ? null : new XElement("errorRegimenGeneral", regime.Select(error => new XElement("error", error))));
         return Envelope(HttpStatusCode.OK, new XElement(Registry + "getPersona_v2Response", persona));
     }
 

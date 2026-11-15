@@ -43,6 +43,11 @@ public sealed class ArcaStructuredPartyLookupTests(ApiFactory factory) : IDispos
 
             arca.Person = null;
             Assert.Equal("Arca.Registry.PersonNotFound", (await FindAsync("20123456786")).FailureCode);
+
+            // B3: with errors in what decides the VAT condition it is not inferred (it would be a B instead of an A), and asks to check.
+            arca.Person = new FakeArcaPerson("Agro del Sur S.A.", null, null, "Ruta 8 km 225", "Pergamino", "BUENOS AIRES", [], false, [],
+                ["No cumple con las condiciones para enviar datos del regimen general"]);
+            Assert.Equal("Arca.Registry.VatConditionUnclear", (await FindAsync("30712345671")).FailureCode);
         }
         finally
         {

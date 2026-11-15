@@ -21,6 +21,9 @@ internal sealed class ArcaRegistryClient(IHttpClientFactory httpClients, IOption
     private static readonly XNamespace Registry = "http://a5.soap.ws.server.puc.sr/";
     private static readonly string[] ErrorGroups = ["errorConstancia", "errorRegimenGeneral", "errorMonotributo"];
 
+    // B3: the groups that decide the VAT condition.
+    private static readonly string[] VatGroups = ["errorRegimenGeneral", "errorMonotributo"];
+
     public async Task<ArcaServiceReply<ArcaRegistryPerson>> FindPersonAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket,
         string cuit, CancellationToken cancellationToken)
     {
@@ -50,7 +53,10 @@ internal sealed class ArcaRegistryClient(IHttpClientFactory httpClients, IOption
                 Text(address, "descripcionProvincia"), Text(address, "codPostal")),
             [.. persona.Element("datosRegimenGeneral")?.Elements("impuesto").Select(tax => TaxId(Text(tax, "idImpuesto"))).OfType<int>() ?? []],
             persona.Element("datosMonotributo") is not null,
-            [.. ErrorGroups.SelectMany(group => persona.Element(group)?.Elements("error") ?? []).Select(error => error.Value.Trim())]);
+            [.. ErrorGroups.SelectMany(group => persona.Element(group)?.Elements("error") ?? []).Select(error => error.Value.Trim())])
+        {
+            VatConditionErrors = [.. VatGroups.SelectMany(group => persona.Element(group)?.Elements("error") ?? []).Select(error => error.Value.Trim())],
+        };
     }
 
     private static string? Text(XElement? parent, string name) => parent?.Element(name)?.Value.Trim() is { Length: > 0 } value ? value : null;

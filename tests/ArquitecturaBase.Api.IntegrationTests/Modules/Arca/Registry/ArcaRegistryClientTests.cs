@@ -57,6 +57,17 @@ public sealed class ArcaRegistryClientTests(ApiFactory factory)
         Assert.Equal(["El domicilio fiscal no está validado"], reply.Value!.Errors);
     }
 
+    // B3: the errors of the general regime or the monotax decide nothing about the VAT condition: they come apart.
+    [Fact]
+    public async Task The_errors_of_the_groups_that_decide_the_vat_condition_come_apart()
+    {
+        Arca().Person = FakeArca.Company with { RegimeErrors = ["No cumple con las condiciones para enviar datos del regimen general"] };
+
+        var reply = await Client().FindPersonAsync(Certificate, Ticket, "30000000007", TestContext.Current.CancellationToken);
+
+        Assert.Equal(["No cumple con las condiciones para enviar datos del regimen general"], reply.Value!.VatConditionErrors);
+    }
+
     [Fact]
     public async Task A_cuit_that_does_not_exist_fails()
     {
