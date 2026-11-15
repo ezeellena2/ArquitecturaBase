@@ -12,8 +12,8 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
     AiAssistantLimits limits, TimeProvider timeProvider, ILogger<AiAssistantRetentionService> logger,
     IUserReader users) : IAiAssistantRetentionService
 {
+    // A poll (I10): it runs every second, so it does not go through OperationLog; the scheduler logs a failure in Warning.
     public Task<Result<int>> ReconcileExpiredBatchAsync(CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<int>>(logger, "ReconcileExpiredBatchAsync", () =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             await repository.LockBudgetAsync(ct);
@@ -23,7 +23,7 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
             foreach (var conversation in turns.Select(t => t.ConversationId).Distinct().Order()) await repository.LockConversationAsync(conversation, ct);
             foreach (var turn in turns) turn.Reconcile(now, limits.PendingSeconds, limits.LeaseGraceSeconds);
             return Result.Success(turns.Count);
-        }, CommitPolicy.OnSuccess, cancellationToken));
+        }, CommitPolicy.OnSuccess, cancellationToken);
 
     public Task<Result<int>> PurgeBatchAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<int>>(logger, "PurgeBatchAsync", () =>

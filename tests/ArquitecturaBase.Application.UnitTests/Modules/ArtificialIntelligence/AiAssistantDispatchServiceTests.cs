@@ -15,6 +15,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
@@ -138,7 +139,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public SystemQueryEvidence Evidence { get; }
         public AiAssistantDispatchService Service { get; }
         public AiAssistantExecutionProfileSnapshot Profile { get; }
-        public Host(bool sealCapabilityPermissions = false)
+        public Host(bool sealCapabilityPermissions = false, ILogger<AiAssistantDispatchService>? logger = null)
         {
             var users = Users;
             var actor = users.AddUser("fictional@example.test");
@@ -159,7 +160,7 @@ public sealed partial class AiAssistantDispatchServiceTests
                 Store.Turn.AttemptId!.Value, Store.Turn.DeadlineAtUtc!.Value, "es");
             Evidence = new(Guid.NewGuid(), "users.summary", 1, Clock.GetUtcNow().UtcDateTime, null, "users", ["users.read"], []);
             Service = new AiAssistantDispatchService(Store, Work, new AiAssistantDispatchGuard(Store, Store, Store, guard, catalog),
-                new Protector(), limits, Clock, NullLogger<AiAssistantDispatchService>.Instance, CompletionSignal);
+                new Protector(), limits, Clock, logger ?? NullLogger<AiAssistantDispatchService>.Instance, CompletionSignal);
         }
         public AiAssistantExecutionContextResponse Context()
         {
@@ -220,14 +221,16 @@ public sealed partial class AiAssistantDispatchServiceTests
         public Task<AiConnectionRow> FindAsync(CancellationToken cancellationToken) => Task.FromResult(new AiConnectionRow(AiProvider.OpenAI, "model", "cipher-key", true, ConnectionRevision));
         public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) =>
             Task.FromResult(Receipt is { } receipt && receipt.OwnerUserId == ownerUserId && receipt.RequestId == requestId ? receipt : null);
-        public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        // The host's turn is already claimed: there is no pending work and nothing expired.
+        public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurn?>(null);
         public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, Guid? channelConversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
             Task.FromResult(ActiveForConversation is { } active && active.ConversationId == conversationId ? active : null);
         public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantAttachmentRow?> FindLatestAttachmentAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AiAssistantTurn>>([]);
         public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>(Purgeable ? [Turn] : []);
         public Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>

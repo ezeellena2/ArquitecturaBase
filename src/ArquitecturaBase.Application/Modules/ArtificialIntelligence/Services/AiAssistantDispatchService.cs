@@ -16,37 +16,37 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantDispatchService(IAiAssistantRepository repository, IUnitOfWork unitOfWork, AiAssistantDispatchGuard dispatchGuard, IAiConversationProtector protector, AiAssistantLimits limits, TimeProvider timeProvider, ILogger<AiAssistantDispatchService> logger, IAssistantOperationCompletionSignal completionSignal) : IAiAssistantDispatchService
 {
-    public Task<Result<AiAssistantClaimResponse?>> ClaimAsync(CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<AiAssistantClaimResponse?>>(logger, "ClaimAsync", async () =>
+    // A poll (I10): each lane asks every second, so it does not go through OperationLog; the coordinator logs a failure in Warning.
+    public async Task<Result<AiAssistantClaimResponse?>> ClaimAsync(CancellationToken cancellationToken)
+    {
+        AiAssistantTurn? terminalTurn = null;
+        var outcome = await unitOfWork.ExecuteInTransactionAsync<Result<AiAssistantClaimResponse?>>(async ct =>
         {
-            AiAssistantTurn? terminalTurn = null;
-            var outcome = await unitOfWork.ExecuteInTransactionAsync<Result<AiAssistantClaimResponse?>>(async ct =>
+            await dispatchGuard.LockInstallationAsync(ct);
+            var turn = await repository.GetPendingAsync(ct);
+            terminalTurn = turn;
+            if (turn is null) return Result.Success<AiAssistantClaimResponse?>(null);
+            await repository.LockActorAsync(turn.OwnerUserId, ct);
+            await repository.LockConversationAsync(turn.ConversationId, ct);
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            turn.Reconcile(now, limits.PendingSeconds, limits.LeaseGraceSeconds);
+            if (turn.State != AiAssistantTurnState.Pending) return Result.Success<AiAssistantClaimResponse?>(null);
+            var budget = await repository.CountBudgetAsync(turn.OwnerUserId, DateOnly.FromDateTime(now), null, null, false, ct);
+            if (budget.Running >= limits.RunningCapacity) return Result.Success<AiAssistantClaimResponse?>(null);
+            var claimed = turn.Claim(Guid.NewGuid(), now.AddSeconds(limits.RunningSeconds));
+            if (claimed.IsFailure) return claimed.Error;
+            var access = await dispatchGuard.ValidateAsync(turn, ct);
+            if (access is not null)
             {
-                await dispatchGuard.LockInstallationAsync(ct);
-                var turn = await repository.GetPendingAsync(ct);
-                terminalTurn = turn;
-                if (turn is null) return Result.Success<AiAssistantClaimResponse?>(null);
-                await repository.LockActorAsync(turn.OwnerUserId, ct);
-                await repository.LockConversationAsync(turn.ConversationId, ct);
-                var now = timeProvider.GetUtcNow().UtcDateTime;
-                turn.Reconcile(now, limits.PendingSeconds, limits.LeaseGraceSeconds);
-                if (turn.State != AiAssistantTurnState.Pending) return Result.Success<AiAssistantClaimResponse?>(null);
-                var budget = await repository.CountBudgetAsync(turn.OwnerUserId, DateOnly.FromDateTime(now), null, null, false, ct);
-                if (budget.Running >= limits.RunningCapacity) return Result.Success<AiAssistantClaimResponse?>(null);
-                var claimed = turn.Claim(Guid.NewGuid(), now.AddSeconds(limits.RunningSeconds));
-                if (claimed.IsFailure) return claimed.Error;
-                var access = await dispatchGuard.ValidateAsync(turn, ct);
-                if (access is not null)
-                {
-                    turn.Fail(turn.Fence, access.Code, false, now);
-                    return Result.Success<AiAssistantClaimResponse?>(null);
-                }
-                return Result.Success<AiAssistantClaimResponse?>(new(turn.Id, turn.OwnerUserId, turn.ConversationId, turn.RequestId,
-                    turn.Fence, turn.AttemptId!.Value, turn.DeadlineAtUtc!.Value, turn.Culture));
-            }, CommitPolicy.OnSuccess, cancellationToken);
-            if (outcome.IsSuccess) NotifyTerminal(terminalTurn);
-            return outcome;
-        });
+                turn.Fail(turn.Fence, access.Code, false, now);
+                return Result.Success<AiAssistantClaimResponse?>(null);
+            }
+            return Result.Success<AiAssistantClaimResponse?>(new(turn.Id, turn.OwnerUserId, turn.ConversationId, turn.RequestId,
+                turn.Fence, turn.AttemptId!.Value, turn.DeadlineAtUtc!.Value, turn.Culture));
+        }, CommitPolicy.OnSuccess, cancellationToken);
+        if (outcome.IsSuccess) NotifyTerminal(terminalTurn);
+        return outcome;
+    }
 
     public Task<Result<bool>> BeginProviderStepAsync(AiAssistantClaimResponse claim, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<bool>>(logger, "BeginProviderStepAsync", async () =>
