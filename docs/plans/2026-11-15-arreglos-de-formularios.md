@@ -55,6 +55,8 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
    ayuda «sin separador de miles», como el Flow. En WhatsApp, `WhatsAppFlowValueCodec` lee con la cultura del Flow y cambia
    `whatsapp.md:524`. De paso, `formularios.md:153` remite a la regla vigente (O11). Tests del front con «1.500», «1,500»,
    «1.234» y «72,5» en los dos idiomas, y del codec con las dos culturas. Chico.
+   La app, hecha el 2026-11-15 en `8f518391` del front (sin la ayuda por defecto: el error alcanza); el Flow, pendiente, con la
+   sesión de WhatsApp.
 
 ### Etapa 2: permisos y privacidad
 

@@ -270,6 +270,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   con un solo separador y tres cifras) para que la persona lo confirme, como la importación de catálogos; mientras tanto, la misma
   ayuda que el Flow en las preguntas con decimales. Chico. El Flow también lee con la región
   ([decisión 5](#decisiones-del-2026-11-14)).
+- **Arreglado en parte el 2026-11-15** en `8f518391` del front: la app; falta el Flow.
 
 #### F2. Una acción que falla o queda en duda frena el resto de su regla, y nadie se entera
 
