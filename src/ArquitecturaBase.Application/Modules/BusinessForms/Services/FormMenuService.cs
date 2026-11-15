@@ -35,9 +35,16 @@ internal sealed class FormMenuService(ICurrentUser currentUser, IPermissionServi
             var placed = folders.Where(folder => folder.MenuPlacement != nameof(FormFolderMenuPlacement.None)).ToArray();
             if (placed.Length == 0) return Empty;
             var nodes = FormFolderService.Nodes(folders);
-            var subtrees = folders.ToDictionary(folder => folder.Id, folder => FormFolderTree.Subtree(folder.Id, nodes));
+            // The index is built once and a subtree only for the folders the menu shows (F47).
+            var children = FormFolderTree.Children(nodes);
+            var subtreeCache = new Dictionary<Guid, IReadOnlySet<Guid>>();
+            IReadOnlySet<Guid> Subtree(Guid id)
+            {
+                if (!subtreeCache.TryGetValue(id, out var subtree)) subtreeCache[id] = subtree = FormFolderTree.Subtree(id, children);
+                return subtree;
+            }
             var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-            var rows = await reader.ListMenuFormsAsync(placed.SelectMany(folder => subtrees[folder.Id]).Distinct().ToArray(), culture,
+            var rows = await reader.ListMenuFormsAsync(placed.SelectMany(folder => Subtree(folder.Id)).Distinct().ToArray(), culture,
                 actor, canReadRecords, canCreate, cancellationToken);
             var byFolder = rows.ToLookup(row => row.FolderId);
             IReadOnlyList<FormMenuFormResponse> Forms(IEnumerable<Guid> inside) => FormFolderService.Alphabetical(
@@ -45,7 +52,7 @@ internal sealed class FormMenuService(ICurrentUser currentUser, IPermissionServi
                 form => form.Name, form => form.Id).ToArray();
             IReadOnlyList<FormMenuGroupResponse> Groups(IEnumerable<FormFolderRow> groupFolders) => FormFolderService.Alphabetical(groupFolders,
                     folder => folder.Name, folder => folder.Id)
-                .Select(folder => new FormMenuGroupResponse(folder.Id, folder.Name, Forms(subtrees[folder.Id])))
+                .Select(folder => new FormMenuGroupResponse(folder.Id, folder.Name, Forms(Subtree(folder.Id))))
                 .Where(group => group.Forms.Count > 0).ToArray();
             var menus = FormFolderService.Alphabetical(placed.Where(folder => folder.MenuPlacement == nameof(FormFolderMenuPlacement.Own)),
                     folder => folder.Name, folder => folder.Id)

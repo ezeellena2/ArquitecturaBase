@@ -17,6 +17,8 @@ public sealed class BusinessFormFolder : Entity, IAuditable
     public const int NameMaxLength = 80;
     public const int SystemKeyMaxLength = 64;
     public const int MaxDepth = 5;
+    // A limit on the configuration the tree holds (ADR 0018): the menu and the placement checks walk it in every request (F47).
+    public const int MaxFolders = 500;
     public const int MenuIconMaxLength = 16;
     public const string DefaultMenuIcon = "folder";
 

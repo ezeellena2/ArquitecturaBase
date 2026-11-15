@@ -276,6 +276,7 @@
   <data name="Forms.Folder.NotFound" xml:space="preserve"><value>No se encontró la carpeta.</value></data>
   <data name="Forms.Folder.NameInvalid" xml:space="preserve"><value>Escribí un nombre de hasta 80 caracteres.</value></data>
   <data name="Forms.Folder.NameTaken" xml:space="preserve"><value>Ya hay una carpeta con ese nombre en este lugar.</value></data>
+  <data name="Forms.Folder.TooMany" xml:space="preserve"><value>Ya hay 500 carpetas. Quitá una antes de crear otra.</value></data>
   <data name="Forms.Folder.TooDeep" xml:space="preserve"><value>Las carpetas llegan hasta cinco niveles.</value></data>
   <data name="Forms.Folder.Cycle" xml:space="preserve"><value>Una carpeta no puede ir adentro de sí misma ni de sus subcarpetas.</value></data>
   <data name="Forms.Folder.IconInvalid" xml:space="preserve"><value>Ese ícono no está en la lista o la carpeta no es un menú propio.</value></data>

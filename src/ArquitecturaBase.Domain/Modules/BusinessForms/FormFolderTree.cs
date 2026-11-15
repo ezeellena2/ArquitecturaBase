@@ -19,6 +19,7 @@ public static class FormFolderTree
     {
         ArgumentNullException.ThrowIfNull(nodes);
         var byId = nodes.ToDictionary(node => node.Id);
+        if (folderId is null && nodes.Count >= BusinessFormFolder.MaxFolders) return FormFolderErrors.TooMany;
         if (parentId is { } parent && !byId.ContainsKey(parent)) return FormFolderErrors.NotFound;
         var height = 1;
         if (folderId is { } id)
@@ -36,7 +37,20 @@ public static class FormFolderTree
     public static IReadOnlySet<Guid> Subtree(Guid id, IReadOnlyCollection<FormFolderNode> nodes)
     {
         ArgumentNullException.ThrowIfNull(nodes);
-        var children = nodes.Where(node => node.ParentId is not null).ToLookup(node => node.ParentId!.Value, node => node.Id);
+        return Subtree(id, Children(nodes));
+    }
+
+    /// <summary>The children of each folder, built once for as many subtrees as a caller asks.</summary>
+    public static ILookup<Guid, Guid> Children(IReadOnlyCollection<FormFolderNode> nodes)
+    {
+        ArgumentNullException.ThrowIfNull(nodes);
+        return nodes.Where(node => node.ParentId is not null).ToLookup(node => node.ParentId!.Value, node => node.Id);
+    }
+
+    /// <summary>The folder and every folder below it, over an index from <see cref="Children"/>.</summary>
+    public static IReadOnlySet<Guid> Subtree(Guid id, ILookup<Guid, Guid> children)
+    {
+        ArgumentNullException.ThrowIfNull(children);
         var found = new HashSet<Guid> { id };
         var pending = new Queue<Guid>([id]);
         while (pending.TryDequeue(out var current))

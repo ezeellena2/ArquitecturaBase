@@ -81,4 +81,21 @@ public sealed class FormFolderTreeTests
         Assert.Empty(unchanged.Added);
         Assert.Empty(unchanged.Removed);
     }
+
+    [Fact]
+    public void A_new_folder_is_refused_at_the_cap_but_a_move_is_not()
+    {
+        var nodes = Enumerable.Range(0, BusinessFormFolder.MaxFolders).Select(index => new FormFolderNode(Guid.NewGuid(), null, "N" + index)).ToArray();
+        Assert.Equal(FormFolderErrors.TooMany, FormFolderTree.CheckPlacement(null, null, "NEW", nodes).Error);
+        Assert.True(FormFolderTree.CheckPlacement(nodes[0].Id, null, "N0", nodes).IsSuccess);
+        Assert.True(FormFolderTree.CheckPlacement(null, null, "NEW", nodes[1..]).IsSuccess);
+    }
+
+    [Fact]
+    public void A_children_index_built_once_gives_the_same_subtrees()
+    {
+        var children = FormFolderTree.Children(Chain);
+        Assert.Equal(new[] { B, C, D, E }.Order(), FormFolderTree.Subtree(B, children).Order());
+        Assert.Equal(new[] { F, G }.Order(), FormFolderTree.Subtree(F, children).Order());
+    }
 }

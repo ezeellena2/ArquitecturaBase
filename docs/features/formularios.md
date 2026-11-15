@@ -1447,6 +1447,7 @@ Las carpetas ordenan formularios y catálogos en un solo árbol, con subcarpetas
 Lo eligió el usuario en los tableros CP1 a CP5 (el [plan](../plans/2026-11-03-carpetas-de-formularios-y-catalogos.md)).
 Están el backend y el front (2026-11-11).
 
+- **Tope (F47).** Hasta 500 carpetas: crear otra da `Forms.Folder.TooMany` (400). El menú arma el índice de hijos una vez y calcula sólo los subárboles de las carpetas que muestra.
 - **Sólo ordenan.** No dan ni quitan acceso, y no hay permisos nuevos. Hasta cinco niveles; el nombre (hasta 80
   caracteres) no se repite en una misma carpeta sin distinguir mayúsculas. Profundidad, ciclos y nombres se revisan contra
   el árbol entero bajo el lock `forms:folders`, en una transacción por operación. Las tablas son `FormFolders` y
