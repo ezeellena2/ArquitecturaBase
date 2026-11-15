@@ -146,19 +146,19 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 19. **F9. El documento propuesto vence** (decisión 6). Un documento propuesto que nadie revisa, o uno descartado que alguien
     reabre, pasa a descartado con motivo «venció» a los 90 días (desde que vence su envío, o desde que se reabrió) y sigue la purga.
     Cambia la regla de los documentos recibidos (la decisión 9 de su plan, en [formularios](../features/formularios.md)). Test con
-    el reloj adelantado. Chico.
+    el reloj adelantado. Chico. Hecha el 2026-11-15 en `78263d6f` (backend) y `f03450b0` (front): el motivo es un texto, sin migración; vence por el último cambio o el fin del envío.
 20. **F13. El revisor ve la repetición al pasar un documento.** Se recalcula al leer el detalle o al pasar y vuelve como aviso que
-    el revisor confirma con una marca en el pedido. Chico.
+    el revisor confirma con una marca en el pedido. Chico. Hecha el 2026-11-15 en `6ff85b99` (backend) y `ac8cfe3b` (front): 409 `Forms.ReceivedDocument.Repeated` y `confirmRepeated`; la repetición se busca al pasar, no se recalcula al leer el detalle.
 21. **F23. «Cómo reconocerlo» se marca como texto de la IA.** En DOC6 y en la zona de lectura del editor dice que lo escribió la IA
-    a partir de un documento recibido y pide revisarlo. Chico.
+    a partir de un documento recibido y pide revisarlo. Chico. Hecha el 2026-11-15 en `bd63e3c2` (front).
 22. **F31. Las extracciones en curso sobreviven a un despliegue.** El pedido guarda las versiones con que se selló y el contexto
     se rearma con ésas; un 404 del motor queda incierto hasta el vencimiento del pedido. Es el lado de Formularios de IA I4, cuya
-    regla para el motor ya se decidió. Chico.
+    regla para el motor ya se decidió. Chico. Hecha el 2026-11-15 en `0c5ddba2`: el contexto sellado se guarda en `ExtractionContextJson` (migración con una columna opcional) y un «no encontrado» espera al vencimiento de 7 días.
 23. **F26. Quitar la IA con extracciones en curso.** La [guía para quitar la IA](../guides/quitar-ia.md) pide descartar o resolver
-    antes las extracciones pendientes, y el pedido vence. Trivial.
-24. **F38. El número del menú cuenta sólo los documentos abiertos.** Lo que cubre el índice por estado y fecha. Trivial.
+    antes las extracciones pendientes, y el pedido vence. Trivial. Hecha el 2026-11-15 en `14425785` (la guía) y `0c5ddba2` (el vencimiento).
+24. **F38. El número del menú cuenta sólo los documentos abiertos.** Lo que cubre el índice por estado y fecha. Trivial. Hecha el 2026-11-15 en `34b4e557`.
 25. **F40. La purga de documentos corre al arrancar y por lotes seguidos.** Una vuelta al arrancar y lotes mientras salgan llenos,
-    cada uno en su transacción y con un tope de tiempo; test con 250 vencidos. Chico.
+    cada uno en su transacción y con un tope de tiempo; test con 250 vencidos. Chico. Hecha el 2026-11-15 en `a587c396`.
 
 ### Etapa 6: carga, planilla y catálogos
 

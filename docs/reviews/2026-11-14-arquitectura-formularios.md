@@ -445,6 +445,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   sólo para descartados y sin clasificar (`docs/plans/2026-10-22-documentos-por-whatsapp.md:589-592`).
 - **Arreglo:** un plazo para el propuesto que nadie mira: por ejemplo, 90 días después de vencido su envío pasa a descartado con
   motivo «venció» y sigue la purga. Chico; el plazo se decidió el 2026-11-14 ([decisión 6](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15** en `78263d6f` (backend) y `f03450b0` (front).
 
 #### F10. La retención pendiente de las respuestas no nombra todo lo que guarda datos de personas
 
@@ -521,6 +522,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   (`FormRecordCaptureOriginPolicy.cs:85-93`, `FormRecordRepetitionPolicy.cs:10-15`).
 - **Arreglo:** recalcular la repetición al leer el detalle o al pasar, y devolverla como aviso que el revisor confirma con una
   marca en el pedido: sigue decidiendo él, pero viéndola. Chico.
+- **Arreglado el 2026-11-15** en `6ff85b99` (backend) y `ac8cfe3b` (front): la repetición se busca al pasar el documento; el detalle no la recalcula.
 
 #### F14. «Formularios que faltan» deja de andar sola cuando se juntan más de 100 temas
 
@@ -666,6 +668,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   a partir de un documento recibido (`DocumentFormProposalPage.tsx:220-221`, `FormDocumentReadingZone.tsx:114-115`).
 - **Arreglo:** en DOC6 y en la zona de lectura del editor, marcar «Cómo reconocerlo» como texto escrito por la IA a partir de un
   documento recibido y pedir revisarlo. Chico. Presentarlo al modelo como dato y no como instrucción es del motor de IA.
+- **Arreglado el 2026-11-15** en `bd63e3c2` (front).
 
 #### F24. Crear un catálogo no es idempotente
 
@@ -701,6 +704,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   `docs/guides/quitar-ia.md:3-4`.
 - **Arreglo:** decir en la guía que antes de quitar el módulo se descarten o resuelvan las extracciones pendientes, y que el
   pedido venza; no que «no disponible» lo suelte, porque también lo soltaría en una pausa pasajera del motor. Chico.
+- **Arreglado el 2026-11-15** en `14425785` (la guía) y `0c5ddba2` (el vencimiento del pedido).
 
 ### Con varias copias
 
@@ -799,6 +803,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   definitiva); `inteligencia-artificial.md:101`.
 - **Arreglo:** guardar con el pedido las versiones con que se selló y rearmar el contexto con ésas, y tratar el 404 como incierto
   hasta un plazo (por ejemplo, el vencimiento de siete días del pedido). Chico.
+- **Arreglado el 2026-11-15** en `0c5ddba2`.
 
 #### F32. La reserva de una acción dura dos minutos y no se renueva: un efecto lento se retoma a mitad de camino
 
@@ -919,6 +924,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
 - **Arreglo:** que el número del menú cuente sólo los dos estados abiertos, que cubre el índice por estado y fecha; contar por
   estado sólo los abiertos, o con tope como las facetas; índices por remitente y fecha y parcial en las extracciones en curso.
   Medir con `EXPLAIN ANALYZE` y un millón de filas. Mediano.
+- **Arreglado el 2026-11-15** en `34b4e557`.
 
 #### F39. Buscar repetidos recorre todas las respuestas del formulario por cada documento
 
@@ -945,6 +951,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   `PeriodicTimer`, que no da la primera vuelta al arrancar (`FormReceivedDocumentRetentionBackgroundService.cs:15-23`).
 - **Arreglo:** una vuelta al arrancar y repetir lotes mientras salgan llenos, cada uno en su transacción y con un tope de tiempo.
   Chico.
+- **Arreglado el 2026-11-15** en `a587c396`.
 
 #### F41. Las opciones de los editores de sugerencias y de reglas traen el catálogo entero
 
