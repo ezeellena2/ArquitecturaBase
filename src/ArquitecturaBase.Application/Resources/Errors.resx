@@ -222,7 +222,6 @@
   <data name="Forms.Catalog.FeedInvalid" xml:space="preserve"><value>El origen mandó opciones repetidas o vacías.</value></data>
   <data name="Forms.Catalog.FeedUnavailable" xml:space="preserve"><value>El origen del catálogo no respondió.</value></data>
   <data name="Forms.Rule.IssuerUnavailable" xml:space="preserve"><value>Esta acción sólo vale en un formulario copiado de su estándar, con el módulo instalado.</value></data>
-  <data name="Forms.Rule.RecordsReadRequired" xml:space="preserve"><value>Las reglas de este formulario citan respuestas de preguntas: necesitás también el permiso para ver las respuestas.</value></data>
   <data name="Forms.Rule.IssuerPermissionRequired" xml:space="preserve"><value>Las reglas de este formulario emiten comprobantes: necesitás también el permiso para emitirlos.</value></data>
   <data name="Forms.Action.IssuerUnavailable" xml:space="preserve"><value>El módulo que emite el comprobante no está instalado.</value></data>
   <data name="Forms.Action.IssueDataUnavailable" xml:space="preserve"><value>El formulario no tiene las preguntas del estándar que necesita la emisión.</value></data>
@@ -465,6 +464,9 @@
   </data>
   <data name="Forms.ReceivedDocument.AwaitingSender" xml:space="preserve">
     <value>Quien lo mandó todavía puede completarlo por su canal. Esperá a que venza su respuesta.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.Repeated" xml:space="preserve">
+    <value>Ya hay una respuesta con los mismos datos de este documento. Revisala: si es otro, pasalo igual.</value>
   </data>
   <data name="Forms.ReceivedDocument.RequestConflict" xml:space="preserve">
     <value>Ese pedido ya se usó con otros datos.</value>

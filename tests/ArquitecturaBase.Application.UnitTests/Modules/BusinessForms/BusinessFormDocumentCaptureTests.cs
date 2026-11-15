@@ -100,9 +100,9 @@ public sealed class BusinessFormDocumentCaptureTests
     }
 
     // Task 9b: a confirmation in a channel is checked again with what the person corrected and says which response it repeats; task 9c:
-    // its replay says it again from the receipt, and a reviewer who passes a document from the inbox decides it themselves.
+    // its replay says it again from the receipt, and a reviewer who passes a document from the inbox is told and decides.
     [Fact]
-    public async Task A_channel_confirmation_that_repeats_a_saved_response_says_which_one_its_replay_too_and_a_reviewer_pass_does_not()
+    public async Task A_channel_confirmation_that_repeats_a_saved_response_says_which_one_its_replay_too_and_a_reviewer_pass_needs_its_mark()
     {
         var capture = new BusinessFormCaptureFixture("shortText", false);
         var savedAtUtc = new DateTime(2026, 11, 10, 15, 30, 0, DateTimeKind.Utc);
@@ -126,8 +126,11 @@ public sealed class BusinessFormDocumentCaptureTests
         var passed = await capture.Sink.CaptureDocumentAsync(Pass(capture, reviewed, capture.Users.AddUser("reviewer@example.invalid").Id)
             with { SourceReceiptId = Guid.CreateVersion7() }, Ct);
 
-        Assert.Equal(("Completed", (StructuredRecordRepetition?)null), (passed.State, passed.Repetition));
-        Assert.Single(capture.Documents.RepetitionQueries);
+        // F13: a reviewer is told about it, and passes it anyway with their mark.
+        Assert.Equal(("Rejected", FormRecordErrors.Repeated.Code, new StructuredRecordRepetition("FORM-000007", savedAtUtc)), (passed.State, passed.ErrorCode, passed.Repetition));
+        var pass = Pass(capture, reviewed, capture.Users.AddUser("second@example.invalid").Id) with { SourceReceiptId = Guid.CreateVersion7() };
+        var confirmed = await capture.Sink.CaptureDocumentAsync(pass with { Origin = pass.Origin! with { RepetitionConfirmed = true } }, Ct);
+        Assert.Equal(("Completed", (StructuredRecordRepetition?)null), (confirmed.State, confirmed.Repetition));
     }
 
     // The form copies a standard whose duplicate key is its question, and a response with this value was saved (number 7).

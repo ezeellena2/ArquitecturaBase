@@ -41,7 +41,7 @@ internal sealed class FormReceivedDocumentCapturePolicy(FormEntryRecorder entrie
         }
         var proposed = Proposed(row, schema, version.VersionId);
         var origin = new StructuredRecordCaptureOrigin(StructuredRecordSenderKind.Manual, reviewerUserId, null, null, proposed,
-            proposed.Select(value => value.FieldId).ToArray()) { Document = row.Id, DocumentRevision = request.ExpectedRevision };
+            proposed.Select(value => value.FieldId).ToArray()) { Document = row.Id, DocumentRevision = request.ExpectedRevision, RepetitionConfirmed = request.ConfirmRepeated };
         return new FormReceivedDocumentCapture(entry.Value.Request with { Files = files, Origin = origin }, entry.Value.Chosen, entry.Value.Items, schema,
             FormEntryRecorder.Group(schema));
     }

@@ -19,6 +19,12 @@ public sealed record StructuredRecordCaptureOrigin(StructuredRecordSenderKind Se
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public long? DocumentRevision { get; init; }
+    /// <summary>
+    /// F13: a reviewer who passes a document is warned when it repeats a saved response, and confirms with this mark that they saw it. Never
+    /// stored nor in the replay's fingerprint.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool RepetitionConfirmed { get; init; }
     public override string ToString() => "StructuredRecordCaptureOrigin { Content = [REDACTED] }";
 }
 public sealed record StructuredRecordAssistantProposal(Guid ProposalId, string CapabilityId, int CapabilityVersion,

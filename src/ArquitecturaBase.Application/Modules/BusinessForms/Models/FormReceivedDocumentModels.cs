@@ -143,7 +143,9 @@ public sealed record ListFormReceivedDocumentsRequest : PagedRequest
 }
 public sealed record ReviewFormReceivedDocumentRequest(long? ExpectedRevision);
 public sealed record ChangeFormReceivedDocumentFormRequest(Guid? RequestId, Guid? DefinitionId, long? ExpectedRevision);
-public sealed record PassFormReceivedDocumentRequest(Guid? RequestId, Guid? VersionId, long? ExpectedRevision, IReadOnlyList<FormEntryAnswer>? Answers)
+/// <summary>F13: <paramref name="ConfirmRepeated"/> is the reviewer's mark that they saw the response it repeats and pass it anyway.</summary>
+public sealed record PassFormReceivedDocumentRequest(Guid? RequestId, Guid? VersionId, long? ExpectedRevision, IReadOnlyList<FormEntryAnswer>? Answers,
+    bool ConfirmRepeated = false)
 {
     public override string ToString() => "PassFormReceivedDocumentRequest { Content = [REDACTED] }";
 }

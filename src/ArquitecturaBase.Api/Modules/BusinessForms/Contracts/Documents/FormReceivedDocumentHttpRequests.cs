@@ -43,7 +43,7 @@ public sealed record SearchFormReceivedDocumentOptionsHttpRequest(Guid? FieldId,
 /// </summary>
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record PassFormReceivedDocumentHttpRequest(Guid? RequestId, Guid? VersionId, long? ExpectedRevision,
-    IReadOnlyList<FormEntryAnswerHttpItem?>? Answers)
+    IReadOnlyList<FormEntryAnswerHttpItem?>? Answers, bool ConfirmRepeated = false)
 {
     public override string ToString() => "PassFormReceivedDocumentHttpRequest { Content = [REDACTED] }";
 }

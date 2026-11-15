@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// Task 9b of the documents: a response its person confirms in a channel from a received document (or a row of a spreadsheet) is checked
 /// again at capture with what they corrected (point 12): the same values of every duplicate key of the form's standard as a response already
 /// saved is a repetition, so two receipts sent together are not both saved. Runs in the capture's unit of work, after the document's lock,
-/// and only reads. A reviewer who passes a document from the inbox decides it themselves: not checked.
+/// and only reads. A reviewer who passes a document from the inbox decides it themselves, but is warned (F13) and confirms with a mark.
 /// </summary>
 internal sealed class FormRecordRepetitionPolicy(IFormReceivedDocumentReader reader, FormDocumentProposalPolicy proposals)
 {

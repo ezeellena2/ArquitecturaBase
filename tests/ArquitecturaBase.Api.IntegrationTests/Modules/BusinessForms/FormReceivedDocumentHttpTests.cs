@@ -854,6 +854,36 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_reviewer_who_passes_a_document_that_repeats_a_saved_response_is_told_and_passes_it_with_their_mark()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var transfer = await scenario.TransferAsync(Ct);
+        // Proposed while no response had its data; one with the same operation, amount and date appears before the reviewer passes it.
+        var sent = await scenario.SendAsync(Ct, proposal: scenario.TransferProposal(transfer, "44556677", "150000", "2026-11-11"));
+        var number = await scenario.RespondAsync(transfer, "44556677", 150000m, new DateOnly(2026, 11, 11), Ct);
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        var path = $"/api/forms/documents/{sent.Id}/records";
+        // A rejection is answered again to the same request, so the pass with the mark is a request of its own.
+        object Body(Guid requestId, bool confirm) => new
+        {
+            requestId, versionId = transfer.VersionId, expectedRevision = 1, confirmRepeated = confirm,
+            answers = new object[]
+            {
+                new { fieldId = transfer.OperationId, value = "44556677" }, new { fieldId = transfer.AmountId, value = "150000" },
+                new { fieldId = transfer.DateId, value = "2026-11-11" },
+            },
+        };
+
+        using var warned = await reviewer.PostAsJsonAsync(path, Body(Guid.NewGuid(), false), Ct);
+        var warning = await warned.ReadJsonAsync();
+        using var passed = await reviewer.PostAsJsonAsync(path, Body(Guid.NewGuid(), true), Ct);
+
+        Assert.Equal(HttpStatusCode.Conflict, warned.StatusCode);
+        Assert.Equal(("Forms.ReceivedDocument.Repeated", number), (warning.GetProperty("code").GetString(), warning.GetProperty("recordNumber").GetString()));
+        Assert.True(passed.IsSuccessStatusCode);
+    }
+
+    [Fact]
     public async Task Each_choice_offers_its_options_the_catalog_ones_as_the_sender_could_choose_them_and_the_pass_checks_them()
     {
         await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);

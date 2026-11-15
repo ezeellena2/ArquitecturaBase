@@ -57,6 +57,8 @@ internal sealed class FormReceivedDocumentRecordService(FormReceivedDocumentAcce
         StructuredRecordCaptureResponse captured, Guid? group, CancellationToken ct)
     {
         if (captured is { State: "Rejected", ErrorCode: { } code } && LockedRejections.TryGetValue(code, out var rejection)) return rejection;
+        if (captured is { State: "Rejected", ErrorCode: { } repeatedCode, Repetition: { } repetition } && repeatedCode == FormRecordErrors.Repeated.Code)
+            return FormReceivedDocumentErrors.RepeatedOf(repetition.RecordNumber, repetition.AtUtc);
         var outcome = await captures.OutcomeAsync(prefix, captured, group, ct);
         return outcome.IsFailure ? outcome.Error : new FormReceivedDocumentRecordResponse(row.Id, outcome.Value.RecordId, outcome.Value.Number, outcome.Value.State);
     }

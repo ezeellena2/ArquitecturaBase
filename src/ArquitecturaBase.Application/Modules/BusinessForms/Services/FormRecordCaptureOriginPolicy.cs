@@ -88,6 +88,8 @@ internal sealed class FormRecordCaptureOriginPolicy(IFormResponseReader response
             {
                 if (document.Revision != revision) return FormReceivedDocumentErrors.RevisionConflict;
                 if (!document.IsForReview(clock.GetUtcNow().UtcDateTime)) return FormReceivedDocumentErrors.AwaitingSender;
+                // F13: the reviewer decides, but seeing it: a repeated one is passed only with their mark.
+                if (!origin.RepetitionConfirmed && await repetitions.FindAsync(request, schema, documentId, ct) is { } repeatedForReviewer) return repeatedForReviewer;
             }
             // Task 9b: its person confirms it in a channel, so it is checked again with what they corrected.
             else if (await repetitions.FindAsync(request, schema, documentId, ct) is { } repeated) return repeated;

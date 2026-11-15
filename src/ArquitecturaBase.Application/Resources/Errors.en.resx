@@ -222,7 +222,6 @@
   <data name="Forms.Catalog.FeedInvalid" xml:space="preserve"><value>The source sent repeated or empty options.</value></data>
   <data name="Forms.Catalog.FeedUnavailable" xml:space="preserve"><value>The source of the catalog did not answer.</value></data>
   <data name="Forms.Rule.IssuerUnavailable" xml:space="preserve"><value>This action only works on a form copied from its standard, with the module installed.</value></data>
-  <data name="Forms.Rule.RecordsReadRequired" xml:space="preserve"><value>This form's rules cite the answers of questions: you also need the permission to see the responses.</value></data>
   <data name="Forms.Rule.IssuerPermissionRequired" xml:space="preserve"><value>This form's rules issue documents: you also need the permission to issue them.</value></data>
   <data name="Forms.Action.IssuerUnavailable" xml:space="preserve"><value>The module that issues the document is not installed.</value></data>
   <data name="Forms.Action.IssueDataUnavailable" xml:space="preserve"><value>The form lacks the standard questions the issuance needs.</value></data>
@@ -465,6 +464,9 @@
   </data>
   <data name="Forms.ReceivedDocument.AwaitingSender" xml:space="preserve">
     <value>Whoever sent it can still complete it in their channel. Wait until their reply expires.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.Repeated" xml:space="preserve">
+    <value>There is already a response with this document's data. Review it: if it is another one, pass it anyway.</value>
   </data>
   <data name="Forms.ReceivedDocument.RequestConflict" xml:space="preserve">
     <value>That request was already used with other data.</value>

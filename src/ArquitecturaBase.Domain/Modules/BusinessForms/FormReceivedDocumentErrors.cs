@@ -15,6 +15,10 @@ public static class FormReceivedDocumentErrors
     public static readonly Error FileUnavailable = Error.Conflict("Forms.ReceivedDocument.FileUnavailable", "The copy of the received document is unavailable.");
     public static readonly Error FileNotStored = Error.NotFound("Forms.ReceivedDocument.FileNotStored", "The received document was kept without its file.");
     public static readonly Error AwaitingSender = Error.Conflict("Forms.ReceivedDocument.AwaitingSender", "Whoever sent the document can still complete it.");
+    /// <summary>F13: the response a reviewer passes repeats a saved one; the reviewer confirms with a mark in the request. Its metadata names it.</summary>
+    public static readonly Error Repeated = Error.Conflict("Forms.ReceivedDocument.Repeated", "The response repeats a saved one; confirm to pass it anyway.");
+    public static Error RepeatedOf(string? recordNumber, DateTime atUtc) =>
+        Repeated with { Metadata = new Dictionary<string, object?> { ["recordNumber"] = recordNumber, ["atUtc"] = atUtc } };
     public static readonly Error RequestConflict = Error.Conflict("Forms.ReceivedDocument.RequestConflict", "The request was already used with other data.");
     public static readonly Error ExtractionUnavailable = Error.Failure("Forms.ReceivedDocument.ExtractionUnavailable", "The extraction could not be read.");
     // DOC6, «Armar formulario con la IA»: a proposal built from one unclassified document or from a group of similar ones.

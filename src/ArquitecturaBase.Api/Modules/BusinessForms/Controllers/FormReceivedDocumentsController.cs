@@ -128,5 +128,5 @@ public sealed class FormReceivedDocumentsController(IFormReceivedDocumentService
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Pass([FromRoute] Guid id, [FromBody] PassFormReceivedDocumentHttpRequest request, CancellationToken cancellationToken) =>
         (await records.PassAsync(id, new(request.RequestId, request.VersionId, request.ExpectedRevision,
-            request.Answers?.Select(FormEntryRequestMapping.Answer).ToArray()), cancellationToken)).ToActionResult(this);
+            request.Answers?.Select(FormEntryRequestMapping.Answer).ToArray(), request.ConfirmRepeated), cancellationToken)).ToActionResult(this);
 }
