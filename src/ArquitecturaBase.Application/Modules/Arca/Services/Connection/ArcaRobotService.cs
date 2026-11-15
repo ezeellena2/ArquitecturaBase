@@ -55,6 +55,14 @@ internal sealed class ArcaRobotService(IArcaRobotRunReader reader, IArcaRobotRun
             return finished.IsFailure ? finished.Error : await ResponseAsync(cancellationToken);
         });
 
+    public Task<Result<ArcaRobotRunResponse>> RearmPlatformAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<ArcaRobotRunResponse>>(logger, "RearmArcaRobotPlatform", async () =>
+        {
+            if (!options.Value.Enabled) return ArcaConnectionErrors.RobotDisabled;
+            var rearmed = await store.RearmPlatformAsync(cancellationToken);
+            return rearmed.IsFailure ? rearmed.Error : await ResponseAsync(cancellationToken);
+        });
+
     private async Task<ArcaRobotRunResponse> ResponseAsync(CancellationToken cancellationToken) =>
         ArcaRobotRunResponse.From(options.Value.Enabled, await reader.ListAsync(cancellationToken), timeProvider.GetUtcNow().UtcDateTime);
 }

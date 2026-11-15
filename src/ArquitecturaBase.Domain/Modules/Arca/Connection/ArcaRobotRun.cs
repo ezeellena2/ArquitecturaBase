@@ -102,16 +102,25 @@ public sealed class ArcaRobotRun : Entity
         return Result.Success();
     }
 
-    /// <summary>Vuelve a poner en espera el lado de la plataforma, vencido ya, salvo que haya terminado bien.</summary>
+    /// <summary>
+    /// Vuelve a poner en espera el lado de la plataforma, vencido ya, salvo que haya terminado bien o que ARCA haya rechazado su
+    /// ingreso (H5): ése lo rearma sólo <see cref="RearmPlatform"/>, porque unos pocos rechazos bloquean la clave.
+    /// </summary>
     public void Reschedule(DateTime nowUtc)
     {
-        if (Status == ArcaRobotRunStatus.Succeeded || IsHeld(nowUtc)) return;
-        Status = ArcaRobotRunStatus.Waiting;
-        Attempts = 0;
-        NextAttemptAtUtc = nowUtc;
-        ClearFailure();
-        ReleaseLease();
-        FinishedAtUtc = null;
+        if (Status == ArcaRobotRunStatus.Succeeded || IsHeld(nowUtc) || PlatformLoginRejected) return;
+        StartOver(nowUtc);
+    }
+
+    /// <summary>
+    /// Quien administra ARCA vuelve a probar la clave de la plataforma después de actualizarla (H5): sólo un lado de la
+    /// plataforma frenado por ingreso rechazado.
+    /// </summary>
+    public Result RearmPlatform(DateTime nowUtc)
+    {
+        if (!PlatformLoginRejected) return ArcaConnectionErrors.RobotPlatformNotRejected;
+        StartOver(nowUtc);
+        return Result.Success();
     }
 
     /// <summary>
@@ -217,6 +226,19 @@ public sealed class ArcaRobotRun : Entity
     }
 
     private bool Owns(Guid owner, DateTime nowUtc) => IsHeld(nowUtc) && LeaseOwner == owner;
+
+    private bool PlatformLoginRejected =>
+        Side == ArcaRobotSide.Platform && Status == ArcaRobotRunStatus.Failed && Failure == ArcaRobotFailure.LoginRejected;
+
+    private void StartOver(DateTime nowUtc)
+    {
+        Status = ArcaRobotRunStatus.Waiting;
+        Attempts = 0;
+        NextAttemptAtUtc = nowUtc;
+        ClearFailure();
+        ReleaseLease();
+        FinishedAtUtc = null;
+    }
 
     private void Hold(Guid owner, DateTime nowUtc, TimeSpan lease)
     {

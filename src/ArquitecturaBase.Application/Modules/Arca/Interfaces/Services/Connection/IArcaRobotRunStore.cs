@@ -32,6 +32,9 @@ public interface IArcaRobotRunStore
     /// </summary>
     Task<Result> CompleteCompanyByHandAsync(CancellationToken cancellationToken);
 
+    /// <summary>H5: el lado de la plataforma frenado por ingreso rechazado vuelve a la espera, con el lock de la conexión.</summary>
+    Task<Result> RearmPlatformAsync(CancellationToken cancellationToken);
+
     /// <summary>Toma el lado de la plataforma si le toca y devuelve lo que el robot tiene que hacer; null si no le toca.</summary>
     Task<ArcaPlatformRobotWorkResponse?> ReservePlatformAsync(Guid runId, Guid owner, CancellationToken cancellationToken);
 

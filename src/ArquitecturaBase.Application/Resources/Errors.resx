@@ -190,6 +190,7 @@
   <data name="Arca.Connection.RobotKeyMissing" xml:space="preserve"><value>Escribí tu clave fiscal.</value></data>
   <data name="Arca.Connection.RobotRunInProgress" xml:space="preserve"><value>El robot ya está trabajando en esta conexión. Esperá a que termine.</value></data>
   <data name="Arca.Connection.RobotNotStopped" xml:space="preserve"><value>El robot no se frenó: no hay pasos que seguir a mano. Volvé a cargar la pantalla.</value></data>
+  <data name="Arca.Connection.RobotPlatformNotRejected" xml:space="preserve"><value>ARCA no rechazó la clave de la plataforma: no hay nada que volver a probar. Volvé a cargar la pantalla.</value></data>
   <data name="Arca.Connection.RobotBusy" xml:space="preserve"><value>El robot no puede tomar otro trámite ahora. Probá de nuevo en unos minutos o seguí con la guía.</value></data>
   <data name="Arca.Invoicing.CatalogUnknown" xml:space="preserve"><value>ARCA no mantiene ese catálogo.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>El punto de venta va de 1 a 99998.</value></data>

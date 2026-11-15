@@ -22,4 +22,10 @@ public interface IArcaRobotService
     /// aceptar, asignar y confirmar.
     /// </summary>
     Task<Result<ArcaRobotRunResponse>> CompleteByHandAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// H5: después de actualizar la clave de la plataforma, la vuelve a probar: el lado de la plataforma frenado por ingreso
+    /// rechazado vuelve a la espera. El robot no la reintenta solo, porque unos pocos rechazos la bloquean.
+    /// </summary>
+    Task<Result<ArcaRobotRunResponse>> RearmPlatformAsync(CancellationToken cancellationToken);
 }

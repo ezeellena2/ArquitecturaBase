@@ -52,4 +52,14 @@ public sealed class ArcaRobotController(IArcaRobotService service) : ControllerB
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CompleteByHand(CancellationToken cancellationToken) =>
         (await service.CompleteByHandAsync(cancellationToken)).ToAcceptedResult(this);
+
+    /// <summary>H5: después de actualizar la clave de la plataforma que ARCA rechazó, la vuelve a probar.</summary>
+    [HttpPost("current/platform-rearm")]
+    [HasPermission(ArcaPermissions.Manage)]
+    [ProducesResponseType<ArcaRobotRunResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RearmPlatform(CancellationToken cancellationToken) =>
+        (await service.RearmPlatformAsync(cancellationToken)).ToAcceptedResult(this);
 }

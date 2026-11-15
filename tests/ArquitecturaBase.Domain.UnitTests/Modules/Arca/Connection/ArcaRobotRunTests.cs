@@ -206,12 +206,12 @@ public sealed class ArcaRobotRunTests
     }
 
     [Fact]
-    public void Rescheduling_starts_the_platform_side_over_unless_it_succeeded()
+    public void Rescheduling_starts_the_platform_side_over_unless_it_succeeded_or_its_login_was_rejected()
     {
         var failed = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
         failed.TryReserve(Owner, Now, Lease);
         failed.Complete(ArcaRobotSteps.PlatformCertificate, null, Owner, Now, Lease);
-        failed.Fail(ArcaRobotFailure.LoginRejected, ArcaRobotSteps.PlatformLogin, Owner, Now);
+        failed.Fail(ArcaRobotFailure.Captcha, ArcaRobotSteps.PlatformLogin, Owner, Now);
 
         failed.Reschedule(Now.AddMinutes(1));
 
@@ -226,6 +226,39 @@ public sealed class ArcaRobotRunTests
         done.Succeed(Owner, Now);
         done.Reschedule(Now.AddMinutes(1));
         Assert.Equal(ArcaRobotRunStatus.Succeeded, done.Status);
+
+        // H5: the platform key ARCA rejected is not tried again by itself: a few rejections would block it.
+        var rejected = RejectedPlatform();
+        rejected.Reschedule(Now.AddMinutes(1));
+        Assert.Equal((ArcaRobotRunStatus.Failed, ArcaRobotFailure.LoginRejected), (rejected.Status, rejected.Failure));
+        Assert.False(rejected.TryReserve(Owner, Now.AddMinutes(1), Lease));
+    }
+
+    // H5: whoever manages ARCA tries the platform key again, once it is updated; only a platform side whose login was rejected.
+    [Fact]
+    public void Rearming_starts_over_only_a_platform_side_whose_login_was_rejected()
+    {
+        var rejected = RejectedPlatform();
+
+        Assert.True(rejected.RearmPlatform(Now.AddMinutes(1)).IsSuccess);
+        Assert.Equal((ArcaRobotRunStatus.Waiting, (ArcaRobotFailure?)null, 0), (rejected.Status, rejected.Failure, rejected.Attempts));
+        Assert.True(rejected.TryReserve(Owner, Now.AddMinutes(1), Lease));
+
+        var captcha = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
+        captcha.TryReserve(Owner, Now, Lease);
+        captcha.Fail(ArcaRobotFailure.Captcha, ArcaRobotSteps.PlatformLogin, Owner, Now);
+        Assert.Equal(ArcaConnectionErrors.RobotPlatformNotRejected, captcha.RearmPlatform(Now).Error);
+        var company = ArcaRobotRun.StartCompany(ConnectionId, Guid.CreateVersion7(), Owner, Now, Lease);
+        company.Fail(ArcaRobotFailure.LoginRejected, ArcaRobotSteps.CompanyLogin, Owner, Now);
+        Assert.Equal(ArcaConnectionErrors.RobotPlatformNotRejected, company.RearmPlatform(Now).Error);
+    }
+
+    private static ArcaRobotRun RejectedPlatform()
+    {
+        var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
+        run.TryReserve(Owner, Now, Lease);
+        run.Fail(ArcaRobotFailure.LoginRejected, ArcaRobotSteps.PlatformLogin, Owner, Now);
+        return run;
     }
 
     [Fact]

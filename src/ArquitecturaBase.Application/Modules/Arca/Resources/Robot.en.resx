@@ -4,6 +4,7 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="Alert.Subject" xml:space="preserve"><value>The ARCA robot stopped</value></data>
   <data name="Alert.Body" xml:space="preserve"><value>The ARCA delegation robot stopped at step "{0}", on the {1}: {2}. It happened on {3} (UTC). The guide to run and maintain the robot says what to check.</value></data>
+  <data name="Alert.PlatformLoginRejected" xml:space="preserve"><value>The robot does not try that key again by itself, so that ARCA does not block it: update the platform key in the configuration, restart the Api and, in the robot zone of “Connection with ARCA”, tap “Try the platform key again”.</value></data>
   <data name="Side.Company" xml:space="preserve"><value>client side</value></data>
   <data name="Side.Platform" xml:space="preserve"><value>platform side</value></data>
   <data name="Failure.LoginRejected" xml:space="preserve"><value>ARCA rejected the platform sign-in</value></data>

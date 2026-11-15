@@ -120,7 +120,7 @@ El aviso dice el paso (por ejemplo `company.point-of-sale`) y el motivo. Para co
 | Pantalla cambiada | El paso del aviso: un texto, un botón o una tabla que ya no son los de `ArcaRobotScreens` |
 | Captcha | ARCA lo pide a veces; el cliente sigue con la guía. Si es siempre, el robot no sirve para esa cuenta |
 | Validación extra | Un cambio de clave obligatorio, un segundo factor o condiciones por aceptar: lo hace la persona en ARCA |
-| Ingreso rechazado | Del cliente, su CUIT o su clave. De la plataforma, la clave de `Platform:FiscalKey`: el robot frena para no bloquearla |
+| Ingreso rechazado | Del cliente, su CUIT o su clave. De la plataforma, la clave de `Platform:FiscalKey`: el robot frena para no bloquearla y no la vuelve a probar solo. Actualizala, reiniciá la Api y tocá «Volver a probar la clave de la plataforma» en la zona del robot (`arca.manage`) |
 | ARCA no responde | El lado de la plataforma reintenta solo; el del cliente vuelve a probar o sigue con la guía |
 | Interrumpida | El host se reinició en medio de la corrida: el cliente la arranca de nuevo |
 

@@ -19,6 +19,7 @@ internal sealed class ArcaTestModule : IApiTestModule
         "POST /api/arca/connection/test", "DELETE /api/arca/connection", "PUT /api/arca/connection", "GET /api/arca/registry/company", "GET /api/arca/invoicing/settings",
         "GET /api/arca/invoicing/points-of-sale", "PUT /api/arca/invoicing/point-of-sale", "PUT /api/arca/invoicing/voucher-data", "GET /api/arca/connection/robot-runs/current",
         "POST /api/arca/connection/robot-runs", "POST /api/arca/connection/robot-runs/current/manual-completion",
+        "POST /api/arca/connection/robot-runs/current/platform-rearm",
     ];
 
     public const string RobotAlertEmail = "robot-arca@ejemplo.com";

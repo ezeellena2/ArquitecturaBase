@@ -52,6 +52,8 @@ internal sealed partial class ArcaRobotAlertPolicy(IEmailQueue emailQueue, IOpti
     {
         var body = DisplayNumbers.Format(Language, Text("Alert.Body"), failed.Step, Text("Side." + side), Text("Failure." + failed.Failure),
             nowUtc.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture));
+        // H5: the robot does not try the rejected platform key again by itself; the mail says how to do it once it is updated.
+        if (side == ArcaRobotSide.Platform && failed.Failure == ArcaRobotFailure.LoginRejected) body += " " + Text("Alert.PlatformLoginRejected");
         return new EmailMessage(to, Text("Alert.Subject"), $"<p>{WebUtility.HtmlEncode(body)}</p>", body);
     }
 

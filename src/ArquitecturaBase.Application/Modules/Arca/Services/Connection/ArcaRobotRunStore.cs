@@ -64,6 +64,16 @@ internal sealed class ArcaRobotRunStore(IArcaConnectionRepository connections, I
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken);
 
+    public Task<Result> RearmPlatformAsync(CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            await connections.LockConnectionAsync(token);
+            if (await connections.GetConnectionAsync(token) is not { } connection) return ArcaConnectionErrors.NotConnected;
+            if (connection.Mode != ArcaAccessMode.PlatformDelegationAutomated) return ArcaConnectionErrors.RobotModeMismatch;
+            return await runs.GetAsync(connection.Id, ArcaRobotSide.Platform, token) is { } platform
+                ? platform.RearmPlatform(timeProvider.GetUtcNow().UtcDateTime) : ArcaConnectionErrors.RobotPlatformNotRejected;
+        }, CommitPolicy.OnSuccess, cancellationToken);
+
     public async Task<ArcaPlatformRobotWorkResponse?> ReservePlatformAsync(Guid runId, Guid owner, CancellationToken cancellationToken) =>
         (await unitOfWork.ExecuteInTransactionAsync(token => ReservePlatformCoreAsync(runId, owner, token), CommitPolicy.OnSuccess, cancellationToken)).Value;
 

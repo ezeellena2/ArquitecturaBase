@@ -47,6 +47,8 @@ public sealed class ArcaRobotEndpointsTests(ApiFactory factory) : IDisposable
         Assert.Equal(HttpStatusCode.Forbidden, start.StatusCode);
         using var byHand = await reader.PostAsync(Route + "/current/manual-completion", null, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, byHand.StatusCode);
+        using var rearm = await reader.PostAsync(Route + "/current/platform-rearm", null, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, rearm.StatusCode);
     }
 
     [Fact]
@@ -125,6 +127,34 @@ public sealed class ArcaRobotEndpointsTests(ApiFactory factory) : IDisposable
         var alert = await factory.EmailSender.WaitForAsync(ArcaTestModule.RobotAlertEmail, before + 1);
         Assert.Contains("platform.certificate", alert.TextBody, StringComparison.Ordinal);
         Assert.DoesNotContain(FakeArcaWeb.Company, alert.TextBody, StringComparison.Ordinal);
+    }
+
+    // H5: the platform key ARCA rejected is not tried again by itself; whoever manages ARCA tries it again once it is updated, as
+    // the mail to the owner says.
+    [Fact]
+    public async Task A_rejected_platform_key_is_tried_again_only_when_whoever_manages_arca_asks()
+    {
+        await using var scenario = await StartAutomatedAsync();
+        Web.Keys[FakeArcaWeb.Platform] = "clave-vieja";
+        scenario.Arca.Relations = [FakeArcaWeb.Company];
+        var revision = (await scenario.GetConnectionAsync()).GetProperty("revision").GetInt64();
+        var before = factory.EmailSender.CountFor(ArcaTestModule.RobotAlertEmail);
+        await scenario.ReadAsync(await scenario.Client.PostAsJsonAsync(Route, Body(revision, FakeArcaWeb.ClientKey), Ct), HttpStatusCode.Accepted);
+        var (job, credentials) = await TakeJobAsync();
+        await Processor.RunCompanyAsync(job, credentials, Ct);
+        await Processor.ProcessDuePlatformAsync(Ct);
+
+        Assert.Equal("LoginRejected", (await CurrentAsync(scenario)).GetProperty("platform").GetProperty("failure").GetString());
+        var alert = await factory.EmailSender.WaitForAsync(ArcaTestModule.RobotAlertEmail, before + 1);
+        Assert.Contains("«Volver a probar la clave de la plataforma»", alert.TextBody, StringComparison.Ordinal);
+
+        Web.Keys[FakeArcaWeb.Platform] = FakeArcaWeb.PlatformKey;
+        var rearmed = await scenario.ReadAsync(await scenario.Client.PostAsync(Route + "/current/platform-rearm", null, Ct), HttpStatusCode.Accepted);
+        Assert.Equal("Waiting", rearmed.GetProperty("platform").GetProperty("state").GetString());
+        var again = await scenario.ReadAsync(await scenario.Client.PostAsync(Route + "/current/platform-rearm", null, Ct), HttpStatusCode.Conflict);
+        Assert.Equal("Arca.Connection.RobotPlatformNotRejected", again.GetProperty("code").GetString());
+        await Processor.ProcessDuePlatformAsync(Ct);
+        Assert.Equal("Succeeded", (await CurrentAsync(scenario)).GetProperty("platform").GetProperty("state").GetString());
     }
 
     [Fact]

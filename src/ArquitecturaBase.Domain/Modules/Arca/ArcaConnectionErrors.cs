@@ -33,6 +33,7 @@ public static class ArcaConnectionErrors
     public static readonly Error RobotKeyMissing = Error.Validation("Arca.Connection.RobotKeyMissing", "The tax key is missing.");
     public static readonly Error RobotRunInProgress = Error.Conflict("Arca.Connection.RobotRunInProgress", "The robot is already running for this connection.");
     public static readonly Error RobotNotStopped = Error.Conflict("Arca.Connection.RobotNotStopped", "The company side of the robot has not stopped.");
+    public static readonly Error RobotPlatformNotRejected = Error.Conflict("Arca.Connection.RobotPlatformNotRejected", "The platform side of the robot did not stop on a rejected login.");
     public static readonly Error RobotBusy = Error.TooManyRequests("Arca.Connection.RobotBusy", "The robot cannot take another run right now.");
 
     /// <summary>ARCA ya dio un ticket que no tenemos y no acepta otro pedido hasta dentro de <paramref name="retryAfterSeconds"/>.</summary>

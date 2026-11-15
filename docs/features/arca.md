@@ -352,16 +352,21 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
   `platform.login`, `platform.certificate` y `verify`, para que la pantalla abra la guía donde se frenó.
 - **Motivos:** ingreso rechazado, captcha, validación extra, pantalla cambiada, ARCA no responde e interrumpida. El robot no
   resuelve captchas ni pide un segundo factor. Del lado de la plataforma, ARCA sin responder reintenta con espera creciente
-  (`RetryDelay`, hasta `MaxAttempts`); lo demás frena, y un ingreso rechazado no se reintenta para no bloquear la clave.
+  (`RetryDelay`, hasta `MaxAttempts`); lo demás frena, y un ingreso rechazado no se reintenta para no bloquear la clave (H5):
+  ni al volver a delegar ni al terminar a mano. Lo vuelve a probar sólo quien tiene `arca.manage`, después de actualizarla,
+  con «Volver a probar la clave de la plataforma» en la zona del robot.
 - **El aviso (RB4-A):** una pantalla cambiada de cualquier lado, y del lado de la plataforma también un captcha, una
   validación extra o su ingreso rechazado, mandan un correo a `Arca:Robot:AlertEmail` por la cola de siempre, con el paso,
-  el motivo y la hora, como mucho uno por motivo y paso por día. Siempre queda el log de error.
+  el motivo y la hora, como mucho uno por motivo y paso por día; el del ingreso rechazado dice cómo volver a probar la clave.
+  Siempre queda el log de error.
 - **Rutas:** `GET api/arca/connection/robot-runs/current` (`arca.read`) dice si el robot está prendido y cómo va cada lado;
   `POST api/arca/connection/robot-runs` (`arca.read` + `arca.manage`, límite `arca-remote`) arranca el lado del cliente con
   el consentimiento, la CUIT o CUIL de ingreso, la clave y la revisión esperada, y responde 202;
   `POST api/arca/connection/robot-runs/current/manual-completion` (`arca.manage`) da por terminado a mano el lado del cliente
-  frenado y responde 202. Errores propios: `RobotDisabled`, `RobotModeMismatch`, `RobotConsentMissing`, `RobotKeyMissing`,
-  `RobotRunInProgress` (409), `RobotNotStopped` (409) y `RobotBusy` (429), con el prefijo `Arca.Connection.`.
+  frenado y responde 202; `POST api/arca/connection/robot-runs/current/platform-rearm` (`arca.manage`) vuelve a poner en
+  espera el lado de la plataforma frenado por ingreso rechazado y responde 202 (H5). Errores propios: `RobotDisabled`,
+  `RobotModeMismatch`, `RobotConsentMissing`, `RobotKeyMissing`, `RobotRunInProgress` (409), `RobotNotStopped` (409),
+  `RobotPlatformNotRejected` (409) y `RobotBusy` (429), con el prefijo `Arca.Connection.`.
 - **La clave del cliente** es un tipo que no se imprime ni se serializa, se escribe sólo en el campo de ingreso y no queda en
   respuestas, logs, excepciones ni filas: lo verifica una prueba que la busca. Playwright corre sin trazas, HAR, video ni
   capturas, y la Api no arranca con su depuración encendida ni sin Chromium.
