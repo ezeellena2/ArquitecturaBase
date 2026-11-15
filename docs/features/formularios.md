@@ -609,6 +609,10 @@ lo técnico, en los [servicios](formularios-servicios.md#crear-desde-una-propues
 «Revisar documentos» y «Diseñar formularios» (`formtemplates.read` y `formtemplates.manage`): sus respuestas llevan documentos de la bandeja
 y lo que se leyó en ellos. Está el backend (tarea 14); la página llega con su front.
 
+- **Lo que la bandeja guarda en claro (costo aceptado).** Los números que se leen de un documento (montos, CUIT, CBU o CVU,
+  operaciones) se guardan en claro en `SearchText` para buscarlos sin descifrar, y el nombre del archivo y la copia también van en
+  claro. Lo que expone de un documento confirmado ya está en claro en la respuesta. El cifrado de las copias de archivos se decide
+  con el N15 del núcleo.
 - **El aviso de los parecidos.** La página de la bandeja (`POST api/forms/documents/search`) suma `groups`: los temas pendientes de
   «Formularios que faltan» que comparten tres o más documentos sin clasificar (los que dejó «Otro»), con todos los filtros de la
   página salvo el estado, los más grandes primero y hasta cinco: `{ topic: { id, name }, count, documentIds }`, con el nombre como

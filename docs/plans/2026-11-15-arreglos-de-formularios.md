@@ -21,9 +21,10 @@ del núcleo.
   contra el código. La primera tarea de cada etapa relee el código de sus hallazgos y corrige el plan si hace falta.
 - **Sin datos que convertir:** no hay producción. Lo que se agrega a filas existentes (el estado de revisión de los temas, el
   plazo de los documentos propuestos) se completa en la misma migración con los datos de desarrollo.
-- **Cuándo:** después del reinicio del cupo semanal (17/11, 23:59), en una sesión nueva: la revisión alcanza como brief. La etapa
-  1 va antes de la prueba integral, que también quedó para después del reinicio; las demás, de a una y mirando el cupo antes de
-  cada una.
+- **Cuándo:** todas las etapas van antes de la prueba integral, por decisión del usuario del 2026-11-15 («Todo antes»). Arrancan
+  después del reinicio del cupo semanal (17/11, 23:59), en una sesión nueva (la revisión alcanza como brief), de a una y en orden,
+  mirando el cupo antes de cada etapa; la prueba integral espera a que terminen. Ya están hechos F1 (la app y el Flow), F14 y el
+  nombre solo de F7.
 
 **Cómo se trabaja.** Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): el test en rojo primero y las suites
 rápidas del área. La revisión adversarial va completa en lo que toca permisos, datos de personas o efectos fuera del sistema
@@ -182,8 +183,10 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     un test compara las tablas de la guía con las del módulo, y se repite la prueba de quitarlo. Chico.
 40. **F10. La retención nombra todo** (decisión 6). La fila de la retención en los [planes pendientes](README.md) suma lo que lista
     F10 y el borrado definitivo de una persona como un puerto del núcleo que implementa cada módulo. Trivial.
+    Hecha el 2026-11-15.
 41. **Los números en claro de la bandeja, por escrito** (decisión 8). La regla de los documentos recibidos escribe el costo, y el
     cifrado de las copias de archivos queda con el N15 del núcleo. Trivial.
+    Hecha el 2026-11-15 (la regla, en [formularios.md](../features/formularios.md#armar-formulario-con-la-ia-desde-la-bandeja--doc6-2026-11-12)).
 
 **Cierre.** Cada regla que cambió queda en su fuente, y la revisión anota qué commit arregló cada hallazgo. Las decisiones van a
 las fuentes de las [premisas](../architecture/premisas-de-la-plantilla.md), y el plan se retira con la
