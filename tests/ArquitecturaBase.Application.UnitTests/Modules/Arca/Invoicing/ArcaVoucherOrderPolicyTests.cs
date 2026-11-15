@@ -88,6 +88,25 @@ public sealed class ArcaVoucherOrderPolicyTests
             ArcaVoucherOrderPolicy.Lines(Order() with { Items = [new ArcaVoucherOrderItem("Regalo", 1, 0)], ExpectedTotal = null }, Today).Error);
     }
 
+    // H9: what ARCA and the column take is 13 integer digits; above that, its own code before queuing, without overflowing.
+    [Fact]
+    public void An_amount_above_what_arca_takes_is_refused_before_queuing()
+    {
+        var typo = Order() with { Items = [new ArcaVoucherOrderItem("Cantidad con la CUIT pegada", 1_000_000m, 10_000_000_000m)], ExpectedTotal = null };
+        Assert.Equal(ArcaInvoicingErrors.AmountTooLarge, ArcaVoucherOrderPolicy.Lines(typo, Today).Error);
+
+        var maxPrice = Order() with { Items = [new ArcaVoucherOrderItem("Precio", 2m, decimal.MaxValue)], ExpectedTotal = null };
+        Assert.Equal(ArcaInvoicingErrors.AmountTooLarge, ArcaVoucherOrderPolicy.Lines(maxPrice, Today).Error);
+
+        var twoLines = Order() with { Items = [new ArcaVoucherOrderItem("Uno", 1m, 6_000_000_000_000m), new ArcaVoucherOrderItem("Dos", 1m, 6_000_000_000_000m)], ExpectedTotal = null };
+        Assert.Equal(ArcaInvoicingErrors.AmountTooLarge, ArcaVoucherOrderPolicy.Lines(twoLines, Today).Error);
+
+        // The A adds the VAT to the net: a net that fits can go above with it.
+        var nearMax = Order() with { Items = [new ArcaVoucherOrderItem("Campo", 1m, 9_000_000_000_000m, Rate(5))], ExpectedTotal = null };
+        Assert.True(ArcaVoucherOrderPolicy.Lines(nearMax, Today).IsSuccess);
+        Assert.Equal(ArcaInvoicingErrors.AmountTooLarge, ForClass(ArcaVoucherClass.A, nearMax).Error);
+    }
+
     [Fact]
     public void A_total_that_does_not_match_the_server_is_not_queued()
     {

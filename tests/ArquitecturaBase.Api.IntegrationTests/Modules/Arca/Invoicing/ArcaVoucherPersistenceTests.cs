@@ -62,6 +62,29 @@ public sealed class ArcaVoucherPersistenceTests(ApiFactory factory)
         }
     }
 
+    // H27: one live credit note per invoice is a rule of the base, not only of the lock; a rejected one does not count.
+    [Fact]
+    public async Task An_invoice_never_has_two_live_credit_notes()
+    {
+        var cuit = NewCuit();
+        try
+        {
+            var invoice = Voucher(cuit);
+            await AddAsync(invoice);
+            var rejected = Note(cuit, invoice.Id);
+            rejected.AssignNumber(1, "hash-1", Now);
+            rejected.Reject("wsfe.10015", null, Now);
+            await AddAsync(rejected);
+            await AddAsync(Note(cuit, invoice.Id));
+
+            await Assert.ThrowsAsync<UniqueConstraintViolationException>(() => AddAsync(Note(cuit, invoice.Id)));
+        }
+        finally
+        {
+            await RemoveAsync(cuit);
+        }
+    }
+
     [Fact]
     public async Task A_sequence_is_one_per_environment_cuit_point_of_sale_and_type()
     {
@@ -177,6 +200,9 @@ public sealed class ArcaVoucherPersistenceTests(ApiFactory factory)
     private ArcaVoucher Voucher(string cuit, Guid? requestKey = null, int pointOfSale = 4, DateTime? createdAtUtc = null, Guid? connectionId = null) =>
         ArcaVoucher.Create(connectionId ?? Guid.CreateVersion7(), ArcaEnvironment.Testing, requestKey ?? Guid.CreateVersion7(), ArcaVoucherClass.C,
             ArcaVoucherKind.Invoice, cuit, pointOfSale, 1, 80, 30712345671, RequestedOn, 605500m, "{}", null, createdAtUtc ?? Now);
+
+    private ArcaVoucher Note(string cuit, Guid invoiceId) => ArcaVoucher.Create(Guid.CreateVersion7(), ArcaEnvironment.Testing, Guid.CreateVersion7(),
+        ArcaVoucherClass.C, ArcaVoucherKind.CreditNote, cuit, 4, 1, 80, 30712345671, RequestedOn, 605500m, "{}", invoiceId, Now);
 
     private Task AddAsync(params object[] items) => factory.InTransactionAsync(services =>
     {

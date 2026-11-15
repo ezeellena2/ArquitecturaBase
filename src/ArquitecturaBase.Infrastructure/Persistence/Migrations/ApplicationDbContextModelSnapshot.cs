@@ -671,6 +671,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"Number\" IS NOT NULL");
 
+                    b.HasIndex(new[] { "CancelsVoucherId" }, "IX_ArcaVouchers_CancelsVoucherId_Live")
+                        .IsUnique()
+                        .HasFilter("\"CancelsVoucherId\" IS NOT NULL AND \"State\" NOT IN ('Rejected', 'Cancelled')");
+
+                    b.HasIndex(new[] { "NextAttemptAtUtc" }, "IX_ArcaVouchers_PdfDue")
+                        .HasFilter("\"State\" = 'Authorized' AND \"PdfStorageKey\" IS NULL");
+
                     b.ToTable("ArcaVouchers", (string)null);
                 });
 

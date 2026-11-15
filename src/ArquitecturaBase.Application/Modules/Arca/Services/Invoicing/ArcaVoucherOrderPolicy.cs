@@ -24,6 +24,9 @@ internal static class ArcaVoucherOrderPolicy
     private const int MaxTextLength = 200;
     private const int MaxItems = 100;
 
+    /// <summary>H9: lo que aceptan ARCA y la columna, 13 enteros y dos decimales; también para la cantidad y el precio, antes de multiplicar.</summary>
+    private const decimal MaxAmount = 9_999_999_999_999.99m;
+
     public static Result<IReadOnlyList<ArcaVoucherLine>> Lines(ArcaVoucherOrder order, DateOnly today)
     {
         if (!ReceiverIsValid(order.Receiver)) return ArcaInvoicingErrors.ReceiverInvalid;
@@ -31,9 +34,11 @@ internal static class ArcaVoucherOrderPolicy
         if (!PeriodIsValid(order)) return ArcaInvoicingErrors.ServicePeriodInvalid;
         if (!ArcaIssueDateWindow.Admits(order.Concept, order.IssueOn, today)) return ArcaInvoicingErrors.IssueDateOutOfRange;
         if (order.Items.Count is 0 or > MaxItems || order.Items.Any(item => !ItemIsValid(item))) return ArcaInvoicingErrors.ItemsInvalid;
+        if (order.Items.Any(item => item.Quantity > MaxAmount || item.UnitPrice > MaxAmount)) return ArcaInvoicingErrors.AmountTooLarge;
 
         IReadOnlyList<ArcaVoucherLine> lines = [.. order.Items.Select(item => new ArcaVoucherLine(item.Description.Trim(), item.Quantity, item.UnitPrice,
             ArcaInvoiceLine.Amount(item.Quantity, item.UnitPrice), item.Vat))];
+        if (lines.Any(line => line.Amount > MaxAmount) || lines.Sum(line => line.Amount) > MaxAmount) return ArcaInvoicingErrors.AmountTooLarge;
         if (lines.Sum(line => line.Amount) <= 0m) return ArcaInvoicingErrors.ItemsInvalid;
         return Result.Success(lines);
     }
@@ -50,7 +55,10 @@ internal static class ArcaVoucherOrderPolicy
         else if (lines.Any(line => line.Vat is null)) return ArcaInvoicingErrors.ItemsInvalid;
 
         if (order.ExpectedTotal is { } expected && expected != lines.Sum(line => line.Amount)) return ArcaInvoicingErrors.TotalMismatch;
-        return (lines, ArcaVoucherRequestPolicy.Amounts(voucherClass, lines, order.PricesIncludeVat));
+        // H9: la A y la B suman el IVA, que puede llevar por encima del tope un total que entraba.
+        var amounts = ArcaVoucherRequestPolicy.Amounts(voucherClass, lines, order.PricesIncludeVat);
+        if (amounts.Total > MaxAmount) return ArcaInvoicingErrors.AmountTooLarge;
+        return (lines, amounts);
     }
 
     private static bool ReceiverIsValid(ArcaVoucherParty receiver)

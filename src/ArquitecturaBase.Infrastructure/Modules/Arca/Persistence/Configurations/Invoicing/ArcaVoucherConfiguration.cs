@@ -18,6 +18,11 @@ internal sealed class ArcaVoucherConfiguration : IEntityTypeConfiguration<ArcaVo
         builder.HasIndex(x => new { x.Environment, x.Cuit, x.PointOfSale, x.VoucherType, x.Number }).IsUnique().HasFilter("\"Number\" IS NOT NULL");
         builder.HasIndex(x => new { x.State, x.NextAttemptAtUtc });
         builder.HasIndex(x => x.CancelsVoucherId);
+        // H27: one live credit note per invoice is a rule of the base too, not only of the lock.
+        builder.HasIndex(x => x.CancelsVoucherId, "IX_ArcaVouchers_CancelsVoucherId_Live").IsUnique()
+            .HasFilter("\"CancelsVoucherId\" IS NOT NULL AND \"State\" NOT IN ('Rejected', 'Cancelled')");
+        // H34: the PDFs that are missing, without going through every authorized voucher.
+        builder.HasIndex(x => x.NextAttemptAtUtc, "IX_ArcaVouchers_PdfDue").HasFilter("\"State\" = 'Authorized' AND \"PdfStorageKey\" IS NULL");
         builder.HasOne<ArcaVoucher>().WithMany().HasForeignKey(x => x.CancelsVoucherId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.Environment).HasConversion<string>().HasMaxLength(20);
         builder.Property(x => x.Class).HasConversion<string>().HasMaxLength(2);

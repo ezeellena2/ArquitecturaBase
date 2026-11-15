@@ -206,7 +206,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   no vuelven a ARCA. Una falla no se guarda.
 - **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
   el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y
-  recalcula cada importe con half-even. El total del pedido es el «Total» del formulario, la suma de los importes de los
+  recalcula cada importe con half-even. Cada cantidad, precio, renglón y el total, con el IVA de la A o la B, llegan hasta
+  9.999.999.999.999,99, lo que aceptan ARCA y la columna; más da `Arca.Invoicing.AmountTooLarge` (H9). El total del pedido
+  es el «Total» del formulario, la suma de los importes de los
   renglones: si no coincide, no se encola; con precios sin IVA, el de la A o la B es mayor, porque suma el IVA, y sale en el
   resultado. Una fecha anterior a la del último comprobante autorizado que la base conoce de la secuencia tampoco se encola
   (`Arca.Invoicing.IssueDateBeforeLast`, también en «¿La emito?»), porque ARCA la rechaza
