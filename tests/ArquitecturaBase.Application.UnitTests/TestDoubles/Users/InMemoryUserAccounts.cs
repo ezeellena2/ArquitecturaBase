@@ -289,7 +289,8 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         return Task.CompletedTask;
     }
 
-    public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
+    public Task RestoreAsync(
+        Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
     {
         TransactionGuard.Require(InTransaction);
         var user = DeletedUsers.Single(user => user.Id == userId);
@@ -301,8 +302,20 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             DeletedEmails.Remove(user.Email);
         }
 
-        _users.Add(user with { DisplayName = Named(displayName), IsActive = true });
+        _users.Add(user with
+        {
+            DisplayName = Named(displayName),
+            Culture = culture,
+            TimeZoneId = timeZoneId,
+            IsActive = true,
+        });
         _roles[user.Id] = [];
+
+        // Como el repositorio: restaurar quita los logins externos, que pueden ser del dueño anterior (N4).
+        foreach (var login in _externalLogins.Where(login => login.Value == userId).ToList())
+        {
+            _externalLogins.Remove(login.Key);
+        }
 
         return Task.CompletedTask;
     }
@@ -312,6 +325,9 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
 
     public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
         Update(userId, user => user with { PhoneNumber = phone.Value, PhoneNumberConfirmed = confirmed });
+
+    public Task RemoveEmailAsync(Guid userId, CancellationToken cancellationToken) =>
+        Update(userId, user => user with { Email = null, EmailConfirmed = false });
 
     public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
         Update(userId, user => user with { PhoneNumber = null, PhoneNumberConfirmed = false });

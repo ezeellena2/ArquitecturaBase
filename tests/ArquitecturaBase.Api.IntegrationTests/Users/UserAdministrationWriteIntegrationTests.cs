@@ -26,14 +26,14 @@ public sealed class UserAdministrationWriteIntegrationTests(ApiFactory factory)
 
         var byEmail = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserReader>()
             .FindByEmailAsync(Email.Create(email.ToUpperInvariant()).Value, Ct));
-        Assert.Equal(created.Value, byEmail?.Id);
+        Assert.Equal(created.Value.Id, byEmail?.Id);
 
         var updated = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
-            .UpdateUserAsync(new UpdateUserRequest(created.Value, "Después", [SystemRoles.User]), Ct));
+            .UpdateUserAsync(new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User]), Ct));
         Assert.True(updated.IsSuccess);
 
         var detail = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserQueryService>()
-            .GetUserAsync(created.Value, Ct));
+            .GetUserAsync(created.Value.Id, Ct));
         Assert.True(detail.IsSuccess);
         Assert.Equal(email, detail.Value.Email);
         Assert.False(detail.Value.EmailConfirmed);
@@ -52,11 +52,11 @@ public sealed class UserAdministrationWriteIntegrationTests(ApiFactory factory)
         Assert.True(created.IsSuccess);
 
         var updated = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
-            .UpdateUserAsync(new UpdateUserRequest(created.Value, "No guardar", Roles: null), Ct));
+            .UpdateUserAsync(new UpdateUserRequest(created.Value.Id, "No guardar", Roles: null), Ct));
         Assert.IsType<ValidationError>(updated.Error);
 
         var detail = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserQueryService>()
-            .GetUserAsync(created.Value, Ct));
+            .GetUserAsync(created.Value.Id, Ct));
         Assert.Equal("Original", detail.Value.DisplayName);
     }
 }

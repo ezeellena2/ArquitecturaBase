@@ -27,11 +27,11 @@ internal sealed class UserAdministrationService(
     IUnitOfWork unitOfWork,
     ILogger<UserAdministrationService> logger) : IUserAdministrationService
 {
-    public Task<Result<Guid>> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
+    public Task<Result<CreateUserResponse>> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return OperationLog.RunAsync<Result<Guid>>(logger, "CreateUser", async () =>
+        return OperationLog.RunAsync<Result<CreateUserResponse>>(logger, "CreateUser", async () =>
         {
             // Afuera del límite: un pedido inválido no abre transacción ni toma locks.
             if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
@@ -83,7 +83,8 @@ internal sealed class UserAdministrationService(
 
     // El alta, ya validada: correo, teléfono, que haya al menos uno, las reglas de la invitación y los roles, todo antes
     // de los locks; después, el alta o la restauración, los roles y el envío.
-    private async Task<Result<Guid>> CreateCoreAsync(CreateUserRequest request, CancellationToken cancellationToken)
+    private async Task<Result<CreateUserResponse>> CreateCoreAsync(
+        CreateUserRequest request, CancellationToken cancellationToken)
     {
         var emailResult = UserContactLinker.ReadEmail(request.Email);
         if (emailResult.IsFailure)
@@ -131,17 +132,19 @@ internal sealed class UserAdministrationService(
         }
 
         await contacts.LockDestinationsAsync(email, phone, cancellationToken);
-        var account = await contacts.CreateOrRestoreAsync(email, phone, request.DisplayName, cancellationToken);
-        if (account.IsFailure)
+        var created = await contacts.CreateOrRestoreAsync(email, phone, request.DisplayName, cancellationToken);
+        if (created.IsFailure)
         {
-            return account.Error;
+            return created.Error;
         }
 
-        await userRepository.SetRolesAsync(account.Value.Id, requestedRoles, cancellationToken);
+        var account = created.Value.Account;
+        await userRepository.SetRolesAsync(account.Id, requestedRoles, cancellationToken);
 
-        // Otra vez, con lo que quedó: los roles asignados, por id, y el correo de la cuenta, que en una restauración por
-        // número puede ser el de Seed:AdminEmail. Un rechazo deshace también la restauración.
-        var assigned = await guard.EnsureAssignedRolesAsync(account.Value, [], cancellationToken);
+        // Otra vez, con lo que quedó: los roles asignados, por id, y el correo de la cuenta. Una restaurada tiene sólo el
+        // correo del alta (N4): si era la de Seed:AdminEmail y se restauró por el número, ya no lo tiene. Un rechazo
+        // deshace también la restauración.
+        var assigned = await guard.EnsureAssignedRolesAsync(account, [], cancellationToken);
         if (assigned.IsFailure)
         {
             return assigned.Error;
@@ -151,10 +154,10 @@ internal sealed class UserAdministrationService(
         {
             // Toma el lock de invitaciones de la cuenta antes de agregar y encolar: la cola de WhatsApp lo pide para
             // encontrar la invitación después del commit.
-            await invitations.SendAsync(account.Value, requestedChannel, cancellationToken);
+            await invitations.SendAsync(account, requestedChannel, cancellationToken);
         }
 
-        return account.Value.Id;
+        return new CreateUserResponse(account.Id, created.Value.Restored);
     }
 
     // La edición, ya validada: la forma de los datos, los locks, la cuenta (leída bajo los locks), el país de un número

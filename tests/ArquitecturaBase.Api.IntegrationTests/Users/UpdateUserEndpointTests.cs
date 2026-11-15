@@ -152,7 +152,7 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
             HttpMethod.Post, "/api/users", accessToken, new { email, displayName, roles });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-        return JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        return (await response.ReadJsonAsync()).GetProperty("id").GetGuid();
     }
 
     private static string[] Strings(JsonElement element, string property) =>

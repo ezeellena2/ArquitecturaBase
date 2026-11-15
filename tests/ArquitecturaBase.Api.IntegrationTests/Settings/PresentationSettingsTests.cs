@@ -267,7 +267,7 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
             using var created = await client.SendWithTokenAsync(HttpMethod.Post, "/api/users", tokens.AccessToken,
                 new { email = TestEmails.Unique("default-preferences"), displayName = "Ana" });
             Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-            var id = JsonSerializer.Deserialize<Guid>((await created.ReadJsonAsync()).GetRawText());
+            var id = (await created.ReadJsonAsync()).GetProperty("id").GetGuid();
             var preferences = await factory.ExecuteDbContextAsync(db => db.Users.Where(user => user.Id == id)
                 .Select(user => new { user.Culture, user.TimeZoneId }).SingleAsync(Ct));
             Assert.Equal("en", preferences.Culture);

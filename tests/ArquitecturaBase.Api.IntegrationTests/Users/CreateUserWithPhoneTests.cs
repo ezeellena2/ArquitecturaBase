@@ -5,6 +5,8 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Channels;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -13,6 +15,8 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using OpenIddict.Abstractions;
+using OpenIddict.EntityFrameworkCore.Models;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Users;
 
@@ -224,7 +228,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         var deleted = await admin.CreateVerifiedAccountAsync(email: null, phone, "Antes");
         await admin.DeleteAccountAsync(deleted.Id);
 
-        var restored = await admin.CreateOkAsync(new
+        var restored = await admin.RestoreOkAsync(new
         {
             phone = AdminUsersApi.PhoneField(phone),
             displayName = "De vuelta",
@@ -249,7 +253,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         var deleted = await admin.CreateVerifiedAccountAsync(email, phone);
         await admin.DeleteAccountAsync(deleted.Id);
 
-        var restored = await admin.CreateOkAsync(new { email, phone = AdminUsersApi.PhoneField(phone) });
+        var restored = await admin.RestoreOkAsync(new { email, phone = AdminUsersApi.PhoneField(phone) });
 
         Assert.Equal(deleted.Id, restored);
         var account = await admin.AccountAsync(restored);
@@ -257,22 +261,128 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         Assert.Equal(phone.Value, account.PhoneNumber);
     }
 
+    /// <summary>
+    /// N4: el celular de la empresa pasa de Diego a Nora. Restaurar por el número le devuelve a Nora la cuenta de Diego,
+    /// con su historia, pero sin el correo ni el Google de Diego, que ya no entra a ella por ningún lado: su sesión de
+    /// antes del borrado no vale, ni siquiera un refresh token que se hubiera salvado del corte del borrado, y un código a
+    /// su correo o Google lo llevan a otra cuenta.
+    /// </summary>
     [Fact]
-    public async Task The_phone_of_a_deleted_account_with_another_email_is_rejected()
+    public async Task Restoring_by_the_phone_leaves_the_previous_owner_out_of_the_account()
     {
-        // El correo es nuevo y el número es de una cuenta borrada que tiene otro correo: el alta no puede ser las dos.
+        using var client = factory.CreateClient();
+        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var email = TestEmails.Unique("diego");
+        var phone = TestPhones.Unique();
+        var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        var diego = await admin.CreateVerifiedAccountAsync(email, phone, "Diego");
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().AddExternalLoginAsync(
+            diego.Id, new ExternalLogin(ExternalLoginProviders.Google, providerKey, email, true, "Diego"), Ct));
+        using var diegoBefore = factory.CreateClient();
+        var diegoTokens = await diegoBefore.LoginAsync(factory, email);
+        using (var deleted = await client.SendWithTokenAsync(
+            HttpMethod.Delete, $"/api/users/{diego.Id}", admin.AccessToken))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        }
+
+        await ReviveTokensAsync(diego.Id);
+        var nora = await admin.RestoreOkAsync(new { phone = AdminUsersApi.PhoneField(phone), displayName = "Nora" });
+
+        Assert.Equal(diego.Id, nora);
+        var account = await admin.AccountAsync(nora);
+        Assert.Equal("Nora", account.DisplayName);
+        Assert.Null(account.Email);
+        Assert.False(account.EmailConfirmed);
+        Assert.Equal(phone.Value, account.PhoneNumber);
+        Assert.False(account.PhoneNumberConfirmed);
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.UserLogins.AnyAsync(login => login.UserId == nora, Ct)));
+
+        using (var me = await diegoBefore.GetWithTokenAsync("/api/me", diegoTokens.AccessToken))
+        {
+            Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);
+        }
+
+        using (var refresh = await diegoBefore.RefreshAsync(diegoTokens.RefreshToken))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, refresh.StatusCode);
+            Assert.Equal("invalid_grant", (await refresh.ReadJsonAsync()).GetProperty("error").GetString());
+        }
+
+        using var byCode = factory.CreateClient();
+        var codeTokens = await byCode.LoginAsync(factory, email);
+        using (var me = await byCode.GetWithTokenAsync("/api/me", codeTokens.AccessToken))
+        {
+            Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+            Assert.NotEqual(nora, (await me.ReadJsonAsync()).GetProperty("id").GetGuid());
+        }
+
+        using var byGoogle = factory.CreateClient();
+        using (var external = await byGoogle.PostJsonAsync(
+            "/test/external-login", new { providerKey, email, name = "Diego", emailVerified = true }))
+        {
+            Assert.True(external.IsSuccessStatusCode);
+        }
+
+        using var callback = await byGoogle.SendAsync(
+            HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(GoogleReturnUrl));
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        Assert.Equal(GoogleReturnUrl, callback.Headers.Location!.OriginalString);
+        var googleAccount = await factory.ExecuteDbContextAsync(db => db.UserLogins
+            .Where(login => login.LoginProvider == ExternalLoginProviders.Google && login.ProviderKey == providerKey)
+            .Select(login => login.UserId)
+            .SingleAsync(Ct));
+        Assert.NotEqual(nora, googleAccount);
+        Assert.Null((await admin.AccountAsync(nora)).Email);
+    }
+
+    [Fact]
+    public async Task Restoring_by_the_email_removes_the_previous_phone()
+    {
+        // Sin número en el alta, la cuenta vuelve sin el de antes, que queda libre para otra alta.
+        using var client = factory.CreateClient();
+        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var email = TestEmails.Unique("sincelular");
+        var phone = TestPhones.Unique();
+        var deleted = await admin.CreateVerifiedAccountAsync(email, phone);
+        await admin.DeleteAccountAsync(deleted.Id);
+
+        var restored = await admin.RestoreOkAsync(new { email });
+
+        Assert.Equal(deleted.Id, restored);
+        var account = await admin.AccountAsync(restored);
+        Assert.Equal(email, account.Email);
+        Assert.False(account.EmailConfirmed);
+        Assert.Null(account.PhoneNumber);
+        var other = await admin.CreatedAsync(new { phone = AdminUsersApi.PhoneField(phone) });
+        Assert.NotEqual(restored, other.GetProperty("id").GetGuid());
+        Assert.False(other.GetProperty("restored").GetBoolean());
+    }
+
+    [Fact]
+    public async Task The_phone_of_a_deleted_account_with_another_email_restores_it_with_the_new_email()
+    {
+        // N4: Nora llega con su correo y el celular de la empresa, que era de la cuenta borrada de Diego, con otro correo.
+        // La cuenta vuelve sólo con lo que trajo el alta: el correo de Diego se reemplaza por el de Nora, sin verificar.
         using var client = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var phone = TestPhones.Unique();
-        var deleted = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("borrada"), phone);
+        var previousEmail = TestEmails.Unique("borrada");
+        var deleted = await admin.CreateVerifiedAccountAsync(previousEmail, phone);
         await admin.DeleteAccountAsync(deleted.Id);
         var email = TestEmails.Unique("nueva");
 
-        using var response = await admin.CreateAsync(new { email, phone = AdminUsersApi.PhoneField(phone) });
+        var restored = await admin.RestoreOkAsync(new { email, phone = AdminUsersApi.PhoneField(phone) });
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(UserErrors.PhoneAlreadyExistsCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
-        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.AnyAsync(user => user.Email == email, Ct)));
+        Assert.Equal(deleted.Id, restored);
+        var account = await admin.AccountAsync(restored);
+        Assert.Equal(email, account.Email);
+        Assert.False(account.EmailConfirmed);
+        Assert.Equal(phone.Value, account.PhoneNumber);
+        Assert.False(account.PhoneNumberConfirmed);
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(user => user.Email == previousEmail, Ct)));
     }
 
     [Fact]
@@ -296,21 +406,44 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task The_email_of_a_deleted_account_with_another_phone_is_rejected()
+    public async Task The_email_of_a_deleted_account_with_another_phone_restores_it_with_the_new_phone()
     {
-        // Restaurarla le cambiaría el número a una cuenta con historia: el alta describe a otra persona, o a la misma con
-        // otro número, y eso lo tiene que resolver el admin.
+        // N4: el número de la cuenta borrada se reemplaza por el del alta, sin verificar, y el de antes queda libre.
         using var client = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var email = TestEmails.Unique("otronumero");
+        var previousPhone = TestPhones.Unique();
+        var deleted = await admin.CreateVerifiedAccountAsync(email, previousPhone);
+        await admin.DeleteAccountAsync(deleted.Id);
+        var phone = TestPhones.Unique();
+
+        var restored = await admin.RestoreOkAsync(new { email, phone = AdminUsersApi.PhoneField(phone) });
+
+        Assert.Equal(deleted.Id, restored);
+        var account = await admin.AccountAsync(restored);
+        Assert.Equal(email, account.Email);
+        Assert.Equal(phone.Value, account.PhoneNumber);
+        Assert.False(account.PhoneNumberConfirmed);
+        var other = await admin.CreatedAsync(new { phone = AdminUsersApi.PhoneField(previousPhone) });
+        Assert.NotEqual(restored, other.GetProperty("id").GetGuid());
+        Assert.False(other.GetProperty("restored").GetBoolean());
+    }
+
+    [Fact]
+    public async Task The_email_of_a_deleted_account_with_the_phone_of_an_active_one_is_rejected()
+    {
+        using var client = factory.CreateClient();
+        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var email = TestEmails.Unique("borradaconotro");
         var deleted = await admin.CreateVerifiedAccountAsync(email, TestPhones.Unique());
         await admin.DeleteAccountAsync(deleted.Id);
+        var phone = TestPhones.Unique();
+        await admin.CreateVerifiedAccountAsync(email: null, phone);
 
-        using var response = await admin.CreateAsync(new { email, phone = AdminUsersApi.PhoneField(TestPhones.Unique()) }, "es");
-        var problem = await response.ReadJsonAsync();
+        using var response = await admin.CreateAsync(new { email, phone = AdminUsersApi.PhoneField(phone) });
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(UserErrors.AlreadyExistsCode, problem.GetProperty("code").GetString());
+        Assert.Equal(UserErrors.PhoneAlreadyExistsCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.AnyAsync(user => user.Id == deleted.Id, Ct)));
     }
 
@@ -324,7 +457,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         var deleted = await admin.CreateVerifiedAccountAsync(email, phone: null);
         await admin.DeleteAccountAsync(deleted.Id);
 
-        var restored = await admin.CreateOkAsync(new { email, phone = AdminUsersApi.PhoneField(phone) });
+        var restored = await admin.RestoreOkAsync(new { email, phone = AdminUsersApi.PhoneField(phone) });
 
         Assert.Equal(deleted.Id, restored);
         var account = await admin.AccountAsync(restored);
@@ -349,6 +482,34 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         Assert.Equal($"+54 9 351 {local[..3]}-{local[3..]}", row.GetProperty("formattedPhoneNumber").GetString());
         Assert.False(row.GetProperty("phoneNumberConfirmed").GetBoolean());
     }
+
+    /// <summary>A dónde vuelve el ingreso con Google, como en <c>ExternalLoginTests</c>.</summary>
+    private const string GoogleReturnUrl = "/connect/authorize?client_id=web";
+
+    /// <summary>
+    /// Deja otra vez válidos los tokens y las autorizaciones de la cuenta que el borrado revocó: lo que pasaría con uno
+    /// que se salvó del corte (por ejemplo, emitido en paralelo con el borrado).
+    /// </summary>
+    private Task ReviveTokensAsync(Guid userId) =>
+        factory.ExecuteDbContextAsync(async db =>
+        {
+            var subject = userId.ToString("D", CultureInfo.InvariantCulture);
+            foreach (var token in await db.Set<OpenIddictEntityFrameworkCoreToken<Guid>>()
+                .Where(token => token.Subject == subject)
+                .ToListAsync(Ct))
+            {
+                token.Status = OpenIddictConstants.Statuses.Valid;
+            }
+
+            foreach (var authorization in await db.Set<OpenIddictEntityFrameworkCoreAuthorization<Guid>>()
+                .Where(authorization => authorization.Subject == subject)
+                .ToListAsync(Ct))
+            {
+                authorization.Status = OpenIddictConstants.Statuses.Valid;
+            }
+
+            await db.SaveChangesAsync(Ct);
+        });
 
     private static string[] Strings(JsonElement element, string property) =>
         [.. element.GetProperty(property).EnumerateArray().Select(item => item.GetString()!)];

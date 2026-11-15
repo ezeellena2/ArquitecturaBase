@@ -38,8 +38,21 @@ internal sealed class AdminUsersApi(ApiFactory factory, HttpClient client, strin
     public Task<HttpResponseMessage> CreateAsync(object body, string? language = null) =>
         client.SendWithTokenAsync(HttpMethod.Post, "/api/users", accessToken, body, language);
 
-    /// <summary>El alta que tiene que salir bien: devuelve el id de la cuenta.</summary>
-    public async Task<Guid> CreateOkAsync(object body, string? language = null)
+    /// <summary>El alta que tiene que salir bien: devuelve el id de la cuenta, nueva o restaurada.</summary>
+    public async Task<Guid> CreateOkAsync(object body, string? language = null) =>
+        (await CreatedAsync(body, language)).GetProperty("id").GetGuid();
+
+    /// <summary>El alta que tiene que restaurar una cuenta borrada (N4): la respuesta lo dice. Devuelve su id.</summary>
+    public async Task<Guid> RestoreOkAsync(object body, string? language = null)
+    {
+        var created = await CreatedAsync(body, language);
+        Assert.True(created.GetProperty("restored").GetBoolean());
+
+        return created.GetProperty("id").GetGuid();
+    }
+
+    /// <summary>El cuerpo de un alta que salió bien: el id y si se restauró una cuenta borrada.</summary>
+    public async Task<JsonElement> CreatedAsync(object body, string? language = null)
     {
         using var response = await CreateAsync(body, language);
 
@@ -48,7 +61,7 @@ internal sealed class AdminUsersApi(ApiFactory factory, HttpClient client, strin
             Assert.Fail($"POST /api/users -> {response.StatusCode}: {await response.Content.ReadAsStringAsync(Ct)}");
         }
 
-        return JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        return await response.ReadJsonAsync();
     }
 
     public Task<HttpResponseMessage> UpdateAsync(Guid userId, object body, string? language = null) =>

@@ -34,7 +34,8 @@ internal sealed class UserContactLinker(
     PhoneNumberLinker phoneLinker,
     IPhoneNumberParser phoneNumbers,
     IPhoneChannel phoneChannel,
-    AccountCreationPolicy accountCreation)
+    AccountCreationPolicy accountCreation,
+    AccountAccessRevoker accessRevoker)
 {
     public static Result<Email?> ReadEmail(string? email)
     {
@@ -115,10 +116,11 @@ internal sealed class UserContactLinker(
     }
 
     /// <summary>
-    /// Crea la cuenta sin verificar o restaura la borrada a la que pertenecen todos los datos aportados. Quien llama ya
-    /// tomó los locks de los destinos (<see cref="LockDestinationsAsync"/>).
+    /// Crea la cuenta sin verificar o restaura la borrada de uno de los datos aportados, sólo con ellos
+    /// (<see cref="RestoreAsync"/>). Rechaza el alta si el correo y el número son de dos cuentas distintas, borradas o
+    /// activas. Quien llama ya tomó los locks de los destinos (<see cref="LockDestinationsAsync"/>).
     /// </summary>
-    public async Task<Result<UserAccount>> CreateOrRestoreAsync(
+    public async Task<Result<CreatedAccount>> CreateOrRestoreAsync(
         Email? email, PhoneNumber? phone, string? displayName, CancellationToken cancellationToken)
     {
         if (email is not null && await users.FindByEmailAsync(email, cancellationToken) is not null)
@@ -138,8 +140,9 @@ internal sealed class UserContactLinker(
             try
             {
                 var preferences = await accountCreation.GetPreferencesAsync(fromCurrentRequest: false, cancellationToken);
-                return await userRepository.CreateUnverifiedAsync(
+                var account = await userRepository.CreateUnverifiedAsync(
                     email, phone, displayName, preferences.DefaultCulture, cancellationToken, preferences.DefaultTimeZoneId);
+                return new CreatedAccount(account, Restored: false);
             }
             catch (UniqueConstraintViolationException)
             {
@@ -147,30 +150,14 @@ internal sealed class UserContactLinker(
             }
         }
 
-        // Solo se restaura la cuenta a la que pertenecen todos los datos aportados.
-        if (deletedByEmail is not null)
-        {
-            if (deletedByPhone is not null && deletedByPhone.Id != deletedByEmail.Id)
-            {
-                return UserErrors.PhoneAlreadyExists;
-            }
-
-            if (phone is not null && deletedByEmail.PhoneNumber is { } otherPhone && otherPhone != phone.Value)
-            {
-                return UserErrors.AlreadyExists;
-            }
-
-            return await RestoreAsync(deletedByEmail, email, phone, displayName, cancellationToken);
-        }
-
-        if (email is not null
-            && deletedByPhone!.Email is { } otherEmail
-            && !string.Equals(otherEmail, email.Value, StringComparison.OrdinalIgnoreCase))
+        // El correo manda qué cuenta se restaura; el número no puede ser de otra. Ninguno de los dos es de una cuenta
+        // activa (arriba), así que el otro destino del alta, si la cuenta tenía otro, es libre: lo reemplaza (N4).
+        if (deletedByEmail is not null && deletedByPhone is not null && deletedByPhone.Id != deletedByEmail.Id)
         {
             return UserErrors.PhoneAlreadyExists;
         }
 
-        return await RestoreAsync(deletedByPhone!, email, phone, displayName, cancellationToken);
+        return await RestoreAsync(deletedByEmail ?? deletedByPhone!, email, phone, displayName, cancellationToken);
     }
 
     /// <summary>
@@ -254,16 +241,43 @@ internal sealed class UserContactLinker(
         return emailTaken ? UserErrors.AlreadyExists : UserErrors.PhoneAlreadyExists;
     }
 
-    private async Task<Result<UserAccount>> RestoreAsync(
+    /// <summary>
+    /// Restaura la cuenta borrada sólo con el correo y el número del alta, sin verificar (N4): el correo, el número o el
+    /// celular de la empresa pueden haber pasado a otra persona, así que lo que el alta no trajo se quita, lo distinto se
+    /// reemplaza y todo acceso que la cuenta tenía se corta otra vez, para que su dueño anterior no vuelva a entrar ni vea
+    /// lo de la persona nueva. En este orden, dentro del límite del alta:
+    /// <list type="number">
+    /// <item>después de los locks de los destinos, los de los participantes del número (los de la cuenta y, con número
+    /// en el alta, los de ese número) y el de los enlaces de la cuenta (<see cref="PhoneNumberLinker.LockAsync"/>): el
+    /// mismo orden que la edición, y el lock que pide <see cref="AccountAccessRevoker"/>;</item>
+    /// <item>el borrado, el nombre, el estado, el idioma y la zona horaria con los que nace una cuenta, y sin logins
+    /// externos (<see cref="IUserRepository.RestoreAsync"/>: el alta nunca trae uno);</item>
+    /// <item>el correo del alta, o ninguno;</item>
+    /// <item>el número del alta, o ninguno: si la cuenta tenía otro, sus participantes lo sueltan, como al
+    /// reemplazarlo o desvincularlo;</item>
+    /// <item>los enlaces de ingreso, el security stamp, las autorizaciones y los tokens
+    /// (<see cref="AccountAccessRevoker"/>): el borrado ya los cortó, pero uno que se haya salvado (un refresh token dura
+    /// 30 días, y la renovación sólo mira que la cuenta esté activa) volvería a valer.</item>
+    /// </list>
+    /// </summary>
+    private async Task<Result<CreatedAccount>> RestoreAsync(
         UserAccount deleted, Email? email, PhoneNumber? phone, string? displayName, CancellationToken cancellationToken)
     {
-        await userRepository.RestoreAsync(deleted.Id, displayName, cancellationToken);
+        await phoneLinker.LockAsync(deleted.Id, phone, cancellationToken);
+
+        var preferences = await accountCreation.GetPreferencesAsync(fromCurrentRequest: false, cancellationToken);
+        await userRepository.RestoreAsync(
+            deleted.Id, displayName, preferences.DefaultCulture, preferences.DefaultTimeZoneId, cancellationToken);
 
         try
         {
             if (email is not null)
             {
                 await userRepository.SetEmailAsync(deleted.Id, email, confirmed: false, cancellationToken);
+            }
+            else if (deleted.Email is not null)
+            {
+                await userRepository.RemoveEmailAsync(deleted.Id, cancellationToken);
             }
         }
         catch (UniqueConstraintViolationException)
@@ -277,13 +291,25 @@ internal sealed class UserContactLinker(
             {
                 await userRepository.SetPhoneAsync(deleted.Id, phone, confirmed: false, cancellationToken);
             }
+            else if (deleted.PhoneNumber is not null)
+            {
+                await phoneLinker.RemovePhoneAsync(deleted.Id, cancellationToken);
+            }
         }
         catch (UniqueConstraintViolationException)
         {
             return UserErrors.PhoneAlreadyExists;
         }
 
-        return await users.FindByIdAsync(deleted.Id, cancellationToken)
+        if (deleted.PhoneNumber is { } previous && previous != phone?.Value)
+        {
+            await phoneLinker.ReleasePhoneAsync(deleted.Id, cancellationToken);
+        }
+
+        await accessRevoker.RevokeAsync(deleted.Id, cancellationToken);
+
+        var restored = await users.FindByIdAsync(deleted.Id, cancellationToken)
             ?? throw new InvalidOperationException("The restored account was not found.");
+        return new CreatedAccount(restored, Restored: true);
     }
 }

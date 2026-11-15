@@ -58,5 +58,6 @@ AccountCreationPolicy lee la presentación general por ISystemSettingsReader. C�
 conservan la cultura de la petición; el proveedor de localización usa Accept-Language admitido
 primero, incluyendo variantes regionales y q, y luego el default persistido. La zona inicial
 siempre se copia de la configuración. El alta administrativa usa ambos defaults; los mensajes entrantes de WhatsApp no crean cuentas.
-Los perfiles existentes y restaurados conservan sus valores; los emails siguen el perfil.
+Los perfiles existentes conservan sus valores, y uno restaurado en el alta toma los de una cuenta nueva (N4,
+[administración](administracion.md)); los emails siguen el perfil.
 El detalle funcional está en [administración](administracion.md#configuración-general-2026-09-30).

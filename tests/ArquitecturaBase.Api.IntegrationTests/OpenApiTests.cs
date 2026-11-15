@@ -272,6 +272,21 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.Equal(expected, responses.EnumerateObject().Select(response => response.Name).Where(IsError).Order(StringComparer.Ordinal));
     }
 
+    [Fact]
+    public async Task User_creation_answers_the_id_and_whether_it_restored_a_deleted_account()
+    {
+        // N4: la pantalla dice «restaurado» en vez de «creado» cuando el correo o el número eran de una cuenta borrada.
+        var document = await ReadDocumentAsync(factory);
+        var created = document.GetProperty("paths").GetProperty("/api/users").GetProperty("post")
+            .GetProperty("responses").GetProperty("201");
+
+        Assert.Equal("#/components/schemas/CreateUserResponse", created.GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
+        var properties = document.GetProperty("components").GetProperty("schemas").GetProperty("CreateUserResponse")
+            .GetProperty("properties");
+        Assert.Equal(["id", "restored"], properties.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+    }
+
     private static bool IsError(string statusCode) => statusCode.StartsWith('4') || statusCode.StartsWith('5');
 
     private static bool HasSchema(JsonElement response) =>

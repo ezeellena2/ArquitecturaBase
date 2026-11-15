@@ -196,7 +196,7 @@ Rige para los métodos de `Application/Interfaces/Persistence`, salvo `IUnitOfWo
 
 - `/connect/revoke`, `/connect/introspect` y `/.well-known/*` son de OpenIddict, y los endpoints de Aspire conservan su framework. Las acciones propias de `/connect` son controllers MVC (passthrough, PKCE, cookies, formularios, redirecciones). Nada de esto habilita Minimal APIs de negocio.
 - Un cambio de estructura conserva contratos HTTP, autorización, rate limits, OpenIddict, front, workers y módulos. El inventario verbo/ruta es `ExplicitRouteInventoryTests`. Las rutas condicionales de un módulo aparecen o desaparecen del enrutamiento según su configuración: un 404 dentro de una ruta registrada no equivale a omitirla.
-- `POST /api/users` y `POST /api/roles` responden 201 con `Location` al detalle. En OpenAPI, los esquemas de los cuerpos llevan el nombre de su contrato.
+- `POST /api/users` y `POST /api/roles` responden 201 con `Location` al detalle. El de usuarios responde `{ id, restored }` (`CreateUserResponse`: si el alta restauró una cuenta borrada, N4); el de roles, el id. En OpenAPI, los esquemas de los cuerpos llevan el nombre de su contrato.
 - Una base vacía arranca con esquema, seed y flujos principales; una desplegada conserva su cadena de migraciones y sus datos.
 
 ## Front y hosting del SPA

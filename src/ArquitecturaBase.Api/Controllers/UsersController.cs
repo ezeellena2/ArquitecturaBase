@@ -67,7 +67,8 @@ public sealed class UsersController(
 
     [HttpPost]
     [HasPermission(Permissions.Users.Manage)]
-    [ProducesResponseType<Guid>(StatusCodes.Status201Created)]
+    // El id y si se restauró una cuenta borrada con ese correo o ese número (N4).
+    [ProducesResponseType<CreateUserResponse>(StatusCodes.Status201Created)]
     // Un rol pedido que no existe responde 404, aunque la ruta no nombre un recurso; el correo o el número de otra cuenta,
     // 409.
     [ProducesProblem(StatusCodes.Status404NotFound)]
@@ -79,7 +80,7 @@ public sealed class UsersController(
             request.Roles,
             request.Phone is null ? null : new PhoneNumberInput(request.Phone.Country, request.Phone.Number),
             request.Invitation is null ? null : new InvitationRequest(request.Invitation.Channel, request.Invitation.Consent)),
-            cancellationToken)).ToCreatedResult(this, nameof(Get), id => new { id });
+            cancellationToken)).ToCreatedResult(this, nameof(Get), created => new { id = created.Id });
 
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.Users.Manage)]

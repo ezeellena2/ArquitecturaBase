@@ -92,11 +92,12 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Restoring_a_user_clears_the_lockout_it_had_when_it_was_deleted()
+    public async Task Restoring_a_user_clears_the_lockout_it_had_when_it_was_deleted_and_takes_the_given_preferences()
     {
         // Una cuenta que se bloqueó por códigos fallidos y después se eliminó tiene que volver desbloqueada.
         // Si no, la persona recibe Auth.Account.LockedOut al intentar entrar y no hay forma de destrabarla
-        // desde el panel: dar de alta el mismo correo la restaura, pero con el bloqueo puesto.
+        // desde el panel: dar de alta el mismo correo la restaura, pero con el bloqueo puesto. Vuelve también con el
+        // idioma y la zona horaria que le da el alta, como una cuenta nueva, no con los de su dueño anterior (N4).
         var email = await CreateAccountAsync("lockedrestore");
 
         await factory.ExecuteDbContextAsync(async dbContext =>
@@ -119,7 +120,8 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
 
         await factory.InTransactionAsync(async services =>
         {
-            await services.GetRequiredService<IUserRepository>().RestoreAsync(userId, "De vuelta", Ct);
+            await services.GetRequiredService<IUserRepository>().RestoreAsync(
+                userId, "De vuelta", "en", "Europe/Madrid", Ct);
         });
 
         var restored = await factory.ExecuteDbContextAsync(dbContext => dbContext.Users
@@ -129,6 +131,8 @@ public sealed class UserSoftDeleteTests(ApiFactory factory)
         Assert.False(restored.IsDeleted);
         Assert.Equal(0, restored.AccessFailedCount);
         Assert.Null(restored.LockoutEnd);
+        Assert.Equal("en", restored.Culture);
+        Assert.Equal("Europe/Madrid", restored.TimeZoneId);
     }
 
     private Task<string> CreateAccountAsync(string prefix)

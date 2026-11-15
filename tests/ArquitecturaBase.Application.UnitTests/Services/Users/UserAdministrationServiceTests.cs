@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Channels;
@@ -6,6 +7,7 @@ using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
+using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
@@ -40,7 +42,7 @@ public sealed class UserAdministrationServiceTests
 
         Assert.True(result.IsSuccess);
         var user = Assert.Single(host.Accounts.Users);
-        Assert.Equal(result.Value, user.Id);
+        Assert.Equal(new CreateUserResponse(user.Id, Restored: false), result.Value);
         Assert.Equal(email, user.Email);
         Assert.False(user.EmailConfirmed);
         Assert.Equal([SystemRoles.User], await host.Accounts.ListRoleNamesForUserAsync(user.Id, Ct));
@@ -83,7 +85,7 @@ public sealed class UserAdministrationServiceTests
         var result = await host.Administration.CreateUserAsync(request, Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(deleted.Id, result.Value);
+        Assert.Equal(new CreateUserResponse(deleted.Id, Restored: true), result.Value);
         var restored = Assert.Single(host.Accounts.Users);
         Assert.Equal("Nuevo nombre", restored.DisplayName);
         Assert.False(restored.EmailConfirmed);
@@ -93,9 +95,192 @@ public sealed class UserAdministrationServiceTests
     }
 
     [Fact]
-    public async Task Create_does_not_restore_the_deleted_initial_admin_by_its_number_for_someone_without_admin()
+    public async Task Create_restoring_by_the_phone_removes_the_email_and_the_google_login_of_the_previous_owner()
     {
-        // Restaurarla trae su correo, el de Seed:AdminEmail, y el arranque le devolvería Admin: cuenta como darlo.
+        // N4: el número de la empresa pasó a otra persona. La cuenta vuelve sin el correo verificado ni el Google de quien
+        // la tenía antes, que así no entra a ver lo de la persona nueva.
+        var host = new UserServiceTestHost();
+        var deleted = host.Accounts.AddUser("diego@example.com", phoneNumber: "+5493515550101");
+        host.Accounts.LinkExternalLogin(deleted.Id, ExternalLoginProviders.Google, "google-diego");
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(deleted.Id, Ct));
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest(null, "Nora", null, new PhoneNumberInput("AR", deleted.PhoneNumber)), Ct);
+
+        Assert.Equal(new CreateUserResponse(deleted.Id, Restored: true), result.Value);
+        var restored = Assert.Single(host.Accounts.Users);
+        Assert.Equal("Nora", restored.DisplayName);
+        Assert.Null(restored.Email);
+        Assert.False(restored.EmailConfirmed);
+        Assert.Equal(deleted.PhoneNumber, restored.PhoneNumber);
+        Assert.False(restored.PhoneNumberConfirmed);
+        Assert.Null(await host.Accounts.FindByExternalLoginAsync(ExternalLoginProviders.Google, "google-diego", Ct));
+        Assert.False(await host.Accounts.ExistsDeletedByEmailAsync(Email.Create("diego@example.com").Value, Ct));
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_restoring_by_the_email_removes_the_previous_phone_and_its_participants_release_it()
+    {
+        // Sin número en el alta, el de antes se quita como al desvincularlo: primero los locks del participante y de los
+        // enlaces de la cuenta (después de los del destino), y el participante suelta lo que tenía atado.
+        var host = new UserServiceTestHost();
+        var deleted = host.Accounts.AddUser("ana@example.com", phoneNumber: "+5493515550101");
+        host.Accounts.LinkExternalLogin(deleted.Id, ExternalLoginProviders.Google, "google-ana");
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(deleted.Id, Ct));
+
+        var result = await host.Administration.CreateUserAsync(new CreateUserRequest(deleted.Email, "Ana", null), Ct);
+
+        Assert.Equal(new CreateUserResponse(deleted.Id, Restored: true), result.Value);
+        var restored = Assert.Single(host.Accounts.Users);
+        Assert.Equal(deleted.Email, restored.Email);
+        Assert.False(restored.EmailConfirmed);
+        Assert.Null(restored.PhoneNumber);
+        Assert.False(restored.PhoneNumberConfirmed);
+        Assert.False(await host.Accounts.ExistsExternalLoginAsync(deleted.Id, ExternalLoginProviders.Google, Ct));
+        Assert.Equal(["ana@example.com"], host.Destinations.LockedDestinations);
+        Assert.Equal(
+            ["participant-lock:" + deleted.Id, "login-link:" + deleted.Id, "participant-released:" + deleted.Id],
+            host.PhoneEvents);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_restoring_with_the_same_phone_does_not_release_it()
+    {
+        // El número sigue en la cuenta: su chat es el de la persona nueva, y no hay nada que soltar.
+        var host = new UserServiceTestHost();
+        var deleted = host.Accounts.AddUser(null, phoneNumber: "+5493515550101");
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(deleted.Id, Ct));
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest(null, "Nora", null, new PhoneNumberInput("AR", deleted.PhoneNumber)), Ct);
+
+        Assert.True(result.Value.Restored);
+        Assert.Equal(["participant-lock:" + deleted.Id, "login-link:" + deleted.Id], host.PhoneEvents);
+    }
+
+    [Fact]
+    public async Task Create_restoring_by_the_phone_with_another_email_replaces_the_previous_email()
+    {
+        // N4: Nora llega con su correo y el celular de la empresa, que era de la cuenta borrada de Diego. La cuenta vuelve
+        // sólo con lo que trajo el alta: el correo de Diego se reemplaza por el de Nora, sin verificar.
+        var host = new UserServiceTestHost();
+        var deleted = host.Accounts.AddUser("diego@example.com", phoneNumber: "+5493515550101");
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(deleted.Id, Ct));
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest("nora@example.com", "Nora", null, new PhoneNumberInput("AR", deleted.PhoneNumber)), Ct);
+
+        Assert.Equal(new CreateUserResponse(deleted.Id, Restored: true), result.Value);
+        var restored = Assert.Single(host.Accounts.Users);
+        Assert.Equal("nora@example.com", restored.Email);
+        Assert.False(restored.EmailConfirmed);
+        Assert.Equal(deleted.PhoneNumber, restored.PhoneNumber);
+        Assert.False(restored.PhoneNumberConfirmed);
+        Assert.Null(await host.Accounts.FindByEmailAsync(Email.Create("diego@example.com").Value, Ct));
+        Assert.False(await host.Accounts.ExistsDeletedByEmailAsync(Email.Create("diego@example.com").Value, Ct));
+        Assert.DoesNotContain("participant-released:" + deleted.Id, host.PhoneEvents);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_restoring_by_the_email_with_another_phone_replaces_the_previous_one_and_releases_it()
+    {
+        // El número de la cuenta borrada no es el del alta: se reemplaza, y sus participantes sueltan el de antes, como
+        // en la edición.
+        var host = new UserServiceTestHost();
+        var deleted = host.Accounts.AddUser("ana@example.com", phoneNumber: "+5493515550101");
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(deleted.Id, Ct));
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest(deleted.Email, "Ana", null, new PhoneNumberInput("AR", "+5493515550202")), Ct);
+
+        Assert.Equal(new CreateUserResponse(deleted.Id, Restored: true), result.Value);
+        var restored = Assert.Single(host.Accounts.Users);
+        Assert.Equal(deleted.Email, restored.Email);
+        Assert.Equal("+5493515550202", restored.PhoneNumber);
+        Assert.False(restored.PhoneNumberConfirmed);
+        Assert.Equal(["ana@example.com", "+5493515550202"], host.Destinations.LockedDestinations);
+        Assert.Equal(
+            ["participant-lock:" + deleted.Id, "login-link:" + deleted.Id, "participant-released:" + deleted.Id],
+            host.PhoneEvents);
+        Assert.Equal("+5493515550202", Assert.Single(host.Participant.LockedPhones)?.Value);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_does_not_restore_when_the_other_destination_belongs_to_an_active_account()
+    {
+        var host = new UserServiceTestHost();
+        var deleted = host.Accounts.AddUser("ana@example.com", phoneNumber: "+5493515550101");
+        var active = host.Accounts.AddUser("beto@example.com", phoneNumber: "+5493515550202");
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(deleted.Id, Ct));
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest(deleted.Email, "Ana", null, new PhoneNumberInput("AR", active.PhoneNumber)), Ct);
+
+        Assert.Equal(UserErrors.PhoneAlreadyExists, result.Error);
+        Assert.Equal([active.Id], host.Accounts.Users.Select(user => user.Id));
+        Assert.Equal(0, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_restoring_cuts_again_every_access_the_account_had_after_taking_its_locks()
+    {
+        // Una sesión o un enlace que se salvó del corte del borrado (un refresh token dura 30 días) no vuelve a valer al
+        // restaurar: se corta todo otra vez, con el lock de los enlaces de la cuenta ya tomado.
+        var host = new UserServiceTestHost();
+        var deleted = host.Accounts.AddUser("diego@example.com", phoneNumber: "+5493515550101");
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(deleted.Id, Ct));
+        var now = host.Clock.GetUtcNow().UtcDateTime;
+        var expired = LoginLink.Issue(deleted.Id, "hash-expired", now.AddHours(-1));
+        var active = LoginLink.Issue(deleted.Id, "hash-active", now.AddMinutes(-1));
+        host.Links.Links.AddRange([expired, active]);
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest(null, "Nora", null, new PhoneNumberInput("AR", deleted.PhoneNumber)), Ct);
+
+        Assert.True(result.Value.Restored);
+        Assert.Equal([deleted.Id], host.SignIn.RevokedUsers);
+        Assert.Equal(now, expired.InvalidatedAtUtc);
+        Assert.Equal(now, active.InvalidatedAtUtc);
+        Assert.Equal([deleted.Id], host.Links.LockedAccounts);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_restoring_applies_the_default_preferences_instead_of_those_of_the_previous_owner()
+    {
+        // Como una cuenta nueva: el idioma y la zona horaria del sistema en ese momento, no los del dueño anterior (la
+        // invitación sale en el idioma de la cuenta).
+        var host = new UserServiceTestHost();
+        host.SystemSettings.Presentation = host.SystemSettings.Presentation with
+        {
+            DefaultCulture = "es",
+            DefaultTimeZoneId = "America/Montevideo",
+        };
+        var deleted = host.Accounts.AddUser("diego@example.com", phoneNumber: "+5493515550101");
+        await host.Accounts.ArrangeAsync(async accounts =>
+        {
+            await accounts.UpdateProfileAsync(deleted.Id, "Diego", "en", "Europe/Madrid", Ct);
+            await accounts.DeleteAsync(deleted.Id, Ct);
+        });
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest(null, "Nora", null, new PhoneNumberInput("AR", deleted.PhoneNumber)), Ct);
+
+        Assert.True(result.Value.Restored);
+        var restored = Assert.Single(host.Accounts.Users);
+        Assert.Equal("es", restored.Culture);
+        Assert.Equal("America/Montevideo", restored.TimeZoneId);
+    }
+
+    [Fact]
+    public async Task Create_restores_the_deleted_initial_admin_by_its_number_without_its_email_so_it_is_not_admin_again()
+    {
+        // Restaurar por el número le quita el correo de Seed:AdminEmail: el arranque ya no le devolvería Admin, así que
+        // quien sólo administra cuentas la puede restaurar, y vuelve con los roles del alta.
         var host = new UserServiceTestHost();
         ActAsHelpDesk(host);
         var initial = host.Accounts.AddUser(FakeInitialAdmin.DefaultEmail, phoneNumber: "+5493515550101");
@@ -104,6 +289,25 @@ public sealed class UserAdministrationServiceTests
 
         var result = await host.Administration.CreateUserAsync(
             new CreateUserRequest(null, null, [SystemRoles.User], new PhoneNumberInput("AR", initial.PhoneNumber)), Ct);
+
+        Assert.Equal(new CreateUserResponse(initial.Id, Restored: true), result.Value);
+        Assert.Null(Assert.Single(host.Accounts.Users).Email);
+        Assert.Equal([SystemRoles.User], await host.Accounts.ListRoleNamesForUserAsync(initial.Id, Ct));
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_still_treats_restoring_the_deleted_initial_admin_by_its_email_as_giving_admin()
+    {
+        // Con el correo de Seed:AdminEmail en el alta, la cuenta lo conserva y el arranque le devolvería Admin.
+        var host = new UserServiceTestHost();
+        ActAsHelpDesk(host);
+        var initial = host.Accounts.AddUser(FakeInitialAdmin.DefaultEmail, phoneNumber: "+5493515550101");
+        host.Accounts.SetRoles(initial.Id, SystemRoles.Admin);
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(initial.Id, Ct));
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest(FakeInitialAdmin.DefaultEmail, null, [SystemRoles.User]), Ct);
 
         Assert.Equal(UserErrors.RolesNotHeld, result.Error);
         Assert.Equal(0, host.UnitOfWork.Commits);
@@ -253,7 +457,7 @@ public sealed class UserAdministrationServiceTests
         host.EmailQueue.Accepts = true;
 
         var resent = await host.Administration.SendInvitationAsync(
-            new SendUserInvitationRequest(created.Value, UserInvitationChannel.Email, false), Ct);
+            new SendUserInvitationRequest(created.Value.Id, UserInvitationChannel.Email, false), Ct);
 
         Assert.True(resent.IsSuccess);
         Assert.Single(host.EmailQueue.Messages);
@@ -429,7 +633,7 @@ public sealed class UserAdministrationServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(eventsWhenQueued);
-        Assert.Equal(["lock:" + result.Value], eventsWhenQueued);
+        Assert.Equal(["lock:" + result.Value.Id], eventsWhenQueued);
         Assert.Single(host.EmailQueue.Messages);
         Assert.Single(host.Invitations.Invitations);
         Assert.Equal(1, host.UnitOfWork.Commits);

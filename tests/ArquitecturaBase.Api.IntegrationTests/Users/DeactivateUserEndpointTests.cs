@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
@@ -156,7 +155,7 @@ public sealed class DeactivateUserEndpointTests(ApiFactory factory)
             HttpMethod.Post, "/api/users", accessToken, new { email, roles = new[] { SystemRoles.User } });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-        return JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        return (await response.ReadJsonAsync()).GetProperty("id").GetGuid();
     }
 
     private Task<Guid> IdOfAsync(string email) =>

@@ -67,15 +67,15 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         // Se suma a los participantes que haya: con WhatsApp, el suyo corre antes y no encuentra un chat que soltar.
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             services.AddScoped<IPhoneLinkParticipant>(provider => new ThrowingPhoneLinkParticipant(
-                provider.GetRequiredService<ApplicationDbContext>(), created.Value, changedEmail, phone.Value))));
+                provider.GetRequiredService<ApplicationDbContext>(), created.Value.Id, changedEmail, phone.Value))));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
-                new UpdateUserRequest(created.Value, "Después", [SystemRoles.User], changedEmail,
+                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User], changedEmail,
                     new PhoneNumberInput("AR", TestPhones.AsTypedLocally(phone))), Ct)));
 
         var persisted = await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
-            .Where(user => user.Id == created.Value)
+            .Where(user => user.Id == created.Value.Id)
             .Select(user => new { user.Email, user.PhoneNumber, user.DisplayName })
             .SingleAsync(Ct));
         Assert.Equal(originalEmail, persisted.Email);
@@ -104,15 +104,15 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             services.AddScoped<IUserRepository>(provider => new ThrowingRolesUserRepository(
                 ActivatorUtilities.CreateInstance<UserRepository>(provider),
                 provider.GetRequiredService<ApplicationDbContext>(),
-                created.Value));
+                created.Value.Id));
         }));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
-                new UpdateUserRequest(created.Value, "Después", [SystemRoles.User]), Ct)));
+                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User]), Ct)));
 
         Assert.Equal("Antes", await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
-            .Where(user => user.Id == created.Value)
+            .Where(user => user.Id == created.Value.Id)
             .Select(user => user.DisplayName)
             .SingleAsync(Ct)));
     }
@@ -133,15 +133,15 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             services.AddScoped<ILoginLinkRepository>(provider =>
             {
                 var db = provider.GetRequiredService<ApplicationDbContext>();
-                return new ThrowingLoginLinkRepository(new LoginLinkRepository(db), db, created.Value);
+                return new ThrowingLoginLinkRepository(new LoginLinkRepository(db), db, created.Value.Id);
             });
         }));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserAccessService>().SetUserActiveAsync(created.Value, isActive: false, Ct)));
+            services.GetRequiredService<IUserAccessService>().SetUserActiveAsync(created.Value.Id, isActive: false, Ct)));
 
         Assert.True(await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
-            .Where(user => user.Id == created.Value)
+            .Where(user => user.Id == created.Value.Id)
             .Select(user => user.IsActive)
             .SingleAsync(Ct)));
     }
@@ -163,11 +163,11 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         }));
 
         await Assert.ThrowsAsync<ExpectedCommitFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserAccessService>().DeleteUserAsync(created.Value, Ct)));
+            services.GetRequiredService<IUserAccessService>().DeleteUserAsync(created.Value.Id, Ct)));
 
         Assert.True(probe.RolledBackBeforeLeaving);
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters().AsNoTracking()
-            .Where(user => user.Id == created.Value)
+            .Where(user => user.Id == created.Value.Id)
             .Select(user => user.IsDeleted)
             .SingleAsync(Ct)));
     }
@@ -186,11 +186,11 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             FailingCommitUnitOfWork.Replace(services, probe)));
 
         await Assert.ThrowsAsync<ExpectedCommitFailure>(() => InScopeAsync(api.Services, services =>
-            services.GetRequiredService<IUserAccessService>().UnlinkUserPhoneAsync(created.Value, Ct)));
+            services.GetRequiredService<IUserAccessService>().UnlinkUserPhoneAsync(created.Value.Id, Ct)));
 
         Assert.True(probe.RolledBackBeforeLeaving);
         Assert.Equal(phone.Value, await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
-            .Where(user => user.Id == created.Value)
+            .Where(user => user.Id == created.Value.Id)
             .Select(user => user.PhoneNumber)
             .SingleAsync(Ct)));
     }
@@ -307,8 +307,9 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         public Task AddExternalLoginAsync(Guid id, ExternalLogin login, CancellationToken cancellationToken) =>
             inner.AddExternalLoginAsync(id, login, cancellationToken);
 
-        public Task RestoreAsync(Guid id, string? displayName, CancellationToken cancellationToken) =>
-            inner.RestoreAsync(id, displayName, cancellationToken);
+        public Task RestoreAsync(
+            Guid id, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken) =>
+            inner.RestoreAsync(id, displayName, culture, timeZoneId, cancellationToken);
 
         public Task SetEmailAsync(Guid id, Email email, bool confirmed, CancellationToken cancellationToken) =>
             inner.SetEmailAsync(id, email, confirmed, cancellationToken);
@@ -318,6 +319,9 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
 
         public Task RemovePhoneAsync(Guid id, CancellationToken cancellationToken) =>
             inner.RemovePhoneAsync(id, cancellationToken);
+
+        public Task RemoveEmailAsync(Guid id, CancellationToken cancellationToken) =>
+            inner.RemoveEmailAsync(id, cancellationToken);
 
         public async Task SetRolesAsync(Guid id, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
         {

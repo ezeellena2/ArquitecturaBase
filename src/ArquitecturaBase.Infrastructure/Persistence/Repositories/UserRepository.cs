@@ -93,7 +93,8 @@ internal sealed class UserRepository(
             .EnsureSucceeded("link the external login");
     }
 
-    public async Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
+    public async Task RestoreAsync(
+        Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();
 
@@ -102,9 +103,17 @@ internal sealed class UserRepository(
             .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken)
             ?? throw new InvalidOperationException("The user does not exist.");
 
-        user.Restore(displayName);
+        user.Restore(displayName, culture, timeZoneId);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("restore the user");
+
+        // Los vínculos pueden ser del dueño anterior (N4): el alta nunca trae uno. Quitar uno renueva el security stamp,
+        // y está bien: nada de antes tiene que seguir valiendo.
+        foreach (var login in await userManager.GetLoginsAsync(user))
+        {
+            (await userManager.RemoveLoginAsync(user, login.LoginProvider, login.ProviderKey))
+                .EnsureSucceeded("remove the external login");
+        }
     }
 
     // No usamos SetEmailAsync/SetPhoneNumberAsync de UserManager: renuevan el security stamp. Quien necesita cortar
@@ -131,6 +140,17 @@ internal sealed class UserRepository(
         user.PhoneNumberConfirmed = confirmed;
 
         await UpdateUniqueValueAsync(user, "set the phone number");
+    }
+
+    public async Task RemoveEmailAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
+        user.Email = null;
+        user.EmailConfirmed = false;
+
+        (await userManager.UpdateAsync(user)).EnsureSucceeded("remove the email");
     }
 
     public async Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken)

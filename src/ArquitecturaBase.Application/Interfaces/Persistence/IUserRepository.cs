@@ -77,8 +77,14 @@ public interface IUserRepository
     /// <summary>Vincula el proveedor externo a la cuenta.</summary>
     Task AddExternalLoginAsync(Guid userId, ExternalLogin login, CancellationToken cancellationToken);
 
-    /// <summary>Deshace el borrado lógico, deja la cuenta activa y le pone el nombre del alta.</summary>
-    Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
+    /// <summary>
+    /// Deshace el borrado lógico, deja la cuenta activa, le pone el nombre del alta y el idioma y la zona horaria con los
+    /// que nace una cuenta, y le quita los logins externos (con Google, el vínculo): el alta nunca trae uno, y lo de la
+    /// cuenta puede ser de su dueño anterior (N4). El correo y el número los pone o los quita quien llama, con lo que trajo
+    /// el alta, y también corta las sesiones.
+    /// </summary>
+    Task RestoreAsync(
+        Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Le pone el correo a la cuenta, verificado o no, y recalcula el normalizado que usa la búsqueda por correo. Como
@@ -98,6 +104,12 @@ public interface IUserRepository
     /// transacción sigue usable, y con <see cref="CommitPolicy.OnAnyResult"/> se confirma lo demás.
     /// </summary>
     Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Le saca el correo a la cuenta y lo deja sin verificar. Como <see cref="SetEmailAsync"/>, solo escribe el dato. Lo
+    /// usa el alta que restaura una cuenta borrada sin traer su correo (N4): la cuenta queda con el número.
+    /// </summary>
+    Task RemoveEmailAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Le saca el número a la cuenta y lo deja sin verificar. Como <see cref="SetPhoneAsync"/>, solo escribe el dato:

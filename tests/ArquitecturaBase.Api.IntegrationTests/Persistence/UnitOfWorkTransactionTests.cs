@@ -164,11 +164,13 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
                 users.CreateUnverifiedAsync(unverifiedEmail, phone: null, "Nueva", "es", Ct),
             [nameof(IUserRepository.AddExternalLoginAsync)] = () =>
                 users.AddExternalLoginAsync(account.Id, GoogleLogin(account), Ct),
-            [nameof(IUserRepository.RestoreAsync)] = () => users.RestoreAsync(account.Id, "Después", Ct),
+            [nameof(IUserRepository.RestoreAsync)] = () =>
+                users.RestoreAsync(account.Id, "Después", "es", "America/Argentina/Buenos_Aires", Ct),
             [nameof(IUserRepository.SetEmailAsync)] = () => users.SetEmailAsync(account.Id, changedEmail, confirmed: true, Ct),
             [nameof(IUserRepository.SetPhoneAsync)] = () =>
                 users.SetPhoneAsync(account.Id, TestPhones.Unique(), confirmed: true, Ct),
             [nameof(IUserRepository.RemovePhoneAsync)] = () => users.RemovePhoneAsync(account.Id, Ct),
+            [nameof(IUserRepository.RemoveEmailAsync)] = () => users.RemoveEmailAsync(account.Id, Ct),
             [nameof(IUserRepository.SetRolesAsync)] = () => users.SetRolesAsync(account.Id, [SystemRoles.Admin], Ct),
             [nameof(IUserRepository.SetDisplayNameAsync)] = () => users.SetDisplayNameAsync(account.Id, "Después", Ct),
             [nameof(IUserRepository.SetActiveAsync)] = () => users.SetActiveAsync(account.Id, isActive: false, Ct),

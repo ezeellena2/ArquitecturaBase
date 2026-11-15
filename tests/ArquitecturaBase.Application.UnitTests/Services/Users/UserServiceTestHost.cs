@@ -49,6 +49,10 @@ internal class UserServiceTestHost
 
     public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
     public FakeInitialAdmin InitialAdmin { get; } = new();
+
+    /// <summary>La presentación del sistema: el idioma y la zona horaria con los que nace (o se restaura) una cuenta.</summary>
+    public FakeSystemSettingsReader SystemSettings { get; } = new();
+
     public FakeUnitOfWork UnitOfWork { get; }
 
     /// <summary>Cuántos correos había en la cola cuando se confirmó la unidad de trabajo.</summary>
@@ -123,8 +127,16 @@ internal class UserServiceTestHost
         ];
 
         var invitationIssuer = new UserInvitationIssuer(Invitations, invitationChannels, CurrentUser, Clock);
-        var contacts = new UserContactLinker(Accounts, Accounts, Destinations, phoneLinker, phoneNumbers, phoneChannel, new AccountCreationPolicy(new FakeSystemSettingsReader(), InitialAdmin));
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
+        var contacts = new UserContactLinker(
+            Accounts,
+            Accounts,
+            Destinations,
+            phoneLinker,
+            phoneNumbers,
+            phoneChannel,
+            new AccountCreationPolicy(SystemSettings, InitialAdmin),
+            revoker);
 
         Queries = new UserQueryService(
             Accounts,

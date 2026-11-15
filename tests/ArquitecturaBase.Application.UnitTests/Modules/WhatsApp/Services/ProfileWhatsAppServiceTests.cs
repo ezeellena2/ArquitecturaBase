@@ -514,11 +514,15 @@ public sealed class ProfileWhatsAppServiceTests
         public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
             inner.RemovePhoneAsync(userId, cancellationToken);
 
+        public Task RemoveEmailAsync(Guid userId, CancellationToken cancellationToken) =>
+            inner.RemoveEmailAsync(userId, cancellationToken);
+
         public Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
             inner.DeleteAsync(userId, cancellationToken);
 
-        public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
-            inner.RestoreAsync(userId, displayName, cancellationToken);
+        public Task RestoreAsync(
+            Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken) =>
+            inner.RestoreAsync(userId, displayName, culture, timeZoneId, cancellationToken);
 
         public Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken) =>
             inner.SetEmailAsync(userId, email, confirmed, cancellationToken);

@@ -39,17 +39,17 @@ public sealed class WhatsAppUserRepositoryTransactionTests(ApiFactory factory)
             {
                 var db = provider.GetRequiredService<ApplicationDbContext>();
                 return new ThrowingContactRepository(
-                    new WhatsAppContactRepository(db), db, created.Value, changedEmail, phone.Value);
+                    new WhatsAppContactRepository(db), db, created.Value.Id, changedEmail, phone.Value);
             });
         }));
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
-                new UpdateUserRequest(created.Value, "Después", [SystemRoles.User], changedEmail,
+                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User], changedEmail,
                     new PhoneNumberInput("AR", TestPhones.AsTypedLocally(phone))), Ct)));
 
         var persisted = await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
-            .Where(user => user.Id == created.Value)
+            .Where(user => user.Id == created.Value.Id)
             .Select(user => new { user.Email, user.PhoneNumber, user.DisplayName })
             .SingleAsync(Ct));
         Assert.Equal(originalEmail, persisted.Email);

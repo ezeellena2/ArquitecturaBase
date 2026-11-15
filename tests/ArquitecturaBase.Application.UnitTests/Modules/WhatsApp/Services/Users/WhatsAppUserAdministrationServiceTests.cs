@@ -87,7 +87,7 @@ public sealed class WhatsAppUserAdministrationServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(eventsWhenQueued);
-        Assert.Equal(["lock:" + result.Value], eventsWhenQueued);
+        Assert.Equal(["lock:" + result.Value.Id], eventsWhenQueued);
         Assert.Single(host.SendQueue.Messages);
         Assert.Single(host.Invitations.Invitations);
         Assert.Equal(1, host.UnitOfWork.Commits);

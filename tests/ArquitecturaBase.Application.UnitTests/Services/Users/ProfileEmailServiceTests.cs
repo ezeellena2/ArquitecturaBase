@@ -338,10 +338,14 @@ public sealed class ProfileEmailServiceTests
         public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task RemoveEmailAsync(Guid userId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task DeleteAsync(Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task RestoreAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
+        public Task RestoreAsync(
+            Guid userId, string? displayName, string culture, string timeZoneId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken) =>

@@ -145,9 +145,11 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task With_only_manage_users_the_deleted_initial_administrator_is_not_restored_by_its_number()
+    public async Task With_only_manage_users_the_deleted_initial_administrator_comes_back_by_its_number_without_its_email()
     {
-        // La cuenta borrada del administrador inicial, con su número: restaurarla trae el correo de Seed:AdminEmail.
+        // N4: restaurar por el número quita el correo, también el de Seed:AdminEmail. La cuenta deja de ser la del
+        // administrador inicial (el arranque ya no le daría Admin), y quien sólo administra cuentas la restaura con User;
+        // devolverle ese correo sigue contando como darle Admin.
         using var client = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var seedEmail = TestEmails.Unique("inicial");
@@ -166,20 +168,19 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         using var restored = await helpDesk.SendAsync(
             HttpMethod.Post, "/api/users", new { phone = AdminUsersApi.PhoneField(phone), roles = new[] { SystemRoles.User } });
 
-        await AssertProblemAsync(restored, HttpStatusCode.Forbidden, UserErrors.RolesNotHeldCode);
-        using (var gone = await admin.Client.GetWithTokenAsync($"/api/users/{initialId}", admin.AccessToken))
-        {
-            Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
-        }
+        Assert.Equal(HttpStatusCode.Created, restored.StatusCode);
+        var body = await restored.ReadJsonAsync();
+        Assert.Equal(initialId, body.GetProperty("id").GetGuid());
+        Assert.True(body.GetProperty("restored").GetBoolean());
+        var detail = await DetailAsync(admin, initialId);
+        Assert.Equal(JsonValueKind.Null, detail.GetProperty("email").ValueKind);
+        Assert.Equal([SystemRoles.User], Strings(detail, "roles"));
 
-        // Restaurada con sólo User por quien sí puede, sigue fuera de su alcance: el arranque le devolvería Admin.
-        Assert.Equal(initialId, await admin.CreateOkAsync(new { email = seedEmail, roles = new[] { SystemRoles.User } }));
-        using var ownNumber = await helpDesk.SendAsync(
-            HttpMethod.Put, $"/api/users/{initialId}",
-            new { roles = new[] { SystemRoles.User }, phone = AdminUsersApi.PhoneField(TestPhones.Unique()) });
+        using var seedAgain = await helpDesk.SendAsync(
+            HttpMethod.Put, $"/api/users/{initialId}", new { roles = new[] { SystemRoles.User }, email = seedEmail });
 
-        await AssertProblemAsync(ownNumber, HttpStatusCode.Forbidden, UserErrors.HasMorePermissionsCode);
-        Assert.Equal(phone.Value, (await DetailAsync(admin, initialId)).GetProperty("phoneNumber").GetString());
+        await AssertProblemAsync(seedAgain, HttpStatusCode.Forbidden, UserErrors.RolesNotHeldCode);
+        Assert.Equal(JsonValueKind.Null, (await DetailAsync(admin, initialId)).GetProperty("email").ValueKind);
     }
 
     [Fact]
@@ -203,7 +204,7 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
             using var created = await helpDesk.SendAsync(
                 HttpMethod.Post, "/api/users", new { email = TestEmails.Unique("con-user"), roles = new[] { SystemRoles.User } });
             Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-            var createdId = JsonSerializer.Deserialize<Guid>((await created.ReadJsonAsync()).GetRawText());
+            var createdId = (await created.ReadJsonAsync()).GetProperty("id").GetGuid();
             using var edited = await helpDesk.SendAsync(
                 HttpMethod.Put, $"/api/users/{createdId}",
                 new { roles = new[] { SystemRoles.User }, email = TestEmails.Unique("con-user-2") });
@@ -229,7 +230,7 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
 
         using var created = await helpDesk.SendAsync(
             HttpMethod.Post, "/api/users", new { email = TestEmails.Unique("alta"), roles = new[] { SystemRoles.User } });
-        var userId = JsonSerializer.Deserialize<Guid>((await created.ReadJsonAsync()).GetRawText());
+        var userId = (await created.ReadJsonAsync()).GetProperty("id").GetGuid();
         using var edited = await helpDesk.SendAsync(
             HttpMethod.Put, $"/api/users/{userId}", new { roles = new[] { SystemRoles.User }, email = newEmail });
         using var deactivated = await helpDesk.SendAsync(HttpMethod.Post, $"/api/users/{userId}/deactivate");

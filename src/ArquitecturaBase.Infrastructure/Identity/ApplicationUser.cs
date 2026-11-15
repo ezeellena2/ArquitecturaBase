@@ -111,12 +111,15 @@ public sealed class ApplicationUser : IdentityUser<Guid>, IAuditable, ISoftDelet
     }
 
     /// <summary>
-    /// Deshace el borrado lógico y deja la cuenta como recién dada de alta: activa, con el nombre nuevo y sin intentos
-    /// fallidos ni bloqueo. Lo usa el alta de usuarios cuando el correo ya tuvo una cuenta.
+    /// Deshace el borrado lógico y deja la cuenta como recién dada de alta: activa, con el nombre nuevo, el idioma y la
+    /// zona horaria con los que nace una cuenta (no los del dueño anterior) y sin intentos fallidos ni bloqueo. Lo usa el
+    /// alta de usuarios cuando el correo o el número ya tuvieron una cuenta; el correo, el número y los logins externos
+    /// los deja el alta sólo con lo que trajo (N4).
     /// </summary>
-    public void Restore(string? displayName)
+    public void Restore(string? displayName, string culture, string timeZoneId)
     {
         Rename(displayName);
+        UpdatePreferences(culture, timeZoneId);
         IsDeleted = false;
         DeletedAtUtc = null;
         DeletedBy = null;

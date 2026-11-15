@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
@@ -24,9 +23,12 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
             "/api/users",
             tokens.AccessToken,
             new { email, displayName = "Ana", roles = new[] { SystemRoles.Admin } });
-        var userId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        var body = await response.ReadJsonAsync();
+        var userId = body.GetProperty("id").GetGuid();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        // Una cuenta nueva: la pantalla dice «creado» (N4).
+        Assert.False(body.GetProperty("restored").GetBoolean());
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal($"/api/users/{userId}", response.Headers.Location?.AbsolutePath);
         Assert.Equal([SystemRoles.Admin], await RolesOfAsync(userId));
@@ -45,7 +47,7 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
 
         using var response = await client.SendWithTokenAsync(
             HttpMethod.Post, "/api/users", tokens.AccessToken, new { email = TestEmails.Unique("sinroles") });
-        var userId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        var userId = (await response.ReadJsonAsync()).GetProperty("id").GetGuid();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal([SystemRoles.User], await RolesOfAsync(userId));
@@ -59,7 +61,7 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
         var email = TestEmails.Unique("ubicacion");
 
         using var response = await client.SendWithTokenAsync(HttpMethod.Post, "/api/users", tokens.AccessToken, new { email });
-        var userId = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        var userId = (await response.ReadJsonAsync()).GetProperty("id").GetGuid();
         var location = Assert.IsType<Uri>(response.Headers.Location);
 
         using var detail = await client.GetWithTokenAsync(location.PathAndQuery, tokens.AccessToken);
@@ -97,7 +99,7 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
         var email = TestEmails.Unique("restaurar");
         using var first = await client.SendWithTokenAsync(
             HttpMethod.Post, "/api/users", tokens.AccessToken, new { email, roles = new[] { SystemRoles.Admin } });
-        var original = JsonSerializer.Deserialize<Guid>((await first.ReadJsonAsync()).GetRawText());
+        var original = (await first.ReadJsonAsync()).GetProperty("id").GetGuid();
 
         // El borrado lógico, directo contra la base: el endpoint que lo hace es de la Tarea 10.
         await factory.ExecuteDbContextAsync(async db =>
@@ -108,10 +110,12 @@ public sealed class CreateUserEndpointTests(ApiFactory factory)
 
         using var response = await client.SendWithTokenAsync(
             HttpMethod.Post, "/api/users", tokens.AccessToken, new { email, displayName = "Vuelta", roles = new[] { SystemRoles.User } });
-        var restored = JsonSerializer.Deserialize<Guid>((await response.ReadJsonAsync()).GetRawText());
+        var body = await response.ReadJsonAsync();
+        var restored = body.GetProperty("id").GetGuid();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(original, restored);
+        Assert.True(body.GetProperty("restored").GetBoolean());
         Assert.Equal([SystemRoles.User], await RolesOfAsync(restored));
         Assert.Equal("Vuelta", await factory.ExecuteDbContextAsync(db =>
             db.Users.Where(user => user.Id == restored).Select(user => user.DisplayName).SingleAsync(Ct)));
