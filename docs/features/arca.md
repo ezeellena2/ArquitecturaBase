@@ -262,7 +262,8 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   privado (`arca-vouchers/{id}.pdf`) y confirma su SHA-256. Si el almacén falla, el comprobante sigue autorizado y el PDF
   espera (`Arca.Invoicing.PdfStorageUnavailable`); mientras tanto la emisión se informa emitida, con su número y su CAE y sin
   el documento (`DocumentPending`, H7), así que formularios lo muestra y la puede anular. Con la facturación instalada, la Api
-  no arranca sin el almacén privado. Mientras el módulo esté instalado, esos PDF no se limpian, aunque la base no tenga su comprobante, como después de
+  no arranca sin el almacén privado. Uno que no se puede armar (por ejemplo, con una alícuota que esta versión no conoce)
+  espera con `Arca.Invoicing.PdfRenderFailed` y no frena a los demás (H17). Mientras el módulo esté instalado, esos PDF no se limpian, aunque la base no tenga su comprobante, como después de
   restaurarla. El nombre y el
   domicilio del receptor son datos fiscales y
   no se recortan: se parten por palabras en los renglones que hagan falta y el recuadro del receptor crece con ellos, con el

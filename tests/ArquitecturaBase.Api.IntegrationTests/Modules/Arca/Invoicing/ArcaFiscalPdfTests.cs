@@ -7,7 +7,9 @@ using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
+using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -78,6 +80,48 @@ public sealed class ArcaFiscalPdfTests(ApiFactory factory) : IDisposable
             var row = await VoucherAsync(voucher.RequestKey);
             Assert.Equal((ArcaVoucherState.Authorized, (string?)null, "Arca.Invoicing.PdfStorageUnavailable"), (row.State, row.PdfStorageKey, row.FailureCode));
             Assert.Equal(factory.Clock.GetUtcNow().UtcDateTime.AddSeconds(30), row.NextAttemptAtUtc);
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // H17: a PDF that cannot be drawn (here, a VAT rate this version does not know) waits with its own code and does not leave
+    // the next voucher without its PDF.
+    [Fact]
+    public async Task A_pdf_that_cannot_be_drawn_waits_with_its_code_and_does_not_stop_the_next()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Arca();
+        var files = new ArcaMemoryFiles();
+        await using var withFiles = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IPrivateFileStore>();
+            services.AddSingleton<IPrivateFileStore>(files);
+        }));
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var broken = await AuthorizedAsync();
+            factory.Clock.Advance(TimeSpan.FromSeconds(1));
+            var next = await AuthorizedAsync();
+            await factory.ExecuteScopeAsync(async services =>
+            {
+                var vouchers = services.GetRequiredService<ApplicationDbContext>().Set<ArcaVoucher>();
+                var payload = await vouchers.Where(voucher => voucher.Id == broken.Id).Select(voucher => voucher.PayloadJson).SingleAsync(ct);
+                Assert.Contains("\"vatRates\": []", payload, StringComparison.Ordinal);
+                await vouchers.Where(voucher => voucher.Id == broken.Id).ExecuteUpdateAsync(set => set.SetProperty(voucher => voucher.Class, ArcaVoucherClass.A)
+                    .SetProperty(voucher => voucher.PayloadJson, payload.Replace("\"vatRates\": []", "\"vatRates\": [{\"base\": 1, \"amount\": 1, \"rateId\": 99}]",
+                        StringComparison.Ordinal)), ct);
+            });
+
+            factory.Clock.Advance(TimeSpan.FromSeconds(1));
+            await withFiles.Services.GetRequiredService<ArcaVoucherProcessor>().ProcessDuePdfsAsync(ct);
+
+            var waiting = await VoucherAsync(broken.RequestKey);
+            Assert.Equal(((string?)null, "Arca.Invoicing.PdfRenderFailed"), (waiting.PdfStorageKey, waiting.FailureCode));
+            Assert.NotNull((await VoucherAsync(next.RequestKey)).PdfStorageKey);
         }
         finally
         {

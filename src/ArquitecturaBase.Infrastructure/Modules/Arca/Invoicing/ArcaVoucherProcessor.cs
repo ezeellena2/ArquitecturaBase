@@ -55,7 +55,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         return askedForCae;
     }
 
-    /// <summary>Los PDF fiscales que faltan, de a uno. Dice si guardó alguno (H33).</summary>
+    /// <summary>Los PDF fiscales que faltan, de a uno; uno que falla no frena a los demás (H17). Dice si guardó alguno (H33).</summary>
     public async Task<bool> ProcessDuePdfsAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<Guid> due;
@@ -66,22 +66,47 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         }
 
         var stored = false;
-        foreach (var voucherId in due) stored |= await ProcessPdfAsync(voucherId, cancellationToken);
+        foreach (var voucherId in due)
+        {
+            try
+            {
+                stored |= await ProcessPdfAsync(voucherId, cancellationToken);
+            }
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                LogPdfFailed(exception.GetType().Name);
+            }
+        }
+
         return stored;
     }
 
     /// <summary>
     /// Dibuja el PDF fiscal, lo escribe una sola vez (si otro host lo escribió antes, queda el suyo), lo relee para confirmar
-    /// su SHA-256 y guarda la referencia. Si el almacén falla, el comprobante sigue autorizado y el PDF espera. Dice si lo guardó.
+    /// su SHA-256 y guarda la referencia. Si no se puede armar o el almacén falla, el comprobante sigue autorizado y el PDF espera,
+    /// cada uno con su código (H17). Dice si lo guardó.
     /// </summary>
     public async Task<bool> ProcessPdfAsync(Guid voucherId, CancellationToken cancellationToken)
     {
-        var work = await StepAsync(store => store.FindPdfAsync(voucherId, cancellationToken));
-        if (work is null) return false;
+        ArcaFiscalPdfWorkResponse? work;
+        byte[] pdf;
+        try
+        {
+            work = await StepAsync(store => store.FindPdfAsync(voucherId, cancellationToken));
+            if (work is null) return false;
+            pdf = renderer.Render(work.Document);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            LogPdfFailed(exception.GetType().Name);
+            await StepAsync(store => store.PostponePdfAsync(voucherId, ArcaInvoicingErrors.PdfRenderFailed.Code, cancellationToken));
+            return false;
+        }
+
         try
         {
             if (!files.IsAvailable) throw new InvalidOperationException("The private file store is not configured.");
-            await using (var content = new MemoryStream(renderer.Render(work.Document)))
+            await using (var content = new MemoryStream(pdf))
             {
                 await files.WriteOnceAsync(work.StorageKey, content, "application/pdf", cancellationToken);
             }
