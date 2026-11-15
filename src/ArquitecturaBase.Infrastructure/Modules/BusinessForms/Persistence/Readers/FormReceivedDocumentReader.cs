@@ -185,8 +185,10 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
                 [.. group.OrderByDescending(row => row.ReceivedAtUtc).ThenByDescending(row => row.Id).Select(row => row.Id)]))];
     }
 
+    // F38: the menu counts only the two open states (what the state and date index covers), never the confirmed or discarded ones.
     public Task<FormReceivedDocumentStateCounts> CountAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
-        CountAsync(dbContext.Set<FormReceivedDocument>().AsNoTracking(), nowUtc, cancellationToken);
+        CountAsync(dbContext.Set<FormReceivedDocument>().AsNoTracking()
+            .Where(document => document.State == FormReceivedDocumentState.Proposed || document.State == FormReceivedDocumentState.Unclassified), nowUtc, cancellationToken);
 
     // The latest steps of a document's history, oldest first: a history that grows (reopened, read again) never makes the detail unbounded.
     public async Task<IReadOnlyList<FormReceivedDocumentEventRow>> ListEventsAsync(Guid documentId, CancellationToken cancellationToken) =>

@@ -44,6 +44,7 @@ public interface IFormReceivedDocumentReader
     Task<FormReceivedDocumentStoredRow?> FindSpreadsheetAsync(string sha256, CancellationToken cancellationToken);
     Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, DateTime nowUtc,
         CancellationToken cancellationToken);
+    /// <summary>The menu's numbers (F38): only the proposed and unclassified documents are counted; the confirmed and discarded counts are zero.</summary>
     Task<FormReceivedDocumentStateCounts> CountAsync(DateTime nowUtc, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormReceivedDocumentEventRow>> ListEventsAsync(Guid documentId, CancellationToken cancellationToken);
     /// <summary>The origin of the responses a reviewer passed from the inbox, by their receipts.</summary>

@@ -806,6 +806,25 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_menu_counts_only_the_two_open_states_never_the_confirmed_or_discarded()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        Task<Application.Modules.BusinessForms.Models.FormReceivedDocumentStateCounts> CountAsync() => scenario.ScopeAsync(services =>
+            services.GetRequiredService<IFormReceivedDocumentReader>().CountAsync(factory.Clock.GetUtcNow().UtcDateTime, Ct));
+        var before = await CountAsync();
+        await scenario.SendAsync(Ct);
+        await scenario.SendAsync(Ct, notRead: StructuredDocumentNotRead.Quota);
+        var discarded = await scenario.SendAsync(Ct, notRead: StructuredDocumentNotRead.Quota);
+        var later = factory.Clock.GetUtcNow().UtcDateTime.AddDays(1);
+        await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlAsync(
+            $"""UPDATE "FormReceivedDocuments" SET "State" = 'Discarded', "ReasonCode" = 'reviewer', "DeleteAfterUtc" = {later} WHERE "Id" = {discarded.Id}""", Ct));
+
+        var after = await CountAsync();
+
+        Assert.Equal((before.Proposed + 1, before.Unclassified + 1, 0, 0), (after.Proposed, after.Unclassified, after.Confirmed, after.Discarded));
+    }
+
+    [Fact]
     public async Task A_reviewer_passes_the_document_of_a_sender_who_can_no_longer_load_responses()
     {
         await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
