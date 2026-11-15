@@ -463,6 +463,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   de una persona sea un puerto del núcleo que cada módulo implementa, como las fuentes de retención que ya existen, para que
   [ARCA H25](2026-11-14-arquitectura-arca.md) y los [N4 y N16 del núcleo](2026-11-14-arquitectura-nucleo.md) caigan en el mismo
   gancho. Chico la decisión; mediano el borrado ([decisión 6](#decisiones-del-2026-11-14)).
+- **Anotado el 2026-11-15** en 0a89d4e0: la fila de la retención nombra todo lo de F10.
 
 #### F11. Varias exportaciones grandes a la vez pueden dejar sin memoria a una copia
 

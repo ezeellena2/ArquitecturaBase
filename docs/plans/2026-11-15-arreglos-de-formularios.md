@@ -183,10 +183,10 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     un test compara las tablas de la guía con las del módulo, y se repite la prueba de quitarlo. Chico.
 40. **F10. La retención nombra todo** (decisión 6). La fila de la retención en los [planes pendientes](README.md) suma lo que lista
     F10 y el borrado definitivo de una persona como un puerto del núcleo que implementa cada módulo. Trivial.
-    Hecha el 2026-11-15.
+    Hecha el 2026-11-15 en 0a89d4e0.
 41. **Los números en claro de la bandeja, por escrito** (decisión 8). La regla de los documentos recibidos escribe el costo, y el
     cifrado de las copias de archivos queda con el N15 del núcleo. Trivial.
-    Hecha el 2026-11-15 (la regla, en [formularios.md](../features/formularios.md#armar-formulario-con-la-ia-desde-la-bandeja--doc6-2026-11-12)).
+    Hecha el 2026-11-15 en 0a89d4e0 (la regla, en [formularios.md](../features/formularios.md#armar-formulario-con-la-ia-desde-la-bandeja--doc6-2026-11-12)).
 
 **Cierre.** Cada regla que cambió queda en su fuente, y la revisión anota qué commit arregló cada hallazgo. Las decisiones van a
 las fuentes de las [premisas](../architecture/premisas-de-la-plantilla.md), y el plan se retira con la
