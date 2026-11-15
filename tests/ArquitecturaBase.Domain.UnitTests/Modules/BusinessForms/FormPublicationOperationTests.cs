@@ -26,6 +26,52 @@ public sealed class FormPublicationOperationTests
     }
 
     [Fact]
+    public void An_operation_that_keeps_coming_back_waits_longer_each_time_up_to_a_cap()
+    {
+        var operation = NewOperation();
+        var fence = operation.Reserve(Now, TimeSpan.FromMinutes(1)).Value;
+        Assert.True(operation.RecordChannelResult(fence, Now, "Uncertain", "Create").IsSuccess);
+        Assert.Equal(Now.AddSeconds(30), operation.NextCheckAtUtc);
+        var later = Now.AddHours(1);
+        fence = operation.Reserve(later, TimeSpan.FromMinutes(1)).Value;
+        Assert.True(operation.RecordChannelResult(fence, later, "Uncertain", "Create").IsSuccess);
+        Assert.Equal(later.AddMinutes(15), operation.NextCheckAtUtc);
+        var muchLater = Now.AddDays(3);
+        fence = operation.Reserve(muchLater, TimeSpan.FromMinutes(1)).Value;
+        Assert.True(operation.RecordChannelResult(fence, muchLater, "Uncertain", "Create").IsSuccess);
+        Assert.Equal(muchLater.AddMinutes(30), operation.NextCheckAtUtc);
+    }
+
+    [Fact]
+    public void Discarding_closes_an_open_operation_as_failed_and_fences_the_worker_that_held_it()
+    {
+        var operation = NewOperation();
+        var fence = operation.Reserve(Now, TimeSpan.FromMinutes(1)).Value;
+        Assert.True(operation.RecordChannelResult(fence, Now, "Uncertain", "Create").IsSuccess);
+        var held = operation.Reserve(Now.AddMinutes(1), TimeSpan.FromMinutes(1)).Value;
+
+        Assert.True(operation.Discard(Now.AddMinutes(1)).IsSuccess);
+
+        Assert.Equal(FormPublicationState.Failed, operation.State);
+        Assert.False(operation.IsOpen);
+        Assert.Equal("Discarded", operation.Stage);
+        Assert.Null(operation.NextCheckAtUtc);
+        Assert.True(operation.RecordChannelResult(held, Now.AddMinutes(1), "Published", "Verify").IsFailure);
+        Assert.True(operation.Discard(Now.AddMinutes(2)).IsFailure);
+    }
+
+    [Fact]
+    public void A_published_operation_cannot_be_discarded()
+    {
+        var operation = NewOperation();
+        var fence = operation.Reserve(Now, TimeSpan.FromMinutes(1)).Value;
+        Assert.True(operation.RecordChannelResult(fence, Now, "Published", "Verify").IsSuccess);
+        Assert.True(operation.Complete(fence, Now).IsSuccess);
+        Assert.True(operation.Discard(Now).IsFailure);
+        Assert.Equal(FormPublicationState.Published, operation.State);
+    }
+
+    [Fact]
     public void Activation_uses_the_base_version_and_preserves_a_newer_draft()
     {
         var definition = BusinessFormDefinition.Create();

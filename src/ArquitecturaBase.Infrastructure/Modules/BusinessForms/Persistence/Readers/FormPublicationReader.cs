@@ -33,7 +33,8 @@ internal sealed class FormPublicationReader(ApplicationDbContext dbContext) : IF
         dbContext.Set<BusinessFormVersion>().AsNoTracking().CountAsync(version => version.DefinitionId == definitionId, cancellationToken);
     public Task<FormPublicationStatusResponse?> FindOperationAsync(Guid definitionId, Guid actor, Guid requestId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking()
-            .Where(x => x.DefinitionId == definitionId && x.OperatorUserId == actor && x.RequestId == requestId)
+            .Where(x => x.DefinitionId == definitionId && x.RequestId == requestId && (x.OperatorUserId == actor
+                || (x.State != FormPublicationState.Published && x.State != FormPublicationState.Failed)))
             .Select(x => new FormPublicationStatusResponse(x.RequestId, x.Id, x.DefinitionId, x.VersionId, x.VersionNumber, x.DraftRevision,
                 x.State.ToString(), x.Stage, x.AcceptedAtUtc, x.UpdatedAtUtc, x.NextCheckAtUtc, false, x.State == FormPublicationState.Uncertain, Array.Empty<string>()))
             .SingleOrDefaultAsync(cancellationToken);

@@ -35,7 +35,7 @@ internal sealed class FormsTestModule : IApiTestModule
         "POST /api/forms/documents/form-proposals", "GET /api/forms/documents/form-proposals/{requestid:guid}", "POST /api/forms/definitions/document-proposals",
         "POST /api/forms/definitions/{id:guid}/records/filter-counts/search", "GET /api/forms/records/{id:guid}","GET /api/forms/definitions", "GET /api/forms/definitions/facets",
         "GET /api/forms/definitions/{id:guid}", "POST /api/forms/definitions", "PUT /api/forms/definitions/{id:guid}/draft", "GET /api/forms/draft-changes/{requestid:guid}", "POST /api/forms/definitions/{id:guid}/publication-checks", "POST /api/forms/definitions/{id:guid}/publications",
-        "GET /api/forms/definitions/{id:guid}/publications/{requestid:guid}", "GET /api/forms/definitions/{id:guid}/versions/{versionid:guid}/preview",
+        "GET /api/forms/definitions/{id:guid}/publications/{requestid:guid}", "POST /api/forms/definitions/{id:guid}/publications/{requestid:guid}/discard", "GET /api/forms/definitions/{id:guid}/versions/{versionid:guid}/preview",
         "GET /api/forms/records/{recordid:guid}/files/{fileid:guid}/thumbnail", "GET /api/forms/records/{recordid:guid}/files/{fileid:guid}/content",
         "POST /api/forms/catalogs/{id:guid}/proposal/approve", "POST /api/forms/catalogs/{id:guid}/proposal/discard",
         "POST /api/forms/definitions/assistant-proposals", "GET /api/forms/definitions/assistant-proposals/{proposalid:guid}",

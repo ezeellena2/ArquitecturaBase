@@ -212,6 +212,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormPublicationDispatchService, FormPublicationDispatchService>();
         services.TryAddScoped<IFormPublicationStatusService, FormPublicationStatusService>();
         services.TryAddScoped<IFormPublicationAcceptanceService, FormPublicationAcceptanceService>();
+        services.TryAddScoped<IFormPublicationDiscardService, FormPublicationDiscardService>();
         services.TryAddScoped<IBusinessFormPublicationService, BusinessFormPublicationService>();
         services.TryAddScoped<IFormDraftRetentionService, FormDraftRetentionService>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionCatalogSource, FormPermissionCatalogSource>());

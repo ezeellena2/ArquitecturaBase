@@ -72,3 +72,5 @@ public sealed record FormPublicationChannelDispatchResponse(IReadOnlyList<FormPu
 public sealed record FormRecordFileRow(Guid RecordId, Guid FieldId, Guid FileId, int Position, string Name,
     string ContentType, long Size, bool HasThumbnail)
 { public override string ToString() => "FormRecordFileRow { Content = [REDACTED] }"; }
+
+public sealed record DiscardFormPublicationRequest(long ExpectedRevision);

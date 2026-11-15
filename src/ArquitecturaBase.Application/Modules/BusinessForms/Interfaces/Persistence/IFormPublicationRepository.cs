@@ -5,6 +5,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persiste
 public interface IFormPublicationRepository
 {
     Task<BusinessFormPublicationOperation?> GetOperationAsync(Guid actor, Guid requestId, CancellationToken cancellationToken);
+    Task<BusinessFormPublicationOperation?> GetOpenOperationAsync(Guid definitionId, Guid requestId, CancellationToken cancellationToken);
     Task<BusinessFormPublicationOperation?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> ExistsOpenOperationAsync(Guid definitionId, CancellationToken cancellationToken);

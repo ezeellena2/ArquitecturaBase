@@ -16,7 +16,8 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [Tags("Forms")]
 [HasPermission(BusinessFormsPermissions.Read)]
 [HasPermission(BusinessFormsPermissions.Publish)]
-public sealed class FormPublicationsController(IFormPublicationAcceptanceService service, IFormPublicationStatusService statusService) : ControllerBase
+public sealed class FormPublicationsController(IFormPublicationAcceptanceService service, IFormPublicationStatusService statusService,
+    IFormPublicationDiscardService discardService) : ControllerBase
 {
     [HttpPost]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
@@ -42,4 +43,13 @@ public sealed class FormPublicationsController(IFormPublicationAcceptanceService
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get([FromRoute] Guid id, [FromRoute] Guid requestId, CancellationToken cancellationToken) =>
         (await statusService.GetAsync(id, requestId, cancellationToken)).ToActionResult(this);
+
+    [HttpPost("{requestId:guid}/discard")]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Discard([FromRoute] Guid id, [FromRoute] Guid requestId, [FromBody] DiscardFormPublicationHttpRequest request,
+        CancellationToken cancellationToken) =>
+        (await discardService.DiscardAsync(id, requestId, new(request.ExpectedRevision), cancellationToken)).ToActionResult(this);
 }

@@ -10,6 +10,9 @@ internal sealed class FormPublicationRepository(ApplicationDbContext dbContext) 
 {
     public Task<BusinessFormPublicationOperation?> GetOperationAsync(Guid actor, Guid requestId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormPublicationOperation>().SingleOrDefaultAsync(x => x.OperatorUserId == actor && x.RequestId == requestId, cancellationToken);
+    public Task<BusinessFormPublicationOperation?> GetOpenOperationAsync(Guid definitionId, Guid requestId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormPublicationOperation>().FirstOrDefaultAsync(x => x.DefinitionId == definitionId && x.RequestId == requestId
+            && x.State != FormPublicationState.Published && x.State != FormPublicationState.Failed, cancellationToken);
     public Task<BusinessFormPublicationOperation?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormPublicationOperation>().SingleOrDefaultAsync(value => value.Id == id, cancellationToken);
     public Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken cancellationToken) =>

@@ -77,6 +77,7 @@ internal sealed class FormLifecycleFixture : IFormDraftRepository, IFormPublicat
     public void AddChange(BusinessFormDraftChange change) => throw new NotSupportedException();
     public Task UpdateExpiredResultsAsync(DateTime now, CancellationToken ct) => throw new NotSupportedException();
     public Task<BusinessFormPublicationOperation?> GetOperationAsync(Guid actor, Guid request, CancellationToken ct) => throw new NotSupportedException();
+    public Task<BusinessFormPublicationOperation?> GetOpenOperationAsync(Guid definitionId, Guid requestId, CancellationToken ct) => throw new NotSupportedException();
     public Task<BusinessFormPublicationOperation?> GetByIdAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<int> CountVersionsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();

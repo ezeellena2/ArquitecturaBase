@@ -68,7 +68,22 @@ public sealed class BusinessFormPublicationOperation : Entity, IAuditable
         };
         if (mapped is null) return FormPublicationErrors.StateConflict;
         State = mapped.Value; Stage = stage; UpdatedAtUtc = nowUtc; LeaseExpiresAtUtc = null;
-        NextCheckAtUtc = IsOpen && State != FormPublicationState.ActivationPending ? nowUtc.AddSeconds(30) : null;
+        NextCheckAtUtc = IsOpen && State != FormPublicationState.ActivationPending ? nowUtc.Add(RecheckDelay(nowUtc)) : null;
+        return Result.Success();
+    }
+
+    // An operation that stays open is looked at again after a quarter of its age, between thirty seconds and thirty minutes.
+    private TimeSpan RecheckDelay(DateTime nowUtc) =>
+        TimeSpan.FromTicks(Math.Clamp((nowUtc - AcceptedAtUtc).Ticks / 4, TimeSpan.FromSeconds(30).Ticks, TimeSpan.FromMinutes(30).Ticks));
+
+    // The way out of a publication that cannot be confirmed: it closes as failed, the version stays inactive and the fence moves so a
+    // worker that still holds the operation cannot record a result.
+    public Result Discard(DateTime nowUtc)
+    {
+        if (!IsOpen || Fence == long.MaxValue) return FormPublicationErrors.StateConflict;
+        Fence++;
+        State = FormPublicationState.Failed; Stage = "Discarded"; UpdatedAtUtc = nowUtc;
+        LeaseExpiresAtUtc = null; NextCheckAtUtc = null;
         return Result.Success();
     }
 
