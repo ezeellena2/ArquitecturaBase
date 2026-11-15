@@ -148,17 +148,83 @@ public sealed class ExternalLoginServiceTests
     }
 
     [Fact]
-    public async Task Existing_unverified_account_is_confirmed_when_google_email_is_verified()
+    public async Task Google_links_by_the_email_an_account_whose_email_is_confirmed()
     {
-        var user = await _accounts.ArrangeAsync(accounts => accounts.CreateUnverifiedAsync(
-            Domain.ValueObjects.Email.Create(UserEmail).Value, null, "Ana", "es", Ct));
+        var user = _accounts.AddUser(UserEmail);
         _signIn.PendingExternalLogin = GoogleLogin();
 
         var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.True(Assert.Single(_accounts.Users).EmailConfirmed);
+        Assert.Equal([user.Id], _signIn.SignedInUsers);
         Assert.Equal(user.Id, (await _accounts.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
+        Assert.True(Assert.Single(_audits.Audits).Succeeded);
+    }
+
+    /// <summary>
+    /// N4, decisión del 2026-11-15: el correo de una cuenta que cargó un administrador (o que volvió al restaurarla) puede
+    /// ser de una dirección que pasó a otra persona, y el dueño anterior puede conservar una cuenta de Google con ella.
+    /// Google no vincula ni verifica ese correo: la persona entra primero con el código al correo.
+    /// </summary>
+    [Fact]
+    public async Task Google_does_not_link_nor_confirm_an_account_whose_email_is_not_confirmed()
+    {
+        var user = await _accounts.ArrangeAsync(accounts => accounts.CreateUnverifiedAsync(
+            Domain.ValueObjects.Email.Create(UserEmail).Value, null, "Nora", "es", Ct));
+        _signIn.PendingExternalLogin = GoogleLogin();
+
+        var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
+
+        Assert.Equal(ExternalLoginErrors.AccountEmailNotConfirmedCode, result.Error.Code);
+        Assert.Empty(_signIn.SignedInUsers);
+        Assert.True(_signIn.ExternalSignedOut);
+        Assert.False(Assert.Single(_accounts.Users).EmailConfirmed);
+        Assert.Null(await _accounts.FindByExternalLoginAsync("Google", "google-123", Ct));
+        Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
+        var audit = Assert.Single(_audits.Audits);
+        Assert.False(audit.Succeeded);
+        Assert.Equal(user.Id, audit.UserId);
+        Assert.Equal(UserEmail, audit.Identifier);
+        Assert.Equal(ExternalLoginErrors.AccountEmailNotConfirmedCode, audit.FailureReason);
+    }
+
+    [Fact]
+    public async Task Once_the_email_is_confirmed_with_a_code_google_links_the_account()
+    {
+        var email = Domain.ValueObjects.Email.Create(UserEmail).Value;
+        var user = await _accounts.ArrangeAsync(accounts => accounts.CreateUnverifiedAsync(email, null, "Nora", "es", Ct));
+        _signIn.PendingExternalLogin = GoogleLogin();
+        var rejected = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
+        Assert.Equal(ExternalLoginErrors.AccountEmailNotConfirmedCode, rejected.Error.Code);
+
+        // Lo que hace el ingreso con el código del correo (LoginCodeVerifier): confirma el correo de la cuenta.
+        await _accounts.ArrangeAsync(accounts => accounts.SetEmailAsync(user.Id, email, confirmed: true, Ct));
+        var linked = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
+
+        Assert.True(linked.IsSuccess);
+        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.Equal(user.Id, (await _accounts.FindByExternalLoginAsync("Google", "google-123", Ct))?.Id);
+    }
+
+    /// <summary>
+    /// Una cuenta desactivada responde lo de siempre, aunque su correo no esté confirmado: decir que falta confirmarlo
+    /// revelaría más, y entrar con el código tampoco le serviría. Ni se vincula ni se confirma nada.
+    /// </summary>
+    [Fact]
+    public async Task An_inactive_account_whose_email_is_not_confirmed_is_disabled_without_linking()
+    {
+        var user = await _accounts.ArrangeAsync(accounts => accounts.CreateUnverifiedAsync(
+            Domain.ValueObjects.Email.Create(UserEmail).Value, null, "Nora", "es", Ct));
+        await _accounts.ArrangeAsync(accounts => accounts.SetActiveAsync(user.Id, isActive: false, Ct));
+        _signIn.PendingExternalLogin = GoogleLogin();
+
+        var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
+
+        Assert.Equal(AccountErrors.DisabledCode, result.Error.Code);
+        Assert.False(Assert.Single(_accounts.Users).EmailConfirmed);
+        Assert.Null(await _accounts.FindByExternalLoginAsync("Google", "google-123", Ct));
+        Assert.Equal(AccountErrors.DisabledCode, Assert.Single(_audits.Audits).FailureReason);
     }
 
     [Fact]

@@ -38,8 +38,8 @@ internal sealed class ExternalLoginService(
 
             var result = await unitOfWork.ExecuteInTransactionAsync(
                 ct => SignInCoreAsync(request.Register, ct),
-                // Cada error de negocio deja su auditoría, y con una cuenta inactiva también el vínculo nuevo
-                // y el correo confirmado: el error se confirma. Una excepción igual deshace todo.
+                // Cada error de negocio deja su auditoría, y con una cuenta inactiva de correo confirmado también el
+                // vínculo nuevo: el error se confirma. Una excepción igual deshace todo.
                 CommitPolicy.OnAnyResult,
                 cancellationToken);
 
@@ -126,7 +126,12 @@ internal sealed class ExternalLoginService(
                 }
                 else if (!user.EmailConfirmed)
                 {
-                    await userRepository.SetEmailAsync(user.Id, email.Value, confirmed: true, cancellationToken);
+                    // N4 (2026-11-15): Google se vincula por el correo sólo a una cuenta que ya lo confirmó. El de una
+                    // cuenta que cargó un administrador, o que volvió al restaurarla, pudo pasar a otra persona, y el
+                    // dueño anterior conservar un Google con esa dirección: se entra primero con el código al correo, y
+                    // después Google se vincula. Una cuenta desactivada responde lo de siempre, sin revelar más.
+                    return Fail(email.Value.Value, user,
+                        user.IsActive ? ExternalLoginErrors.AccountEmailNotConfirmed : AccountErrors.Disabled);
                 }
 
                 await userRepository.AddExternalLoginAsync(user.Id, login, cancellationToken);

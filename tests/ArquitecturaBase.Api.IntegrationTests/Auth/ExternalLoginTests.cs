@@ -228,18 +228,24 @@ public sealed class ExternalLoginTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// Una cuenta que existe por el correo pero está inactiva no entra con Google, y aun así queda vinculada a Google, con
-    /// el correo confirmado y la auditoría del rechazo: el error también se confirma, y el rechazo deja su rastro. La
-    /// sesión no se abre: la cookie sale solo con un ingreso exitoso.
+    /// Una cuenta que existe por el correo pero está inactiva no entra con Google. Con el correo confirmado queda igual
+    /// vinculada a Google, con la auditoría del rechazo: el error también se confirma, y el rechazo deja su rastro. Con el
+    /// correo sin confirmar no se vincula ni se confirma nada (N4, 2026-11-15), y responde lo mismo. La sesión no se abre:
+    /// la cookie sale solo con un ingreso exitoso.
     /// </summary>
-    [Fact]
-    public async Task Google_links_an_existing_inactive_account_and_confirms_its_email_even_if_it_cannot_enter()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task An_existing_inactive_account_cannot_enter_with_google_and_is_linked_only_with_its_email_confirmed(
+        bool emailConfirmed)
     {
         var email = TestEmails.Unique("google-inactive");
         var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-        var account = await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
-            .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
-        Assert.False(account.EmailConfirmed);
+        var account = await factory.InTransactionAsync(services => emailConfirmed
+            ? services.GetRequiredService<IUserRepository>().CreateAsync(Email.Create(email).Value, displayName: "Ana", "es", Ct)
+            : services.GetRequiredService<IUserRepository>()
+                .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
+        Assert.Equal(emailConfirmed, account.EmailConfirmed);
         await factory.ExecuteDbContextAsync(async db =>
         {
             var user = await db.Users.SingleAsync(candidate => candidate.Id == account.Id, Ct);
@@ -265,9 +271,73 @@ public sealed class ExternalLoginTests(ApiFactory factory)
              Linked: await db.UserLogins.AnyAsync(login => login.UserId == account.Id
                  && login.LoginProvider == "Google" && login.ProviderKey == providerKey, Ct),
              Audit: await db.LoginAudits.Where(audit => audit.UserId == account.Id).Select(audit => audit.FailureReason).SingleAsync(Ct)));
-        Assert.True(persisted.EmailConfirmed);
-        Assert.True(persisted.Linked);
+        Assert.Equal(emailConfirmed, persisted.EmailConfirmed);
+        Assert.Equal(emailConfirmed, persisted.Linked);
         Assert.Equal(expected, persisted.Audit);
+    }
+
+    /// <summary>
+    /// N4, decisión del 2026-11-15: la cuenta que da de alta un administrador con un correo (también la que restaura por el
+    /// correo) no se vincula a Google por esa dirección hasta que alguien entra con el código al correo. Si no, el dueño
+    /// anterior de una dirección que pasó a otra persona (ventas@ de Diego a Nora) entraría con su Google a la cuenta de
+    /// Nora. Después del código, Google se vincula por la regla de siempre.
+    /// </summary>
+    [Fact]
+    public async Task An_account_created_by_an_administrator_enters_with_google_only_after_the_email_code()
+    {
+        using var adminClient = factory.CreateClient();
+        var admin = await AdminUsersApi.SignInAsync(factory, adminClient);
+        var email = TestEmails.Unique("google-invited");
+        var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        var nora = await admin.CreateOkAsync(new { email, displayName = "Nora" });
+
+        using var first = factory.CreateClient();
+        using (var external = await first.PostJsonAsync(
+            "/test/external-login", new { providerKey, email, name = "Diego", emailVerified = true }))
+        {
+            Assert.True(external.IsSuccessStatusCode);
+        }
+
+        using (var rejected = await first.SendAsync(
+            HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(ReturnUrl)))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
+            Assert.Equal("/login?error=" + ExternalLoginErrors.AccountEmailNotConfirmedCode,
+                rejected.Headers.Location!.OriginalString);
+            Assert.False(rejected.Headers.TryGetValues("Set-Cookie", out var cookies)
+                && cookies.Any(cookie => cookie.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal)));
+        }
+
+        var afterRejection = await factory.ExecuteDbContextAsync(async db =>
+            (EmailConfirmed: await db.Users.Where(user => user.Id == nora).Select(user => user.EmailConfirmed).SingleAsync(Ct),
+             Linked: await db.UserLogins.AnyAsync(login => login.UserId == nora, Ct),
+             Audit: await db.LoginAudits
+                 .Where(audit => audit.UserId == nora && audit.Method == LoginMethod.Google)
+                 .Select(audit => new { audit.Succeeded, audit.FailureReason })
+                 .SingleAsync(Ct)));
+        Assert.False(afterRejection.EmailConfirmed);
+        Assert.False(afterRejection.Linked);
+        Assert.False(afterRejection.Audit.Succeeded);
+        Assert.Equal(ExternalLoginErrors.AccountEmailNotConfirmedCode, afterRejection.Audit.FailureReason);
+
+        using var byCode = factory.CreateClient();
+        await byCode.SignInWithCodeAsync(factory, email);
+
+        using var second = factory.CreateClient();
+        using (var external = await second.PostJsonAsync(
+            "/test/external-login", new { providerKey, email, name = "Nora", emailVerified = true }))
+        {
+            Assert.True(external.IsSuccessStatusCode);
+        }
+
+        using var linked = await second.SendAsync(
+            HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(ReturnUrl));
+        Assert.Equal(HttpStatusCode.Redirect, linked.StatusCode);
+        Assert.Equal(ReturnUrl, linked.Headers.Location!.OriginalString);
+        Assert.Equal(nora, await factory.ExecuteDbContextAsync(db => db.UserLogins
+            .Where(login => login.LoginProvider == GoogleDefaults.AuthenticationScheme && login.ProviderKey == providerKey)
+            .Select(login => login.UserId)
+            .SingleAsync(Ct)));
     }
 
     /// <summary>

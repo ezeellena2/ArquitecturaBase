@@ -40,6 +40,7 @@
   <data name="Auth.Account.NotInvited" xml:space="preserve"><value>Todavía no tenés acceso al sistema. Para ingresar, pedile una invitación a un administrador.</value></data>
   <data name="Auth.ExternalLogin.Failed" xml:space="preserve"><value>No pudimos completar el ingreso con Google.</value></data>
   <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Tu cuenta de Google no tiene el email verificado.</value></data>
+  <data name="Auth.ExternalLogin.AccountEmailNotConfirmed" xml:space="preserve"><value>Esa cuenta todavía no confirmó su correo. Entrá primero con un código por correo; después vas a poder usar Google.</value></data>
   <data name="Auth.WhatsApp.CountryNotSupported" xml:space="preserve"><value>Todavía no mandamos códigos a números de ese país.</value></data>
   <data name="Auth.LoginLink.Invalid" xml:space="preserve"><value>Este enlace ya no sirve.</value></data>
   <data name="Auth.LoginLink.TooManyRequests" xml:space="preserve"><value>Esperá un momento antes de pedir otro enlace.</value></data>

@@ -15,6 +15,19 @@ cuenta existente; `true` crea una nueva según `AccountCreationPolicy`. Omitirlo
 del ingreso anterior. La excepción del administrador inicial sigue funcionando incluso con `register=false`.
 El registro por código requiere `displayName` (hasta 100 caracteres); Google aporta el nombre del perfil del proveedor y exige un correo verificado para vincular la identidad.
 
+**Google se vincula por el correo sólo a una cuenta que ya lo confirmó** (N4, decisión del 2026-11-15). Sin un
+vínculo previo, `ExternalLoginService` busca la cuenta por el correo de Google; si la encuentra con el correo sin
+confirmar (lo cargó un administrador, o volvió así al restaurarla), responde `403 Auth.ExternalLogin.AccountEmailNotConfirmed`
+sin vincular ni confirmar nada, con su auditoría como cualquier rechazo. La dirección pudo pasar a otra persona
+(ventas@ de Diego a Nora), y el dueño anterior conservar una cuenta de Google con ella: que Google la verifique no
+prueba que hoy controle el buzón. La persona entra primero con el código al correo, que lo confirma, y en un ingreso
+posterior Google se vincula por esta misma regla. Costo aceptado: quien recibe una invitación por correo entra la
+primera vez con el código, no con Google. El orden de los rechazos no revela más que antes: con `register=true`
+responde primero `Auth.Account.AlreadyRegistered`, y una cuenta desactivada responde `Auth.Account.Disabled`, como
+siempre, en lugar del correo sin confirmar. Un vínculo que ya existe no cambia, y un alta por Google sin cuenta con
+ese correo sigue creándola con el correo confirmado. El front muestra el código con su texto en `/login`
+(`login.errors.accountEmailNotConfirmed`).
+
 Recién después de comprobar identidad, una intención incorrecta responde `403 Auth.Account.NotRegistered`
 o `403 Auth.Account.AlreadyRegistered`; el código correcto queda consumido y auditado, sin abrir sesión.
 Con Google, la política de alta va antes que la intención (2026-11-07): con el registro cerrado, entrar sin cuenta
