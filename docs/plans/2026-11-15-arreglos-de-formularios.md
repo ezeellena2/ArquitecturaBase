@@ -117,13 +117,17 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     y deja que el puerto existente retire sus Flows; y el front sigue consultando, con espera larga, mientras dice «sin
     confirmar». Ruta nueva, con su test y su lugar en el inventario; el test de integración es la contraparte de
     `FormPublicationCrashHttpTests`: otra persona descarta y el formulario se vuelve a publicar. Mediano.
+    Hecha el 2026-11-15 en `fbec87c5` (backend) y `bb99803a` (front).
 15. **F27. Las lecturas no descifran el manifiesto para saber los idiomas.** El detalle y el editor, el lector de versiones de las
     respuestas y el chequeo leen los idiomas sellados de la versión; descifran sólo el despacho, la repetición de la aceptación, el
     seeder, la vista oficial y el estado de una operación con problemas. Test: con un manifiesto ilegible
     (`UnreadableFormPublicationProtector`), el editor, la planilla y las aprobaciones responden 200. Chico.
+    Hecha el 2026-11-15 en `5f2bb56d`.
 16. **F17. La vista oficial tiene su propio límite.** Un límite propio para la vista oficial y la consulta del estado, la
     verificación reutilizada unos minutos, un plazo para la consulta del estado y el mismo tope de opciones que el Flow. Chico.
+    Hecha el 2026-11-15 en `9f027356`. Quedó anotado: la verificación en Meta no se reutiliza unos minutos (vive en `WhatsAppFlowStatusService` y reusarla pide un caché con Redis, ADR 0009); y el tope de opciones de la vista no cambia, porque la oferta del Flow lee lo mismo (`BusinessFormCatalog.MaxItems`) cuando elige primero por un campo y la vista necesita todos los valores para mostrar los primeros 20; el costo lo acota el límite de 10 por minuto.
 17. **F48. La lista de formularios del asistente se ordena por nombre antes de cortar.** Y el tope de 100 queda escrito. Trivial.
+    Hecha el 2026-11-15 en `e590dc95`.
 
 ### Etapa 5: documentos
 

@@ -320,6 +320,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   publicación» para cualquiera con «Publicar formularios», con la revisión, que la cierre como fallida (la versión queda sin
   activar y el puerto existente ya permite retirar sus Flows, `FormUnusedVersionReader.cs:23-33`); y que el front siga
   consultando, con espera larga, mientras diga «sin confirmar». Mediano.
+- **Arreglado el 2026-11-15** en `fbec87c5` (backend) y `bb99803a` (front).
 
 #### F4. Quien corrige una respuesta, o la pasa al formulario desde un documento, puede aprobarla
 
@@ -578,6 +579,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   repetir la verificación completa en cada vista, sino reutilizarla unos minutos; un plazo para la consulta del estado; y leer
   para la vista el mismo tope de opciones que el Flow. Chico. **Prueba que lo resuelve:** medir los encabezados de uso de Meta
   con la cuenta real.
+- **Arreglado el 2026-11-15** en `9f027356` (límite propio y plazo; la verificación reutilizada y el tope de opciones quedaron anotados en el plan).
 
 #### F18. Una respuesta no se puede seguir de la captura al aviso: el worker no continúa la traza y sus logs no dicen de qué hablan
 
@@ -719,6 +721,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   repetición de la aceptación, el seeder, la vista oficial y el estado de una operación con problemas, que usan el perfil del
   canal y la huella. Chico. Es un caso de la regla común de [WhatsApp H25](2026-11-12-arquitectura-whatsapp.md) y
   [núcleo N27](2026-11-14-arquitectura-nucleo.md).
+- **Arreglado el 2026-11-15** en `5f2bb56d`.
 
 #### F28. En un despliegue que suma un tipo de acción, la copia vieja toma esas acciones y las deja falladas para siempre
 
@@ -1036,6 +1039,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   candidatos del asistente, en cambio, sí usan la fila 101 como aviso (`FormAssistantCandidatePolicy.cs:27-30`).
 - **Arreglo:** devolver si hay más, como los candidatos, y que la pantalla lo diga o pagine; si 100 es el máximo deseado,
   documentarlo y ordenar por nombre antes de cortar. Chico.
+- **Arreglado el 2026-11-15** en `e590dc95` (ordena por nombre en la consulta y corta en 100).
 
 ### Observaciones menores
 
