@@ -412,6 +412,16 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     que falla se pospone con su propio código, de los que declara la tarea 14. Test: un comprobante con una alícuota
     desconocida no deja sin PDF al siguiente. Chico.
 
+**Hecha el 2026-11-15:** H3 en 6ee20368, H7 en 27469add y H17 en 8ac6588b.
+- **Cambios:** en H3, un número tomado no consulta el último autorizado, así que como «último que vio» la revisión guarda el
+  número tomado; la columna nueva es `ReviewedLastAuthorized`, con su migración, y el ADR 0031 lo dice. En H7 la espera se
+  separa por el código con que espera (ARCA, la conexión u otra versión de la app), sin columna nueva; la factura emitida antes
+  de su PDF deja el run de formularios en curso y guarda ya su resultado, una sola vez, y el chequeo de arranque se saca en el
+  módulo de prueba de ARCA, como el de Chromium, porque la factory base no tiene almacén.
+- **Pruebas:** el build sin advertencias; Domain, Application y ArchitectureTests enteros; la integración de facturación de ARCA
+  entera (96) y la emisión de formularios (21).
+- **Revisión:** propia, porque el cupo ya pasaba el 85 %.
+
 ### Etapa 5: la conexión y el ticket
 
 16. **B4. El estado sigue al certificado y a los servicios** (decisión 5). Primero se corrige `CertificateExpired()`, que lleva
