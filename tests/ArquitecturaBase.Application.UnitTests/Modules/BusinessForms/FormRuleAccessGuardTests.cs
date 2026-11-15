@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -23,6 +24,30 @@ public sealed class FormRuleAccessGuardTests
         Assert.Equal(FormActionErrors.IssuerUnavailable.Code, (await guard.MayIssueAsync(actor, ["c.issuer"], CancellationToken.None)).Error.Code);
         permissions.Permissions[actor] = ["a.issue", "b.issue"];
         Assert.True((await guard.MayIssueAsync(actor, ["a.issuer", "b.issuer"], CancellationToken.None)).IsSuccess);
+    }
+
+    // F5: a notice that cites the answer of a question carries response values, so it needs «Ver respuestas»; the number, the reason and a
+    // result are not answers of a question.
+    [Theory]
+    [InlineData("Recibimos {número}: {motivo}", false)]
+    [InlineData("Received {number}: {reason}", false)]
+    [InlineData("Sin datos", false)]
+    [InlineData("Respuesta {número}: {Nombre}", true)]
+    [InlineData("Respuesta {018f2c5e-6c1d-7d9a-8b0e-1c2d3e4f5a6b}", true)]
+    public async Task A_notice_that_cites_the_answer_of_a_question_also_needs_to_view_responses(string text, bool needsRecordsRead)
+    {
+        var actor = Guid.NewGuid();
+        var permissions = new FakePermissionService();
+        var guard = new FormRuleAccessGuard(new FakeCurrentUser { UserId = actor }, permissions, []);
+        FormRule[] rules = [new(Guid.NewGuid(), "Received", [], [new(Guid.NewGuid(), "NotifyAuthor", null, new Dictionary<string, string> { ["es"] = text }, false)])];
+        permissions.Permissions[actor] = [BusinessFormsPermissions.RulesManage];
+
+        var withoutRead = await guard.MayCiteAnswersAsync(actor, rules, CancellationToken.None);
+        Assert.Equal(!needsRecordsRead, withoutRead.IsSuccess);
+        if (needsRecordsRead) Assert.Equal(FormRuleErrors.RecordsReadRequired.Code, withoutRead.Error.Code);
+
+        permissions.Permissions[actor] = [BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.RecordsRead];
+        Assert.True((await guard.MayCiteAnswersAsync(actor, rules, CancellationToken.None)).IsSuccess);
     }
 
     private sealed class Issuer(string id, string permission) : IStructuredRecordIssuer

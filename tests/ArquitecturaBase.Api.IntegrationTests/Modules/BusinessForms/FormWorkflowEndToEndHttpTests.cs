@@ -36,7 +36,7 @@ public sealed partial class FormDraftEndpointsTests
         bool pendingFooter, bool untranslatedCatalogItem, bool pendingApprovedNotice, string expectedCulture)
     {
         using var author = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate]);
-        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
         using var decider = await OperatorAsync([BusinessFormsPermissions.ApprovalsDecide]);
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var deciderId = Guid.Parse(decider.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());

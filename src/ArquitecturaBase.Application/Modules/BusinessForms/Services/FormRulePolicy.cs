@@ -83,6 +83,21 @@ internal static class FormRulePolicy
     public static IReadOnlyList<FormActionResultDatum> Declared(FormRuleAction action, FormRuleOptionsResponse options) =>
         action.Kind == "IssueDocument" && options.Issuers?.FirstOrDefault(issuer => issuer.Id == action.IssuerId) is { } issuer
             ? issuer.ResultFields.Select(field => new FormActionResultDatum(issuer.Id, field.Key)).ToArray() : [];
+    /// <summary>Some notice of the rules names the answer of a question: any datum that is not the number, the reason or a result.</summary>
+    internal static bool CitesQuestionData(IEnumerable<FormRule> rules)
+    {
+        foreach (var text in rules.SelectMany(rule => rule.Actions).Where(action => action.Text is not null).SelectMany(action => action.Text!.Values))
+        {
+            for (var start = text.IndexOf('{'); start >= 0; start = text.IndexOf('{', start + 1))
+            {
+                var end = text.IndexOf('}', start);
+                if (end < 0) break;
+                var token = text[(start + 1)..end];
+                if (token is not ("número" or "number" or "motivo" or "reason") && !FormActionResultTokenPolicy.IsResult(token)) return true;
+            }
+        }
+        return false;
+    }
     // A datum of a result (RE1-A) is valid only when an earlier action of the same rule declares it.
     internal static bool ValidPlaceholders(string text, string culture, IReadOnlyList<CanonicalFormField> questions,
         IReadOnlyList<FormActionResultDatum> resultData)

@@ -7,6 +7,7 @@ public static class FormRuleErrors
     public static readonly Error RevisionNotFound = Error.NotFound("Forms.Rule.RevisionNotFound", "The rule revision was not found.");
     public static readonly Error RoleUnavailable = Error.Validation("Forms.Rule.RoleUnavailable", "The selected role is no longer available.");
     public static readonly Error IssuerUnavailable = Error.Validation("Forms.Rule.IssuerUnavailable", "The selected issuer is not available for this form.");
+    public static readonly Error RecordsReadRequired = Error.Forbidden("Forms.Rule.RecordsReadRequired", "Rules whose notices cite answers also need to see the responses.");
     public static readonly Error IssuerPermissionRequired = Error.Forbidden("Forms.Rule.IssuerPermissionRequired", "Rules that issue documents also need the permission of their issuer.");
     public static readonly Error PlaceholderInvalid = Error.Validation("Forms.Rule.PlaceholderInvalid", "The message contains an unknown or ambiguous placeholder.");
 }

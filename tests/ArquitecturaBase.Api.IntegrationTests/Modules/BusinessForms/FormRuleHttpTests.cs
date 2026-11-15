@@ -15,6 +15,25 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]
+    public async Task A_notice_that_cites_the_answer_of_a_question_also_needs_to_view_responses_and_one_without_data_does_not()
+    {
+        using var designer = await AdminAsync();
+        var created = await CreateAsync(designer,Payload("Avisos con datos"));
+        var id = created.GetProperty("definition").GetProperty("id").GetGuid();
+        var fieldId = created.GetProperty("identityMap").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
+        var route = $"/api/forms/definitions/{id}/rules";
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RulesManage,BusinessFormsPermissions.RecordsRead]);
+        object Body(long revision,string text) => new { expectedRevision = revision, rules = new[] { new { id = Guid.NewGuid(), @event = "Received", conditions = Array.Empty<object>(), actions = new[] { new { id = Guid.NewGuid(), kind = "NotifyAuthor", text = new { es = text }, includePdf = false } } } } };
+        using var refused = await manager.PostAsJsonAsync(route,Body(0,$"Recibimos {{número}}: {{{fieldId:D}}}"),Ct);
+        Assert.Equal(HttpStatusCode.Forbidden,refused.StatusCode);
+        Assert.Equal(FormRuleErrors.RecordsReadRequired.Code,(await refused.ReadJsonAsync()).GetProperty("code").GetString());
+        using var withoutData = await manager.PostAsJsonAsync(route,Body(0,"Recibimos {número}: {motivo}"),Ct);
+        Assert.Equal(HttpStatusCode.Created,withoutData.StatusCode);
+        using var allowed = await reader.PostAsJsonAsync(route,Body(1,$"Recibimos {{número}}: {{{fieldId:D}}}"),Ct);
+        Assert.Equal(HttpStatusCode.Created,allowed.StatusCode);
+    }
+    [Fact]
     public async Task Rule_routes_require_only_rule_management_and_an_authenticated_session()
     {
         using var anonymous = factory.CreateClient();
@@ -42,7 +61,7 @@ public sealed partial class FormDraftEndpointsTests
         var id = definition.GetProperty("id").GetGuid();
         var draftRevision = definition.GetProperty("revision").GetInt64();
         var route = $"/api/forms/definitions/{id}/rules";
-        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage,BusinessFormsPermissions.RecordsRead]);
         using var empty = await manager.GetAsync(route,Ct);
         Assert.Equal(HttpStatusCode.OK,empty.StatusCode);
         Assert.Equal(0,(await empty.ReadJsonAsync()).GetProperty("revision").GetInt64());
@@ -101,7 +120,7 @@ public sealed partial class FormDraftEndpointsTests
         var id = created.GetProperty("definition").GetProperty("id").GetGuid();
         var fieldId = created.GetProperty("identityMap").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
         var route = $"/api/forms/definitions/{id}/rules";
-        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage,BusinessFormsPermissions.RecordsRead]);
         var ruleId = Guid.NewGuid(); var actionId = Guid.NewGuid();
         object Body(long revision,string text) => new { expectedRevision = revision, rules = new[] { new { id = ruleId, @event = "Received", conditions = Array.Empty<object>(), actions = new[] { new { id = actionId, kind = "NotifyAuthor", text = new { es = text }, includePdf = false } } } } };
         var reference = $"Recibimos {{número}}: {{{fieldId:D}}}";
@@ -130,7 +149,7 @@ public sealed partial class FormDraftEndpointsTests
         var id = created.GetProperty("definition").GetProperty("id").GetGuid();
         var fieldId = created.GetProperty("identityMap").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
         var route = $"/api/forms/definitions/{id}/rules";
-        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage,BusinessFormsPermissions.RecordsRead]);
         var rule = new { id = Guid.NewGuid(), @event = "Received", conditions = Array.Empty<object>(), actions = new[] { new { id = Guid.NewGuid(), kind = "NotifyAuthor", text = new { es = "Recibimos {número}: {Nombre}" }, includePdf = false } } };
         using var saved = await manager.PostAsJsonAsync(route,new { expectedRevision = 0, rules = new[] { rule } },Ct);
         Assert.Equal(HttpStatusCode.Created,saved.StatusCode);
@@ -199,7 +218,7 @@ public sealed partial class FormDraftEndpointsTests
             }
             await db.SaveChangesAsync(Ct);
         });
-        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage,BusinessFormsPermissions.RecordsRead]);
         var route = $"/api/forms/definitions/{id}/rules/revisions";
         using var latest = await manager.GetAsync(route + "?pageSize=1", Ct);
         Assert.Equal(HttpStatusCode.OK, latest.StatusCode);

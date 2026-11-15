@@ -68,6 +68,8 @@ internal sealed class FormRuleService(IFormDraftRepository drafts, IFormRuleRepo
             var issuing = await access.MayIssueAsync(actor.Value, rules.Value.SelectMany(rule => rule.Actions).Where(action => action.Kind == "IssueDocument")
                 .Select(action => action.IssuerId), ct);
             if (issuing.IsFailure) return Result.Failure<long>(issuing.Error);
+            var citing = await access.MayCiteAnswersAsync(actor.Value, rules.Value, ct);
+            if (citing.IsFailure) return Result.Failure<long>(citing.Error);
             var ruleSet = BusinessFormRuleSet.Create(definitionId, (current?.Revision ?? 0) + 1, options.OriginalCulture,
                 FormDraftPolicy.Serialize(rules.Value), rules.Value.SelectMany(rule => rule.Actions).Any(action => action.Kind == "RequestApproval"),
                 FormDraftPolicy.Serialize(new FormVersionSchema(1, options.Questions)));

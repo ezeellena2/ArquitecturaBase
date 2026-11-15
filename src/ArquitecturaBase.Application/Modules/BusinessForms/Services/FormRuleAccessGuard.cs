@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -13,6 +14,14 @@ internal sealed class FormRuleAccessGuard(ICurrentUser currentUser, IPermissionS
     }
     public async Task<bool> StillAllowedAsync(Guid actor, CancellationToken cancellationToken) => currentUser.UserId == actor
         && await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RulesManage, cancellationToken);
+
+    /// <summary>
+    /// F5: a notice that cites the answers of a question carries response values, so whoever saves it needs «Ver respuestas» too.
+    /// A rule without data of questions is saved with the rules permission alone.
+    /// </summary>
+    public async Task<Result> MayCiteAnswersAsync(Guid actor, IEnumerable<FormRule> rules, CancellationToken cancellationToken) =>
+        !FormRulePolicy.CitesQuestionData(rules) || await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, cancellationToken)
+            ? Result.Success() : FormRuleErrors.RecordsReadRequired;
 
     /// <summary>
     /// H6: rules that issue a document leave the form issuing with legal effect, so whoever adds or saves them needs the permission
