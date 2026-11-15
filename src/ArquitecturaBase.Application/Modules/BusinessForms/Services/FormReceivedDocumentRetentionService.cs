@@ -17,24 +17,45 @@ internal sealed class FormReceivedDocumentRetentionService(IFormReceivedDocument
     IUnitOfWork unitOfWork, TimeProvider clock, ILogger<FormReceivedDocumentRetentionService> logger) : IFormReceivedDocumentRetentionService
 {
     public const int BatchSize = 100;
+    /// <summary>F40: how long one purge may keep taking batches, so a backlog never holds a worker for good; the next round goes on.</summary>
+    public static readonly TimeSpan MaxDuration = TimeSpan.FromMinutes(5);
 
+    // F40: batches follow each other, every one in its own transaction, while they come out full and the time cap allows.
     public Task<Result> PurgeExpiredAsync(CancellationToken cancellationToken) =>
-        OperationLog.RunAsync(logger, "PurgeExpiredFormReceivedDocuments", () => unitOfWork.ExecuteInTransactionAsync(async ct =>
+        OperationLog.RunAsync(logger, "PurgeExpiredFormReceivedDocuments", async () =>
         {
-            var now = clock.GetUtcNow().UtcDateTime;
-            // F9: a proposed one nobody reviewed becomes a discarded one (with its own ninety days) before the deletion looks at the discarded.
-            foreach (var documentId in await reader.ListStaleProposedIdsAsync(now, BatchSize, ct))
+            var started = clock.GetTimestamp();
+            while (true)
             {
-                await repository.LockAsync(documentId, ct);
-                if (await repository.GetAsync(documentId, ct) is { } stale && stale.IsStale(now)) stale.Expire(now);
+                var full = false;
+                var batch = await unitOfWork.ExecuteInTransactionAsync(async ct =>
+                {
+                    full = await PurgeBatchAsync(ct);
+                    return Result.Success();
+                }, CommitPolicy.OnSuccess, cancellationToken);
+                if (batch.IsFailure || !full || clock.GetElapsedTime(started) >= MaxDuration) return batch;
             }
-            foreach (var documentId in await reader.ListExpiredIdsAsync(now, BatchSize, ct))
-            {
-                await repository.LockAsync(documentId, ct);
-                if (await repository.GetAsync(documentId, ct) is { DeleteAfterUtc: { } deleteAfter } document && deleteAfter <= now
-                    && document.State is FormReceivedDocumentState.Discarded or FormReceivedDocumentState.Unclassified)
-                    repository.Remove(document);
-            }
-            return Result.Success();
-        }, CommitPolicy.OnSuccess, cancellationToken));
+        });
+
+    // One batch: the proposed ones nobody reviewed (F9) become discarded, with their own ninety days, and then the discarded and unclassified
+    // ones that expired go. True when either list came out full, so there may be more.
+    private async Task<bool> PurgeBatchAsync(CancellationToken ct)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        var stale = await reader.ListStaleProposedIdsAsync(now, BatchSize, ct);
+        foreach (var documentId in stale)
+        {
+            await repository.LockAsync(documentId, ct);
+            if (await repository.GetAsync(documentId, ct) is { } document && document.IsStale(now)) document.Expire(now);
+        }
+        var expired = await reader.ListExpiredIdsAsync(now, BatchSize, ct);
+        foreach (var documentId in expired)
+        {
+            await repository.LockAsync(documentId, ct);
+            if (await repository.GetAsync(documentId, ct) is { DeleteAfterUtc: { } deleteAfter } document && deleteAfter <= now
+                && document.State is FormReceivedDocumentState.Discarded or FormReceivedDocumentState.Unclassified)
+                repository.Remove(document);
+        }
+        return stale.Count >= BatchSize || expired.Count >= BatchSize;
+    }
 }
