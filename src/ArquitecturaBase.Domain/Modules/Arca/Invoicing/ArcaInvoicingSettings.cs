@@ -8,8 +8,14 @@ namespace ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 /// padrón no trae (ingresos brutos e inicio de actividades), que van en el PDF fiscal. Es configuración interna (ADR 0018):
 /// cada cambio guardado avanza la revisión, y quien guarda trae la que leyó.
 /// </summary>
-public sealed class ArcaInvoicingSettings : Entity
+public sealed class ArcaInvoicingSettings : Entity, IAuditable
 {
+    // H26: quién y cuándo lo creó o lo cambió; lo completa el interceptor de auditoría.
+    public DateTime CreatedAtUtc { get; private set; }
+    public Guid? CreatedBy { get; private set; }
+    public DateTime? ModifiedAtUtc { get; private set; }
+    public Guid? ModifiedBy { get; private set; }
+
     private const int GrossIncomeMaxLength = 30;
 
     private ArcaInvoicingSettings() { }

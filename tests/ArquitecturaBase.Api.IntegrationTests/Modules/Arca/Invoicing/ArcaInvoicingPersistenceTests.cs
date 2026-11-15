@@ -38,6 +38,10 @@ public sealed class ArcaInvoicingPersistenceTests(ApiFactory factory)
 
             var row = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaInvoicingReader>().FindSettingsAsync(connectionId, ct));
             Assert.Equal(new ArcaInvoicingSettingsRow(7, Revision: 1), row);
+            // H26: the invoicing settings are auditable: created and changed, by the interceptor.
+            var audited = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaInvoicingRepository>().GetSettingsAsync(connectionId, ct));
+            Assert.Equal((factory.Clock.GetUtcNow().UtcDateTime, (DateTime?)factory.Clock.GetUtcNow().UtcDateTime),
+                (audited!.CreatedAtUtc, audited.ModifiedAtUtc));
         }
         finally
         {

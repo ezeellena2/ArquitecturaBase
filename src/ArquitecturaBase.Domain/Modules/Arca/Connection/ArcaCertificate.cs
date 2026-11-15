@@ -8,8 +8,14 @@ namespace ArquitecturaBase.Domain.Modules.Arca.Connection;
 /// porque la clave queda atada a él. En el alta, cargar y promover lo vuelve el activo; en una renovación se promueve
 /// recién cuando el nuevo pasa la prueba.
 /// </summary>
-public sealed class ArcaCertificate : Entity
+public sealed class ArcaCertificate : Entity, IAuditable
 {
+    // H26: quién y cuándo lo creó o lo cambió; lo completa el interceptor de auditoría.
+    public DateTime CreatedAtUtc { get; private set; }
+    public Guid? CreatedBy { get; private set; }
+    public DateTime? ModifiedAtUtc { get; private set; }
+    public Guid? ModifiedBy { get; private set; }
+
     private ArcaCertificate(Guid id) : base(id) { }
 
     public Guid ConnectionId { get; private set; }

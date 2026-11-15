@@ -59,6 +59,8 @@ public sealed class ArcaConnectionPersistenceTests(ApiFactory factory)
             var pending = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaConnectionRepository>()
                 .GetCertificateAsync(connectionId, ArcaCertificateRole.Pending, ct));
             Assert.Equal("renovacion", pending?.Alias);
+            // H26: the certificate is auditable: the interceptor fills when it was created.
+            Assert.Equal((factory.Clock.GetUtcNow().UtcDateTime, (DateTime?)null), (pending!.CreatedAtUtc, pending.ModifiedAtUtc));
         }
         finally
         {
