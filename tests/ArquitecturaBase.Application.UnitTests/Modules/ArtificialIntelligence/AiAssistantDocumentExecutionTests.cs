@@ -211,7 +211,7 @@ public sealed class AiAssistantDocumentExecutionTests
         Assert.Equal(("fixture-document", 4), (result.Value.Provenance.ModelProfileId, result.Value.Provenance.ModelProfileVersion));
         Assert.Equal(2, f.Inner.Work.Commits);
         Assert.Empty(f.Inner.Store.Tools);
-        var mapped = new AiAssistantResponsePolicy(f.Inner.Protector, f.Inner.Clock, f.Catalog).Map((await f.Inner.Store.FindTurnAsync(f.Turn.Id, Ct))!, true, 0);
+        var mapped = new AiAssistantResponsePolicy(f.Inner.Protector, f.Inner.Clock, f.Catalog, NullLogger<AiAssistantResponsePolicy>.Instance).Map((await f.Inner.Store.FindTurnAsync(f.Turn.Id, Ct))!, true, 0);
         Assert.True(mapped.IsSuccess);
         Assert.Null(mapped.Value.Question);
         Assert.DoesNotContain("11/11/2026", JsonSerializer.Serialize(mapped.Value), StringComparison.Ordinal);

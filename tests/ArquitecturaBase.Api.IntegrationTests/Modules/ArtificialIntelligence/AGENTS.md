@@ -18,7 +18,8 @@ con su 202 y el turno con `attachment`; la lectura de un PDF y los turnos con es
 HomeAudioFiles, HomeAttachmentReader y DocumentReadingHandler.
 
 ConversationHistoryTests comprueba título común de list/detail, propietario distinto, retirada,
-cifrado corrupto, bloqueo y vencimiento sin cambiar el reloj compartido del factory hacia atrás.
+cifrado corrupto (esa fila `unavailable` en listado, detalle, página y turno, las demás visibles y
+el borrado, I8), bloqueo y vencimiento sin cambiar el reloj compartido del factory hacia atrás.
 AssistantReadCommandRecorder verifica las dos consultas de una página, sin respuestas/tools/N+1
 ni ordenamiento global con ROW_NUMBER. Es instrumentación de regresión, no un ensayo de capacidad.
 

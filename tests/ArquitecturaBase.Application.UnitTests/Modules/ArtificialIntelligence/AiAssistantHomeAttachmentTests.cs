@@ -505,7 +505,7 @@ public sealed class AiAssistantHomeAttachmentTests
             var guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, limits,
                 new FakeCurrentUser { UserId = ActorId }, catalog, new([], [], Files), FictionalCredentials.Policy);
             submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, Fixture.Clock);
-            Responses = new(Fixture.Protector, Fixture.Clock, catalog);
+            Responses = new(Fixture.Protector, Fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
             var attachments = new AiAssistantHomeAttachmentPolicy(Files, Reader, Fixture.Store, Fixture.Protector);
             Bootstrap = new(Fixture.Store, Fixture.Store, Fixture.Permissions, guard, Responses, catalog, limits, attachments);
             Reads = new(Fixture.Store, RequestValidators.For(new ListAiAssistantTurnsRequestValidator()), Fixture.Permissions, guard,

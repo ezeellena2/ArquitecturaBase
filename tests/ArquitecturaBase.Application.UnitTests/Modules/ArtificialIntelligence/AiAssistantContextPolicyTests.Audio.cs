@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
@@ -27,7 +28,7 @@ public sealed partial class AiAssistantContextPolicyTests
     {
         var host = new Host("es");
         var audioRequestId = Guid.NewGuid();
-        var policy = new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), new AiAssistantCapabilityCatalogPolicy([], host.Permissions));
+        var policy = new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), new AiAssistantCapabilityCatalogPolicy([], host.Permissions), NullLogger<AiAssistantResponsePolicy>.Instance);
         var mapped = policy.Map(host.Reader.Row with { AudioRequestId = audioRequestId, ProtectedTranscript = "transcript-content" }, true, 2);
         Assert.Equal("Current question", mapped.Value.Question);
         Assert.Equal(new AiAssistantTurnAudioResponse(audioRequestId, "Dictated request"), mapped.Value.Audio);
@@ -39,7 +40,7 @@ public sealed partial class AiAssistantContextPolicyTests
     {
         var host = new Host("es");
         var row = host.Reader.Row;
-        var policy = new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), new AiAssistantCapabilityCatalogPolicy([], host.Permissions));
+        var policy = new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), new AiAssistantCapabilityCatalogPolicy([], host.Permissions), NullLogger<AiAssistantResponsePolicy>.Instance);
         var conversation = new AiConversationRow(row.ConversationId, row.OwnerUserId, AiConversationState.Active, 1, row.SubmittedAtUtc, [], null,
             new AiConversationQuestionRow(row.Id, row.PayloadRevision, "blank-content", row.ContentExpiresAtUtc) { ProtectedTranscript = "transcript-content" });
         Assert.Equal("Dictated request", policy.MapTitle(conversation, true).Value);

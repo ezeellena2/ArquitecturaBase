@@ -106,7 +106,7 @@ public sealed class AiAssistantProposalLookupTests
         var later = row with { Id = Guid.NewGuid(), Ordinal = row.Ordinal + 1, ToolResults = row.ToolResults
             .Select(tool => tool.ToolId == ObservedReadAssistantSource.ProposalId ? tool with { ToolId = ReplacementSource.Id } : tool).ToArray() };
         var lookup = new AiAssistantProposalLookup(new Reader(row, [later, row]), scenario.Guard, new AiAssistantResponsePolicy(scenario.Protector,
-            scenario.Clock, new AiAssistantCapabilityCatalogPolicy([new ObservedReadAssistantSource(), new ReplacementSource()], scenario.Permissions)),
+            scenario.Clock, new AiAssistantCapabilityCatalogPolicy([new ObservedReadAssistantSource(), new ReplacementSource()], scenario.Permissions), NullLogger<AiAssistantResponsePolicy>.Instance),
             NullLogger<AiAssistantProposalLookup>.Instance);
         Assert.True((await lookup.FindAsync(row.OwnerUserId, row.RequestId, proposalId, Group, Ct)).Value.IsCurrent);
         Assert.False((await lookup.FindAsync(row.OwnerUserId, row.RequestId, proposalId, [ObservedReadAssistantSource.ProposalId, ReplacementSource.Id], Ct)).Value.IsCurrent);

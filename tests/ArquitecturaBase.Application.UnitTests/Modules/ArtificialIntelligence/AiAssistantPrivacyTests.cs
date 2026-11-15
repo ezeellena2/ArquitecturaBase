@@ -11,6 +11,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using Microsoft.Extensions.Logging.Abstractions;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
@@ -31,7 +32,7 @@ public sealed class AiAssistantPrivacyTests
         var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, RequestValidators.For(), permissions, guard,
-            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), limits, null!);
+            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance), limits, null!);
         var result = await policy.GetTurnAsync(reader.Row.RequestId, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Equal("blocked", result.Value.ContentAccess);
@@ -52,7 +53,7 @@ public sealed class AiAssistantPrivacyTests
         var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, RequestValidators.For(), permissions, guard,
-            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), limits, null!);
+            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance), limits, null!);
         var result = await policy.GetTurnAsync(reader.Row.RequestId, TestContext.Current.CancellationToken);
         Assert.Equal(AiAssistantErrors.Forbidden, result.Error);
         Assert.Equal(0, reader.Reads);

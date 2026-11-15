@@ -46,7 +46,7 @@ internal sealed class AssistantAudioExecutionFixture
         Claim = new(Turn.Id, Inner.ActorId, conversation.Id, Turn.RequestId, Turn.Fence, Turn.AttemptId!.Value, Turn.DeadlineAtUtc!.Value, "en");
         Catalog = new([Inner.Source], Inner.Permissions);
         Guard = new(Inner.Users, Inner.Permissions, [], Limits, new FakeCurrentUser(), Catalog, new(Inner.AudioProfiles, [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
-        var responses = new AiAssistantResponsePolicy(Inner.Protector, Inner.Clock, Catalog);
+        var responses = new AiAssistantResponsePolicy(Inner.Protector, Inner.Clock, Catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
         ContextPolicy = new(Inner.Store, Inner.Store, Guard, responses, new AiConnectionCandidatePolicy(new AudioSecret()), Catalog, Limits, Inner.Clock);
         Execution = new(ContextPolicy, Guard, Catalog, null!, Client, Limits, Inner.Clock, NullLogger<AiAssistantExecutionService>.Instance);
         Dispatch = new(Inner.Store, Inner.Work, new(Inner.Store, Inner.Store, Inner.Store, Guard, Catalog), Inner.Protector, Limits, Inner.Clock,

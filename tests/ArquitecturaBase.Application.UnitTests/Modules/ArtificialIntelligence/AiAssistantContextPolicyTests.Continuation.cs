@@ -21,7 +21,7 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.True((await fixture.Service.SubmitAsync(request, ct)).IsSuccess);
         var catalog = new AiAssistantCapabilityCatalogPolicy([fixture.Source], fixture.Permissions);
         var guard = new AiAssistantAccessGuard(fixture.Users, fixture.Permissions, fixture.Profiles, limits, new FakeCurrentUser { UserId = fixture.ActorId }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
-        var responses = new AiAssistantResponsePolicy(fixture.Protector, fixture.Clock, catalog);
+        var responses = new AiAssistantResponsePolicy(fixture.Protector, fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
         var dispatch = new AiAssistantDispatchService(fixture.Store, fixture.Work, new(fixture.Store, fixture.Store, fixture.Store, guard, catalog), fixture.Protector,
             limits, fixture.Clock, NullLogger<AiAssistantDispatchService>.Instance, new DisabledAssistantOperationCompletionSignal());
         var claimed = await dispatch.ClaimAsync(ct);
@@ -49,7 +49,7 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.True((await fixture.Service.SubmitAsync(request, ct)).IsSuccess);
         var catalog = new AiAssistantCapabilityCatalogPolicy([fixture.Source], fixture.Permissions);
         var guard = new AiAssistantAccessGuard(fixture.Users, fixture.Permissions, fixture.Profiles, limits, new FakeCurrentUser { UserId = fixture.ActorId }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
-        var responses = new AiAssistantResponsePolicy(fixture.Protector, fixture.Clock, catalog);
+        var responses = new AiAssistantResponsePolicy(fixture.Protector, fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
         var dispatch = new AiAssistantDispatchService(fixture.Store, fixture.Work, new(fixture.Store, fixture.Store, fixture.Store, guard, catalog), fixture.Protector,
             limits, fixture.Clock, NullLogger<AiAssistantDispatchService>.Instance, new DisabledAssistantOperationCompletionSignal());
         var claimed = await dispatch.ClaimAsync(ct);

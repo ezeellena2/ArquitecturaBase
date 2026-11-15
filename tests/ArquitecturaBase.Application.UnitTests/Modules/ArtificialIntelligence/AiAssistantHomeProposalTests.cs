@@ -94,7 +94,8 @@ public sealed class AiAssistantHomeProposalTests
         var closed = await scenario.Execution.AdvanceAsync(proposal.Context, Answer("proposal", "Armé la propuesta.", observed.Id), Ct);
         Assert.True((await scenario.Dispatch.CompleteAsync(scenario.Claim, closed.Value, Ct)).IsSuccess);
         var withoutOwner = new ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantResponsePolicy(scenario.Protector, scenario.Clock,
-            new ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantCapabilityCatalogPolicy([], scenario.Permissions));
+            new ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantCapabilityCatalogPolicy([], scenario.Permissions),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantResponsePolicy>.Instance);
         var mapped = withoutOwner.Map(scenario.Row(), true, 1);
         Assert.True(mapped.IsSuccess);
         Assert.Equal("Armé la propuesta.", mapped.Value.Answer!.Text);

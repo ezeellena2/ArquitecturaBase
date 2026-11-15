@@ -24,12 +24,11 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IRequestV
         var current = await permissions.GetPermissionsAsync(userId, cancellationToken);
         var rows = await WithTitleSpreadsheetsAsync(userId, page.Items, row => row.RequiredPermissions.All(current.Contains), cancellationToken);
         var items = new List<AiConversationSummaryResponse>();
+        // A conversation whose title cannot be read is marked unavailable and the others are still listed (I8).
         foreach (var row in rows)
         {
-            var canRead = row.RequiredPermissions.All(current.Contains);
-            var title = responsePolicy.MapTitle(row, canRead);
-            if (title.IsFailure) return title.Error;
-            items.Add(new(row.Id, row.Revision, title.Value, row.LastActivityAtUtc, canRead ? "allowed" : "blocked"));
+            var (title, access) = responsePolicy.Summary(row, row.RequiredPermissions.All(current.Contains));
+            items.Add(new(row.Id, row.Revision, title, row.LastActivityAtUtc, access));
         }
         return new PagedResult<AiConversationSummaryResponse>(items, page.Page, page.PageSize, page.TotalCount);
     }
@@ -43,11 +42,8 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IRequestV
         if (row is null) return AiAssistantErrors.NotFound;
         var canRead = await guard.CanReadAsync(userId, row.RequiredPermissions, cancellationToken);
         row = (await WithTitleSpreadsheetsAsync(userId, [row], _ => canRead, cancellationToken))[0];
-        var title = responsePolicy.MapTitle(row, canRead);
-        if (title.IsFailure) return title.Error;
-        return new AiConversationResponse(row.Id, row.Revision, title.Value,
-            canRead ? "allowed" : "blocked",
-            row.ActiveRequestId, row.LastActivityAtUtc);
+        var (title, access) = responsePolicy.Summary(row, canRead);
+        return new AiConversationResponse(row.Id, row.Revision, title, access, row.ActiveRequestId, row.LastActivityAtUtc);
     }
 
     // A first turn without written or dictated text is named after its spreadsheet: only those sealed copies come, in one more query.
@@ -73,13 +69,8 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IRequestV
         var page = await reader.ListTurnsAsync(userId, conversationId, request, cancellationToken);
         // Only the turn that brought a spreadsheet shows it, and only when the conversation may be read.
         var rows = canRead ? await AiAssistantAttachmentPolicy.WithOwnAttachmentsAsync(reader, userId, page.Items, cancellationToken) : page.Items;
-        var items = new List<AiAssistantTurnResponse>();
-        foreach (var row in rows)
-        {
-            var mapped = responsePolicy.Map(row, canRead, limits.PollingAfterSeconds);
-            if (mapped.IsFailure) return mapped.Error;
-            items.Add(mapped.Value);
-        }
+        // A turn that cannot be read is marked unavailable, without content, and the page still shows the others (I8).
+        var items = rows.Select(row => responsePolicy.MapReadable(row, canRead, limits.PollingAfterSeconds)).ToList();
         return new PagedResult<AiAssistantTurnResponse>(items, page.Page, page.PageSize, page.TotalCount);
     }
 
@@ -92,7 +83,7 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IRequestV
         if (row is null || row.ChannelId != "home") return AiAssistantErrors.NotFound;
         var canRead = await guard.CanReadAsync(userId, row.RequiredPermissions, cancellationToken);
         if (canRead) row = (await AiAssistantAttachmentPolicy.WithOwnAttachmentsAsync(reader, userId, [row], cancellationToken))[0];
-        return responsePolicy.Map(row, canRead, limits.PollingAfterSeconds);
+        return responsePolicy.MapReadable(row, canRead, limits.PollingAfterSeconds);
     }
 
 }

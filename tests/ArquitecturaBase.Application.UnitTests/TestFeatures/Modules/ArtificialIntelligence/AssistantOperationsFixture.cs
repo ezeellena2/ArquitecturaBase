@@ -56,7 +56,7 @@ internal sealed class AssistantOperationsFixture
         var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
             new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, Clock);
-        Service = new(Store, guard, submissions, Work, Store, new AiAssistantResponsePolicy(Protector, Clock, catalog), NullLogger<AiAssistantOperations>.Instance);
+        Service = new(Store, guard, submissions, Work, Store, new AiAssistantResponsePolicy(Protector, Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance), NullLogger<AiAssistantOperations>.Instance);
     }
 
     public AssistantOperationRequest Request(Guid? requestId = null) => new(requestId ?? Guid.NewGuid(), Context,

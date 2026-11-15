@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
@@ -8,6 +9,7 @@ using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Persistence
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -40,10 +42,14 @@ public sealed class AiAssistantConversationHistoryTests(ApiFactory factory)
         Assert.Empty((await after.ReadJsonAsync()).GetProperty("items").EnumerateArray());
     }
 
+    // I8: a row that cannot be decrypted is a state of that row, not of the page: the others are still seen and it can be removed.
     [Fact]
-    public async Task Corrupted_content_fails_but_blocked_and_expired_titles_do_not_attempt_decryption()
+    public async Task Unreadable_content_marks_only_its_row_and_blocked_and_expired_titles_do_not_attempt_decryption()
     {
         using var scenario = await AiAssistantTestScenario.CreateAsync(factory);
+        var readableRequestId = Guid.NewGuid();
+        var readable = (await scenario.SubmitAsync(readableRequestId, "Readable title")).GetProperty("conversationId").GetGuid();
+        using var readableCanceled = await scenario.Client.PostAsync($"/api/ai/assistant/turns/{readableRequestId}/cancel", null, Ct);
         var requestId = Guid.NewGuid();
         var accepted = await scenario.SubmitAsync(requestId, "Private original title");
         var id = accepted.GetProperty("conversationId").GetGuid();
@@ -53,18 +59,27 @@ public sealed class AiAssistantConversationHistoryTests(ApiFactory factory)
             var turn = await db.Set<AiAssistantTurn>().SingleAsync(turn => turn.ConversationId == id, Ct);
             turn.ProtectQuestion("invalid-ciphertext");
         });
-        using var corrupt = await scenario.Client.GetAsync("/api/ai/assistant/conversations", Ct);
-        Assert.False(corrupt.IsSuccessStatusCode);
-        Assert.Equal("Ai.Assistant.ContentUnavailable", (await corrupt.ReadJsonAsync()).GetProperty("code").GetString());
-        await factory.InTransactionAsync(async services => {
-            var conversation = await services.GetRequiredService<ApplicationDbContext>().Set<AiConversation>().SingleAsync(row => row.Id == id, Ct);
-            conversation.RequirePermissions(["source.permission.revoked"]);
-        });
-        using var blocked = await scenario.Client.GetAsync($"/api/ai/assistant/conversations/{id}", Ct);
-        Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
-        var blockedRow = await blocked.ReadJsonAsync();
-        Assert.Equal("blocked", blockedRow.GetProperty("contentAccess").GetString());
-        Assert.Equal("Conversación privada", blockedRow.GetProperty("title").GetString());
+
+        using var list = await scenario.Client.GetAsync("/api/ai/assistant/conversations", Ct);
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        var rows = (await list.ReadJsonAsync()).GetProperty("items").EnumerateArray()
+            .ToDictionary(row => row.GetProperty("conversationId").GetGuid(), row => (Title: row.GetProperty("title").GetString(), Access: row.GetProperty("contentAccess").GetString()));
+        Assert.Equal(("Readable title", "allowed"), rows[readable]);
+        Assert.Equal(("Conversación privada", "unavailable"), rows[id]);
+        using var detail = await scenario.Client.GetAsync($"/api/ai/assistant/conversations/{id}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        var detailRow = await detail.ReadJsonAsync();
+        Assert.Equal("unavailable", detailRow.GetProperty("contentAccess").GetString());
+        Assert.Equal("Conversación privada", detailRow.GetProperty("title").GetString());
+        using var turns = await scenario.Client.GetAsync($"/api/ai/assistant/conversations/{id}/turns?page=1&pageSize=20&sort=-ordinal", Ct);
+        Assert.Equal(HttpStatusCode.OK, turns.StatusCode);
+        var unreadableTurn = Assert.Single((await turns.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.Equal("unavailable", unreadableTurn.GetProperty("contentAccess").GetString());
+        Assert.Equal("canceled", unreadableTurn.GetProperty("state").GetString());
+        Assert.Equal(JsonValueKind.Null, unreadableTurn.GetProperty("question").ValueKind);
+        using var polled = await scenario.Client.GetAsync($"/api/ai/assistant/turns/{requestId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, polled.StatusCode);
+        Assert.Equal("unavailable", (await polled.ReadJsonAsync()).GetProperty("contentAccess").GetString());
 
         // Expiry is checked before decrypting, even if the key/payload is unavailable.
         {
@@ -76,9 +91,28 @@ public sealed class AiAssistantConversationHistoryTests(ApiFactory factory)
             Assert.NotNull(result);
             var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(result.FirstQuestion!.ContentExpiresAtUtc, TimeSpan.Zero));
             var title = await scenario.ScopeAsync(services => Task.FromResult(new ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantResponsePolicy(
-                services.GetRequiredService<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations.IAiConversationProtector>(), clock, services.GetRequiredService<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantCapabilityCatalogPolicy>()).MapTitle(result, true)));
+                services.GetRequiredService<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations.IAiConversationProtector>(), clock,
+                services.GetRequiredService<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantCapabilityCatalogPolicy>(),
+                NullLogger<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantResponsePolicy>.Instance).MapTitle(result, true)));
             Assert.Equal("Conversación privada", title.Value);
         }
+
+        // Blocked is decided before decrypting: the same unreadable row reads as blocked, not as unavailable.
+        await factory.InTransactionAsync(async services => {
+            var conversation = await services.GetRequiredService<ApplicationDbContext>().Set<AiConversation>().SingleAsync(row => row.Id == id, Ct);
+            conversation.RequirePermissions(["source.permission.revoked"]);
+        });
+        using var blocked = await scenario.Client.GetAsync($"/api/ai/assistant/conversations/{id}", Ct);
+        Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
+        var blockedRow = await blocked.ReadJsonAsync();
+        Assert.Equal("blocked", blockedRow.GetProperty("contentAccess").GetString());
+        Assert.Equal("Conversación privada", blockedRow.GetProperty("title").GetString());
+
+        // The panel removes it like any other.
+        using var removed = await scenario.Client.DeleteAsync($"/api/ai/assistant/conversations/{id}", Ct);
+        Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+        using var after = await scenario.Client.GetAsync("/api/ai/assistant/conversations", Ct);
+        Assert.Equal([readable], (await after.ReadJsonAsync()).GetProperty("items").EnumerateArray().Select(row => row.GetProperty("conversationId").GetGuid()));
     }
 
     [Fact]

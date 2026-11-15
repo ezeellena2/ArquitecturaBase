@@ -110,7 +110,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         Assert.True((await host.Service.CompleteAsync(host.Claim, selected.Value, Ct)).IsSuccess);
         Assert.Equal(AiAssistantTurnState.Completed, host.Store.Turn.State);
         var reloadedCodec = new RoundtripAssistantSource();
-        var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalogPolicy([reloadedCodec], host.Permissions)).Map(host.Row(), true, 1);
+        var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalogPolicy([reloadedCodec], host.Permissions), NullLogger<AiAssistantResponsePolicy>.Instance).Map(host.Row(), true, 1);
         Assert.True(read.IsSuccess);
         Assert.Null(read.Value.Answer);
         Assert.NotNull(read.Value.ObservedProposal);
@@ -136,7 +136,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         Assert.Null(advanced.Value.Proposal);
         Assert.True((await host.Service.CompleteAsync(host.Claim, advanced.Value, Ct)).IsSuccess);
         var mapped = new AiAssistantResponsePolicy(host.Protector, host.Clock,
-            new AiAssistantCapabilityCatalogPolicy([host.Source], host.Permissions)).Map(host.Row(), true, 1);
+            new AiAssistantCapabilityCatalogPolicy([host.Source], host.Permissions), NullLogger<AiAssistantResponsePolicy>.Instance).Map(host.Row(), true, 1);
         Assert.True(mapped.IsSuccess);
         Assert.NotNull(mapped.Value.Answer);
         Assert.Equal(advanced.Value.Answer.Kind, mapped.Value.Answer.Kind);
@@ -215,7 +215,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         var protectedEvidence = host.Protector.Protect(host.ActorId, host.Store.Conversation.Id, host.Claim.TurnId, "evidences", 1, "[]");
         Assert.True(host.Store.Turn.Complete(host.Claim.Fence, protectedResult, protectedEvidence, host.Clock.GetUtcNow().UtcDateTime).IsSuccess);
         var codec = new RoundtripAssistantSource();
-        var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalogPolicy([codec], host.Permissions)).Map(host.Row(), true, 1);
+        var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalogPolicy([codec], host.Permissions), NullLogger<AiAssistantResponsePolicy>.Instance).Map(host.Row(), true, 1);
         if (variant == "valid")
         {
             Assert.True(read.IsSuccess);

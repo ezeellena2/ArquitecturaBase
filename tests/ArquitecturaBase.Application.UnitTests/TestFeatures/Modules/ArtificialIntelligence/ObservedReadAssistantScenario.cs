@@ -105,7 +105,7 @@ internal sealed class ObservedReadAssistantScenario
                 new(Home ? "assistant_answer" : "assistant_proposal", "close", "{}")], [], null, 1500, 262144, 131072), [], [], 0, 0) { ExecutionProfile = Profile };
 
     public AiAssistantResponsePolicy ReloadedPolicy(ObservedReadAssistantSource codec) =>
-        new(Protector, Clock, new AiAssistantCapabilityCatalogPolicy([codec], Permissions));
+        new(Protector, Clock, new AiAssistantCapabilityCatalogPolicy([codec], Permissions), NullLogger<AiAssistantResponsePolicy>.Instance);
 
     private sealed class ForbiddenProvider : ILlmConversationClient
     {

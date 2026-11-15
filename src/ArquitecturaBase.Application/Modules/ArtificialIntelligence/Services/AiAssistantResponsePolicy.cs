@@ -8,13 +8,36 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Resources;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
-internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protector, TimeProvider timeProvider, AiAssistantCapabilityCatalogPolicy catalog)
+internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector protector, TimeProvider timeProvider, AiAssistantCapabilityCatalogPolicy catalog,
+    ILogger<AiAssistantResponsePolicy> logger)
 {
+    public const string UnavailableAccess = "unavailable";
     internal static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
     public DateTime ServerNowUtc => timeProvider.GetUtcNow().UtcDateTime;
+
+    // I8: content that cannot be read is a state of its row, not of the page: like a blocked one, the generic title and access
+    // «unavailable», so the others are seen and this one can be removed. Only the id is logged, never the content.
+    public (string Title, string Access) Summary(AiConversationRow row, bool canRead)
+    {
+        var title = MapTitle(row, canRead);
+        if (title.IsSuccess) return (title.Value, canRead ? "allowed" : "blocked");
+        LogUnreadableConversation(logger, row.Id);
+        return (AssistantTexts.Get("Conversation.Title"), UnavailableAccess);
+    }
+
+    // I8: a turn whose content cannot be read keeps its state, failure and usage, without content and with access «unavailable».
+    public AiAssistantTurnResponse MapReadable(AiAssistantTurnRow row, bool canRead, int pollingAfterSeconds)
+    {
+        var mapped = Map(row, canRead, pollingAfterSeconds);
+        if (mapped.IsSuccess) return mapped.Value;
+        LogUnreadableTurn(logger, row.Id, row.ConversationId);
+        // Without access nothing is decrypted, so this mapping cannot fail.
+        return Map(row, false, pollingAfterSeconds).Value with { ContentAccess = UnavailableAccess };
+    }
 
     public Result<string> MapTitle(AiConversationRow row, bool canRead)
     {
@@ -275,4 +298,10 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
     public string? Reveal(AiAssistantTurnRow row, string purpose, string ciphertext) =>
         protector.Unprotect(row.OwnerUserId, row.ConversationId, row.Id, purpose, row.PayloadRevision, ciphertext);
     public static string State(AiAssistantTurnState state) => state.ToString().ToLowerInvariant();
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The protected title of assistant conversation {ConversationId} cannot be read; it is shown as unavailable")]
+    private static partial void LogUnreadableConversation(ILogger logger, Guid conversationId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The protected content of assistant turn {TurnId} in conversation {ConversationId} cannot be read; it is left out as unavailable")]
+    private static partial void LogUnreadableTurn(ILogger logger, Guid turnId, Guid conversationId);
 }

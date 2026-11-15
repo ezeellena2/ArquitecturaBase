@@ -103,9 +103,11 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
             [.. page.Items.Where(t => t.Ordinal < turn.Ordinal && t.Ordinal > expiredThroughOrdinal && t.State == AiAssistantTurnState.Completed)], cancellationToken);
         foreach (var previous in earlier)
         {
-            var mapped = responsePolicy.Map(previous, true, limits.PollingAfterSeconds);
-            if (mapped.IsFailure) return mapped.Error;
-            if (mapped.Value.ContentAccess == "allowed" && (mapped.Value.Answer is not null || mapped.Value.ObservedProposal is not null)) history.Add(mapped.Value);
+            var mapped = responsePolicy.MapReadable(previous, true, limits.PollingAfterSeconds);
+            // I8: a turn that cannot be read is skipped as if it had expired: neither it nor the older history goes (newest first), and
+            // the response policy logs its id.
+            if (mapped.ContentAccess == AiAssistantResponsePolicy.UnavailableAccess) break;
+            if (mapped.ContentAccess == "allowed" && (mapped.Answer is not null || mapped.ObservedProposal is not null)) history.Add(mapped);
         }
         var historyMessages = AiAssistantHistoryPolicy.Messages(history, limits.HistoryCharacters, turn.Culture);
         if (historyMessages.IsFailure) return historyMessages.Error;

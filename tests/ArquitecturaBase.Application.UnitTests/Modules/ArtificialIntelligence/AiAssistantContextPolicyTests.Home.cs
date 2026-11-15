@@ -9,6 +9,7 @@ using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using Microsoft.Extensions.Logging.Abstractions;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
@@ -73,7 +74,7 @@ public sealed partial class AiAssistantContextPolicyTests
     // The bootstrap of the Home actor, without an owner that lets anyone attach: these cases look at the catalog and the microphone.
     private static AiAssistantBootstrapPolicy Bootstrap(Host host, AiAssistantAccessGuard guard, AiAssistantCapabilityCatalogPolicy catalog,
         AiAssistantLimits limits) => new(host.Reader, new ConnectionReader(), host.Permissions, guard,
-            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits,
+            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog, NullLogger<AiAssistantResponsePolicy>.Instance), catalog, limits,
             new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), new UnavailableStructuredAttachmentReader(), null!, null!));
 
     private sealed class BootstrapCatalogSource(IReadOnlyList<string> ids, IReadOnlyCollection<string>? offeredInHome = null) : IAssistantCapabilitySource

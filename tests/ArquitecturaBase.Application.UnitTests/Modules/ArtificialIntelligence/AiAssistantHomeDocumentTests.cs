@@ -642,7 +642,7 @@ public sealed class AiAssistantHomeDocumentTests
             var guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, limits, Current, catalog,
                 new(Fixture.AudioProfiles, Fixture.DocumentProfiles, Files), FictionalCredentials.Policy);
             submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, Fixture.Clock);
-            Responses = new(Fixture.Protector, Fixture.Clock, catalog);
+            Responses = new(Fixture.Protector, Fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
             var operations = new AiAssistantOperations(Fixture.Store, guard, submissions, Fixture.Work, Fixture.Store, Responses,
                 NullLogger<AiAssistantOperations>.Instance);
             Documents = new(operations, new AiAssistantHomeDocumentPolicy(Files, Reader, guard, Fixture.Store), guard, limits, Fixture.Clock,

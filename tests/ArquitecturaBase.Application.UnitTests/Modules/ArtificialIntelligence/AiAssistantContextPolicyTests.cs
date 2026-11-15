@@ -13,6 +13,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using Microsoft.Extensions.Logging.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
@@ -66,6 +67,7 @@ public sealed partial class AiAssistantContextPolicyTests
         public Guid UserId { get; }
         public Reader Reader { get; }
         public Protector Protector { get; } = new();
+        public FakeLogger<AiAssistantResponsePolicy> Log { get; } = new();
         public AiAssistantClaimResponse Claim { get; }
         public AiAssistantContextPolicy Policy { get; }
         // I15: a Home turn ends its current message with the time of the request and the zone of the profile.
@@ -94,7 +96,7 @@ public sealed partial class AiAssistantContextPolicyTests
             var guard = new AiAssistantAccessGuard(users, permissions, profiles, limits,
                 new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
             Guard = guard;
-            Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock, catalog),
+            Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock, catalog, Log),
                 new AiConnectionCandidatePolicy(new SecretProtector()), catalog, limits, clock);
         }
     }
@@ -102,10 +104,13 @@ public sealed partial class AiAssistantContextPolicyTests
     {
         public int Decryptions { get; private set; }
         public Dictionary<string, string> Contents { get; } = [];
+        // I8: ciphertexts the installation can no longer decrypt (a corrupted row or a key retired too early).
+        public HashSet<string> Unreadable { get; } = [];
         public string Protect(Guid ownerUserId, Guid conversationId, Guid turnId, string purpose, long payloadRevision, string plaintext) => throw new NotSupportedException();
         public string? Unprotect(Guid ownerUserId, Guid conversationId, Guid turnId, string purpose, long payloadRevision, string ciphertext)
         {
             Decryptions++;
+            if (Unreadable.Contains(ciphertext)) return null;
             if (Contents.TryGetValue(ciphertext, out var content)) return content;
             return ciphertext switch
             {

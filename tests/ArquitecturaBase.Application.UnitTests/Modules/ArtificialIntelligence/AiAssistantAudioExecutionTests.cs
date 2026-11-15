@@ -98,7 +98,8 @@ public sealed class AiAssistantAudioExecutionTests
         Assert.Equal(2, f.Inner.Work.Commits);
         Assert.Equal(0, f.Inner.Source.Executions);
         Assert.Empty(f.Inner.Store.Tools);
-        var mapped = new ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantResponsePolicy(f.Inner.Protector, f.Inner.Clock, f.Catalog)
+        var mapped = new ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantResponsePolicy(f.Inner.Protector, f.Inner.Clock, f.Catalog,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services.AiAssistantResponsePolicy>.Instance)
             .Map((await f.Inner.Store.FindTurnAsync(f.Turn.Id, Ct))!, true, 0);
         Assert.True(mapped.IsSuccess);
         Assert.DoesNotContain(audio.Text, JsonSerializer.Serialize(mapped.Value), StringComparison.Ordinal);
