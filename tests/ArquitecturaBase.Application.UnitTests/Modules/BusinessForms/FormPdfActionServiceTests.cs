@@ -25,6 +25,17 @@ public sealed class FormPdfActionServiceTests
         Assert.True(fixedCopy.Value.Design.IncludePhotos); Assert.Equal(1,fixedCopy.Value.DesignRevision);
     }
     [Fact]
+    public async Task Preparing_seals_the_zone_of_the_account_of_whoever_loaded_the_response()
+    {
+        var fixture=new FormPdfFixture(); var store=new MemoryPrivateFileStore();var accounts=new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts();
+        var record=fixture.RecordSnapshot();
+        var author=await accounts.CreateAsync(ArquitecturaBase.Domain.ValueObjects.Email.Create("autora.zona@example.com").Value,null,false,"Autora","es",TestContext.Current.CancellationToken,"Europe/Madrid");
+        var zones=new FormDashboardZonePolicy(accounts,new ArquitecturaBase.Application.UnitTests.TestDoubles.Auth.FakeSystemSettingsReader());
+        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble(),zones);
+        var prepared=await service.PrepareAsync(Guid.NewGuid(),record with{Response=record.Response with{Actor=new(author.Id,"Autora")}},TestContext.Current.CancellationToken);
+        Assert.Equal("Europe/Madrid",prepared.Value.TimeZoneId);
+    }
+    [Fact]
     public async Task Reconciliation_reads_partial_copies_without_rendering_and_only_missing_copies_are_generated()
     {
         var fixture=new FormPdfFixture(); var store=new MemoryPrivateFileStore();

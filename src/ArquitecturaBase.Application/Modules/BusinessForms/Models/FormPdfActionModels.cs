@@ -7,7 +7,7 @@ public sealed record FormPdfDesign(IReadOnlyDictionary<string, string> Name, IRe
 }
 
 public sealed record FormPdfActionSnapshotResponse(Guid RunId, Guid? DesignId, long DesignRevision, FormPdfDesign Design,
-    IReadOnlyList<string> Cultures, string AppName, FormAuthorResponse Author, FormActionDecisionSnapshot? Decision)
+    IReadOnlyList<string> Cultures, string AppName, FormAuthorResponse Author, FormActionDecisionSnapshot? Decision, string? TimeZoneId = null)
 {
     public override string ToString() => "FormPdfActionSnapshotResponse { Content = [REDACTED] }";
 }

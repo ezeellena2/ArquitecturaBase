@@ -73,6 +73,10 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
             var previous=work.PriorRecipients?.SingleOrDefault(item=>item.UserId==recipient.UserId&&item.ChannelId==channel.ChannelId);
             if(previous is not null&&(previous.Status.State is StructuredRecordActionState.Accepted or StructuredRecordActionState.NotApplicable
                 ||role&&!retried&&previous.Status.State==StructuredRecordActionState.Failed&&previous.Status.Review?.WasSent!=false)){recipients.Add(previous);continue;}
+            if(work.NoLongerInRole?.Contains(recipient.UserId)==true)
+            {
+                recipients.Add(new(recipient.UserId,recipient.DisplayName,channel.ChannelId,new(StructuredRecordActionState.NotApplicable,FormActionErrors.NoLongerInRole.Code)));continue;
+            }
             StructuredRecordActionResponse status;
             try
             {

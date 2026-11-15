@@ -63,7 +63,8 @@ public sealed record FormActionSnapshot(Guid? ApprovalRoleId, FormPdfActionSnaps
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? ReversesRunId=null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? VoidReason=null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? VoidedByUserId=null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? CopyBody=null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? CopyBody=null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? NoticeRoleId=null)
 { public override string ToString()=>"FormActionSnapshot { Content = [REDACTED] }"; }
 public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind,long Fence,bool ReconciliationOnly,bool RetryRequested,
     FormActionSnapshot Snapshot,IReadOnlyList<FormPdfArtifact> PdfArtifacts,StructuredRecordActionReview? DeliveryReview=null,Guid? DeliveryReviewRecipientUserId=null,IReadOnlyList<FormActionRecipientOutcome>? PriorRecipients=null,
@@ -77,6 +78,8 @@ public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind
     public StructuredIssueResponse? PriorIssue { get; init; }
     /// <summary>The summary the run last asked its author about: after one that failed, going on tries it again («Volver a probar»).</summary>
     public StructuredIssuePreview? PriorPreview { get; init; }
+    /// <summary>A notice to a role: who of its recipients is no longer in the role when it is sent; they are skipped as «No aplica».</summary>
+    public IReadOnlySet<Guid>? NoLongerInRole { get; init; }
     public override string ToString()=>"FormActionWorkResponse { Content = [REDACTED] }";
 }
 public sealed record FormActionOutcomeResponse(FormActionRunState State,string? FailureCode=null,bool CanRetry=false,FormPdfActionOutcomeResponse? Pdf=null,IReadOnlyList<FormActionRecipientOutcome>? Recipients=null,

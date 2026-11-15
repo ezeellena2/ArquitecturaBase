@@ -14,7 +14,8 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivateFileStore store, IFormPdfRenderer renderer,
-    IAppName appName, IFormResponseReader records, ILogger<FormPdfActionService> logger, IFormRecordResultReader resultReader) : IFormPdfActionService
+    IAppName appName, IFormResponseReader records, ILogger<FormPdfActionService> logger, IFormRecordResultReader resultReader,
+    FormDashboardZonePolicy? zones = null) : IFormPdfActionService
 {
     public Task<Result<FormPdfActionSnapshotResponse>> PrepareAsync(Guid runId, FormActionRecordRow record, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormPdfActionSnapshotResponse>>(logger, "PrepareFormPdfAction", async () =>
@@ -26,8 +27,10 @@ internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivate
             var original = current?.OriginalCulture ?? record.OriginalCulture;
             var cultures = FormPdfDesignPolicy.CompleteCultures(design, original, schema, captured.NameJson)
                 .Intersect(FormRecordReferencePolicy.CompleteCultures(record, design.QuestionIds.ToHashSet())).ToArray();
+            // Decision 4 (2026-11-14): the hours of the copy go in the zone of the account of whoever loaded the response, sealed here with its name.
+            var zone = zones is null ? null : (await zones.FindAsync(record.Response.Actor.UserId, cancellationToken)).Id;
             return new FormPdfActionSnapshotResponse(runId, current?.Id, current?.Revision ?? 0, design,
-                cultures, appName.Value, record.Response.Actor, record.Decision);
+                cultures, appName.Value, record.Response.Actor, record.Decision, zone);
         });
 
     public Task<Result<FormPdfActionOutcomeResponse>> ExecuteAsync(Guid recordId, FormPdfActionSnapshotResponse snapshot,

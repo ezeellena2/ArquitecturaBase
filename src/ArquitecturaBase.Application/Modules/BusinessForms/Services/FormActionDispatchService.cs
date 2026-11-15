@@ -9,7 +9,8 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IFormActionRunReader reader,IFormDraftRepository drafts,IFormRuleReader ruleReader,
-    IUnitOfWork unitOfWork,FormActionOutcomeRecorder outcomes,TimeProvider timeProvider,ILogger<FormActionDispatchService> logger):IFormActionDispatchService
+    IUnitOfWork unitOfWork,FormActionOutcomeRecorder outcomes,TimeProvider timeProvider,ILogger<FormActionDispatchService> logger,
+    IFormActionRecipientReader? recipients=null):IFormActionDispatchService
 {
     public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(CancellationToken cancellationToken)
     {
@@ -64,10 +65,17 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             var pdfOutcome=pdfRun.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(pdfRun.OutcomeJson);
             artifacts=pdfOutcome?.Pdf?.Artifacts??(pdfOutcome?.Issue?.Document is {} fiscal?FormActionOutcomeRecorder.Artifacts(fiscal):[]);
         }
+        // A notice to a role goes to who is in it when it is sent: whoever left since the response was captured is skipped as «No aplica».
+        IReadOnlySet<Guid>? left=null;
+        if(run.Kind=="NotifyRole"&&snapshot.NoticeRoleId is {} noticeRole&&recipients is not null)
+        {
+            var members=(await recipients.ListForRoleAsync(noticeRole,ct)).Select(member=>member.UserId).ToHashSet();
+            left=snapshot.Recipients.Select(recipient=>recipient.UserId).Where(id=>!members.Contains(id)).ToHashSet();
+        }
         return new FormActionWorkResponse(run.Id,run.RecordId,run.Kind,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
             run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null,run.DeliveryReviewRecipientUserId,
             run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Recipients,run.RetryRecipientUserId)
-            { RecordStands=stands,RecordEnteredInApp=issued?.EnteredInApp??true,PriorIssue=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Issue,
+            { NoLongerInRole=left,RecordStands=stands,RecordEnteredInApp=issued?.EnteredInApp??true,PriorIssue=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Issue,
                 PriorPreview=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).IssuePreview };
     }
     public Task<Result> CompleteAsync(FormActionWorkResponse work,FormActionOutcomeResponse outcome,CancellationToken cancellationToken)=>

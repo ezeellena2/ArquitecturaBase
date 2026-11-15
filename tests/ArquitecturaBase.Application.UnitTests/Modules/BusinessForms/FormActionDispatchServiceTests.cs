@@ -85,6 +85,32 @@ public sealed class FormActionDispatchServiceTests
         Assert.NotNull((await service.ReserveAsync(known.Id, CancellationToken.None)).Value);
     }
 
+    // Decision 4: a notice to a role goes to who is in it when it is sent; whoever left is skipped as «No aplica» and does not stop the rest.
+    [Fact]
+    public async Task A_role_notice_skips_as_not_applicable_who_left_the_role_since_the_capture()
+    {
+        var fixture = new FormActionFixture();
+        var rule = new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action("NotifyRole") with { RoleId = fixture.Rules.RoleId }]);
+        var stays = Guid.NewGuid(); var leaves = Guid.NewGuid();
+        fixture.Recipients.People.Clear();
+        fixture.Recipients.People[stays] = new(stays, "es", "Stays"); fixture.Recipients.People[leaves] = new(leaves, "es", "Leaves");
+        var (record, snapshot) = fixture.Capture([rule]);
+        fixture.Recipients.People[record.ActorUserId] = new(record.ActorUserId, "en", "Author");
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        fixture.Recipients.People.Remove(leaves);
+        var run = Assert.Single(fixture.Runs.Runs);
+        var work = (await Dispatch(fixture).ReserveAsync(run.Id, CancellationToken.None)).Value!;
+        Assert.Equal(new[] { leaves }, work.NoLongerInRole);
+        var channel = new FakeFormActionChannel();
+        var effect = new FormActionEffectService(fixture.Pdf, [channel], NullLogger<FormActionEffectService>.Instance, new FormRecordResultReaderDouble());
+        var outcome = await effect.ExecuteAsync(work, CancellationToken.None);
+        Assert.Equal(FormActionRunState.Completed, outcome.State);
+        var skipped = Assert.Single(outcome.Recipients!, item => item.UserId == leaves);
+        Assert.Equal((StructuredRecordActionState.NotApplicable, FormActionErrors.NoLongerInRole.Code), (skipped.Status.State, skipped.Status.FailureCode));
+        Assert.DoesNotContain(channel.Messages, message => message.RecipientUserId == leaves);
+        Assert.Contains(channel.Messages, message => message.RecipientUserId == stays);
+    }
+
     [Fact]
     public async Task What_needs_a_decision_is_not_consulted_on_its_own()
     {
@@ -482,7 +508,7 @@ public sealed class FormActionDispatchServiceTests
             new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()),
                 new FormRecordResultRecorder(results ?? new IgnoredResults(), fixture.Clock), fixture.Runs,
                 new FormIssuedCatalogItemRecorder(null!, null!, null!, null!, null!), emails ?? new FakeEmailQueue(), new FormRecordVoidRecorder(fixture.Runs)),
-            fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
+            fixture.Clock, NullLogger<FormActionDispatchService>.Instance, fixture.Recipients);
 
     private sealed class IgnoredResults : IFormRecordResultRepository
     {

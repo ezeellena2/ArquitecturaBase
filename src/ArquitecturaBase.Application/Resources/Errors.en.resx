@@ -380,6 +380,8 @@
   <data name="Forms.Action.NotFound" xml:space="preserve"><value>The action was not found.</value></data>
   <data name="Forms.Action.ApprovalAlreadyPending" xml:space="preserve"><value>This response already has a pending approval.</value></data>
   <data name="Forms.Action.ChannelUnavailable" xml:space="preserve"><value>The notification channel is unavailable.</value></data>
+  <data name="Forms.Action.NoLongerInRole" xml:space="preserve"><value>The person is no longer in the role.</value></data>
+  <data name="Forms.Action.NoLongerIssuable" xml:space="preserve"><value>That response can no longer be issued.</value></data>
   <data name="Forms.Action.RecipientUnavailable" xml:space="preserve"><value>The recipient has no confirmed channel available.</value></data>
   <data name="Forms.Action.EffectUnconfirmed" xml:space="preserve"><value>The action is unconfirmed. Check its status before retrying.</value></data>
   <data name="Forms.Action.MessageTooLong" xml:space="preserve"><value>The expanded message exceeds the notification limit. Use a shorter message and keep long answers in the PDF.</value></data>

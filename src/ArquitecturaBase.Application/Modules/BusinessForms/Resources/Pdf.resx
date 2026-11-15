@@ -10,8 +10,8 @@
   <data name="PhotoCountMany" xml:space="preserve"><value>{0} fotos</value></data>
   <data name="Yes" xml:space="preserve"><value>Sí</value></data>
   <data name="No" xml:space="preserve"><value>No</value></data>
-  <data name="Received" xml:space="preserve"><value>{0} (UTC) · Cargó {1}</value></data>
-  <data name="Approval" xml:space="preserve"><value>Aprobada por {0} · {1} (UTC)</value></data>
+  <data name="Received" xml:space="preserve"><value>{0} ({2}) · Cargó {1}</value></data>
+  <data name="Approval" xml:space="preserve"><value>Aprobada por {0} · {1} ({2})</value></data>
   <data name="ApprovalPlaceholder" xml:space="preserve"><value>Se completa al aprobarla</value></data>
   <data name="ApprovalLabel" xml:space="preserve"><value>Aprobación</value></data>
   <data name="Version" xml:space="preserve"><value>Versión {0} del formulario</value></data>

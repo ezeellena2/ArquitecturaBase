@@ -29,6 +29,9 @@ internal sealed class FormIssueDecisionRecorder(FormRecordAmendmentGuard access,
         var record = await runs.GetRecordAsync(run.RecordId, cancellationToken) ?? throw new InvalidOperationException("The action response is missing.");
         if (record.ActorUserId != actor) return current.CanRead ? FormDefinitionErrors.Forbidden : FormRecordErrors.NotFound;
         if (tapId is { } tap && run.DecisionTapId == tap) return issue ? Result.Success<(string Prefix, long Number)?>(null) : await VoidedAsync(record, cancellationToken);
+        // A button of «¿La emito?» on a response that no longer stands (voided or corrected in the app while it waited), from whoever loaded it
+        // and before any button decided: the channel answers that it can no longer be issued, once per tap. A foreign button stays ignored.
+        if (messageId is not null && !record.CanBeAmended && run.DecisionTapId is null) return FormActionErrors.NoLongerIssuable;
         // H21: a button of a message the run no longer waits on (the one before «Volver a probar») decides nothing, even with the same meaning.
         if (messageId is { } message && message != FormIssueConfirmationPolicy.CurrentMessageId(run)) return FormActionErrors.StateConflict;
         if (!record.CanBeAmended || run.State != FormActionRunState.Uncertain || run.FailureCode != FormActionErrors.AwaitingConfirmation.Code)

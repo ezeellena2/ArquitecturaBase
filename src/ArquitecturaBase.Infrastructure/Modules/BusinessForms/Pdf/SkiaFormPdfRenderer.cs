@@ -287,7 +287,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 y += 14;
             }
             var author = response.Actor.DisplayName ?? FormPdfTexts.Get("UnknownActor", culture);
-            var received = FormPdfTexts.Format("Received", culture, Date(response.SubmittedAtUtc), author);
+            var received = FormPdfTexts.Format("Received", culture, Date(response.SubmittedAtUtc), author, ZoneName);
             foreach (var text in small.Wrap(received, Width - Margin * 2))
             {
                 small.DrawText(canvas, text, Margin, y, muted);
@@ -483,7 +483,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             small.DrawText(canvas, FormPdfTexts.Get("ApprovalLabel", culture), Margin, y + 10, muted);
             y += 23;
             var text = preview ? FormPdfTexts.Get("ApprovalPlaceholder", culture) : FormPdfTexts.Format("Approval", culture,
-                snapshot.Decision!.ActorName ?? FormPdfTexts.Get("UnknownActor", culture), Date(snapshot.Decision.DecidedAtUtc));
+                snapshot.Decision!.ActorName ?? FormPdfTexts.Get("UnknownActor", culture), Date(snapshot.Decision.DecidedAtUtc), ZoneName);
             foreach (var part in body.Wrap(text, Width - Margin * 2))
             {
                 Ensure(LineHeight);
@@ -503,7 +503,10 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 y += 12;
             }
         }
-        private string Date(DateTime value) => FormPdfDates.Moment(value, culture);
+        // The hours are in the zone sealed in the snapshot (the account of whoever loaded the response), named next to them; without one, UTC.
+        private TimeZoneInfo Zone => snapshot.TimeZoneId is { } id && TimeZoneInfo.TryFindSystemTimeZoneById(id, out var zone) ? zone : TimeZoneInfo.Utc;
+        private string ZoneName => Zone == TimeZoneInfo.Utc ? "UTC" : snapshot.TimeZoneId!;
+        private string Date(DateTime value) => FormPdfDates.Moment(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(value, DateTimeKind.Utc), Zone), culture);
 
         public byte[] Finish()
         {

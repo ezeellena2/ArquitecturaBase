@@ -7,9 +7,11 @@ public static class FormActionErrors
     public static readonly Error NotFound = Error.NotFound("Forms.Action.NotFound","The action execution is unavailable.");
     public static readonly Error ApprovalAlreadyPending = Error.Conflict("Forms.Action.ApprovalAlreadyPending","An approval task is already open for this response.");
     public static readonly Error ChannelUnavailable = Error.Failure("Forms.Action.ChannelUnavailable","The notification channel is unavailable.");
+    public static readonly Error NoLongerInRole = Error.Failure("Forms.Action.NoLongerInRole","The person is no longer in the role.");
     public static readonly Error RecipientUnavailable = Error.Failure("Forms.Action.RecipientUnavailable","The notification recipient is unavailable.");
     public static readonly Error IssuerUnavailable = Error.Failure("Forms.Action.IssuerUnavailable","The document issuer is not installed.");
     public static readonly Error IssueDataUnavailable = Error.Failure("Forms.Action.IssueDataUnavailable","The form does not carry the bound data of its issuer.");
+    public static readonly Error NoLongerIssuable = Error.Conflict("Forms.Action.NoLongerIssuable","The response can no longer be issued.");
     public static readonly Error NotIssued = Error.Failure("Forms.Action.NotIssued","The document was not issued.");
     public static readonly Error AwaitingConfirmation = Error.Conflict("Forms.Action.AwaitingConfirmation", "The issuance waits for whoever loaded the response to confirm it.");
     public static readonly Error CopyNotQueued = Error.Failure("Forms.Action.CopyNotQueued","The copy could not be queued for sending by email.");

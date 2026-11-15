@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 
@@ -41,10 +42,11 @@ internal sealed class FormIssueConfirmationService(FormRecordAmendmentGuard acce
             // The channel hands back the id of the message the button came from: only the one the run waits on decides (H21).
             var decided = await unitOfWork.ExecuteInTransactionAsync(ct => decisions.DecideAsync(null, run, recipientUserId,
                 choice != FormIssueConfirmationPolicy.Skip, choice == FormIssueConfirmationPolicy.Retry, ct, tapId, runId), CommitPolicy.OnSuccess, cancellationToken);
-            if (decided.IsFailure) return decided.Error;
-            if (decided.Value is not { } voided) return Result.Success<string?>(null);
+            if (decided.IsFailure && decided.Error.Code != FormActionErrors.NoLongerIssuable.Code) return decided.Error;
+            if (decided.IsSuccess && decided.Value is not { } voided) return Result.Success<string?>(null);
             var culture = (await recipients.FindAsync(recipientUserId, cancellationToken))?.Culture is "en" ? "en" : "es";
-            return FormIssueConfirmationPolicy.Voided(voided.Prefix, voided.Number, culture);
+            return decided.IsFailure ? FormIssueConfirmationPolicy.NoLongerIssuable(culture)
+                : FormIssueConfirmationPolicy.Voided(decided.Value!.Value.Prefix, decided.Value.Value.Number, culture);
         });
         return replied.IsSuccess ? new(StructuredRecordActionReplyState.Applied, replied.Value) : Ignored;
     }

@@ -180,15 +180,20 @@ public sealed class FormIssueConfirmationReplyTests
         Assert.Equal((FormActionRunState.Uncertain, false), (host.Run.State, host.Run.DeliveryReviewRequested));
     }
 
-    // A response that no longer stands (voided in the app while «¿La emito?» waited) is neither issued nor voided again.
-    [Fact]
-    public async Task A_decision_on_a_response_that_no_longer_stands_does_not_apply()
+    // A response that no longer stands (voided in the app while «¿La emito?» waited) is neither issued nor voided again: the old tap of
+    // whoever loaded it is answered once, in their language, that it can no longer be issued; a foreign one stays ignored.
+    [Theory]
+    [InlineData("es", "Esa respuesta ya no se puede emitir.")]
+    [InlineData("en", "That response can no longer be issued.")]
+    public async Task A_decision_on_a_response_that_no_longer_stands_does_not_apply_and_is_answered(string culture, string expected)
     {
-        var host = new Host("es");
+        var host = new Host(culture);
         Assert.True(host.Record.Void(Guid.NewGuid(), "Se cargó mal", host.Fixture.Clock.GetUtcNow().UtcDateTime).IsSuccess);
 
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, Guid.NewGuid(), CancellationToken.None));
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
+        var expectedReply = new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, expected);
+        Assert.Equal(expectedReply, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(expectedReply, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, Guid.NewGuid(), FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
 
         Assert.Equal(("Se cargó mal", false), (host.Record.VoidReason, host.Run.DeliveryReviewRequested));
     }

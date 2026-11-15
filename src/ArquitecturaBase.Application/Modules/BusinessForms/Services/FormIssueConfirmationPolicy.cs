@@ -96,6 +96,9 @@ internal static class FormIssueConfirmationPolicy
     }
 
 
+    /// <summary>What a channel answers to an old tap of «¿La emito?» on a response that no longer stands.</summary>
+    public static string NoLongerIssuable(string culture) => FormResponseTexts.Get("Issue.NoLongerIssuable", culture);
+
     /// <summary>What a channel answers after «No emitir»: «No la emitimos. FAC-000012 quedó anulada.», the response named as the app names it.</summary>
     public static string Voided(string prefix, long number, string culture) =>
         string.Format(CultureInfo.InvariantCulture, FormResponseTexts.Get("Issue.Voided", culture), prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture));
