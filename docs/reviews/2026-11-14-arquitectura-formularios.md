@@ -55,7 +55,7 @@ Los hallazgos van numerados F1 a F48 y, aparte, B1 a B3; las piezas de la ficha 
 - **Fuera de los criterios:** el «¿La emito?» que se vuelve a preguntar puede ignorar el toque (B1) y, para el núcleo, una cuenta
   borrada conservaría sus permisos (B2, por confirmar con un test).
 - **Tus decisiones** ([decisiones](#decisiones-del-2026-11-14)): el 2026-11-14 elegiste las ocho recomendadas, del horizonte a los
-  números en claro de la bandeja; falta armar el plan de «Hoy».
+  números en claro de la bandeja; el plan de «Hoy» está en [arreglos de Formularios](../plans/2026-11-15-arreglos-de-formularios.md).
 
 ## Ficha
 
@@ -1281,9 +1281,8 @@ la regla de los documentos recibidos de la 6 y la 8, y la fila de la retención 
 
 - **Antes de la prueba integral:** F1, que es chico y cambia datos sin avisar.
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
-- **El plan de «Hoy»:** falta armarlo con esas decisiones, en `docs/plans` y anexado al plan que corresponda, como los de
-  WhatsApp, ARCA, el núcleo y la IA. Ahí van también las reglas que cambian y la lista de la retención para su fila de los planes
-  pendientes.
+- **El plan de «Hoy»:** [arreglos de Formularios](../plans/2026-11-15-arreglos-de-formularios.md), del 2026-11-15: 41 tareas en
+  siete etapas, sin programar. La etapa 1 (F1) va antes de la prueba integral, y el resto, después del reinicio del cupo.
 - **Lo que ya estaba anotado:** la retención de respuestas y la deuda menor de la Etapa 1, en [planes pendientes](../plans/README.md);
   el lock global, en WhatsApp H32.
 - **Repetir:** cuando el módulo cambie mucho o antes de subir de horizonte, comparando con ésta.
