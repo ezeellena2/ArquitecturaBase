@@ -155,6 +155,22 @@ public sealed class WhatsAppAssistantAuthoringTests
         Assert.StartsWith("No pude armarlo.", arranged.Host.Conversation.Outgoing.Single(row => row.Id == reply.OutgoingId).Body, StringComparison.Ordinal);
     }
 
+    // F22: a refusal the person can act on is said, not the general «No pude armarlo».
+    [Theory]
+    [InlineData("Forms.Definition.NameTaken", "Ya hay uno con ese nombre.")]
+    [InlineData("Forms.Catalog.NameTaken", "Ya hay uno con ese nombre.")]
+    [InlineData("Forms.Definition.CatalogUnavailable", "Un catálogo que usa la propuesta ya no está disponible.")]
+    [InlineData("Forms.Definition.Forbidden", "Tu cuenta no puede armar formularios ni catálogos.")]
+    public async Task An_owner_refusal_with_a_known_reason_replies_with_it(string code, string expected)
+    {
+        var arranged = await SummarizedAsync();
+        arranged.Owner.Refusal = code == "Forms.Definition.Forbidden" ? Error.Forbidden(code, "Forbidden.") : Error.Validation(code, "Refused.");
+        Tap(arranged, WhatsAppAssistantAuthoringReplyCodec.Create);
+        await arranged.Taps.ProcessTapAsync(arranged.Host.Context.Contact.Id, Ct);
+        var reply = arranged.Host.Requests.Rows.Single(row => row.SourceMessageId == arranged.Host.Reader.AuthoringTap!.Id);
+        Assert.StartsWith(expected, arranged.Host.Conversation.Outgoing.Single(row => row.Id == reply.OutgoingId).Body, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_tap_on_an_unknown_proposal_is_only_marked_and_without_a_tap_nothing_happens()
     {
@@ -193,6 +209,7 @@ public sealed class WhatsAppAssistantAuthoringTests
         public Guid CreatedId { get; } = Guid.NewGuid();
         public Guid CatalogId { get; } = Guid.NewGuid();
         public bool Failure { get; set; }
+        public Error? Refusal { get; set; }
         public Uri? Value => new("https://business.example.test/");
         // An import's path names the operation and the proposal, as the owner builds it.
         public StructuredAuthoringSummary? Summarize(Guid requestId, AssistantObservedProposal proposal, string culture) =>
@@ -203,6 +220,7 @@ public sealed class WhatsAppAssistantAuthoringTests
         public Task<Result<StructuredAuthoringCreatedResponse>> CreateAsync(StructuredAuthoringProposalRequest request, CancellationToken ct)
         {
             Assert.False(host.UnitOfWork.InTransaction);
+            if (Refusal is { } refusal) return Task.FromResult(Result.Failure<StructuredAuthoringCreatedResponse>(refusal));
             if (Failure) return Task.FromResult(Result.Failure<StructuredAuthoringCreatedResponse>(WhatsAppAssistantErrors.Unavailable));
             Created.Add(request);
             return Task.FromResult(Result.Success(new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Form, CreatedId, "Parte de lluvias", $"/formularios/{CreatedId:D}")));

@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
@@ -38,8 +39,18 @@ internal sealed class WhatsAppAssistantAuthoringPolicy(IWhatsAppAssistantReader 
         if (!await reader.ExistsCurrentLinkAsync(reference, ct)) return null;
         var created = await authoring.CreateAsync(new(requestId, context, proposal, provenance), ct);
         return new(reference, created.IsSuccess ? WhatsAppAssistantAuthoringText.Created(created.Value, culture, publicOrigin)
-            : WhatsAppAssistantAuthoringText.Text("AuthoringNotCreated", culture), culture, null);
+            : WhatsAppAssistantAuthoringText.Text(RefusalText(created.Error), culture), culture, null);
     }
+
+    // F22: the reasons the person can act on (a name taken, a catalog the proposal uses that is gone, a missing permission) are said;
+    // any other failure keeps the general text.
+    private static string RefusalText(Error error) => error.Code switch
+    {
+        "Forms.Definition.NameTaken" or "Forms.Catalog.NameTaken" => "AuthoringNameTaken",
+        "Forms.Definition.CatalogUnavailable" or "Forms.Record.CatalogUnavailable" => "AuthoringCatalogUnavailable",
+        _ when error.Type == ErrorType.Forbidden => "AuthoringNoPermission",
+        _ => "AuthoringNotCreated",
+    };
 }
 
 internal sealed record WhatsAppAssistantAuthoringReply(WhatsAppAssistantReferenceRow Reference, string Body, string Culture, Guid? ChangeRequestId)

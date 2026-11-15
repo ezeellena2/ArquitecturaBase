@@ -18,6 +18,8 @@
   <data name="AuthoringCatalogCreated" xml:space="preserve"><value>Done: I built the catalog {0}. Review and activate it from the app: {1}</value></data>
   <data name="AuthoringReplaced" xml:space="preserve"><value>That proposal changed. Use the buttons of the latest one.</value></data>
   <data name="AuthoringNotCreated" xml:space="preserve"><value>I could not build it. Tap "Change something" and tell me what to change, or build it from the app.</value></data>
+  <data name="AuthoringNameTaken" xml:space="preserve"><value>One with that name already exists. Tap "Change something" and tell me another name, or build it from the app.</value></data>
+  <data name="AuthoringCatalogUnavailable" xml:space="preserve"><value>A catalog the proposal uses is no longer available. Tap "Change something" and tell me what to change, or build it from the app.</value></data>
   <data name="AuthoringNoPermission" xml:space="preserve"><value>Your account cannot build forms or catalogs. Ask whoever manages the system.</value></data>
   <data name="AuthoringFormExists" xml:space="preserve"><value>For now I do not change forms that already exist. You can change it from the app: {0}</value></data>
   <data name="AuthoringCatalogExists" xml:space="preserve"><value>For now I do not change catalogs that already exist. You can change it from the app: {0}</value></data>

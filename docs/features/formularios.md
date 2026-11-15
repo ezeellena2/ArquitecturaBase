@@ -600,6 +600,7 @@ recibe documentos con las tareas 8 y 9.
   con las mismas definiciones; mientras WhatsApp no reciba documentos propone lo mismo que la 1, y su resumen (IA3-A) es el de
   la 1. La 1 sigue registrada: sus turnos se leen y sus tarjetas y resúmenes crean, y las dos se reemplazan entre sí como una
   capacidad.
+- **Por WhatsApp, si crear falla (F22).** El canal dice el motivo cuando la persona puede actuar: el nombre repetido (formulario o catálogo), un catálogo de la propuesta que ya no está disponible o la falta de permiso; cualquier otra falla conserva «No pude armarlo».
 - **Crear.** «Crear borrador», en Inicio y por WhatsApp, acepta las dos versiones (DOC6 crea con la misma regla): la 2 crea
   el formulario de la 1 con la lectura prendida y su «Cómo reconocerlo», sin cruces. Las muestras y el estándar nunca se
   guardan, y la evidencia del borrador sólo dice que la propuesta traía una lectura: el texto queda en el borrador, que se edita.
