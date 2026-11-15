@@ -195,7 +195,9 @@ hacer pasar una calificación.
 
 | Clave bajo `ArtificialIntelligence:Assistant` | Valor inicial, aún propuesto para piloto |
 | --- | --- |
-| `Limits:ActorDailyQuota` / `InstallationDailyQuota` | 10 por actor, canal y propósito / 100 para toda la instalación, por día UTC |
+| `Limits:ActorDailyQuota` / `InstallationDailyQuota` | 10 por actor, canal y propósito / 100 para toda la instalación, por día UTC (se renuevan a las 00:00 UTC; en Argentina, a las 21) |
+| `Limits:DocumentActorDailyQuota` / `DocumentInstallationDailyQuota` | 10 lecturas de documentos por persona en todos los canales / 50 para toda la instalación, por día UTC y aparte de las anteriores |
+| `Limits:DocumentOutputTokens` / `MaximumReadingCharacters` | 8192 / 20000, los techos del código: sólo se pueden bajar |
 | `Limits:PendingCapacity` / `RunningCapacity` | 50 / 4 para toda la instalación, entre réplicas |
 | `Limits:RetentionDays` | 30 desde cada turno |
 | `Limits:QuestionCharacters` / `HistoryTurns` / `HistoryCharacters` | 4000 / 12 / 24000 |
@@ -218,6 +220,40 @@ limit HTTP `ArtificialIntelligence:RateLimiting:AssistantSubmitPermitLimit` part
 operador/réplica; es distinto de la cuota distribuida. Ninguno calcula gasto: configurá límites
 y alertas en la cuenta del proveedor. Retención/cuotas y habilitación de modelos requieren la
 calibración del piloto; las pruebas con handlers falsos no los convierten en premisas operativas.
+
+### Máximo diario en tokens
+
+El motor no conoce precios ni corta por monto: el gasto se limita en la cuenta del proveedor. Lo que sí está acotado es
+cuánto le puede pedir la instalación en un día UTC, por las cuotas y los techos de cada turno. Con los valores por
+defecto:
+
+| Qué | Cuenta | Máximo por día |
+| --- | --- | --- |
+| Llamadas de texto | `InstallationDailyQuota` × `ProviderSteps` = 100 × 5 | 500 llamadas |
+| Entrada de texto | 500 × `ContextBytes` (131.072 bytes, el cuerpo entero de cada llamada: instrucciones, herramientas, historia, archivo y resultados) | 65.536.000 bytes: hasta 65,5 millones de tokens, unos 22 millones a 3 bytes por token |
+| Salida de texto | 500 × `OutputTokens` (4.096 por llamada, razonamiento incluido) | 2.048.000 tokens |
+| Lecturas de documentos | `DocumentInstallationDailyQuota` × páginas = 50 × 10 (una llamada por lectura) | 500 páginas de entrada |
+| Salida de las lecturas | 50 × `DocumentOutputTokens` (8.192) | 409.600 tokens |
+| Audios | ocupan lugares de las 100 de `InstallationDailyQuota`: una llamada por audio, de hasta 1.000.000 bytes en Inicio y en WhatsApp | se cobran por duración |
+
+- **Texto:** la cuota de la instalación cuenta juntos los turnos de Inicio y de los canales (también las lecturas para
+  otro formulario y las relecturas de Formularios) y los audios, así que el peor caso en tokens es que las 100 sean de
+  texto, con los cinco pasos y el cuerpo lleno. Un token ocupa al menos un byte: 65,5 millones es el techo de la
+  entrada, y unos 22 millones, una estimación con el español y el JSON del pedido. La cuota por persona no sube ese
+  techo.
+- **Documentos:** la entrada de una lectura depende del modelo de su perfil, que cuenta cada página como una imagen en
+  alta resolución (y un PDF suma su texto): multiplicá las 500 páginas por lo que su proveedor cobra una página.
+- **Total:** hasta 65,5 millones de tokens de entrada de texto (unos 22 millones), 500 páginas de documentos y
+  2.457.600 tokens de salida (2.048.000 + 409.600), más la duración de los audios.
+- **Fuera de las cuotas** quedan sólo la prueba de conexión, un pedido breve que hace a mano quien administra
+  (`TestPermitLimit`, 4 por minuto y persona), y el catálogo de modelos, que no genera.
+- **Con otros valores**, la cuenta es la misma: `InstallationDailyQuota × ProviderSteps × ContextBytes` de entrada y
+  `InstallationDailyQuota × ProviderSteps × OutputTokens` de salida, más `DocumentInstallationDailyQuota × 10` páginas y
+  `DocumentInstallationDailyQuota × DocumentOutputTokens` de salida. Las cuotas no tienen techo en la validación:
+  subirlas sube el máximo en la misma proporción.
+
+Con ese máximo y el precio del modelo elegido, configurá en la cuenta del proveedor (OpenAI o Anthropic) una alerta de
+gasto y, si la cuenta lo permite, un límite mensual: es el único freno por monto.
 
 ### Perfil de transcripción con la misma conexión
 
