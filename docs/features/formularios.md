@@ -448,7 +448,7 @@ La lectura del historial observa un lote de estados y receipts locales por canal
 
 ## Indicación de ofrecimiento — Etapa 5
 
-«Cuándo lo ofrece el asistente» es un texto original opcional de hasta1000 caracteres dentro de «El formulario». Se recorta al guardar; vacío significa que no se ofrece. Usa Guardar borrador, la misma revisión y el mismo recibo; el conflicto conserva el valor para revisión y no guarda de nuevo sin una acción explícita. No se traduce por cambiar el idioma de edición.
+«Cuándo lo ofrece el asistente» es un texto original opcional de hasta1000 caracteres dentro de «El formulario». Se recorta al guardar; vacío significa que no se ofrece. Usa Guardar borrador, la misma revisión y el mismo recibo; el conflicto conserva el valor para revisión y no guarda de nuevo sin una acción explícita. No se traduce por cambiar el idioma de edición. La configuración del asistente lista como máximo 100 formularios publicados en un canal: los primeros por nombre en el idioma de quien mira (el original si falta la traducción), cortados en la consulta después de ordenar (F48); con más de 100, los últimos nombres no se ven aunque el negocio los tenga.
 
 La indicación pertenece a la definición actual: no se copia al esquema de preguntas, al snapshot de una versión ni al cuerpo o la huella de publicación. Guardarla rige sin republicar. Las preguntas y su publicación siguen la [regla de original obligatorio](#idioma-original-y-traducción-opcional--2026-10-19). La selección del asistente debe leer preguntas de la versión publicada y la indicación vigente, sin usar preguntas del borrador.
 

@@ -17,8 +17,19 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
         await PublishedCandidates(Active().Where(version => definitionIds.Contains(version.DefinitionId))).ToListAsync(cancellationToken);
     public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListAssistantAsync(CancellationToken cancellationToken) =>
         await PublishedCandidates(Assistant()).Take(101).ToListAsync(cancellationToken);
-    public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListChannelFormsAsync(CancellationToken cancellationToken) =>
-        await PublishedCandidates(Active()).Take(101).ToListAsync(cancellationToken);
+    // The most forms the assistant's settings list; the first ones by name in the asker's language (F48), so the cut leaves out the
+    // last names and not the newest forms.
+    public const int ChannelFormsLimit = 100;
+    public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListChannelFormsAsync(string culture, CancellationToken cancellationToken) =>
+        await ChannelForms(culture).ToListAsync(cancellationToken);
+    private IQueryable<FormAssistantCandidateRow> ChannelForms(string culture)
+    {
+        var nameColumn = culture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        var originalColumn = culture == "en" ? "DisplayNameEs" : "DisplayNameEn";
+        return PublishedCandidates(Active().OrderBy(version => string.IsNullOrEmpty(EF.Property<string>(version, nameColumn))
+                ? EF.Property<string>(version, originalColumn) : EF.Property<string>(version, nameColumn))
+            .ThenBy(version => version.DefinitionId).Take(ChannelFormsLimit));
+    }
     public Task<FormAssistantCandidateRow?> FindAssistantAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
         PublishedCandidates(Assistant().Where(version => version.DefinitionId == definitionId && version.Id == versionId)).SingleOrDefaultAsync(cancellationToken);
     private IQueryable<BusinessFormVersion> Assistant() => Active().Where(version =>

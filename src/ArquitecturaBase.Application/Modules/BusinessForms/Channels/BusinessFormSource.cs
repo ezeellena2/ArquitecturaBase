@@ -46,7 +46,7 @@ internal sealed class BusinessFormSource(IFormSelectionReader reader, IPermissio
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (culture is not ("es" or "en")) return [];
-        var rows = await reader.ListChannelFormsAsync(cancellationToken);
+        var rows = await reader.ListChannelFormsAsync(culture, cancellationToken);
         var order = StringComparer.Create(CultureInfo.GetCultureInfo(culture), ignoreCase: true);
         return [.. rows.Select(row => new StructuredAssistantFormRow(row.DefinitionId, Name(row.NameJson, row.Culture, culture),
                 string.IsNullOrWhiteSpace(row.OfferWhen) ? null : row.OfferWhen.Trim()))

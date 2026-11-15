@@ -60,7 +60,7 @@ internal sealed class FormAssistantFixture : IFormSelectionReader, IFormMissingR
     public Task<IReadOnlyList<FormAssistantCandidateRow>> ListAssistantAsync(CancellationToken ct)
     { Reads++; OnRead?.Invoke(); return Task.FromResult<IReadOnlyList<FormAssistantCandidateRow>>(Rows.ToArray()); }
     public List<FormAssistantCandidateRow> ChannelOnlyRows { get; } = [];
-    public Task<IReadOnlyList<FormAssistantCandidateRow>> ListChannelFormsAsync(CancellationToken ct)
+    public Task<IReadOnlyList<FormAssistantCandidateRow>> ListChannelFormsAsync(string culture, CancellationToken ct)
     { Reads++; OnRead?.Invoke(); return Task.FromResult<IReadOnlyList<FormAssistantCandidateRow>>([.. Rows, .. ChannelOnlyRows]); }
     public Task<FormAssistantCandidateRow?> FindAssistantAsync(Guid definitionId, Guid versionId, CancellationToken ct)
     { Reads++; OnRead?.Invoke(); return Task.FromResult(Rows.SingleOrDefault(row => row.DefinitionId == definitionId && row.VersionId == versionId)); }

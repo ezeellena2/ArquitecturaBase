@@ -1,4 +1,5 @@
 using System.Reflection;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -54,6 +55,26 @@ public sealed class FormSelectionQueryTests
         Assert.Contains("\"DeactivatedAtUtc\" IS NULL", sql, StringComparison.Ordinal);
         Assert.Contains("\"OfferWhen\" IS NOT NULL", sql, StringComparison.Ordinal);
         Assert.Contains("\"OfferWhen\" <> ''", sql, StringComparison.Ordinal);
+    }
+
+    // F48: the assistant's settings list the first 100 forms by name in the asker's language, cut in SQL after ordering, not the
+    // first 101 by id.
+    [Theory]
+    [InlineData("es", "DisplayNameEs")]
+    [InlineData("en", "DisplayNameEn")]
+    public void The_assistant_form_list_is_cut_after_ordering_by_name_in_the_askers_language(string culture, string column)
+    {
+        using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var query = Assert.IsAssignableFrom<IQueryable<FormAssistantCandidateRow>>(typeof(FormSelectionReader)
+            .GetMethod("ChannelForms", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(new FormSelectionReader(db), [culture]));
+
+        var sql = query.ToQueryString();
+
+        var order = sql.IndexOf("ORDER BY", StringComparison.Ordinal);
+        Assert.True(order >= 0 && order < sql.IndexOf("LIMIT", StringComparison.Ordinal), sql);
+        Assert.Contains(column, sql[order..sql.IndexOf("LIMIT", StringComparison.Ordinal)], StringComparison.Ordinal);
+        Assert.Equal(100, FormSelectionReader.ChannelFormsLimit);
     }
 
     private static string QuerySql(string method)
