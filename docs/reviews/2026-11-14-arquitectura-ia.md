@@ -384,6 +384,9 @@ cambiarla lo decidís vos.
 - **Arreglo:** en el ejecutor, una excepción de la base no cancelada se vuelve un resultado fallido con un log que nombre la
   capacidad, la versión y el turno: una lectura queda «no disponible» y una propuesta corta con un código propio; el
   coordinador usa `ProviderUnavailable` sólo para lo que salió del proveedor. Con su test. Chico.
+- **Arreglado el 2026-11-15 en 69ec0c45:** el ejecutor convierte una excepción de la base de la cadena en `System.Query.Unavailable`
+  y la registra con su tipo y su `SqlState` (en Error si no es transitoria); la propuesta corta con
+  `Ai.Assistant.ExecutionFailed`, y en WhatsApp responder o redactar exige haber leído el agente en el turno.
 
 #### I6. El turno no distingue una clave revocada, un cupo agotado ni un modelo retirado, y llama «incierto» a lo que no salió
 
@@ -413,6 +416,10 @@ cambiarla lo decidís vos.
   después de varios rechazos es opcional para hoy (mediano; para que valga entre copias, guardado en la fila de la
   conexión). **Decidido el 2026-11-14:** se clasifica por estado y el corte queda para más adelante
   ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15 en cd4b21db:** por estado, sin leer el cuerpo: 401 y 403 dan `ProviderCredentialRejected`, 402 y
+  429 `ProviderLimited`, 400 y 404 `ProviderModelRejected`; la resolución de nombres, la conexión y el TLS, con un plazo de
+  conexión de 10 segundos, dan `ProviderUnavailable` (nada salió); el estado va a `LogProviderFailed`. Vale para texto, audio
+  y documentos.
 
 #### I7. Una clave guardada ilegible deja al asistente cobrando cupo sin poder responder, y la pantalla dice «error inesperado»
 
@@ -436,6 +443,10 @@ cambiarla lo decidís vos.
 - **Arreglo:** que `CredentialUnavailable` llegue legible, con «reemplazá la clave»; que la disponibilidad pruebe el descifrado
   (local, sin proveedor) para no aceptar turnos que no pueden andar; y el buscador de lugares como capacidad apagada sin clave.
   Chico.
+- **Arreglado el 2026-11-15 en a55bb418 y 80cd3f17 (front 6b8183c5):** `CredentialUnavailable` es un 409 que manda a
+  «Reemplazar clave»; la disponibilidad prueba el descifrado después de los controles en memoria, una vez por pedido y sin
+  texto en claro, y una clave ilegible da `notConfigured` y no acepta turnos; un turno ya aceptado cierra como
+  `Ai.Assistant.Unavailable`. Sin clave de Google, `place-search` no se publica y la búsqueda da 409.
 
 #### I8. Una conversación ilegible deja sin historial a su dueño y le gasta el cupo
 
@@ -452,6 +463,10 @@ cambiarla lo decidís vos.
   (`configurar-ia.md:95-96`).
 - **Arreglo:** que lo ilegible sea estado de la fila y no de la página: título genérico y acceso «no disponible», como lo
   bloqueado; el contexto lo saltea como vencido, con un log; se puede borrar; y el test exige ver las demás. Chico.
+- **Arreglado el 2026-11-15 en a57d86f7 y e7d90a6e (front b6b90091 y 912d5182):** sólo lo que no se descifra queda
+  `unavailable`, fila por fila, con un aviso por pedido que lleva la cantidad y el primer id; el contexto y el archivo
+  heredado lo saltean como vencido, y otras fallas cortan como antes. Inicio muestra los turnos legibles y deja borrar la
+  conversación.
 
 #### I9. Cuarenta subidas grandes a la vez pueden voltear una copia chica
 

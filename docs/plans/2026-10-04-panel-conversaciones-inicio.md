@@ -191,6 +191,14 @@ que solo da 86/86).
     no disponible, como lo bloqueado, con un log del id; el contexto del worker saltea el turno ilegible como si hubiera
     vencido; y se puede borrar desde el panel. El test que hoy exige que falle la página pasa a exigir ver las demás. Chico.
 
+**Hecha el 2026-11-15:** I5 en 69ec0c45, I6 en cd4b21db, I7 en a55bb418 y 80cd3f17 (front 6b8183c5) e I8 en a57d86f7 y
+e7d90a6e (front b6b90091 y 912d5182); el segundo commit de I7 y de I8 corrige lo que encontró la revisión adversarial. Quedó
+para después que Configuración › IA avise de una clave ilegible a quien sólo tiene `ai.read`: quien administra ya lo ve al
+cargar los modelos. I5 e I6: build sin advertencias, Domain 1169, Application 6142 y Architecture 229, e integración de 20
+clases (288) en verde. I7 e I8: Domain 1181, Application 6180 y Architecture 228 de 229 (el rojo es
+`Forms.Rule.RecordsReadRequired` sin texto, de a765080f de Formularios), e integración de IA, WhatsApp y Formularios (224, 67
+y 51) en verde; en el front, tsc, lint y vitest de la feature (252).
+
 ### Etapa 3: el cupo y las subidas
 
 12. **I1. Lo que vence sin intentarse devuelve el cupo** (decisión 2). Al vencer un pendiente que no reservó ningún paso, su
