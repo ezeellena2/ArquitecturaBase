@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 
@@ -74,7 +75,8 @@ public sealed class AiAssistantConversationReservationTests
     [Fact]
     public async Task Different_conversations_share_the_actor_channel_interpretation_quota()
     {
-        var fixture = new AssistantOperationsFixture();
+        // The ten of the quota stay pending at once: past the default capacity (I1), which is not what this test measures.
+        var fixture = new AssistantOperationsFixture(limits: new AiAssistantLimits { PendingCapacity = 50 });
         for (var index = 0; index < 10; index++)
             Assert.True((await fixture.Service.SubmitAsync(Request(fixture, Guid.NewGuid(), false), Ct)).IsSuccess);
         var rejected = await fixture.Service.SubmitAsync(Request(fixture, Guid.NewGuid(), false), Ct);

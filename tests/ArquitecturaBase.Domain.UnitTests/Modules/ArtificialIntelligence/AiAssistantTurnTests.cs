@@ -113,6 +113,26 @@ public sealed class AiAssistantTurnTests
         Assert.Equal(AiAssistantTurnState.Expired, turn.State);
     }
 
+    // I1: Expired gives the quota back, so a turn that reserved a step never ends there, whichever way it expires.
+    [Fact]
+    public void A_turn_that_reserved_a_step_never_ends_expired()
+    {
+        var now = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+        AiAssistantTurn Stepped()
+        {
+            var turn = AiAssistantTurn.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, "cipher", "es", "UTC",
+                AiProvider.OpenAI, "model", 1, now, now.AddDays(30));
+            turn.Claim(Guid.NewGuid(), now.AddSeconds(90));
+            Assert.True(turn.BeginProviderStep(turn.Fence, now, 4).IsSuccess);
+            return turn;
+        }
+        var failed = Stepped();
+        failed.Fail(failed.Fence, AiAssistantErrors.Expired.Code, false, now.AddSeconds(91));
+        var reconciled = Stepped();
+        reconciled.Reconcile(now.AddSeconds(106), 120, 15);
+        Assert.Equal((AiAssistantTurnState.Failed, AiAssistantTurnState.Uncertain), (failed.State, reconciled.State));
+    }
+
     [Fact]
     public void Missing_usage_in_an_earlier_step_remains_unknown_after_a_known_step()
     {

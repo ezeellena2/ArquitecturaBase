@@ -8,7 +8,9 @@ base del arnés y un proveedor ficticio, falla una confirmación y verifica que 
 persistencia. El reloj de retry se despierta explícitamente con FakeTimeProvider. Retención
 comprueba filtros propios, payloads retirados, purga física de metadata vencida con recibos
 independientes y Running incierto sin regeneración. Workload cuenta aceptaciones confirmadas
-una sola vez aunque se repita el UUID o se retire su conversación.
+una sola vez aunque se repita el UUID o se retire su conversación. ChannelQuota recorre con el reloj falso una tanda de turnos
+de 80 s en cuatro carriles: los que vencen sin intentarse devuelven la cuota y siguen deduplicando, el que reservó un paso y
+quedó incierto la conserva, y lo devuelto vuelve a aceptar (I1).
 Migración prueba Up/Down desde el esquema previo y conserva conexión y hechos del negocio.
 Los helpers/dobles nuevos viven en TestFeatures/Modules/ArtificialIntelligence.
 AiAssistantHttpContractTests recorre Inicio con AiAssistantExecutionScenario y el proveedor

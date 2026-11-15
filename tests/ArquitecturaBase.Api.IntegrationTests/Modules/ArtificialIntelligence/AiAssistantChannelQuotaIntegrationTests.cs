@@ -1,9 +1,12 @@
 using System.Net;
+using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -102,5 +105,58 @@ public sealed class AiAssistantChannelQuotaIntegrationTests(ApiFactory factory)
                 await db.SaveChangesAsync(Ct);
             });
         }
+    }
+
+    // I1: four lanes and turns of 80 seconds start eight of twelve within the 120 pending seconds. The four that expire without an
+    // attempt give their quota back and still deduplicate their id; a turn that reserved a step keeps counting, even when it ends uncertain.
+    [Fact]
+    public async Task A_batch_of_long_turns_gives_back_the_quota_of_those_that_expired_without_an_attempt()
+    {
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary", services =>
+            services.PostConfigure<AiAssistantOptions>(options => options.Limits = options.Limits with { ActorDailyQuota = 12, PendingCapacity = 12 }));
+        // The quota counts by UTC day: the batch must not cross midnight on the shared clock, which only moves forward.
+        var untilMidnight = factory.Clock.GetUtcNow().UtcDateTime.Date.AddDays(1) - factory.Clock.GetUtcNow().UtcDateTime;
+        if (untilMidnight < TimeSpan.FromMinutes(10)) factory.Clock.Advance(untilMidnight + TimeSpan.FromMinutes(1));
+        var actor = Guid.Parse(scenario.Client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var batch = Enumerable.Range(0, 12).Select(_ => Guid.NewGuid()).ToArray();
+        foreach (var requestId in batch) await scenario.SubmitAsync(requestId, "Fictitious long question");
+        for (var lane = 0; lane < 4; lane++) Assert.True(await scenario.ProcessNextAsync());
+        factory.Clock.Advance(TimeSpan.FromSeconds(80));
+        for (var lane = 0; lane < 3; lane++) Assert.True(await scenario.ProcessNextAsync());
+        // The fourth lane reserves its step and its copy stops answering: the turn ends uncertain.
+        await scenario.ScopeAsync(async services =>
+        {
+            var dispatch = services.GetRequiredService<IAiAssistantDispatchService>();
+            var claim = (await dispatch.ClaimAsync(Ct)).Value!;
+            Assert.True((await dispatch.BeginProviderStepAsync(claim, Ct)).Value);
+            return claim;
+        });
+        factory.Clock.Advance(TimeSpan.FromSeconds(41));
+        Assert.Equal(4, (await scenario.ScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().ReconcileExpiredBatchAsync(Ct))).Value);
+        factory.Clock.Advance(TimeSpan.FromSeconds(65));
+        Assert.Equal(1, (await scenario.ScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().ReconcileExpiredBatchAsync(Ct))).Value);
+        var states = await scenario.ScopeAsync(async services => await services.GetRequiredService<ApplicationDbContext>().Set<AiAssistantTurn>()
+            .Where(turn => turn.OwnerUserId == actor).Select(turn => new { turn.RequestId, turn.State, turn.ProviderSteps }).ToArrayAsync(Ct));
+        Assert.Equal(7, states.Count(turn => turn.State == AiAssistantTurnState.Completed));
+        Assert.Single(states, turn => turn.State == AiAssistantTurnState.Uncertain && turn.ProviderSteps == 1);
+        var expired = states.Where(turn => turn.State == AiAssistantTurnState.Expired).ToArray();
+        Assert.Equal(batch[^4..].Order(), expired.Select(turn => turn.RequestId).Order());
+        Assert.All(expired, turn => Assert.Equal(0, turn.ProviderSteps));
+        var day = DateOnly.FromDateTime(factory.Clock.GetUtcNow().UtcDateTime);
+        Task<AiAssistantBudgetCounts> CountAsync() => scenario.ScopeAsync(services =>
+            services.GetRequiredService<IAiAssistantRepository>().CountBudgetAsync(actor, day, "home", false, false, Ct));
+        Assert.Equal((8, 8), ((await CountAsync()).ActorAccepted, (await CountAsync()).InstallationAccepted));
+        // The id of an expired turn still answers with that turn, without taking the quota again.
+        var replayed = await scenario.SubmitAsync(batch[^1], "Fictitious long question");
+        Assert.Equal(("expired", batch[^1]), (replayed.GetProperty("state").GetString(), replayed.GetProperty("requestId").GetGuid()));
+        Assert.Equal(8, (await CountAsync()).ActorAccepted);
+        // The quota they gave back accepts four new turns, and then it is spent.
+        for (var again = 0; again < 4; again++) await scenario.SubmitAsync(Guid.NewGuid(), "Fictitious question after the batch");
+        using var spent = await scenario.Client.PostAsJsonAsync("/api/ai/assistant/turns", new
+        {
+            requestId = Guid.NewGuid(), question = "Fictitious question past the quota", expectedConnectionRevision = scenario.ConnectionRevision,
+        }, Ct);
+        Assert.Equal(HttpStatusCode.TooManyRequests, spent.StatusCode);
+        Assert.Equal(AiAssistantErrors.QuotaExceeded(1).Code, (await spent.ReadJsonAsync()).GetProperty("code").GetString());
     }
 }

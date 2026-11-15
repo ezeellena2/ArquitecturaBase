@@ -213,7 +213,7 @@ hacer pasar una calificación.
 | `Limits:ActorDailyQuota` / `InstallationDailyQuota` | 10 por actor, canal y propósito / 100 para toda la instalación, por día UTC (se renuevan a las 00:00 UTC; en Argentina, a las 21) |
 | `Limits:DocumentActorDailyQuota` / `DocumentInstallationDailyQuota` | 10 lecturas de documentos por persona en todos los canales / 50 para toda la instalación, por día UTC y aparte de las anteriores |
 | `Limits:DocumentOutputTokens` / `MaximumReadingCharacters` | 8192 / 20000, los techos del código: sólo se pueden bajar |
-| `Limits:PendingCapacity` / `RunningCapacity` | 50 / 4 para toda la instalación, entre réplicas |
+| `Limits:PendingCapacity` / `RunningCapacity` | 8 / 4 para toda la instalación, entre réplicas. 8 es lo que cuatro carriles alcanzan a empezar en los 120 s de `PendingSeconds` con turnos largos, de 60 a 80 s como «Armar formulario con la IA»: dos por carril, el que toma enseguida y el siguiente antes de los 80 s. Con más pendientes, una tanda acepta lo que va a vencer sin intentarse (eso devuelve la cuota, pero la persona espera dos minutos para leer «venció»). Se puede subir hasta 50 si el piloto mide turnos más cortos |
 | `Limits:RetentionDays` | 30 desde cada turno |
 | `Limits:QuestionCharacters` / `HistoryTurns` / `HistoryCharacters` | 4000 / 12 / 24000 |
 | `Limits:ContextBytes` / `ContinuationBytes` | 131072 / 131072 |
@@ -227,7 +227,7 @@ hacer pasar una calificación.
 | `CompletionPersistenceSeconds` | 5; sólo repite persistencia, nunca HTTP |
 | `ProcessInBackground` | true; false permite arneses controlados sin worker automático |
 
-La cuota del actor se separa entre Inicio, cada canal y la interpretación o normalización de audio; transcribir no consume el cupo textual. El recibo fija canal y propósito, sin FK al contenido: borrarlo no libera cuota. El backfill usa sólo evidencia retenida; una dimensión histórica desconocida cuenta en cada grupo compatible con lo conocido. El cupo global y las capacidades pendientes/en ejecución siguen siendo compartidos.
+La cuota del actor se separa entre Inicio, cada canal y la interpretación o normalización de audio; transcribir no consume el cupo textual. El recibo fija canal y propósito, sin FK al contenido: borrarlo no libera cuota. Sólo la devuelve lo que nunca se intentó: un turno que venció sin haber reservado un paso deja de contar, y su recibo sigue deduplicando el UUID (I1). El backfill usa sólo evidencia retenida; una dimensión histórica desconocida cuenta en cada grupo compatible con lo conocido. El cupo global y las capacidades pendientes/en ejecución siguen siendo compartidos.
 
 Startup valida valores positivos, cotas y consistencia de cuotas/capacidades/perfiles. No se
 pueden ampliar las cotas de protección del código sin revisar implementación y pruebas. El rate
@@ -255,7 +255,7 @@ defecto:
   otro formulario y las relecturas de Formularios) y los audios, así que el peor caso en tokens es que las 100 sean de
   texto, con los cinco pasos y el cuerpo lleno. Un token ocupa al menos un byte: 65,5 millones es el techo de la
   entrada, y unos 22 millones, una estimación con el español y el JSON del pedido. La cuota por persona no sube ese
-  techo.
+  techo, y tampoco lo que vence sin intentarse: devuelve su lugar (I1), pero nunca llamó al proveedor.
 - **Documentos:** la entrada de una lectura depende del modelo de su perfil, que cuenta cada página como una imagen en
   alta resolución (y un PDF suma su texto): multiplicá las 500 páginas por lo que su proveedor cobra una página.
 - **Total:** hasta 65,5 millones de tokens de entrada de texto (unos 22 millones), 500 páginas de documentos y

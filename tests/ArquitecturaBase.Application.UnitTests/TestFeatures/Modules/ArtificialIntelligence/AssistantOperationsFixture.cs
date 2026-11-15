@@ -182,11 +182,13 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
         return Task.FromResult(latest is null ? null
             : new AiAssistantAttachmentRow(latest.Id, latest.PayloadRevision, latest.ContentExpiresAtUtc, latest.AttachmentKey!, latest.ProtectedAttachment));
     }
-    // Like the repository: readings count apart, the actor's in every channel; the others by channel and kind.
+    // Like the repository: readings count apart, the actor's in every channel; the others by channel and kind. What expired without
+    // reserving a step gives its quota back (I1).
     public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateOnly day, string? channelId, bool? isAudio, bool isDocument, CancellationToken ct)
     {
         BudgetReads++;
-        var receipts = Receipts.Where(item => item.AcceptedDayUtc == day && item.IsDocument == isDocument).ToArray();
+        var receipts = Receipts.Where(item => item.AcceptedDayUtc == day && item.IsDocument == isDocument
+            && !Turns.Any(turn => turn.Id == item.TurnId && turn.State == AiAssistantTurnState.Expired)).ToArray();
         return Task.FromResult(new AiAssistantBudgetCounts(receipts.Count(item => item.OwnerUserId == actor
                 && (isDocument || channelId is null || isAudio is null || (item.ChannelId is null || item.ChannelId == channelId)
                     && (item.IsAudio is null || item.IsAudio == isAudio))),

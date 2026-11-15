@@ -56,7 +56,10 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
         CancellationToken cancellationToken)
     {
         // Readings have their own quotas: the actor's in every channel and the installation's; the others never count them.
-        var receipts = dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.AcceptedDayUtc == dayUtc && receipt.IsDocument == isDocument);
+        // I1: what expired without reserving a step (Expired, which a turn only reaches with none) gives its quota back, and its receipt
+        // still deduplicates. Only that terminal state of its turn, kept after the purge, is looked at; a turn already deleted counts.
+        var receipts = dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.AcceptedDayUtc == dayUtc && receipt.IsDocument == isDocument
+            && !dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Any(turn => turn.Id == receipt.TurnId && turn.State == AiAssistantTurnState.Expired));
         var actorReceipts = receipts.Where(receipt => receipt.OwnerUserId == ownerUserId);
         if (!isDocument && channelId is not null && isAudio is not null)
             actorReceipts = actorReceipts.Where(receipt => (receipt.ChannelId == null || receipt.ChannelId == channelId)

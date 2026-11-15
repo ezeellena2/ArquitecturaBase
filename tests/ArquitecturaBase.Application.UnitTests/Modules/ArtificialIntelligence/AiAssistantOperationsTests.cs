@@ -154,7 +154,7 @@ public sealed class AiAssistantOperationsTests
     {
         var fixture = new AssistantOperationsFixture();
         var now = fixture.Clock.GetUtcNow().UtcDateTime;
-        for (var i = 0; i < 50; i++)
+        for (var i = 0; i < fixture.Limits.PendingCapacity; i++)
         {
             var conversation = AiConversation.Create(fixture.ActorId, now);
             fixture.Store.Conversations.Add(conversation);

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
@@ -111,7 +112,8 @@ public sealed class AiAssistantAudioOperationsTests
     [Fact]
     public async Task Concurrent_audio_acceptances_keep_the_actor_quota_and_replay_without_consuming_the_text_quota()
     {
-        var fixture = new AssistantOperationsFixture(audioQualified: true);
+        // The ten of the quota stay pending at once: past the default capacity (I1), which is not what this test measures.
+        var fixture = new AssistantOperationsFixture(audioQualified: true, limits: new AiAssistantLimits { PendingCapacity = 50 });
         var requests = Enumerable.Range(0, 10).Select(_ => AudioRequest(fixture)).ToArray();
         foreach (var request in requests)
             Assert.True((await fixture.Service.SubmitAsync(request, Ct)).IsSuccess);
