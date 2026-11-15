@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Resources;
 using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca;
@@ -35,12 +36,12 @@ internal static class ArcaInvoiceIssuePolicy
     public static StructuredIssueResponse Response(ArcaVoucherResponse voucher) => voucher.State switch
     {
         // H2: without the receiver (fixed by a version this one does not know) the result waits for the version that reads it.
-        ArcaVoucherState.Authorized when voucher.PdfStorageKey is { } storageKey && voucher.Receiver is not null => new(StructuredIssueState.Issued, Revision: voucher.Revision,
+        ArcaVoucherState.Authorized when voucher.PdfStorageKey is { } storageKey && voucher.Receiver is not null => new StructuredIssueResponse(StructuredIssueState.Issued, Revision: voucher.Revision,
             Result: Result(voucher), Document: new StructuredRecordActionDocument(storageKey,
-                $"{ArcaFiscalDocumentPolicy.Name(voucher.Class, voucher.Kind)} {Number(voucher)}.pdf", "application/pdf", voucher.PdfSize!.Value, voucher.PdfSha256!)),
+                $"{ArcaFiscalDocumentPolicy.Name(voucher.Class, voucher.Kind)} {Number(voucher)}.pdf", "application/pdf", voucher.PdfSize!.Value, voucher.PdfSha256!)) with { CatalogItem = Customer(voucher) },
         // H7: issued before its fiscal PDF, with its number and CAE and without blaming ARCA; the run asks again when the PDF is due.
         ArcaVoucherState.Authorized when voucher.Receiver is not null => new(StructuredIssueState.Issued, NextCheckAtUtc: voucher.NextAttemptAtUtc,
-            Revision: voucher.Revision, Result: Result(voucher)) { DocumentPending = true },
+            Revision: voucher.Revision, Result: Result(voucher)) { DocumentPending = true, CatalogItem = Customer(voucher) },
         ArcaVoucherState.Rejected => new(StructuredIssueState.Rejected, voucher.FailureCode, Revision: voucher.Revision)
         {
             FailureDetail = voucher.Messages is [var message, ..] ? $"{message.Code.ToString(CultureInfo.InvariantCulture)} · {message.Text.Trim()}" : null,
@@ -155,6 +156,15 @@ internal static class ArcaInvoiceIssuePolicy
         voucher.FailureCode == ArcaInvoicingErrors.VersionUnknown.Code ? "Notice.WaitingVersion"
         : voucher.FailureCode is { } code && ConnectionCodes.Contains(code) ? "Notice.WaitingConnection"
         : voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice";
+
+    // H31: the customer of an issued invoice with a CUIT, for «Clientes» (forms skips one it already has), without the address of a
+    // human person. It comes with every answer of the issued invoice, so it joins also if the action resumes after a cut.
+    private static StructuredIssueCatalogItem? Customer(ArcaVoucherResponse voucher) =>
+        voucher is { Kind: ArcaVoucherKind.Invoice, Receiver: { DocumentType: 80 } receiver }
+            ? new StructuredIssueCatalogItem(ArcaCustomersCatalog.Key, receiver.DocumentNumber.ToString("D11", CultureInfo.InvariantCulture), receiver.Name,
+                ArcaStructuredPartyLookup.Fields(new ArcaParty(receiver.DocumentNumber.ToString("D11", CultureInfo.InvariantCulture), receiver.Name,
+                    receiver.VatConditionId, receiver.IsHuman ? null : receiver.Address)), ArcaCustomersCatalog.TaxId)
+            : null;
 
     private static string Camel(string name) => char.ToLowerInvariant(name[0]) + name[1..];
 }

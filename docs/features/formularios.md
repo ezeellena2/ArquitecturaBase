@@ -1153,8 +1153,8 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   textos que da el emisor por idioma (`title`, `detail`, `proceed` y `advice`): el front no tiene textos de un emisor. Sin el emisor,
   `Forms.Action.IssuerUnavailable`; sin los datos atados, `Forms.Action.IssueDataUnavailable`; si una persona decidió no
   emitir, `Forms.Action.NotIssued`.
-- **El cliente nuevo, con «Emitir».** Si al encolar el emisor completó a alguien escrito en la respuesta (el cliente de
-  «Otro: escribir la CUIT»), lo devuelve con la clave del catálogo de su estándar (`CatalogItem`) y formularios lo suma, en
+- **El cliente nuevo, con «Emitir».** Si el emisor completó a alguien escrito en la respuesta (el cliente de «Otro: escribir la
+  CUIT»), lo devuelve con la emisión emitida (H31), con la clave del catálogo de su estándar (`CatalogItem`), y formularios lo suma, en
   la transacción que guarda el run, como opción activa de ese catálogo: la CUIT como código, el nombre como texto (los primeros
   30 caracteres; uno más largo va entero en el detalle) y los campos que el catálogo tiene activos (uno de tipo catálogo, con
   la opción activa del código que dio el emisor; un valor que no entra en su campo se descarta), con el lock del catálogo y

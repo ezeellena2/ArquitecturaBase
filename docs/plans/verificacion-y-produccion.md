@@ -173,7 +173,9 @@ Se conservan estos pendientes del registro original para revisar antes de incorp
 - [ ] Procedimiento probado de borrado/anonimización: cuenta, roles/logins, códigos/enlaces/auditorías,
   invitaciones, contactos, mensajes, lecturas por operador, operaciones salientes y receipts
   (mensajes, lecturas y operaciones antes de contactos por sus FK Restrict), autorizaciones
-  y tokens OpenIddict, y copias de correos en Enviados de Gmail.
+  y tokens OpenIddict, y copias de correos en Enviados de Gmail. ARCA se suma (H25): los comprobantes, su pedido y su PDF se
+  conservan durante el plazo fiscal que fija el negocio con su contador, y un pedido de borrado no los alcanza dentro de ese
+  plazo; la purga al vencer queda para después.
 - [ ] Plazos y retención de `LoginCodes`, `LoginLinks`, `LoginAudits` (IP y user agent), tokens,
   contactos, cuentas borradas y `UserInvitations`; reflejarlos en la política y el procedimiento.
   El cuerpo de mensajes ya se limpia a los 90 días mientras la Api corre; no implica limpieza al estar apagada.

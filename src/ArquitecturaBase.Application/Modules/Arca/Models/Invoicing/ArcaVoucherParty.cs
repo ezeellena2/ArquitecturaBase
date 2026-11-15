@@ -6,5 +6,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 /// </summary>
 public sealed record ArcaVoucherParty(int DocumentType, long DocumentNumber, string Name, int VatConditionId, string? Address)
 {
+    /// <summary>H31: una persona humana, según el padrón al encolar: vuelve a «Clientes» sin su domicilio.</summary>
+    public bool IsHuman { get; init; }
+
     public override string ToString() => $"ArcaVoucherParty {{ documentType: {DocumentType}, content: [REDACTED] }}";
 }

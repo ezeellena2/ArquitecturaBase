@@ -202,9 +202,11 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   a la carpeta «ARCA». El texto de una opción admite 30 caracteres y es lo que se ve en las listas y en WhatsApp; la razón
   social entera va en «Razón social» (`legal_name`, texto de hasta 200, el mismo tope que la cola pone al nombre del receptor), y
   de ahí sale el nombre del receptor. Necesita las tablas de ARCA (se crean cuando la conexión responde). Con «Otro», el emisor completa el
-  cliente con el padrón antes de la vista previa y de encolar; sin la CUIT, `Arca.Invoicing.ReceiverInvalid`. Encolado (con
-  «Emitir»), lo devuelve completado (`CatalogItem`: la CUIT como código, la razón social y los campos del padrón, con la razón
-  social entera en `legal_name`) y formularios lo suma a «Clientes» si todavía no está: la opción lleva los primeros 30
+  cliente con el padrón antes de la vista previa y de encolar; sin la CUIT, `Arca.Invoicing.ReceiverInvalid`. Al encolar guarda
+  el tipo de persona del padrón, y recién con la factura emitida (H31) devuelve el cliente de toda CUIT (`CatalogItem`: la CUIT
+  como código, la razón social y los campos del padrón, con la razón social entera en `legal_name`, y sin el domicilio de una
+  persona humana), en cada respuesta de la emitida, así se suma también si la acción se retoma después de un corte; una factura
+  que no llega a emitirse no suma a nadie. Formularios lo suma a «Clientes» si todavía no está: la opción lleva los primeros 30
   caracteres como texto y el campo, el nombre entero. La copia al cliente es la acción «Mandar copia por correo» de
   formularios (`SendCopy`, después de «Emitir comprobante en ARCA»): el emisor responde el correo del cliente de «Clientes»
   (`email`) sólo si se marcó «Mandar copia al cliente» y es una dirección válida (`ArcaInvoiceIssuePolicy.CopyRecipient`); con
@@ -281,7 +283,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   el documento (`DocumentPending`, H7), así que formularios lo muestra y la puede anular. Con la facturación instalada, la Api
   no arranca sin el almacén privado. Uno que no se puede armar (por ejemplo, con una alícuota que esta versión no conoce)
   espera con `Arca.Invoicing.PdfRenderFailed` y no frena a los demás (H17). Mientras el módulo esté instalado, esos PDF no se limpian, aunque la base no tenga su comprobante, como después de
-  restaurarla. El nombre y el
+  restaurarla. Los comprobantes, su pedido y su PDF se conservan durante el plazo fiscal, que fija el negocio con su contador:
+  un pedido de borrado de datos personales no los alcanza dentro de ese plazo, y la purga al vencer queda para después (H25).
+  El nombre y el
   domicilio del receptor son datos fiscales y
   no se recortan: se parten por palabras en los renglones que hagan falta y el recuadro del receptor crece con ellos, con el
   período debajo.

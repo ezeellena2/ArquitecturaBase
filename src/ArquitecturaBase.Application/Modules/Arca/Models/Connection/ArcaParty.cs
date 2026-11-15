@@ -6,5 +6,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 /// </summary>
 public sealed record ArcaParty(string Cuit, string LegalName, int VatConditionId, string? FiscalAddress)
 {
+    /// <summary>H31: una persona humana, según el padrón; su domicilio no va a «Clientes».</summary>
+    public bool IsHuman { get; init; }
+
     public override string ToString() => "ArcaParty { Content = [REDACTED] }";
 }

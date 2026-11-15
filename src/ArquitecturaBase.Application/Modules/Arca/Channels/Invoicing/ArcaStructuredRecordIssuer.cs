@@ -2,7 +2,6 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Channels.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
-using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
@@ -44,10 +43,10 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
                 CanRetry: completed.Error != ArcaInvoicingErrors.ReceiverInvalid.Code && completed.Error != ArcaRegistryErrors.CuitInvalid.Code);
         var order = ArcaInvoiceOrderPolicy.Order(request with { Data = completed.Value }, ArcaIssueDateWindow.Today(timeProvider.GetUtcNow().UtcDateTime));
         if (order.IsFailure) return new(StructuredIssueState.Rejected, order.Error.Code);
-        var queued = await vouchers.EnqueueAsync(order.Value, cancellationToken);
-        // «Emitir» with a customer written by its CUIT: it comes back completed, for «Clientes» to keep it.
-        return queued.IsSuccess ? ArcaInvoiceIssuePolicy.Response(queued.Value) with { CatalogItem = completed.Customer }
-            : new(StructuredIssueState.Rejected, queued.Error.Code, CanRetry: true);
+        // H31: the kind of person the registry said is kept with the order: issued, the customer goes to «Clientes» without the
+        // address of a human person.
+        var queued = await vouchers.EnqueueAsync(order.Value with { Receiver = order.Value.Receiver with { IsHuman = completed.IsHuman } }, cancellationToken);
+        return queued.IsSuccess ? ArcaInvoiceIssuePolicy.Response(queued.Value) : new(StructuredIssueState.Rejected, queued.Error.Code, CanRetry: true);
     }
 
     // «Otro: escribir la CUIT»: the registry completes the customer from the CUIT written in the invoice, so the «¿La emito?» already
@@ -60,12 +59,12 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
         var party = await parties.FindAsync(taxId, cancellationToken);
         if (party.IsFailure) return new(data, party.Error.Code);
         var (name, fields) = (party.Value.LegalName, ArcaStructuredPartyLookup.Fields(party.Value));
-        var customer = new StructuredIssueCatalogItem(ArcaCustomersCatalog.Key, party.Value.Cuit, name, fields, ArcaCustomersCatalog.TaxId);
         return new(data.Select(datum => datum.Key == ArcaInvoiceStandard.Customer
-            ? new StructuredIssueDatum(ArcaInvoiceStandard.Customer, ArcaInvoiceStandard.OtherCustomer, name, fields) : datum).ToArray(), null, customer);
+            ? new StructuredIssueDatum(ArcaInvoiceStandard.Customer, ArcaInvoiceStandard.OtherCustomer, name, fields) : datum).ToArray(), null,
+            party.Value.IsHuman);
     }
 
-    private sealed record ResultOf(IReadOnlyList<StructuredIssueDatum> Value, string? Error, StructuredIssueCatalogItem? Customer = null)
+    private sealed record ResultOf(IReadOnlyList<StructuredIssueDatum> Value, string? Error, bool IsHuman = false)
     {
         public bool IsFailure => Error is not null;
     }

@@ -62,6 +62,7 @@ internal sealed class ArcaRegistryClient(IHttpClientFactory httpClients, IOption
             [.. ErrorGroups.SelectMany(group => persona.Element(group)?.Elements("error") ?? []).Select(error => error.Value.Trim())])
         {
             VatConditionErrors = [.. VatGroups.SelectMany(group => persona.Element(group)?.Elements("error") ?? []).Select(error => error.Value.Trim())],
+            IsHuman = string.Equals(Text(general, "tipoPersona"), "FISICA", StringComparison.OrdinalIgnoreCase),
         };
     }
 

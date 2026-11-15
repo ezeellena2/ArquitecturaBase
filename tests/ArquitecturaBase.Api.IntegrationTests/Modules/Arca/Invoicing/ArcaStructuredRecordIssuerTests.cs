@@ -255,16 +255,26 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
             var withoutCuit = await PreviewAsync([new("customer", "other", "Otro: escribir la CUIT"), .. request.Data.Skip(1)]);
             Assert.Equal("Arca.Invoicing.ReceiverInvalid", withoutCuit.FailureCode);
 
-            // «Emitir»: queued, the customer comes back completed for «Clientes», by its CUIT; one of the catalog does not.
+            // H31: «Emitir» queues it without the customer; it comes back for «Clientes» once issued, by its CUIT.
             var queued = await IssuerAsync(factory, issuer => issuer.EnqueueAsync(request with { Data = data }, ct));
-            Assert.Equal(StructuredIssueState.Pending, queued.State);
-            var customer = Assert.IsType<StructuredIssueCatalogItem>(queued.CatalogItem);
+            Assert.Equal((StructuredIssueState.Pending, (StructuredIssueCatalogItem?)null), (queued.State, queued.CatalogItem));
+            await factory.Services.GetRequiredService<ArcaVoucherProcessor>().ProcessAsync(ArcaVoucherScenario.Sequence(), ct);
+            var issued = await IssuerAsync(factory, issuer => issuer.GetAsync(request.RunId, ct));
+            Assert.Equal(StructuredIssueState.Issued, issued.State);
+            var customer = Assert.IsType<StructuredIssueCatalogItem>(issued.CatalogItem);
             Assert.Equal(("arca.customers", "30500010912", "Lácteos del Oeste SRL", "tax_id"), (customer.CatalogKey, customer.Code, customer.Text, customer.TaxIdField));
             Assert.Equal<IReadOnlyDictionary<string, string>>(new Dictionary<string, string>
             {
                 ["tax_id"] = "30500010912", ["legal_name"] = "Lácteos del Oeste SRL", ["vat_condition"] = "1", ["address"] = "Ruta 5 km 30, Trenque Lauquen, BUENOS AIRES",
             }, customer.Fields);
-            Assert.Null((await IssuerAsync(factory, issuer => issuer.EnqueueAsync(Request(Guid.CreateVersion7()), ct))).CatalogItem);
+            // H31: a human person goes without the address, as the registry says by its kind of person.
+            arca.Person = new FakeArcaPerson(null, "Lucía", "Gómez", "Belgrano 120", "Pergamino", "BUENOS AIRES", [30], false, []);
+            var person = Request(Guid.CreateVersion7());
+            await IssuerAsync(factory, issuer => issuer.EnqueueAsync(person with { Data = [new("customer", "other", "Otro: escribir la CUIT"),
+                new("customerTaxId", "27287654338"), .. person.Data.Skip(1)] }, ct));
+            await factory.Services.GetRequiredService<ArcaVoucherProcessor>().ProcessAsync(ArcaVoucherScenario.Sequence(), ct);
+            var human = Assert.IsType<StructuredIssueCatalogItem>((await IssuerAsync(factory, issuer => issuer.GetAsync(person.RunId, ct))).CatalogItem);
+            Assert.False(human.Fields.ContainsKey("address"));
         }
         finally
         {
@@ -314,8 +324,11 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
             // «Otro»: the legal name the registry gave comes back whole, also in its field, for «Clientes» to keep it.
             arca.Person = new FakeArcaPerson(legalName, null, null, "Ruta 5 km 30", "Trenque Lauquen", "BUENOS AIRES", [30], false, []);
             StructuredIssueDatum[] other = [new("customer", "other", "Otro: escribir la CUIT"), new("customerTaxId", "30-50001091-2"), .. request.Data.Skip(1)];
-            var queued = await IssuerAsync(factory, issuer => issuer.EnqueueAsync(new StructuredIssueRequest(Guid.CreateVersion7(), Guid.CreateVersion7(), other), ct));
-            var customer = Assert.IsType<StructuredIssueCatalogItem>(queued.CatalogItem);
+            // H31: it comes back with the issued invoice.
+            var otherRun = new StructuredIssueRequest(Guid.CreateVersion7(), Guid.CreateVersion7(), other);
+            await IssuerAsync(factory, issuer => issuer.EnqueueAsync(otherRun, ct));
+            await factory.Services.GetRequiredService<ArcaVoucherProcessor>().ProcessAsync(ArcaVoucherScenario.Sequence(), ct);
+            var customer = Assert.IsType<StructuredIssueCatalogItem>((await IssuerAsync(factory, issuer => issuer.GetAsync(otherRun.RunId, ct))).CatalogItem);
             Assert.Equal((legalName, legalName), (customer.Text, customer.Fields["legal_name"]));
         }
         finally

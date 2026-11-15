@@ -12,6 +12,9 @@ public sealed record ArcaRegistryPerson(string? LegalName, string? FirstName, st
     /// condición no se infiere: faltarían justo los datos que la deciden.
     /// </summary>
     public IReadOnlyList<string> VatConditionErrors { get; init; } = [];
+
+    /// <summary>H31: una persona humana (<c>tipoPersona</c> FISICA): su domicilio no va a «Clientes».</summary>
+    public bool IsHuman { get; init; }
 }
 
 public sealed record ArcaRegistryAddress(string? Street, string? Locality, string? Province, string? PostalCode);
