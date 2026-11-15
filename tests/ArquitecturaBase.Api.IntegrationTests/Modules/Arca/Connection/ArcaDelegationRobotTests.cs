@@ -45,10 +45,13 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
     public async Task The_company_side_delegates_each_service_and_adds_a_web_service_point_of_sale()
     {
         var progress = new RecordingProgress();
+        var credentials = Client();
 
-        var outcome = await robot.RunCompanyAsync(CompanyJob(), Client(), progress, Ct);
+        var outcome = await robot.RunCompanyAsync(CompanyJob(), credentials, progress, Ct);
 
         Assert.Equal(ArcaRobotOutcome.Success, outcome);
+        // H21: the login took the key once; nothing keeps it after it.
+        Assert.True(credentials.Key.IsEmpty);
         Assert.Equal(["company.login", "company.delegate.wsfe", "company.point-of-sale"], progress.Completed);
         Assert.Equal("2", progress.Outputs["company.point-of-sale"]);
         var relation = Assert.Single(web.Relations);
@@ -212,6 +215,17 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
         await on.StartAsync(Ct);
         await off.StartAsync(Ct);
     }
+
+    // H21: the Api does not start with Playwright's debugging on, by any DEBUG with «*» or «pw» or by PWDEBUG: it would log
+    // what is typed.
+    [Theory]
+    [InlineData("DEBUG", "pw:api", true)]
+    [InlineData("DEBUG", "*", true)]
+    [InlineData("DEBUG", "express:*", true)]
+    [InlineData("PWDEBUG", "1", true)]
+    [InlineData("DEBUG", "app", false)]
+    public void Any_debug_with_a_star_or_pw_counts_as_playwright_debugging(string name, string value, bool on) =>
+        Assert.Equal(on, ArcaRobotBrowserCheck.PlaywrightDebugging(variable => variable == name ? value : null));
 
     private static ArcaCompanyRobotWorkResponse CompanyJob() =>
         new(Guid.NewGuid(), Guid.NewGuid(), FakeArcaWeb.Company, FakeArcaWeb.Platform, [Wsfe], [Registry, Wsfe]);

@@ -44,7 +44,7 @@ dotnet user-secrets --project src/ArquitecturaBase.Api set "Arca:Robot:Platform:
 ```
 
 Con el robot prendido, la Api no arranca sin Chromium, sin la clave de la plataforma o con la depuración de Playwright
-encendida (`DEBUG=pw:*` o `PWDEBUG`), que escribiría en los logs lo que se teclea.
+encendida (cualquier `DEBUG` con `*` o `pw`, como `DEBUG=*`, o `PWDEBUG`), que escribiría en los logs lo que se teclea.
 
 ## Chromium
 

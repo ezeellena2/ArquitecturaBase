@@ -6,18 +6,19 @@ namespace ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 
 /// <summary>
 /// La clave fiscal de quien entra a ARCA, sólo en memoria (ADR 0026): no se imprime, no se serializa ni se guarda. El robot
-/// la lee con <see cref="Reveal"/> para llenar el campo de ingreso y la suelta apenas ARCA acepta el ingreso.
+/// la lee con <see cref="Reveal"/> para llenar el campo de ingreso, una sola vez: después queda vacía, así que ni la cola ni
+/// el bucle que la pasaron la retienen (H21).
 /// </summary>
 [JsonConverter(typeof(ArcaFiscalKeyJsonConverter))]
 public sealed class ArcaFiscalKey
 {
-    private readonly string value;
+    private string value;
 
     public ArcaFiscalKey(string? value) => this.value = value ?? string.Empty;
 
     public bool IsEmpty => string.IsNullOrWhiteSpace(value);
 
-    public string Reveal() => value;
+    public string Reveal() => Interlocked.Exchange(ref value, string.Empty);
 
     public override string ToString() => "[REDACTED]";
 }

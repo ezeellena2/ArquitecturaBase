@@ -372,7 +372,8 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
   `RobotModeMismatch`, `RobotConsentMissing`, `RobotKeyMissing`, `RobotRunInProgress` (409), `RobotNotStopped` (409),
   `RobotPlatformNotRejected` (409) y `RobotBusy` (429), con el prefijo `Arca.Connection.`.
 - **La clave del cliente** es un tipo que no se imprime ni se serializa, se escribe sólo en el campo de ingreso y no queda en
-  respuestas, logs, excepciones ni filas: lo verifica una prueba que la busca. Playwright corre sin trazas, HAR, video ni
+  respuestas, logs, excepciones ni filas: lo verifica una prueba que la busca. Se entrega una sola vez, al llenar el campo, y
+  queda vacía: ni la cola ni el bucle la retienen (H21). Playwright corre sin trazas, HAR, video ni
   capturas, y la Api no arranca con su depuración encendida ni sin Chromium.
 
 ## Robustez y privacidad

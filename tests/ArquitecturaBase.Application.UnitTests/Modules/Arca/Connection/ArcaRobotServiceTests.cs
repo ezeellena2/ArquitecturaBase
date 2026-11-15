@@ -153,6 +153,17 @@ public sealed class ArcaRobotServiceTests
         Assert.Equal(2, host.RobotQueue.Jobs.Count);
     }
 
+    // H21: the key is handed over once and stays empty, so neither the queue nor the loop that read it keep it.
+    [Fact]
+    public void The_key_is_handed_over_once_and_then_stays_empty()
+    {
+        var key = new ArcaFiscalKey("clave-de-prueba");
+
+        Assert.Equal("clave-de-prueba", key.Reveal());
+        Assert.Equal(string.Empty, key.Reveal());
+        Assert.True(key.IsEmpty);
+    }
+
     [Fact]
     public void The_key_never_prints_nor_serializes()
     {
