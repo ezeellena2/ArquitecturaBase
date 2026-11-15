@@ -556,6 +556,20 @@ H21 en 51bfc96a, H22 en e322d9b5 y O10 en 02029be2.
     salen en el PDF fiscal y en el resumen por WhatsApp: el total pasa a un tipo «importe» del puerto (aditivo), que formularios
     y el front escriben con dos decimales fijos y la región de cada idioma. Chico.
 
+**Hecha el 2026-11-15, salvo H11:** H28 en 74d86581, H29 en e3e582c4 (front 57021f72) y H26 en 5a9ffb1f (logs), 3ac32991
+(auditoría, con su migración), 3cd27c01 (desconectar) y c6890b3f (métrica).
+- **H11 no se programó acá:** la revisión de formularios la trata en F2 («avisar a quien cargó cuando su regla se frena, que
+  es lo que pide ARCA H11»), que vale para cualquier acción; va con el plan de «Hoy» de formularios, todavía sin armar.
+- **Cambios:** en H28 la explicación en inglés de la vista previa nombra la condición con el texto de ARCA. En H29 el tipo
+  `amount` es aditivo: los resultados guardados con `number` se siguen leyendo igual, y el PDF y el Excel de la respuesta
+  también lo conocen. En H26 desconectar pasó a `IArcaDisconnectionService`, porque el servicio de la conexión ya tenía las
+  ocho dependencias de la regla; el mensaje de una excepción va al log sólo si es propia; la métrica se lee como mucho una vez
+  por `PollInterval`.
+- **Pruebas:** el build sin advertencias; Domain (1168), Application (6049) y ArchitectureTests (226) enteros; la
+  integración de ARCA de lo que cambió (facturación y raíz 110, conexión por HTTP 26, persistencia 7) y del resultado en
+  formularios; en el front, los tests de formularios que tocan importes, tipos y oxlint.
+- **Revisión:** propia, porque el cupo ya pasaba el 85 %.
+
 **Cierre.** Cada regla que cambió queda en [ARCA](../features/arca.md) y sus guías, lo de H1 y H3 también en su ADR nuevo, y la
 revisión anota qué commit arregló cada hallazgo. Las decisiones van a las fuentes de las
 [premisas](../architecture/premisas-de-la-plantilla.md) y la sección se retira con la
