@@ -125,7 +125,7 @@ internal sealed partial class PlaywrightArcaDelegationRobot(IEnumerable<IArcaRob
         var steps = new StepRunner(progress, firstStep, options.Value.StepTimeout, timeProvider, deadline.Token);
         try
         {
-            var browser = await (await PlaywrightAsync()).Chromium.LaunchAsync(new() { Headless = options.Value.Headless });
+            var browser = await LaunchAsync();
             await using (browser)
             {
                 // Sin RecordHar, RecordVideo, tracing ni capturas: nada de lo que pasa por la página queda escrito.
@@ -156,6 +156,40 @@ internal sealed partial class PlaywrightArcaDelegationRobot(IEnumerable<IArcaRob
             // El navegador no arrancó o se cayó: no es la pantalla de ARCA. Se registra el tipo, nunca el mensaje.
             LogBrowserFailed(exception.GetType().Name, steps.Current);
             return ArcaRobotOutcome.Stopped(ArcaRobotFailure.Unavailable, steps.Current);
+        }
+    }
+
+    /// <summary>
+    /// H22: lanzar Chromium falla también cuando el driver de Playwright se cayó; entonces se recrea una vez y se vuelve a
+    /// probar, en vez de fallar cada pasada que sigue. Un driver vivo lanza igual, así que no corta otra pasada que lo use.
+    /// </summary>
+    private async Task<IBrowser> LaunchAsync()
+    {
+        var driver = await PlaywrightAsync();
+        try
+        {
+            return await driver.Chromium.LaunchAsync(new() { Headless = options.Value.Headless });
+        }
+        catch (PlaywrightException)
+        {
+            await ReplaceAsync(driver);
+            return await (await PlaywrightAsync()).Chromium.LaunchAsync(new() { Headless = options.Value.Headless });
+        }
+    }
+
+    // Suelta el driver caído; si otra pasada ya lo reemplazó, deja el nuevo.
+    private async Task ReplaceAsync(IPlaywright down)
+    {
+        await start.WaitAsync();
+        try
+        {
+            if (!ReferenceEquals(playwright, down)) return;
+            playwright = null;
+            down.Dispose();
+        }
+        finally
+        {
+            start.Release();
         }
     }
 

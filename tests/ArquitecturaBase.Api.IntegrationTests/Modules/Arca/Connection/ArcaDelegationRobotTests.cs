@@ -7,6 +7,7 @@ using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Robot;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Robot;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Playwright;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Connection;
 
@@ -248,6 +249,19 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
         var outcome = await robot.RunPlatformAsync(PlatformJob(request: "CSR", companyDone: false), progress, Ct);
 
         Assert.Equal(ArcaRobotOutcome.Stopped(ArcaRobotFailure.ScreenChanged, ArcaRobotSteps.PlatformCertificate), outcome);
+    }
+
+    // H22: a driver that went down is created again on the next pass instead of failing every pass after it.
+    [Fact]
+    public async Task A_driver_that_went_down_comes_back_on_the_next_pass()
+    {
+        Assert.Equal(ArcaRobotOutcome.Success, await robot.RunCompanyAsync(CompanyJob(), Client(), new RecordingProgress(), Ct));
+        var driver = (IPlaywright)typeof(PlaywrightArcaDelegationRobot)
+            .GetField("playwright", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(robot)!;
+        driver.Dispose();
+        web.Reset();
+
+        Assert.Equal(ArcaRobotOutcome.Success, await robot.RunCompanyAsync(CompanyJob(), Client(), new RecordingProgress(), Ct));
     }
 
     [Fact]

@@ -43,7 +43,8 @@ dotnet user-secrets --project src/ArquitecturaBase.Api set "Arca:Robot:Platform:
 dotnet user-secrets --project src/ArquitecturaBase.Api set "Arca:Robot:Platform:FiscalKey" "<clave fiscal de la plataforma>"
 ```
 
-Con el robot prendido, la Api no arranca sin Chromium, sin la clave de la plataforma o con la depuración de Playwright
+Con el robot prendido, la Api no arranca sin Chromium (instalado y que abra: el chequeo lo abre y lo cierra, H22), sin la
+clave de la plataforma o con la depuración de Playwright
 encendida (cualquier `DEBUG` con `*` o `pw`, como `DEBUG=*`, o `PWDEBUG`), que escribiría en los logs lo que se teclea.
 
 ## Chromium
@@ -124,6 +125,16 @@ El aviso dice el paso (por ejemplo `company.point-of-sale`) y el motivo. Para co
 | Ingreso rechazado | Del cliente, su CUIT o su clave. De la plataforma, la clave de `Platform:FiscalKey`: el robot frena para no bloquearla y no la vuelve a probar solo. Actualizala, reiniciá la Api y tocá «Volver a probar la clave de la plataforma» en la zona del robot (`arca.manage`) |
 | ARCA no responde | Una página que no cargó a tiempo, la red caída o un 5xx. El lado de la plataforma reintenta solo; el del cliente vuelve a probar o sigue con la guía |
 | Interrumpida | El host se reinició en medio de la corrida: el cliente la arranca de nuevo |
+
+## Memoria y CPU de una pasada
+
+Cada pasada abre su propio Chromium, y en un host pueden correr a la vez el lado de un cliente y el de la plataforma (H22).
+En la corrida real, con la imagen publicada, medí el contenedor con `docker stats` mientras corre una pasada de cada lado
+y las dos juntas, y anotá acá el pico de memoria y de CPU. Si las dos juntas no entran en los límites del despliegue, el
+robot tiene que correr un lado por vez por host; eso se agrega recién con la medición.
+
+El driver de Playwright que se cae se recrea en la pasada siguiente, y el chequeo de arranque abre y cierra Chromium: una
+imagen a la que le falta una biblioteca del sistema no arranca la Api.
 
 ## La clave fiscal
 
