@@ -119,9 +119,10 @@ descifrado sin llamar al proveedor, así nadie gasta cupo en turnos que no puede
 la clave lo arregla.
 
 Una conversación o un turno que no se puede descifrar (I8) se muestra «no disponible» en Inicio
-(título genérico, sin contenido) y las demás se siguen viendo; el log registra sólo su id, y la
-persona la puede borrar desde Conversaciones. El worker saltea un turno anterior ilegible como uno
-vencido. Recuperar la clave del respaldo las vuelve a mostrar.
+(título genérico, sin contenido) y las demás se siguen viendo; cada pedido deja un solo aviso en el
+log, con cuántas son y el primer id, y la persona la puede borrar desde Conversaciones. El worker
+saltea un turno anterior ilegible como uno vencido, y una pregunta que heredaría un archivo ilegible
+sigue sin él. Recuperar la clave del respaldo las vuelve a mostrar.
 
 Un negocio nuevo clona código, no datos ni secretos. Base nueva, anillo/ID nuevos y credencial
 de proveedor propia. Copiar un backup con sus secretos es una restauración de la instalación

@@ -38,4 +38,25 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.Contains(unreadable.Id.ToString(), log.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("unreadable-question", log.Message, StringComparison.Ordinal);
     }
+
+    // I8, review: only what cannot be decrypted is skipped. An earlier proposal of a capability this copy no longer knows fails the turn
+    // as before, so «Cambiar algo» never reaches the provider without the proposal it adjusts.
+    [Fact]
+    public async Task An_earlier_proposal_of_an_unknown_capability_fails_the_turn_instead_of_being_skipped()
+    {
+        var host = new Host("es");
+        host.Protector.Contents["proposal-question"] = "Proposal question";
+        host.Protector.Contents["proposal-answer"] = "{\"kind\":\"proposal\",\"ordinal\":1}";
+        var current = host.Reader.Row;
+        host.Reader.History = [
+            current,
+            current with { Id = Guid.NewGuid(), Ordinal = 2, State = AiAssistantTurnState.Completed, ProtectedQuestion = "proposal-question",
+                ProtectedAnswer = "proposal-answer", ToolResults = [new(1, "fictional.forgotten", 1, "forgotten-result")] },
+        ];
+
+        var result = await host.Policy.PrepareAsync(host.Claim, TestContext.Current.CancellationToken);
+
+        Assert.Equal(AiAssistantErrors.ContentUnavailable, result.Error);
+        Assert.Empty(host.Log.Collector.GetSnapshot());
+    }
 }

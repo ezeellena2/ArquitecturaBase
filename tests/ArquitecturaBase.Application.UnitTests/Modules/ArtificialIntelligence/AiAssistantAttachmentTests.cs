@@ -179,15 +179,20 @@ public sealed partial class AiAssistantAttachmentTests
         Assert.Null(fixture.Store.Turns.Single(row => row.RequestId == request.RequestId).AttachmentKey);
     }
 
+    // I8, review: an inherited file that cannot be decrypted is left out like an expired one, so the conversation goes on without it,
+    // and only the ids are logged.
     [Fact]
-    public async Task An_inherited_spreadsheet_that_cannot_be_read_stops_the_turn_without_saving_anything()
+    public async Task An_inherited_spreadsheet_that_cannot_be_read_is_left_out_like_an_expired_one()
     {
         var fixture = new AssistantOperationsFixture();
         var previous = fixture.SeedCompleted().Turn;
         previous.Attach("fixture/attachments/previous.xlsx", new string('c', 64), 2048, "fictional-unreadable-ciphertext");
         var request = fixture.Request() with { PreviousRequestId = previous.RequestId };
-        Assert.Equal(AiAssistantErrors.ContentUnavailable, (await fixture.Service.SubmitAsync(request, Ct)).Error);
-        Assert.Equal((1, 1, 0), (fixture.Store.Turns.Count, fixture.Store.Receipts.Count, fixture.Work.Commits));
+        Assert.True((await fixture.Service.SubmitAsync(request, Ct)).IsSuccess);
+        Assert.Null(fixture.Store.Turns.Single(row => row.RequestId == request.RequestId).AttachmentKey);
+        var warning = Assert.Single(fixture.ResponseLog.Collector.GetSnapshot());
+        Assert.Contains(previous.Id.ToString(), warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("previous.xlsx", warning.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -433,8 +438,8 @@ public sealed partial class AiAssistantAttachmentTests
             catalog = new AiAssistantCapabilityCatalogPolicy([new HomeQuerySource(), Fixture.Source, new PreparedAssistantCapabilitySource(extra ?? [])], Fixture.Permissions);
             guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, this.limits,
                 new FakeCurrentUser { UserId = ActorId }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
-            submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), this.limits, Fixture.Clock);
             Responses = new(Fixture.Protector, Fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
+            submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), this.limits, Responses);
         }
 
         public SubmitAiAssistantTurnRequest Home(string question = "Armame un catálogo con esta planilla", AiConversation? conversation = null) =>

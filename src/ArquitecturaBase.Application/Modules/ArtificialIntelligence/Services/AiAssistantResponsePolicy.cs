@@ -20,24 +20,58 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
     public DateTime ServerNowUtc => timeProvider.GetUtcNow().UtcDateTime;
 
     // I8: content that cannot be read is a state of its row, not of the page: like a blocked one, the generic title and access
-    // «unavailable», so the others are seen and this one can be removed. Only the id is logged, never the content.
-    public (string Title, string Access) Summary(AiConversationRow row, bool canRead)
+    // «unavailable», so the others are seen and this one can be removed. A page leaves one warning, with how many and the first id (I8,
+    // review), never the content.
+    public IReadOnlyList<(string Title, string Access)> Summaries(IReadOnlyList<AiConversationRow> rows, Func<AiConversationRow, bool> canRead)
     {
-        var title = MapTitle(row, canRead);
-        if (title.IsSuccess) return (title.Value, canRead ? "allowed" : "blocked");
-        LogUnreadableConversation(logger, row.Id);
-        return (AssistantTexts.Get("Conversation.Title"), UnavailableAccess);
+        var summaries = new List<(string Title, string Access)>(rows.Count);
+        var unreadable = new List<Guid>();
+        foreach (var row in rows)
+        {
+            var allowed = canRead(row);
+            var title = MapTitle(row, allowed);
+            if (title.IsSuccess) summaries.Add((title.Value, allowed ? "allowed" : "blocked"));
+            else
+            {
+                unreadable.Add(row.Id);
+                summaries.Add((AssistantTexts.Get("Conversation.Title"), UnavailableAccess));
+            }
+        }
+        if (unreadable.Count > 0) LogUnreadableConversations(logger, unreadable.Count, unreadable[0]);
+        return summaries;
     }
 
-    // I8: a turn whose content cannot be read keeps its state, failure and usage, without content and with access «unavailable».
-    public AiAssistantTurnResponse MapReadable(AiAssistantTurnRow row, bool canRead, int pollingAfterSeconds)
+    // I8: a turn whose content cannot be decrypted keeps its state, failure and usage, without content and with access «unavailable». Only
+    // a decryption that gives nothing counts (I8, review): a stored answer that does not decode, or a proposal of a capability this copy
+    // does not know, fails as before. A page leaves one warning, with how many and the first id.
+    public Result<IReadOnlyList<AiAssistantTurnResponse>> MapReadable(IReadOnlyList<AiAssistantTurnRow> rows, bool canRead, int pollingAfterSeconds)
     {
-        var mapped = Map(row, canRead, pollingAfterSeconds);
-        if (mapped.IsSuccess) return mapped.Value;
-        LogUnreadableTurn(logger, row.Id, row.ConversationId);
-        // Without access nothing is decrypted, so this mapping cannot fail.
-        return Map(row, false, pollingAfterSeconds).Value with { ContentAccess = UnavailableAccess };
+        var items = new List<AiAssistantTurnResponse>(rows.Count);
+        AiAssistantTurnRow? first = null;
+        var unreadable = 0;
+        foreach (var row in rows)
+        {
+            var decryption = new Decryption();
+            var mapped = Map(row, canRead, pollingAfterSeconds, decryption);
+            if (mapped.IsSuccess) { items.Add(mapped.Value); continue; }
+            if (!decryption.Failed) return mapped.Error;
+            first ??= row;
+            unreadable++;
+            // Without access nothing is decrypted, so this mapping cannot fail.
+            items.Add(Map(row, false, pollingAfterSeconds).Value with { ContentAccess = UnavailableAccess });
+        }
+        if (first is not null) UnreadableTurns(unreadable, first.Id, first.ConversationId);
+        return items;
     }
+
+    public Result<AiAssistantTurnResponse> MapReadable(AiAssistantTurnRow row, bool canRead, int pollingAfterSeconds)
+    {
+        var mapped = MapReadable([row], canRead, pollingAfterSeconds);
+        return mapped.IsFailure ? mapped.Error : mapped.Value[0];
+    }
+
+    // Something sealed that cannot be decrypted and is left out like expired content: only how many and the ids go to the log.
+    public void UnreadableTurns(int count, Guid firstTurnId, Guid conversationId) => LogUnreadableTurns(logger, count, firstTurnId, conversationId);
 
     public Result<string> MapTitle(AiConversationRow row, bool canRead)
     {
@@ -69,7 +103,10 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
         && protector.Unprotect(row.OwnerUserId, row.Id, question.TurnId, "question", question.PayloadRevision, protectedQuestion) is { } plaintext
         && plaintext.Trim().Length == 0;
 
-    public Result<AiAssistantTurnResponse> Map(AiAssistantTurnRow row, bool canRead, int pollingAfterSeconds)
+    public Result<AiAssistantTurnResponse> Map(AiAssistantTurnRow row, bool canRead, int pollingAfterSeconds) =>
+        Map(row, canRead, pollingAfterSeconds, new Decryption());
+
+    private Result<AiAssistantTurnResponse> Map(AiAssistantTurnRow row, bool canRead, int pollingAfterSeconds, Decryption decryption)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var access = !canRead ? "blocked" : row.ContentExpiresAtUtc <= now || row.ProtectedQuestion is null ? "expired" : "allowed";
@@ -86,11 +123,11 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
         IReadOnlyList<SystemQueryEvidence> evidences = [];
         if (access == "allowed")
         {
-            question = Reveal(row, "question", row.ProtectedQuestion!);
+            question = Reveal(row, "question", row.ProtectedQuestion!, decryption);
             if (question is null) return AiAssistantErrors.ContentUnavailable;
             if (row.AudioRequestId is { } audioRequestId && row.ProtectedTranscript is { } protectedTranscript)
             {
-                var transcript = Reveal(row, "transcript", protectedTranscript);
+                var transcript = Reveal(row, "transcript", protectedTranscript, decryption);
                 if (transcript is null) return AiAssistantErrors.ContentUnavailable;
                 audio = new AiAssistantTurnAudioResponse(audioRequestId, transcript);
             }
@@ -100,14 +137,14 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
             if (row.ProtectedAttachment is { } protectedAttachment
                 && (AiAssistantHomeAttachmentPolicy.IsOwn(row) || question.Trim().Length == 0 && audio is null))
             {
-                var stored = AiAssistantAttachmentPolicy.Read(Reveal(row, AiAssistantAttachmentPolicy.Purpose, protectedAttachment));
+                var stored = AiAssistantAttachmentPolicy.Read(Reveal(row, AiAssistantAttachmentPolicy.Purpose, protectedAttachment, decryption));
                 if (stored is null) return AiAssistantErrors.ContentUnavailable;
                 attachment = AiAssistantHomeAttachmentPolicy.Response(stored);
                 attachedDocument = stored.Document is null ? null : stored.Name;
             }
             if (row.ProtectedAnswer is { } protectedAnswer)
             {
-                var json = Reveal(row, "answer", protectedAnswer);
+                var json = Reveal(row, "answer", protectedAnswer, decryption);
                 if (json is null) return AiAssistantErrors.ContentUnavailable;
                 if (IsKind(json, "normalizedAudio"))
                 {
@@ -128,14 +165,14 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
                 }
                 else if (IsKind(json, "proposal"))
                 {
-                    var decoded = DecodeProposal(row, json);
+                    var decoded = DecodeProposal(row, json, decryption);
                     if (decoded.IsFailure) return decoded.Error;
                     (proposal, answer) = decoded.Value;
                     if (proposal is not null) proposals = [proposal];
                 }
                 else if (IsKind(json, "proposals"))
                 {
-                    var decoded = DecodeProposals(row, json);
+                    var decoded = DecodeProposals(row, json, decryption);
                     if (decoded.IsFailure) return decoded.Error;
                     proposals = decoded.Value;
                     proposal = proposals[0];
@@ -144,7 +181,7 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
             }
             if (row.ProtectedEvidences is { } protectedEvidences)
             {
-                var json = Reveal(row, "evidences", protectedEvidences);
+                var json = Reveal(row, "evidences", protectedEvidences, decryption);
                 if (json is null) return AiAssistantErrors.ContentUnavailable;
                 evidences = JsonSerializer.Deserialize<SystemQueryEvidence[]>(json, JsonOptions) ?? [];
             }
@@ -195,7 +232,7 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
     }
 
     // A channel stores only the selected ordinal; Home also keeps the answer that explains the proposal.
-    private Result<(AssistantObservedProposal? Proposal, AiAssistantAnswer? Answer)> DecodeProposal(AiAssistantTurnRow row, string json)
+    private Result<(AssistantObservedProposal? Proposal, AiAssistantAnswer? Answer)> DecodeProposal(AiAssistantTurnRow row, string json, Decryption decryption)
     {
         try
         {
@@ -212,14 +249,14 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
                 if (text.ValueKind != JsonValueKind.String || evidence.ValueKind != JsonValueKind.Array) return AiAssistantErrors.ContentUnavailable;
                 answer = new AiAssistantAnswer("proposal", text.GetString()!, evidence.EnumerateArray().Select(id => id.GetGuid()).ToArray());
             }
-            return DecodeSelected(row, ordinal, answer);
+            return DecodeSelected(row, ordinal, answer, decryption);
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
         { return AiAssistantErrors.ContentUnavailable; }
     }
 
     // assistant_proposal@2 (Casos del asistente): two or three selected proposals, in their order; a channel needs each one.
-    private Result<IReadOnlyList<AssistantObservedProposal>> DecodeProposals(AiAssistantTurnRow row, string json)
+    private Result<IReadOnlyList<AssistantObservedProposal>> DecodeProposals(AiAssistantTurnRow row, string json, Decryption decryption)
     {
         try
         {
@@ -233,7 +270,7 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
             foreach (var value in values.EnumerateArray())
             {
                 if (!value.TryGetInt32(out var ordinal) || !seen.Add(ordinal)) return AiAssistantErrors.ContentUnavailable;
-                var decoded = DecodeSelected(row, ordinal, null);
+                var decoded = DecodeSelected(row, ordinal, null, decryption);
                 if (decoded.IsFailure) return decoded.Error;
                 if (decoded.Value.Proposal is not { } proposal) return AiAssistantErrors.ContentUnavailable;
                 proposals.Add(proposal);
@@ -245,7 +282,8 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
     }
 
     // The proposal stored at an ordinal, with the reads it observed.
-    private Result<(AssistantObservedProposal? Proposal, AiAssistantAnswer? Answer)> DecodeSelected(AiAssistantTurnRow row, int ordinal, AiAssistantAnswer? answer)
+    private Result<(AssistantObservedProposal? Proposal, AiAssistantAnswer? Answer)> DecodeSelected(AiAssistantTurnRow row, int ordinal, AiAssistantAnswer? answer,
+        Decryption decryption)
     {
         try
         {
@@ -255,7 +293,7 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
             // An uninstalled owner leaves Home's explanation readable without its card; a channel needs the proposal itself.
             if (catalog.Find(reference)?.Kind != AssistantCapabilityKind.Proposal)
                 return answer is not null ? (null, answer) : AiAssistantErrors.ContentUnavailable;
-            var stored = Reveal(row, "tool:" + ordinal, result.ProtectedResult);
+            var stored = Reveal(row, "tool:" + ordinal, result.ProtectedResult, decryption);
             if (stored is null) return AiAssistantErrors.ContentUnavailable;
             using var document = JsonDocument.Parse(stored);
             var envelope = document.RootElement;
@@ -273,7 +311,7 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
                 if (read?.ProtectedResult is null) return AiAssistantErrors.ContentUnavailable;
                 var readReference = new AssistantCapabilityReference(read.ToolId, read.Version);
                 if (catalog.Find(readReference)?.Kind != AssistantCapabilityKind.Read) return AiAssistantErrors.ContentUnavailable;
-                var protectedRead = Reveal(row, "tool:" + readOrdinal, read.ProtectedResult);
+                var protectedRead = Reveal(row, "tool:" + readOrdinal, read.ProtectedResult, decryption);
                 if (protectedRead is null) return AiAssistantErrors.ContentUnavailable;
                 using var readJson = JsonDocument.Parse(protectedRead);
                 var readPayload = readJson.RootElement.TryGetProperty("payload", out var content) ? content.GetRawText() : protectedRead;
@@ -299,9 +337,19 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
         protector.Unprotect(row.OwnerUserId, row.ConversationId, row.Id, purpose, row.PayloadRevision, ciphertext);
     public static string State(AiAssistantTurnState state) => state.ToString().ToLowerInvariant();
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The protected title of assistant conversation {ConversationId} cannot be read; it is shown as unavailable")]
-    private static partial void LogUnreadableConversation(ILogger logger, Guid conversationId);
+    // I8, review: whether a mapping failed because something did not decrypt, the only failure that makes a row «unavailable».
+    private sealed class Decryption { public bool Failed { get; set; } }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The protected content of assistant turn {TurnId} in conversation {ConversationId} cannot be read; it is left out as unavailable")]
-    private static partial void LogUnreadableTurn(ILogger logger, Guid turnId, Guid conversationId);
+    private string? Reveal(AiAssistantTurnRow row, string purpose, string ciphertext, Decryption decryption)
+    {
+        var plaintext = Reveal(row, purpose, ciphertext);
+        if (plaintext is null) decryption.Failed = true;
+        return plaintext;
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The protected titles of {Count} assistant conversations cannot be read, the first {ConversationId}; they are shown as unavailable")]
+    private static partial void LogUnreadableConversations(ILogger logger, int count, Guid conversationId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The protected content of {Count} assistant turns cannot be read, the first {TurnId} in conversation {ConversationId}; they are left out as unavailable")]
+    private static partial void LogUnreadableTurns(ILogger logger, int count, Guid turnId, Guid conversationId);
 }

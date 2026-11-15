@@ -15,6 +15,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
@@ -37,6 +38,8 @@ internal sealed class AssistantOperationsFixture
     public Guid ActorId => Context.ActorUserId;
     public Guid SubjectId => Context.SubjectUserId!.Value;
     public AiAssistantOperations Service { get; }
+    // I8, review: what the response policy logs about content that cannot be read, only ids.
+    public FakeLogger<AiAssistantResponsePolicy> ResponseLog { get; } = new();
 
     public AssistantOperationsFixture(bool qualified = true, bool audioQualified = false, bool documentQualified = false, AiAssistantLimits? limits = null)
     {
@@ -55,8 +58,9 @@ internal sealed class AssistantOperationsFixture
         var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
         var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
             new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), FictionalCredentials.Policy);
-        var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, Clock);
-        Service = new(Store, guard, submissions, Work, Store, new AiAssistantResponsePolicy(Protector, Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance), NullLogger<AiAssistantOperations>.Instance);
+        var responses = new AiAssistantResponsePolicy(Protector, Clock, catalog, ResponseLog);
+        var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, responses);
+        Service = new(Store, guard, submissions, Work, Store, responses, NullLogger<AiAssistantOperations>.Instance);
     }
 
     public AssistantOperationRequest Request(Guid? requestId = null) => new(requestId ?? Guid.NewGuid(), Context,

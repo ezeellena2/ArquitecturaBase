@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository repository, IAiConnectionRepository connections,
     IAiConnectionReader connectionReader, AiAssistantAccessGuard guard, IAiConversationProtector protector,
-    IAiAssistantRequestFingerprint fingerprint, AiAssistantLimits limits, TimeProvider timeProvider)
+    IAiAssistantRequestFingerprint fingerprint, AiAssistantLimits limits, AiAssistantResponsePolicy responsePolicy)
 {
     public Task<Result<AiAssistantTurnAcceptedResponse>> AcceptAsync(Guid userId, SubmitAiAssistantTurnRequest request, CancellationToken ct) =>
         AcceptCoreAsync(userId, request, null, ct);
@@ -37,7 +37,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var captured = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
         if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, turn.OwnerUserId, context.ChannelId, turn.Culture, turn.TimeZoneId) ||
             !AiAssistantChannelPolicy.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
-        turn.RequestCancellation(timeProvider.GetUtcNow().UtcDateTime);
+        turn.RequestCancellation(responsePolicy.ServerNowUtc);
         return Result.Success();
     }
 
@@ -85,7 +85,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var actor = home is not null ? await guard.AuthorizeAsync(userId, ct) : await guard.AuthorizeAsync(operation!.Context, ct);
         if (actor.IsFailure) return actor.Error;
         var receipt = await repository.GetReceiptAsync(userId, requestId, ct);
-        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var now = responsePolicy.ServerNowUtc;
         if (receipt is not null)
         {
             var matches = home is not null ? fingerprint.Matches(userId, home, receipt.KeyId, receipt.Fingerprint)
@@ -226,8 +226,16 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var latest = await repository.FindLatestAttachmentAsync(conversationId, ct);
         if (latest?.ProtectedAttachment is not { } protectedAttachment || latest.ContentExpiresAtUtc <= nowUtc)
             return Result.Success<AssistantAttachmentInput?>(null);
-        var attachment = AiAssistantAttachmentPolicy.Read(protector.Unprotect(userId, conversationId, latest.TurnId, AiAssistantAttachmentPolicy.Purpose,
-            latest.PayloadRevision, protectedAttachment));
+        var plaintext = protector.Unprotect(userId, conversationId, latest.TurnId, AiAssistantAttachmentPolicy.Purpose, latest.PayloadRevision,
+            protectedAttachment);
+        // I8, review: one that cannot be decrypted is left out like an expired one, with the ids in the log, so the conversation goes on;
+        // one that decrypts and does not read still fails.
+        if (plaintext is null)
+        {
+            responsePolicy.UnreadableTurns(1, latest.TurnId, conversationId);
+            return Result.Success<AssistantAttachmentInput?>(null);
+        }
+        var attachment = AiAssistantAttachmentPolicy.Read(plaintext);
         if (attachment is null) return AiAssistantErrors.ContentUnavailable;
         if (AiAssistantHomeAttachmentPolicy.TryParseKey(attachment.StorageKey, out _))
             return Result.Success<AssistantAttachmentInput?>(attachment with { ExpiresAtUtc = contentExpiresAtUtc });
