@@ -71,6 +71,17 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
     public async Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken) =>
         (await LoadRolesAsync(roleId, cancellationToken)).FirstOrDefault();
 
+    // Una sola sentencia, con la misma proyección: los roles y sus permisos salen de la misma foto de la base.
+    public async Task<IReadOnlyCollection<RoleRow>> ListRolesForUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var query = dbContext.Roles
+            .AsNoTracking()
+            .Where(role => dbContext.UserRoles.Any(userRole => userRole.UserId == userId && userRole.RoleId == role.Id))
+            .OrderBy(role => role.Name);
+
+        return [.. (await Project(query).ToListAsync(cancellationToken)).Select(ToRow)];
+    }
+
     public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)
     {
         var normalized = roleManager.NormalizeKey(name);

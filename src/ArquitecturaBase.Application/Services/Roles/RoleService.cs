@@ -14,7 +14,8 @@ namespace ArquitecturaBase.Application.Services.Roles;
 /// <summary>
 /// Lecturas y cambios de roles, con sus reglas y la invalidación de permisos cacheados. Es el área de referencia del
 /// límite transaccional: cada escritura valida afuera, corre en un solo ExecuteInTransactionAsync y, recién después del
-/// commit, invalida el caché.
+/// commit, invalida el caché. Quien pide sólo da o quita los permisos que tiene, y los de User sólo los cambia Admin
+/// (<see cref="PermissionDelegationGuard"/>, que sabe quién pide y lee sus permisos de la base adentro del límite).
 /// </summary>
 internal sealed class RoleService(
     IRoleReader roles,
@@ -23,6 +24,7 @@ internal sealed class RoleService(
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
     IPermissionCatalog catalog,
+    PermissionDelegationGuard delegation,
     ILogger<RoleService> logger) : IRoleService
 {
     public Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken) =>
@@ -160,6 +162,11 @@ internal sealed class RoleService(
         }
 
         IReadOnlyCollection<string> permissions = [.. (request.Permissions ?? []).Distinct(StringComparer.Ordinal)];
+        var delegated = await delegation.EnsureCanChangePermissionsAsync(permissions, cancellationToken);
+        if (delegated.IsFailure)
+        {
+            return delegated.Error;
+        }
 
         // RoleManager autoguarda el rol y cada claim: dentro de la transacción, o se guarda todo o no se guarda nada.
         return await repository.CreateAsync(name, request.Description, permissions, cancellationToken);
@@ -187,6 +194,28 @@ internal sealed class RoleService(
             && !permissions.SequenceEqual(role.Permissions, StringComparer.Ordinal))
         {
             return RoleErrors.SystemRoleCannotChange;
+        }
+
+        // Lo que se da o se quita, del catálogo: un claim de un módulo quitado no cuenta como cambio.
+        string[] changed =
+        [
+            .. permissions.Except(role.Permissions, StringComparer.Ordinal)
+                .Concat(role.Permissions.Except(permissions, StringComparer.Ordinal))
+                .Where(catalog.Contains),
+        ];
+
+        // User lo recibe toda cuenta nueva: darle un permiso es dárselo a cualquiera que se registre.
+        if (changed.Length > 0
+            && string.Equals(role.Name, SystemRoles.User, StringComparison.Ordinal)
+            && !await delegation.IsAdminAsync(cancellationToken))
+        {
+            return RoleErrors.UserRoleAdminOnly;
+        }
+
+        var delegated = await delegation.EnsureCanChangePermissionsAsync(changed, cancellationToken);
+        if (delegated.IsFailure)
+        {
+            return delegated;
         }
 
         if (await roles.ExistsByNameAsync(name, role.Id, cancellationToken))

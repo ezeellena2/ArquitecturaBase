@@ -123,6 +123,13 @@ internal sealed class UserAdministrationService(
             return rolesExist.Error;
         }
 
+        // Con los permisos de quien pide, leídos de la base adentro del límite: nadie da lo que no tiene.
+        var rolesGiven = await guard.EnsureRolesCanBeGivenAsync(requestedRoles, email, cancellationToken);
+        if (rolesGiven.IsFailure)
+        {
+            return rolesGiven.Error;
+        }
+
         await contacts.LockDestinationsAsync(email, phone, cancellationToken);
         var account = await contacts.CreateOrRestoreAsync(email, phone, request.DisplayName, cancellationToken);
         if (account.IsFailure)
@@ -131,6 +138,15 @@ internal sealed class UserAdministrationService(
         }
 
         await userRepository.SetRolesAsync(account.Value.Id, requestedRoles, cancellationToken);
+
+        // Otra vez, con lo que quedó: los roles asignados, por id, y el correo de la cuenta, que en una restauración por
+        // número puede ser el de Seed:AdminEmail. Un rechazo deshace también la restauración.
+        var assigned = await guard.EnsureAssignedRolesAsync(account.Value, [], cancellationToken);
+        if (assigned.IsFailure)
+        {
+            return assigned.Error;
+        }
+
         if (request.Invitation?.Channel is { } requestedChannel)
         {
             // Toma el lock de invitaciones de la cuenta antes de agregar y encolar: la cola de WhatsApp lo pide para
@@ -183,7 +199,14 @@ internal sealed class UserAdministrationService(
             return rolesExist.Error;
         }
 
-        var allowed = await guard.EnsureRolesCanChangeAsync(request.UserId, requestedRoles, cancellationToken);
+        // Antes que los roles, que pueden tomar el lock global de administradores: un rechazo por permisos no hace fila.
+        var contactAllowed = await guard.EnsureContactCanChangeAsync(user, newEmail, newPhone, cancellationToken);
+        if (contactAllowed.IsFailure)
+        {
+            return contactAllowed.Error;
+        }
+
+        var allowed = await guard.EnsureRolesCanChangeAsync(user, requestedRoles, cancellationToken);
         if (allowed.IsFailure)
         {
             return allowed.Error;
@@ -197,6 +220,14 @@ internal sealed class UserAdministrationService(
 
         await userRepository.SetDisplayNameAsync(user.Id, request.DisplayName, cancellationToken);
         await userRepository.SetRolesAsync(user.Id, requestedRoles, cancellationToken);
+
+        // SetRolesAsync busca cada rol por nombre: se vuelve a comprobar con los que la cuenta tiene ahora, por id.
+        var assigned = await guard.EnsureAssignedRolesAsync(user, allowed.Value, cancellationToken);
+        if (assigned.IsFailure)
+        {
+            return assigned.Error;
+        }
+
         return await contacts.ChangeAsync(user.Id, newEmail, newPhone, cancellationToken);
     }
 

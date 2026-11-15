@@ -50,6 +50,12 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     /// <summary>Corre al tomar el lock de administradores: el test mira qué otros locks ya estaban tomados.</summary>
     public Action? OnLockAdmins { get; set; }
 
+    /// <summary>
+    /// Corre al empezar SetRolesAsync, antes de asignar: el test cambia ahí lo que otra transacción confirmó entre la
+    /// guarda y la asignación (por ejemplo, renombrar un rol).
+    /// </summary>
+    public Action? OnSetRoles { get; set; }
+
     /// <summary>Una cuenta con el correo verificado, o solo con el número (también verificado) si no hay correo.</summary>
     public UserAccount AddUser(string? email, bool isActive = true, string culture = "es", string? phoneNumber = null)
     {
@@ -313,6 +319,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
     {
         TransactionGuard.Require(InTransaction);
+        OnSetRoles?.Invoke();
         _roles[userId] = [.. roles];
 
         return Task.CompletedTask;

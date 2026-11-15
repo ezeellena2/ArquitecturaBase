@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Users;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Channels;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
@@ -92,6 +93,67 @@ public sealed class UserAdministrationServiceTests
     }
 
     [Fact]
+    public async Task Create_does_not_restore_the_deleted_initial_admin_by_its_number_for_someone_without_admin()
+    {
+        // Restaurarla trae su correo, el de Seed:AdminEmail, y el arranque le devolvería Admin: cuenta como darlo.
+        var host = new UserServiceTestHost();
+        ActAsHelpDesk(host);
+        var initial = host.Accounts.AddUser(FakeInitialAdmin.DefaultEmail, phoneNumber: "+5493515550101");
+        host.Accounts.SetRoles(initial.Id, SystemRoles.Admin);
+        await host.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(initial.Id, Ct));
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest(null, null, [SystemRoles.User], new PhoneNumberInput("AR", initial.PhoneNumber)), Ct);
+
+        Assert.Equal(UserErrors.RolesNotHeld, result.Error);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_checks_again_the_roles_it_assigned_when_one_was_renamed_in_between()
+    {
+        var host = new UserServiceTestHost();
+        ActAsHelpDesk(host);
+        RenameDuringAssignment(host);
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest("beto@example.com", "Beto", [Readers]), Ct);
+
+        Assert.Equal(UserErrors.RolesNotHeld, result.Error);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Update_checks_again_the_roles_it_assigned_when_one_was_renamed_in_between()
+    {
+        var host = new UserServiceTestHost();
+        ActAsHelpDesk(host);
+        var user = host.Accounts.AddUser("beto@example.com");
+        host.Accounts.SetRoles(user.Id, SystemRoles.User);
+        RenameDuringAssignment(host);
+
+        var result = await host.Administration.UpdateUserAsync(
+            new UpdateUserRequest(user.Id, "Beto", [SystemRoles.User, Readers]), Ct);
+
+        Assert.Equal(UserErrors.RolesNotHeld, result.Error);
+        Assert.Equal(0, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Create_with_user_passes_when_user_has_a_permission_the_actor_lacks()
+    {
+        var host = new UserServiceTestHost();
+        ActAsHelpDesk(host);
+        host.RoleReader.Permissions[SystemRoles.User] = [Permissions.Settings.Manage];
+
+        var result = await host.Administration.CreateUserAsync(
+            new CreateUserRequest("beto@example.com", "Beto", [SystemRoles.User]), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    [Fact]
     public async Task Create_rejects_destinations_from_two_deleted_accounts_without_commit()
     {
         var host = new UserServiceTestHost();
@@ -133,7 +195,7 @@ public sealed class UserAdministrationServiceTests
     public async Task Update_cannot_remove_the_last_active_admin()
     {
         var host = new UserServiceTestHost();
-        var admin = host.Accounts.AddUser("admin@example.com");
+        var admin = host.Accounts.AddUser("ultimo-admin@example.com");
         host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
 
         var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(admin.Id, "Admin", [SystemRoles.User]), Ct);
@@ -260,7 +322,7 @@ public sealed class UserAdministrationServiceTests
     public async Task Update_last_admin_wins_over_a_taken_email()
     {
         var host = new UserServiceTestHost();
-        var admin = host.Accounts.AddUser("admin@example.com");
+        var admin = host.Accounts.AddUser("ultimo-admin@example.com");
         host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
         host.Accounts.AddUser("taken@example.com");
 
@@ -371,5 +433,31 @@ public sealed class UserAdministrationServiceTests
         Assert.Single(host.EmailQueue.Messages);
         Assert.Single(host.Invitations.Invitations);
         Assert.Equal(1, host.UnitOfWork.Commits);
+    }
+
+    private const string Readers = "Lectores";
+
+    /// <summary>Quien pide pasa a tener sólo «Mesa», que administra cuentas: no tiene Admin ni administra roles.</summary>
+    private static void ActAsHelpDesk(UserServiceTestHost host)
+    {
+        host.RoleReader.RoleNames.Add("Mesa");
+        host.RoleReader.Permissions["Mesa"] = [Permissions.Users.Read, Permissions.Users.Manage];
+        host.Accounts.SetRoles(host.CurrentUser.UserId!.Value, "Mesa");
+    }
+
+    /// <summary>
+    /// «Lectores» sólo ve cuentas y «Roles» administra roles. Al asignar, otra transacción ya confirmó dos renombres:
+    /// «Lectores» pasó a «Viejo» y «Roles», a «Lectores». SetRolesAsync, que busca por nombre, asigna el segundo.
+    /// </summary>
+    private static void RenameDuringAssignment(UserServiceTestHost host)
+    {
+        host.RoleReader.RoleNames.AddRange([Readers, "Roles"]);
+        host.RoleReader.Permissions[Readers] = [Permissions.Users.Read];
+        host.RoleReader.Permissions["Roles"] = [Permissions.Roles.Read, Permissions.Roles.Manage];
+        host.Accounts.OnSetRoles = () =>
+        {
+            host.RoleReader.Rename(Readers, "Viejo");
+            host.RoleReader.Rename("Roles", Readers);
+        };
     }
 }
