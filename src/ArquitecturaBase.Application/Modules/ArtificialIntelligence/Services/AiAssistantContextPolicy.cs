@@ -107,7 +107,9 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
             if (mapped.IsFailure) return mapped.Error;
             if (mapped.Value.ContentAccess == "allowed" && (mapped.Value.Answer is not null || mapped.Value.ObservedProposal is not null)) history.Add(mapped.Value);
         }
-        var messages = AiAssistantHistoryPolicy.Messages(history, limits.HistoryCharacters, turn.Culture).ToList();
+        var historyMessages = AiAssistantHistoryPolicy.Messages(history, limits.HistoryCharacters, turn.Culture);
+        if (historyMessages.IsFailure) return historyMessages.Error;
+        var messages = historyMessages.Value.ToList();
         // The message's time goes at the very end, after any file, so the instructions and what precedes it stay the same between turns.
         // A channel seals its original message's instant; Inicio uses the request's, with the zone of the profile (I15).
         if ((profile.Value.OccurredAtUtc ?? (turn.ChannelId == "home" ? turn.SubmittedAtUtc : null)) is { } occurredAtUtc)

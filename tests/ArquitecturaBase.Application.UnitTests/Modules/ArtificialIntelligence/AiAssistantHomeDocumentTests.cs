@@ -427,7 +427,7 @@ public sealed class AiAssistantHomeDocumentTests
 
         Assert.Equal("comprobante.pdf", (await host.Reads.GetConversationAsync(first.ConversationId, Ct)).Value.Title);
         var shown = host.Responses.Map(await host.ShownAsync(request.RequestId), true, 2).Value;
-        Assert.Equal("(Adjuntó el documento \"comprobante.pdf\".)", AiAssistantHistoryPolicy.Messages([shown], 24000, "es")[0].Text);
+        Assert.Equal("(Adjuntó el documento \"comprobante.pdf\".)", AiAssistantHistoryPolicy.Messages([shown], 24000, "es").Value[0].Text);
     }
 
     [Fact]

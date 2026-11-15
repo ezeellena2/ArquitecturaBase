@@ -132,6 +132,7 @@
   <data name="Ai.Assistant.Canceled" xml:space="preserve"><value>La consulta se canceló. El proveedor puede haber consumido recursos antes de la cancelación.</value></data>
   <data name="Ai.Assistant.Expired" xml:space="preserve"><value>La consulta venció. Si querés consultar de nuevo, iniciá otro intento.</value></data>
   <data name="Ai.Assistant.LimitExceeded" xml:space="preserve"><value>La consulta alcanzó su límite de tiempo, herramientas o tamaño. Hacé una pregunta más concreta.</value></data>
+  <data name="Ai.Assistant.ProposalTooLarge" xml:space="preserve"><value>La última propuesta es demasiado grande para seguir ajustándola en esta conversación. Empezá una conversación nueva y pedila con los cambios.</value></data>
   <data name="Ai.Assistant.InvalidOutput" xml:space="preserve"><value>La respuesta no pudo validarse y no se publicó. Podés iniciar otra consulta.</value></data>
   <data name="Ai.Assistant.ToolRejected" xml:space="preserve"><value>La fuente solicitada no está autorizada o sus argumentos no son válidos.</value></data>
   <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>El proveedor no está disponible. Revisá la operación antes de consultar de nuevo.</value></data>

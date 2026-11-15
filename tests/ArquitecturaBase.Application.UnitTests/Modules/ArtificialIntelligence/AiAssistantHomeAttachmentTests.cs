@@ -448,10 +448,10 @@ public sealed class AiAssistantHomeAttachmentTests
                 new AiAssistantAnswer("clarification", "¿Qué querés hacer con la planilla?", []), [], null, null, culture, "UTC",
                 DateTime.UnixEpoch, DateTime.UnixEpoch, 2) { Attachment = attachment };
         var attachment = new AiAssistantTurnAttachmentResponse("clientes.xlsx", "xlsx", 12, 2048);
-        var messages = AiAssistantHistoryPolicy.Messages([Turn(2, "Armá un catálogo", null), Turn(1, "", attachment)], 24000, culture);
+        var messages = AiAssistantHistoryPolicy.Messages([Turn(2, "Armá un catálogo", null), Turn(1, "", attachment)], 24000, culture).Value;
         Assert.Equal([named, "¿Qué querés hacer con la planilla?", "Armá un catálogo", "¿Qué querés hacer con la planilla?"],
             messages.Select(message => message.Text));
-        Assert.Equal("Usá la columna B", AiAssistantHistoryPolicy.Messages([Turn(1, "Usá la columna B", attachment)], 24000, culture)[0].Text);
+        Assert.Equal("Usá la columna B", AiAssistantHistoryPolicy.Messages([Turn(1, "Usá la columna B", attachment)], 24000, culture).Value[0].Text);
     }
 
     [Fact]

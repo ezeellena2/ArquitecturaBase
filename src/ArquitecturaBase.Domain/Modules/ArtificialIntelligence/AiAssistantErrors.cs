@@ -19,6 +19,8 @@ public static class AiAssistantErrors
     public static readonly Error Canceled = Error.Conflict("Ai.Assistant.Canceled", "Cancellation was confirmed before publication.");
     public static readonly Error Expired = Error.Conflict("Ai.Assistant.Expired", "The assistant operation expired.");
     public static readonly Error LimitExceeded = Error.Conflict("Ai.Assistant.LimitExceeded", "The assistant operation exceeded its limits.");
+    // B1: the history reserves the latest proposal first; one that alone exceeds the history budget fails the turn visibly.
+    public static readonly Error ProposalTooLarge = Error.Conflict("Ai.Assistant.ProposalTooLarge", "The latest proposal does not fit the conversation history.");
     public static readonly Error InvalidOutput = Error.Conflict("Ai.Assistant.InvalidOutput", "The assistant output did not satisfy the required contract.");
     public static readonly Error ToolRejected = Error.Forbidden("Ai.Assistant.ToolRejected", "The requested query is not authorized or is invalid.");
     public static readonly Error ProviderUnavailable = Error.Failure("Ai.Assistant.ProviderUnavailable", "The provider is unavailable.");

@@ -170,7 +170,7 @@ public sealed class AiAssistantProposalsTerminalTests
         var mapped = new AiAssistantTurnResponse(turn, Guid.NewGuid(), Guid.NewGuid(), 1, 1, 1, "completed", "completed", "allowed",
             "Fictional request", null, [], null, null, "es", "UTC", DateTime.UnixEpoch, DateTime.UnixEpoch, 1)
             { ObservedProposal = first, ObservedProposals = [first, second] };
-        var messages = AiAssistantHistoryPolicy.Messages([mapped], 24000, "es");
+        var messages = AiAssistantHistoryPolicy.Messages([mapped], 24000, "es").Value;
         var answer = Assert.Single(messages, message => message.Role == "assistant").Text;
         Assert.Equal(2, answer.Split(AssistantTexts.Get("Prompt.PreviousProposal", "es").Split('{')[0], StringSplitOptions.None).Length - 1);
     }
