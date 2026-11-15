@@ -13,15 +13,16 @@ public static class FormHostilePdfFixture
     private static readonly Lazy<byte[]> Spaces = new(() => Compress((byte)' '), LazyThreadSafetyMode.ExecutionAndPublication);
 
     // The cross-reference stream of the file holds zeros: InflatedBytes of them, as free entries.
-    public static byte[] BombInReferences()
+    // «encoding» is «», «ascii85» or «hex»: the bomb as text, with the chain of filters that ReportLab and others write.
+    public static byte[] BombInReferences(string encoding = "")
     {
         using var output = new MemoryStream();
         void Write(string text) => output.Write(Encoding.Latin1.GetBytes(text));
         Write("%PDF-1.5\n");
         var offsets = Pages(output);
         var xrefOffset = output.Position;
-        var bomb = Zeros.Value;
-        Write($"4 0 obj\n<< /Type /XRef /Size 5 /W [1 4 2] /Root 1 0 R /Filter /FlateDecode /Length {bomb.Length} >>\nstream\n");
+        var bomb = Encode(Zeros.Value, encoding);
+        Write($"4 0 obj\n<< /Type /XRef /Size 5 /W [1 4 2] /Root 1 0 R /Filter {Filter(encoding)} /Length {bomb.Length} >>\nstream\n");
         output.Write(bomb);
         Write($"\nendstream\nendobj\nstartxref\n{xrefOffset}\n%%EOF\n");
         return output.ToArray();
@@ -62,6 +63,79 @@ public static class FormHostilePdfFixture
         output.Write(entries.ToArray());
         Write($"\nendstream\nendobj\nstartxref\n{xrefOffset}\n%%EOF\n");
         return output.ToArray();
+    }
+
+    // A readable PDF of one page whose cross-reference stream is written with the same chains: it must still be read, not refused.
+    public static byte[] ReadableWithEncodedReferences(string encoding)
+    {
+        using var output = new MemoryStream();
+        void Write(string text) => output.Write(Encoding.Latin1.GetBytes(text));
+        Write("%PDF-1.5\n");
+        var offsets = Pages(output);
+        var xrefOffset = output.Position;
+        using var entries = new MemoryStream();
+        void Entry(byte type, long second, int third)
+        {
+            entries.WriteByte(type);
+            for (var shift = 24; shift >= 0; shift -= 8) entries.WriteByte((byte)(second >> shift));
+            entries.WriteByte((byte)(third >> 8));
+            entries.WriteByte((byte)third);
+        }
+        Entry(0, 0, 65535);
+        foreach (var offset in offsets) Entry(1, offset, 0);
+        Entry(1, xrefOffset, 0);
+        using var packed = new MemoryStream();
+        using (var deflate = new ZLibStream(packed, CompressionLevel.SmallestSize, true)) deflate.Write(entries.ToArray());
+        var body = Encode(packed.ToArray(), encoding);
+        Write($"4 0 obj\n<< /Type /XRef /Size 5 /W [1 4 2] /Root 1 0 R /Filter {Filter(encoding)} /Length {body.Length} >>\nstream\n");
+        output.Write(body);
+        Write($"\nendstream\nendobj\nstartxref\n{xrefOffset}\n%%EOF\n");
+        return output.ToArray();
+    }
+
+    // A PDF with an /Encrypt entry in its trailer: it asks for a password, empty or not.
+    public static byte[] Encrypted()
+    {
+        using var output = new MemoryStream();
+        void Write(string text) => output.Write(Encoding.Latin1.GetBytes(text));
+        Write("%PDF-1.4\n");
+        var offsets = Pages(output);
+        var xref = output.Position;
+        Write("xref\n0 4\n0000000000 65535 f \n");
+        foreach (var offset in offsets) Write($"{offset:D10} 00000 n \n");
+        Write($"trailer\n<< /Size 4 /Root 1 0 R /Encrypt << /Filter /Standard /V 1 /R 2 /O (x) /U (y) /P -4 >> >>\nstartxref\n{xref}\n%%EOF\n");
+        return output.ToArray();
+    }
+
+    private static string Filter(string encoding) => encoding switch
+    {
+        "ascii85" => "[/ASCII85Decode /FlateDecode]",
+        "hex" => "[/ASCIIHexDecode /FlateDecode]",
+        _ => "/FlateDecode",
+    };
+
+    private static byte[] Encode(byte[] data, string encoding) => encoding switch
+    {
+        "ascii85" => Ascii85(data),
+        "hex" => Encoding.ASCII.GetBytes(Convert.ToHexString(data) + ">"),
+        _ => data,
+    };
+
+    private static byte[] Ascii85(byte[] data)
+    {
+        var text = new StringBuilder(data.Length * 5 / 4 + 8);
+        for (var index = 0; index < data.Length; index += 4)
+        {
+            var count = Math.Min(4, data.Length - index);
+            uint group = 0;
+            for (var offset = 0; offset < 4; offset++) group = group << 8 | (offset < count ? data[index + offset] : (byte)0);
+            if (group == 0 && count == 4) { text.Append('z'); continue; }
+            var digits = new char[5];
+            for (var digit = 4; digit >= 0; digit--) { digits[digit] = (char)(group % 85 + '!'); group /= 85; }
+            text.Append(digits, 0, count + 1);
+        }
+        text.Append("~>");
+        return Encoding.ASCII.GetBytes(text.ToString());
     }
 
     private static long[] Pages(MemoryStream output)

@@ -308,9 +308,17 @@ public sealed class FormDocumentAttachmentTests
     [Theory]
     [InlineData("references")]
     [InlineData("object-stream")]
+    [InlineData("references-ascii85")]
+    [InlineData("references-hex")]
     public async Task A_decompression_bomb_is_unreadable_without_inflating_it(string where)
     {
-        var bytes = where == "references" ? FormHostilePdfFixture.BombInReferences() : FormHostilePdfFixture.BombInObjectStream();
+        var bytes = where switch
+        {
+            "references" => FormHostilePdfFixture.BombInReferences(),
+            "references-ascii85" => FormHostilePdfFixture.BombInReferences("ascii85"),
+            "references-hex" => FormHostilePdfFixture.BombInReferences("hex"),
+            _ => FormHostilePdfFixture.BombInObjectStream(),
+        };
         Assert.True(bytes.Length < StructuredAttachmentLimits.MaximumBytes);
         var reader = Reader();
         var watch = Stopwatch.StartNew();
@@ -325,15 +333,17 @@ public sealed class FormDocumentAttachmentTests
         await RejectedAsync(bytes, "bomba.pdf", StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Pdf);
     }
 
-    // A reading that takes longer than its time is unreadable and gives its place back, although its thread goes on: three of them
-    // pass through the two places of the gate.
+    // A reading that takes longer than its time is unreadable and gives its place back, although its thread goes on; with two of them
+    // still running, a new PDF is unreadable without a third thread being opened, and once they end the reader opens again (F6).
     [Fact]
-    public async Task A_pdf_that_takes_too_long_is_unreadable_and_gives_its_place_back()
+    public async Task A_pdf_that_takes_too_long_is_unreadable_and_with_two_still_running_a_third_is_not_opened()
     {
         using var release = new ManualResetEventSlim();
+        var opened = 0;
         var logger = new FakeLogger<FormDocumentReader>();
         var reader = new FormDocumentReader(logger, TimeSpan.FromMilliseconds(300), _ =>
         {
+            Interlocked.Increment(ref opened);
             release.Wait(TimeSpan.FromSeconds(60));
             return new(FormDocumentReadStatus.Read, Pages: 1);
         });
@@ -343,6 +353,7 @@ public sealed class FormDocumentAttachmentTests
             for (var attempt = 0; attempt < 3; attempt++)
                 Assert.Equal(FormDocumentReadStatus.Unreadable,
                     (await reader.ReadAsync(FormDocumentFixture.Pdf(1), FormDocumentFormat.Pdf, TestContext.Current.CancellationToken)).Status);
+            Assert.Equal(FormDocumentReader.MaximumAbandonedPdfs, Volatile.Read(ref opened));
         }
         finally
         {
@@ -351,6 +362,42 @@ public sealed class FormDocumentAttachmentTests
 
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(20));
         Assert.Equal(3, logger.Collector.GetSnapshot().Count(record => record.Level == LogLevel.Warning));
+        // The abandoned threads end and the reader is back.
+        var back = false;
+        for (var wait = 0; wait < 50 && !back; wait++)
+        {
+            back = (await reader.ReadAsync(FormDocumentFixture.Pdf(1), FormDocumentFormat.Pdf, TestContext.Current.CancellationToken)).Status == FormDocumentReadStatus.Read;
+            if (!back) await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+        Assert.True(back);
+    }
+
+    // F6: a PDF with /Encrypt is Protected before PdfPig opens it, with an empty password too: its streams are ciphertext, so they
+    // cannot be measured.
+    [Fact]
+    public async Task A_pdf_with_an_encrypt_entry_is_protected_without_being_opened()
+    {
+        var reader = new FormDocumentReader(NullLogger<FormDocumentReader>.Instance, FormDocumentReader.PdfReadTimeout,
+            _ => throw new InvalidOperationException("PdfPig must not open it."));
+
+        var content = await reader.ReadAsync(FormHostilePdfFixture.Encrypted(), FormDocumentFormat.Pdf, TestContext.Current.CancellationToken);
+
+        Assert.Equal(FormDocumentReadStatus.Protected, content.Status);
+    }
+
+    // F6: ASCII85 or hexadecimal before Flate (ReportLab and others) is measured by decoding, not refused: the PDF is read as before.
+    [Theory]
+    [InlineData("ascii85")]
+    [InlineData("hex")]
+    public async Task A_pdf_with_text_encoding_before_flate_is_read_and_measured(string encoding)
+    {
+        var bytes = FormHostilePdfFixture.ReadableWithEncodedReferences(encoding);
+        Assert.True(FormPdfStreams.Fits(bytes, FormDocumentReader.MaximumPdfInflatedBytes, FormDocumentReader.MaximumPdfObjects));
+
+        var content = await Reader().ReadAsync(bytes, FormDocumentFormat.Pdf, TestContext.Current.CancellationToken);
+
+        Assert.Equal((FormDocumentReadStatus.Read, 1), (content.Status, content.Pages));
+        Assert.False(FormPdfStreams.Fits(FormHostilePdfFixture.BombInReferences(encoding), FormDocumentReader.MaximumPdfInflatedBytes, FormDocumentReader.MaximumPdfObjects));
     }
 
     // A lack of memory is not the file's fault: it is logged, whatever is read, and the file answers unreadable.

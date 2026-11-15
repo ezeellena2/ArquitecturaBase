@@ -26,6 +26,8 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
     internal static readonly TimeSpan PdfReadTimeout = TimeSpan.FromSeconds(20);
     private const int PdfStackBytes = 128 * 1024 * 1024;
     private const int MaximumConcurrentPdfs = 2;
+    // How many readings that went past their time may still be running: with that many alive, a new PDF is unreadable without opening.
+    internal const int MaximumAbandonedPdfs = 2;
     private const int MaximumManifestBytes = 64 * 1024;
     private const string MainWordPart = "word/document.xml";
     private const string WordContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml";
@@ -35,6 +37,7 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
     private readonly ILogger<FormDocumentReader> logger;
     private readonly TimeSpan pdfTimeout;
     private readonly Func<byte[], FormDocumentContent> openPdf;
+    private int abandonedPdfs;
 
     public FormDocumentReader(ILogger<FormDocumentReader> logger) : this(logger, PdfReadTimeout, null)
     {
@@ -133,9 +136,18 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
     private async Task<FormDocumentContent> ReadPdfAsync(byte[] content, CancellationToken ct)
     {
         if (!DocumentSignature.IsPdf(content) || FormPdfObjects.Count(content, MaximumPdfObjects) > MaximumPdfObjects) return Unreadable;
+        // Its streams are ciphertext until PdfPig decrypts them, so they cannot be measured: any /Encrypt is a PDF with a password.
+        if (FormPdfStreams.IsEncrypted(content)) return new(FormDocumentReadStatus.Protected);
+        if (Volatile.Read(ref abandonedPdfs) >= MaximumAbandonedPdfs)
+        {
+            LogTooManyAbandoned(logger);
+            return Unreadable;
+        }
         await PdfGate.WaitAsync(ct);
         try
         {
+            // 0 running, 1 abandoned by the time, 2 finished: the thread and the wait settle it once, with no lock.
+            var state = 0;
             var opened = new TaskCompletionSource<FormDocumentContent>(TaskCreationOptions.RunContinuationsAsynchronously);
             var thread = new Thread(() =>
             {
@@ -151,6 +163,10 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
                     opened.SetResult(Unreadable);
                 }
                 catch (Exception exception) { opened.SetException(exception); }
+                finally
+                {
+                    if (Interlocked.CompareExchange(ref state, 2, 0) == 1) Interlocked.Decrement(ref abandonedPdfs);
+                }
             }, PdfStackBytes) { IsBackground = true, Name = "FormDocumentReader.Pdf" };
             thread.Start();
             using var waiting = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -160,6 +176,7 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
             ct.ThrowIfCancellationRequested();
             // Whatever the abandoned thread ends with is of no one.
             _ = opened.Task.ContinueWith(task => _ = task.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+            if (Interlocked.CompareExchange(ref state, 1, 0) == 0) Interlocked.Increment(ref abandonedPdfs);
             LogPdfTimedOut(logger);
             return Unreadable;
         }
@@ -171,6 +188,9 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Reading a PDF took longer than its time and was abandoned as unreadable")]
     private static partial void LogPdfTimedOut(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Readings of PDFs that went past their time are still running: a new PDF is answered as unreadable without opening it")]
+    private static partial void LogTooManyAbandoned(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The memory ran out reading a document; it is answered as unreadable")]
     private static partial void LogOutOfMemory(ILogger logger, Exception exception);
