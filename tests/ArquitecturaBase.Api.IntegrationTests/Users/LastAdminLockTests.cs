@@ -19,8 +19,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.Users;
 /// Desactivar, eliminar o sacarle el rol Admin a un administrador activo cuenta antes a los administradores activos, y
 /// ese conteo va en fila con el lock global "users:admins": sin él, dos administradores que se desactivan entre sí a la
 /// vez cuentan dos cada uno y dejan el sistema sin administradores. Cada test usa una base propia, migrada, sembrada y
-/// con solo sus cuentas: la de la Api compartida tiene otros administradores. Los casos de uso se llaman directo, sin
-/// sesión (el usuario actual es null, así que ninguno es "uno mismo").
+/// con solo sus cuentas: la de la Api compartida tiene otros administradores. Los casos de uso se llaman directo, como el
+/// otro administrador (el usuario actual de la petición): nadie actúa sobre sí mismo, y quien pide tiene todos los
+/// permisos de la cuenta, como exige la regla de no dar lo que no se tiene.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class LastAdminLockTests(ApiFactory factory)
@@ -41,7 +42,7 @@ public sealed class LastAdminLockTests(ApiFactory factory)
         {
             await PrepareAsync(api, observer);
             var first = await CreateAdminAsync(api, "primero");
-            await CreateAdminAsync(api, "segundo");
+            var second = await CreateAdminAsync(api, "segundo");
 
             Task<Result> removing;
 
@@ -54,7 +55,7 @@ public sealed class LastAdminLockTests(ApiFactory factory)
                 await holder.Database.ExecuteSqlRawAsync(
                     "SELECT pg_advisory_xact_lock(hashtextextended('users:admins', 0))", Ct);
 
-                removing = Task.Run(() => RemoveAsync(api, removal, first), Ct);
+                removing = Task.Run(() => RemoveAsync(api, removal, first, second), Ct);
 
                 // Determinista: sin el lock, el caso de uso termina solo y el test falla acá; con el lock, espera en
                 // Postgres, justamente por esa clave.
@@ -88,8 +89,8 @@ public sealed class LastAdminLockTests(ApiFactory factory)
             var beto = await CreateAdminAsync(api, "beto");
 
             var results = await Task.WhenAll(
-                    Task.Run(() => RemoveAsync(api, "deactivate", ana), Ct),
-                    Task.Run(() => RemoveAsync(api, "deactivate", beto), Ct))
+                    Task.Run(() => RemoveAsync(api, "deactivate", ana, beto), Ct),
+                    Task.Run(() => RemoveAsync(api, "deactivate", beto, ana), Ct))
                 .WaitAsync(TimeSpan.FromSeconds(60), Ct);
 
             Assert.Single(results, result => result.IsSuccess);
@@ -134,10 +135,11 @@ public sealed class LastAdminLockTests(ApiFactory factory)
         return id;
     }
 
-    private static async Task<Result> RemoveAsync(WebApplicationFactory<Program> api, string removal, Guid userId)
+    private static async Task<Result> RemoveAsync(WebApplicationFactory<Program> api, string removal, Guid userId, Guid actorId)
     {
         await using var scope = api.Services.CreateAsyncScope();
         var services = scope.ServiceProvider;
+        services.ActAs(actorId);
 
         return removal switch
         {

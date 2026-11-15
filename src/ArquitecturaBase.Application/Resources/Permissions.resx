@@ -21,8 +21,8 @@
   <data name="Permission.roles.manage" xml:space="preserve"><value>Administrar roles</value></data>
   <data name="Permission.settings.manage" xml:space="preserve"><value>Administrar la configuración</value></data>
   <data name="PermissionDescription.users.read" xml:space="preserve"><value>El listado y el detalle de cada cuenta.</value></data>
-  <data name="PermissionDescription.users.manage" xml:space="preserve"><value>Dar de alta, editar, desactivar y eliminar cuentas.</value></data>
+  <data name="PermissionDescription.users.manage" xml:space="preserve"><value>Dar de alta, editar, desactivar y eliminar cuentas. Quien edita sólo da o quita roles con permisos que tiene, y a una cuenta con permisos que no tiene no le cambia el correo ni el número, ni la desactiva, reactiva o borra.</value></data>
   <data name="PermissionDescription.roles.read" xml:space="preserve"><value>Los roles y qué permisos da cada uno.</value></data>
-  <data name="PermissionDescription.roles.manage" xml:space="preserve"><value>Crear, editar y eliminar roles.</value></data>
+  <data name="PermissionDescription.roles.manage" xml:space="preserve"><value>Crear, editar y eliminar roles. Sólo da o quita permisos que tiene quien edita; los de User, sólo un administrador.</value></data>
   <data name="PermissionDescription.settings.manage" xml:space="preserve"><value>El modo de registro y los ajustes del sistema.</value></data>
 </root>

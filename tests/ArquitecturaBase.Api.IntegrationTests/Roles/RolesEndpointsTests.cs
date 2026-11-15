@@ -102,7 +102,7 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
             users.Select(permission => permission.GetProperty("code").GetString()));
         Assert.Equal(["Ver usuarios", "Administrar usuarios"], users.Select(permission => permission.GetProperty("name").GetString()));
         Assert.Equal(
-            ["El listado y el detalle de cada cuenta.", "Dar de alta, editar, desactivar y eliminar cuentas."],
+            ["El listado y el detalle de cada cuenta.", "Dar de alta, editar, desactivar y eliminar cuentas. Quien edita sólo da o quita roles con permisos que tiene, y a una cuenta con permisos que no tiene no le cambia el correo ni el número, ni la desactiva, reactiva o borra."],
             users.Select(permission => permission.GetProperty("description").GetString()));
     }
 

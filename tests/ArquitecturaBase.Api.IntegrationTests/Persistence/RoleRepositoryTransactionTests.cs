@@ -101,12 +101,22 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
         var name = UniqueName();
         var renamed = UniqueName();
 
-        var created = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IRoleService>()
-            .CreateAsync(new CreateRoleRequest($"  {name}  ", "Before", [Permissions.Users.Read]), Ct));
+        // Como el administrador: el servicio sólo deja dar los permisos que tiene quien pide.
+        var adminId = await RequestSessions.SignInSeedAdminAsync(factory);
+        var created = await factory.ExecuteScopeAsync(services =>
+        {
+            services.ActAs(adminId);
+            return services.GetRequiredService<IRoleService>()
+                .CreateAsync(new CreateRoleRequest($"  {name}  ", "Before", [Permissions.Users.Read]), Ct);
+        });
         Assert.True(created.IsSuccess);
 
-        var updated = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IRoleService>()
-            .UpdateAsync(new UpdateRoleRequest(created.Value, renamed, "After", [Permissions.Roles.Read]), Ct));
+        var updated = await factory.ExecuteScopeAsync(services =>
+        {
+            services.ActAs(adminId);
+            return services.GetRequiredService<IRoleService>()
+                .UpdateAsync(new UpdateRoleRequest(created.Value, renamed, "After", [Permissions.Roles.Read]), Ct);
+        });
         Assert.True(updated.IsSuccess);
 
         var changed = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IRoleReader>()

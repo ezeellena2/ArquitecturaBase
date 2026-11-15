@@ -261,6 +261,7 @@ public sealed class SystemQuerySourcesTests
         }
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyCollection<RoleRow>> ListAllRolesAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyCollection<RoleRow>> ListRolesForUserAsync(Guid userId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
