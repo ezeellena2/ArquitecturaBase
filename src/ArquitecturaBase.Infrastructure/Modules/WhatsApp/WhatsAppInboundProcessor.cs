@@ -285,15 +285,38 @@ internal sealed partial class WhatsAppInboundProcessor(
             var documents = prepareScope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentDispatchService>();
             // Counted before it is read: a reading that never comes back is not taken for ever.
             if (await documents.TakeAsync(contactId, cancellationToken) is not { IsSuccess: true, Value: true }) return;
-            var prepared = await documents.PrepareAsync(contactId, cancellationToken);
-            if (prepared.IsFailure || prepared.Value is null) return;
-            work = prepared.Value;
+            try
+            {
+                var prepared = await documents.PrepareAsync(contactId, cancellationToken);
+                if (prepared.IsFailure || prepared.Value is null) return;
+                work = prepared.Value;
+            }
+            catch (OperationCanceledException)
+            {
+                // The host stopped while it was downloaded: the taking did not read anything, so its count is given back (F6).
+                await GiveBackDocumentAsync(contactId);
+                throw;
+            }
         }
         // Get first: a reading already accepted is polled, and only one the engine does not know is submitted.
         var outcome = await RunOperationAsync(work, cancellationToken, recoverExisting: true);
         await using var completeScope = scopeFactory.CreateAsyncScope();
         await completeScope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentDispatchService>()
             .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
+    }
+
+    // The token that was cancelled is not the one it is given back with.
+    private async Task GiveBackDocumentAsync(Guid contactId)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentDispatchService>().GiveBackAsync(contactId, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // Not giving it back only leaves the count where it was.
+        }
     }
 
     private async Task<bool> ProcessAudioAsync(Guid contactId, CancellationToken cancellationToken)

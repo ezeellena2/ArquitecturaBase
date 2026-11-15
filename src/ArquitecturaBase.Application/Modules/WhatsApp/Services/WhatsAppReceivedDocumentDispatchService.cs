@@ -59,6 +59,17 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
             return saved.IsFailure ? Result.Failure<bool>(saved.Error) : Result.Success(taken);
         });
 
+    public Task<Result> GiveBackAsync(Guid contactId, CancellationToken ct) =>
+        OperationLog.RunAsync<Result>(logger, "GiveBackWhatsAppReceivedDocument", async () =>
+        {
+            if (await reader.FindPendingAsync(contactId, reading.NowUtc, ct) is not { State: WhatsAppDocumentState.Pending } source) return Result.Success();
+            return await unitOfWork.ExecuteInTransactionAsync(async token =>
+            {
+                if (await messages.GetForUpdateAsync(source.ContactId, source.MessageId, token) is { } message) message.GiveBackDocumentReading();
+                return Result.Success();
+            }, CommitPolicy.OnSuccess, ct);
+        });
+
     private async Task<Result<WhatsAppAssistantWorkResponse?>> KeepAsync(WhatsAppReceivedDocumentSourceRow source, WhatsAppReceivedDocumentPlan plan,
         Result<WhatsAppPreparedDocument>? acquired, DateTime nowUtc, CancellationToken token)
     {

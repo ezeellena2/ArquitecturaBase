@@ -20,6 +20,12 @@ public interface IWhatsAppReceivedDocumentDispatchService
     /// </summary>
     Task<Result<bool>> TakeAsync(Guid contactId, CancellationToken ct);
 
+    /// <summary>
+    /// Gives back the count of a taking that was cut before the reading came back (the host stopped, the work was cancelled), so restarts
+    /// during the download do not leave the document unreadable. The caller does not pass the token that was cancelled.
+    /// </summary>
+    Task<Result> GiveBackAsync(Guid contactId, CancellationToken ct);
+
     /// <summary>Keeps what came of the reading: its text with the message, a reading that waits again, or the reason it ends without one.</summary>
     Task<Result> CompleteAsync(Guid contactId, Guid requestId, Result<AssistantOperationResponse> outcome, CancellationToken ct);
 }

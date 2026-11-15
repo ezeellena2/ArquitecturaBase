@@ -187,6 +187,12 @@ public sealed partial class WhatsAppMessage
     /// <summary>The reading came back with an answer, whatever it was: the attempt does not count.</summary>
     public void ReleaseDocumentReading() => DocumentReadAttempts = 0;
 
+    /// <summary>The taking was cut before the reading came back (the host stopped, the work was cancelled): its attempt is given back.</summary>
+    public void GiveBackDocumentReading()
+    {
+        if (DocumentState == WhatsAppDocumentState.Pending && DocumentReadAttempts > 0) DocumentReadAttempts--;
+    }
+
     /// <summary>A stored Word that is used is read with what its owner prepared, without the engine.</summary>
     public Result UsePreparedDocumentReading()
     {

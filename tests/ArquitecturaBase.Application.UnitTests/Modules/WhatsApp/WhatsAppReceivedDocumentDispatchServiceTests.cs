@@ -822,4 +822,18 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
     public void The_limits_of_a_document_are_the_attachment_ones_in_every_layer() =>
         Assert.Equal((StructuredAttachmentLimits.MaximumBytes, StructuredAttachmentLimits.MaximumPages),
             ((int)WhatsAppMessage.MaxDocumentBytes, WhatsAppMessage.MaxDocumentPages));
+
+    // F6: a taking that is cut before the reading comes back (the host stops, the work is cancelled) gives its count back, so a few
+    // restarts during the download do not leave the document unreadable.
+    [Fact]
+    public async Task A_taking_that_was_cut_gives_its_attempt_back()
+    {
+        var f = new WhatsAppReceivedDocumentFixture(caption: null);
+        Assert.True((await f.Dispatch.TakeAsync(f.Contact.Id, Ct)).Value);
+        Assert.Equal(1, f.Message.DocumentReadAttempts);
+
+        Assert.True((await f.Dispatch.GiveBackAsync(f.Contact.Id, CancellationToken.None)).IsSuccess);
+
+        Assert.Equal((WhatsAppDocumentState.Pending, 0), (f.Message.DocumentState, f.Message.DocumentReadAttempts));
+    }
 }

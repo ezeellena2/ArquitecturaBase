@@ -350,4 +350,19 @@ public sealed class WhatsAppMessageDocumentTests
         reading.SetDocumentReadingState(WhatsAppDocumentState.Pending);
         Assert.Equal(WhatsAppDocumentState.Reading, reading.DocumentState);
     }
+
+    // F6: a taking that was cut (the host stopped, the work was cancelled) gives its count back, without going below zero.
+    [Fact]
+    public void A_taking_that_was_cut_gives_its_attempt_back()
+    {
+        var message = Described();
+        Assert.True(message.TakeDocumentForReading());
+        Assert.True(message.TakeDocumentForReading());
+
+        message.GiveBackDocumentReading();
+        message.GiveBackDocumentReading();
+        message.GiveBackDocumentReading();
+
+        Assert.Equal(0, message.DocumentReadAttempts);
+    }
 }
