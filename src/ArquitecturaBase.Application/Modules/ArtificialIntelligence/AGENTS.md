@@ -65,4 +65,4 @@ Archivos en Inicio: AiAssistantFileTurnService (planilla o Word) exige el permis
 
 Precargas (Casos del asistente): con el filtro de las herramientas y fuera de las dieciséis; Execution las corre al preparar y las guarda con el primer paso. `assistant_proposal@2` elige hasta tres; `DraftsText`, sólo con `QualifiedToDraft`.
 
-Casos del asistente: AiBusinessKnowledgeSource (Channels) reemplaza `IBusinessKnowledgeSource` y arma con `AiBusinessKnowledgePolicy` sólo los hechos confirmados de Información del negocio, por zona y con id estable, en la cultura pedida; sin LLM, transacción ni caché. La misma regla da la primera fila de `business.information` (nombre, descripción, servicios y políticas) y deja afuera las preguntas sin respuesta.
+Casos del asistente: AiBusinessKnowledgeSource (Channels) reemplaza `IBusinessKnowledgeSource` y arma con `AiBusinessKnowledgePolicy` sólo los hechos confirmados de Información del negocio, por zona y con id estable, en la cultura pedida; sin LLM, transacción ni caché. `business.information` de Inicio arma sus filas con la misma política: los mismos hechos, con nombre, descripción, servicios y políticas primero.

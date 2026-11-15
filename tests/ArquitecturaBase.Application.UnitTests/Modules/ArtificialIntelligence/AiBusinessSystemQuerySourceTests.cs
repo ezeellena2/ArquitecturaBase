@@ -115,6 +115,39 @@ public sealed class AiBusinessSystemQuerySourceTests
         Assert.DoesNotContain("Old answers", values);
     }
 
+    /// <summary>
+    /// B5: Inicio and the channels build the business facts with the same rule: a day without information is not a fact, and without a
+    /// confirmed day the business zone is not one either.
+    /// </summary>
+    [Theory]
+    [InlineData("es", false)]
+    [InlineData("en", false)]
+    [InlineData("es", true)]
+    [InlineData("en", true)]
+    public async Task Home_presents_the_same_business_facts_as_the_channels(string culture, bool confirmedDay)
+    {
+        var fixture = Create();
+        var answered = Guid.CreateVersion7();
+        IReadOnlyList<BusinessOpeningDay> days = confirmedDay
+            ? [new(0, "open", [new("08:00", "17:00", false)]), new(1, "unknown", []), new(6, "closed", [])]
+            : [new(0, "unknown", []), new(1, "unknown", [])];
+        IReadOnlyList<BusinessSpecialDate> dates = confirmedDay ? [new(new DateOnly(2026, 12, 25), "closed", [])] : [];
+        fixture.Reader.Information = new("Fictional shop", "Repairs", "Mondays 8 to 5", "", "Repairs and parts", "", "", 3,
+            new AiBusinessDetails(new("address", "Fictional street 123", "", "Downtown", null, null),
+                new("America/Argentina/Buenos_Aires", days, dates),
+                [new(answered, "Do you ship?", "Yes, by carrier."), new(Guid.CreateVersion7(), "Is there parking?", "")]));
+
+        var result = await fixture.Source.ExecuteAsync(Request(fixture.ActorId, culture), Ct);
+        var knowledge = await new AiBusinessKnowledgeSource(fixture.Reader).ReadAsync(culture, Ct);
+
+        var rows = Assert.Single(result.Value.Evidences).Rows;
+        var home = rows.SelectMany(row => row.Values).Select(value => (value.Label, value.Value)).ToArray();
+        var facts = knowledge.Sections.SelectMany(section => section.Facts).Select(fact => (fact.Label, fact.Text)).ToArray();
+        Assert.Equal(facts.Order(), home.Order());
+        Assert.Equal(confirmedDay, home.Any(value => value.Value == "America/Argentina/Buenos_Aires"));
+        Assert.Contains(rows, row => row.Id == answered);
+    }
+
     private static AssistantCapabilityRequest Request(Guid actorId, string culture = "es") =>
         new(Guid.CreateVersion7(), new("home", actorId, null, culture, "UTC", new([], []), [new("business.information", 1)], []),
             new("business.information", 1), "{}", []);

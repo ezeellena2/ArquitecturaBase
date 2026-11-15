@@ -1,4 +1,3 @@
-using System.Globalization;
 using ArquitecturaBase.Application.Channels.SystemQueries;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
@@ -6,7 +5,6 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.SystemQueries;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Resources;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
@@ -31,25 +29,18 @@ internal sealed class AiBusinessSystemQuerySource(IAiBusinessInformationReader r
             return AiAssistantErrors.ToolRejected;
         var information = await reader.FindAsync(cancellationToken);
         if (information.Revision == 0) return SystemQueryCapabilityCodec.Response("notConnected", null);
-        string Label(string key) => AssistantTexts.Get("Business." + key, request.Context.Culture);
-        // Only confirmed facts: the texts saved before the guided editor (hours, location and answers) were never reviewed, and a
-        // question without an answer is not a fact (Casos del asistente, 2026-11-11).
-        var rows = new List<SystemQueryRow>
-        {
-            new(null, [new(Label("Name"), information.Name), new(Label("Description"), information.Description),
-                new(Label("Services"), information.Services), new(Label("Policies"), information.Policies)]),
-        };
-        if (information.Details is { } details)
-        {
-            rows.Add(new(null, [new(Label("Address"), details.Location.Address), new(Label("Reference"), details.Location.Reference), new(Label("Area"), details.Location.Area)]));
-            rows.Add(new(null, [new(Label("TimeZone"), details.OpeningHours.TimeZoneId)]));
-            foreach (var day in details.OpeningHours.Days)
-                rows.Add(new(null, [new(Label("Day"), Label("Weekday." + day.Weekday)), new(Label("Hours"), AiBusinessKnowledgePolicy.Hours(day.Status, day.Periods, request.Context.Culture))]));
-            foreach (var date in details.OpeningHours.Exceptions)
-                rows.Add(new(null, [new(Label("Date"), date.Date.ToString(request.Context.Culture.StartsWith("en", StringComparison.Ordinal) ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture)), new(Label("Hours"), AiBusinessKnowledgePolicy.Hours(date.Status, date.Periods, request.Context.Culture))]));
-            foreach (var faq in details.Faq.Where(AiBusinessKnowledgePolicy.Answered))
-                rows.Add(new(faq.Id, [new(Label("Question"), faq.Question), new(Label("Answer"), faq.Answer)]));
-        }
+        // The same confirmed facts as the channels (B5): a question without an answer, a day without information and a text saved
+        // before the guided editor are never facts, and without a confirmed day the zone is not one either. The first row brings
+        // name, description, services and policies; then the location, each hour and each answered question with its id.
+        var knowledge = AiBusinessKnowledgePolicy.Build(information, request.Context.Culture);
+        BusinessKnowledgeFact[] Facts(params BusinessKnowledgeSectionKey[] keys) =>
+            [.. knowledge.Sections.Where(section => keys.Contains(section.Key)).SelectMany(section => section.Facts)];
+        static SystemQueryValue Value(BusinessKnowledgeFact fact) => new(fact.Label, fact.Text);
+        var rows = new[] { Facts(BusinessKnowledgeSectionKey.Details, BusinessKnowledgeSectionKey.Services), Facts(BusinessKnowledgeSectionKey.Location) }
+            .Where(facts => facts.Length > 0).Select(facts => new SystemQueryRow(null, [.. facts.Select(Value)])).ToList();
+        rows.AddRange(Facts(BusinessKnowledgeSectionKey.Hours).Select(fact => new SystemQueryRow(null, [Value(fact)])));
+        rows.AddRange(Facts(BusinessKnowledgeSectionKey.Answers).Select(fact =>
+            new SystemQueryRow(Guid.ParseExact(fact.Id["faq.".Length..], "N"), [Value(fact)])));
         var complete = rows.Count <= 50;
         return SystemQueryCapabilityCodec.Response(complete ? "complete" : "truncated", new(Guid.CreateVersion7(), "business.information", 1,
             timeProvider.GetUtcNow().UtcDateTime, information.Revision, "businessInformation", [ArtificialIntelligencePermissions.BusinessRead], rows.Take(50).ToArray(), complete));
