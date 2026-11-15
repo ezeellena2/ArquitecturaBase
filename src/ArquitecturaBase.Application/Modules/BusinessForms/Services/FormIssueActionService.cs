@@ -30,9 +30,9 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
             // EM2-A: one loaded in the app was confirmed before sending; one from a channel asks its author first, and again after
             // «Volver a probar» on a summary that failed (decision 4), with a message of its own for that decision.
             if (!work.RecordEnteredInApp && work.DeliveryReview?.WasSent != true)
-                return await AskAsync(work, issuer, request, work.RunId, cancellationToken);
+                return await AskAsync(work, issuer, request, work.RunId, reuse: work.DeliveryReview is null, cancellationToken);
             if (!work.RecordEnteredInApp && work.PriorPreview?.FailureCode is not null)
-                return await AskAsync(work, issuer, request, FormIssueConfirmationPolicy.MessageId(work.RunId, work.DeliveryReview!.ExpectedRevision), cancellationToken);
+                return await AskAsync(work, issuer, request, FormIssueConfirmationPolicy.MessageId(work.RunId, work.DeliveryReview!.ExpectedRevision), reuse: false, cancellationToken);
             status = await issuer.EnqueueAsync(request, cancellationToken);
         }
         // The person decided on the issuance as the run last saw it: a newer revision makes the issuer refuse and ask again.
@@ -67,9 +67,11 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
 
     // The summary, or the reason it failed, goes to whoever loaded it, and the run waits, uncertain, until that person decides.
     private async Task<FormActionOutcomeResponse> AskAsync(FormActionWorkResponse work, IStructuredRecordIssuer issuer, StructuredIssueRequest request,
-        Guid messageId, CancellationToken cancellationToken)
+        Guid messageId, bool reuse, CancellationToken cancellationToken)
     {
-        var preview = await issuer.PreviewAsync(request.Data, cancellationToken);
+        // B1: an action taken again (no new decision to try again) keeps the summary it already saved, the one its message was sent with,
+        // so the buttons of that message still match what the run shows; asking again could change a failed summary into one that came out.
+        var preview = reuse && work.PriorPreview is { } saved ? saved : await issuer.PreviewAsync(request.Data, cancellationToken);
         await messenger.AskAsync(work.RunId, work.RecordId, preview, messageId, cancellationToken);
         return new(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: preview);
     }

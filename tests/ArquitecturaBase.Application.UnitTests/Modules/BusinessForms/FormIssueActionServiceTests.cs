@@ -111,6 +111,23 @@ public sealed class FormIssueActionServiceTests
         Assert.Single(issuer.Requests);
     }
 
+    // B1: an action taken again keeps the summary its message was sent with: asking the issuer again could turn a failed summary into one
+    // that came out, and the buttons of the message in the chat («Volver a probar») would no longer match what the run shows.
+    [Fact]
+    public async Task An_action_taken_again_keeps_the_summary_it_already_saved_and_does_not_ask_the_issuer_again()
+    {
+        var channel = new FakeFormActionChannel();
+        var (service, issuer, work) = Arrange(channel: channel);
+        channel.Reachable.Add(Author);
+        issuer.Preview = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Agro SA", "1210");
+        var saved = new StructuredIssuePreview(null, null, null) { FailureCode = "test.issue.registryDown" };
+
+        var outcome = await service.ExecuteAsync(work with { RecordEnteredInApp = false, PriorPreview = saved }, CancellationToken.None);
+
+        Assert.Same(saved, outcome.IssuePreview);
+        Assert.Equal(FormActionRunState.Uncertain, outcome.State);
+    }
+
     [Fact]
     public async Task The_question_to_the_author_lists_the_amounts_the_document_itemizes_before_the_total()
     {
