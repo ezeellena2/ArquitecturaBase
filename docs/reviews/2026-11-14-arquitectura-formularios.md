@@ -336,6 +336,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   el código queda por debajo. Ningún test prueba el caso.
 - **Arreglo:** guardar en la tarea también a quien fijó los valores (quien corrigió o quien pasó el documento) y dejarlo afuera
   igual que al autor, al decidir, en la bandeja y en el conteo. Chico.
+- **Arreglado el 2026-11-15** en `054a3566` y `3207e2b4`: sin columna nueva, se lee de la respuesta (`CorrectedByUserId`) y del documento
+  que la originó (`ReviewedByUserId`).
 
 #### F5. Con «Administrar reglas y PDF» alcanza para recibir las respuestas por WhatsApp
 
@@ -352,6 +354,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   descripción del permiso no lo menciona (`Permissions.resx:26`).
 - **Arreglo:** pedir también «Ver respuestas» para guardar una regla cuyos avisos citen respuestas; o decidir y escribir que
   administrar reglas permite mandar respuestas por aviso, y decirlo en la descripción del permiso. Chico.
+- **Arreglado el 2026-11-15** en `a765080f` (se eligió pedir «Ver respuestas»; la descripción del permiso y la regla escrita lo dicen).
 
 #### F6. Un PDF armado para atacar puede frenar la lectura de documentos de una copia y, por WhatsApp, todo lo que entra
 
@@ -613,6 +616,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   test del menú prueba quien carga y quien diseña, no quien sólo decide (`FormFolderHttpTests.cs:246`).
 - **Arreglo:** que el menú use el mismo filtro de formularios visibles que el árbol, conservando el filtro de los dados de baja,
   y sumar al test una cuenta que sólo decide. Chico.
+- **Arreglado el 2026-11-15** en `1b1d5165`.
 
 #### F21. Dos «Agregar» simultáneos del mismo estándar pueden terminar en «Algo salió mal»
 

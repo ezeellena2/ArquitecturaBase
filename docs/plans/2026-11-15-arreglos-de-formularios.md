@@ -64,10 +64,10 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 2. **F4. Quien fijó los valores no aprueba.** La tarea guarda también a quien corrigió la respuesta o la pasó desde un documento,
    y la decisión, la bandeja y el conteo lo dejan afuera como al autor (`BusinessFormTask.cs:31`, `FormApprovalReader.cs:46,74`).
    De paso, la guarda que crea un borrador a nombre de una persona mira que su cuenta esté activa, como las demás (O13). Tests de
-   integración: quien corrige una respuesta ajena, o pasa un documento, y es del rol que aprueba recibe 403. Chico.
+   integración: quien corrige una respuesta ajena, o pasa un documento, y es del rol que aprueba recibe 403. Chico. Hecha el 2026-11-15 en `054a3566` (la decisión, la bandeja, su conteo y la continuación; la guarda del borrador pide cuenta activa) y `3207e2b4` (el resumen y el árbol).
 3. **F5. Guardar una regla que cita respuestas pide «Ver respuestas»** (decisión 3). `FormRuleAccessGuard` pide `formrecords.read`
    cuando un aviso usa datos de preguntas, y lo dicen la descripción del permiso (`Permissions.resx:26`) y la regla del dominio.
-   El editor de reglas muestra el rechazo con su texto. Test: sin «Ver respuestas», guardar esa regla da 403. Chico.
+   El editor de reglas muestra el rechazo con su texto. Test: sin «Ver respuestas», guardar esa regla da 403. Chico. Hecha el 2026-11-15 en `a765080f` (el código `Forms.Rule.RecordsReadRequired` tiene su texto en `Errors.resx`; falta mirar en el editor del front que lo muestre).
 4. **F7 y F14. Los temas de «Formularios que faltan» se revisan antes de ofrecerse** (decisión 7). El tema suma un estado de
    revisión: uno nuevo, o uno descartado que reabre otro pedido, no entra en la lectura de candidatas de otras personas hasta que
    lo revisa alguien con «Diseñar formularios», y los que ya existen quedan sin revisar. El asistente recibe sólo el nombre, sin la
@@ -78,10 +78,10 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
    ruta y migración) y `32db5ad9` (front, que ya trae las cohortes de la pantalla a la espera de la exportación del cierre).
 5. **F20. El menú muestra sólo lo que la persona puede abrir.** `ListMenuFormsAsync` recibe a la persona y sus permisos y usa el
    mismo filtro de formularios visibles que el árbol, conservando el de los dados de baja; el test del menú suma una cuenta que
-   sólo decide aprobaciones. Chico.
+   sólo decide aprobaciones. Chico. Hecha el 2026-11-15 en `1b1d5165`.
 6. **B2. El test de la cuenta borrada.** Un test de integración: una cuenta con un rol, borrarla y preguntar sus permisos. Si los
    conserva, el arreglo (que el servicio de permisos no conceda nada a una cuenta borrada o inactiva) es del núcleo y se suma a su
-   [plan](2026-11-14-arreglos-del-nucleo.md). Trivial el test.
+   [plan](2026-11-14-arreglos-del-nucleo.md). Trivial el test. Escrito el 2026-11-15 y **falla**: B2 confirmado (la cuenta borrada conserva los permisos de sus roles); no se commiteó el test y el arreglo queda para el núcleo.
 
 ### Etapa 3: reglas y acciones
 
