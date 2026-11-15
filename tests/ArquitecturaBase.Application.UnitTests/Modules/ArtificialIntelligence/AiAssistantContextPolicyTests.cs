@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Resources;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
@@ -52,7 +53,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var result = await host.Policy.PrepareAsync(host.Claim, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         var message = Assert.Single(result.Value.ProviderRequest.Messages);
-        Assert.Equal("Current question", message.Text);
+        Assert.Equal("Current question" + host.HomeTime, message.Text);
         Assert.Equal(1, host.Protector.Decryptions);
     }
 
@@ -66,6 +67,9 @@ public sealed partial class AiAssistantContextPolicyTests
         public Protector Protector { get; } = new();
         public AiAssistantClaimResponse Claim { get; }
         public AiAssistantContextPolicy Policy { get; }
+        // I15: a Home turn ends its current message with the time of the request and the zone of the profile.
+        public string HomeTime => "\n\n" + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Prompt("Prompt.SourceTime", Reader.Row.Culture),
+            Reader.Row.SubmittedAtUtc.ToString("O", CultureInfo.InvariantCulture), Reader.Row.TimeZoneId);
         public Host(string culture, int[]? profileVersions = null, AiAssistantLimits? limits = null, IAssistantCapabilitySource[]? sources = null)
         {
             var users = Users;

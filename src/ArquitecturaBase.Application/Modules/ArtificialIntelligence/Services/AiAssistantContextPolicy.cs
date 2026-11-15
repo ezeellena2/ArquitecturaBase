@@ -109,7 +109,8 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         }
         var messages = AiAssistantHistoryPolicy.Messages(history, limits.HistoryCharacters, turn.Culture).ToList();
         // The message's time goes at the very end, after any file, so the instructions and what precedes it stay the same between turns.
-        if (profile.Value.OccurredAtUtc is { } occurredAtUtc)
+        // A channel seals its original message's instant; Inicio uses the request's, with the zone of the profile (I15).
+        if ((profile.Value.OccurredAtUtc ?? (turn.ChannelId == "home" ? turn.SubmittedAtUtc : null)) is { } occurredAtUtc)
             question += "\n\n" + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Prompt("Prompt.SourceTime", turn.Culture),
                 occurredAtUtc.ToString("O", CultureInfo.InvariantCulture), turn.TimeZoneId);
         messages.Add(new("user", question));

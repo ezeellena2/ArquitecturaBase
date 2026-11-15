@@ -18,7 +18,7 @@ public sealed partial class AiAssistantContextPolicyTests
         host.Reader.Row = host.Reader.Row with { AudioRequestId = Guid.NewGuid(), ProtectedTranscript = "transcript-content" };
         var result = await host.Policy.PrepareAsync(host.Claim, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
-        Assert.Equal("Current question\n\nDictated request", Assert.Single(result.Value.ProviderRequest.Messages).Text);
+        Assert.Equal("Current question\n\nDictated request" + host.HomeTime, Assert.Single(result.Value.ProviderRequest.Messages).Text);
     }
 
     [Fact]
