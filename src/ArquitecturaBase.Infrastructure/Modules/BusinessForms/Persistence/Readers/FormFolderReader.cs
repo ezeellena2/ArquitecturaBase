@@ -44,13 +44,15 @@ internal sealed class FormFolderReader(ApplicationDbContext dbContext) : IFormFo
     }
 
     public async Task<IReadOnlyList<FormFolderMenuFormRow>> ListMenuFormsAsync(IReadOnlyCollection<Guid> folderIds, string culture,
-        CancellationToken cancellationToken)
+        Guid actorUserId, bool canReadRecords, bool canCreate, CancellationToken cancellationToken)
     {
+        // The same forms the tree shows this person, not deactivated ones.
+        var visible = FormOverviewDefinitionQuery.VisibleIds(dbContext, actorUserId, canReadRecords, canCreate);
         var ids = folderIds.ToArray();
         var nameColumn = culture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         return await (from membership in dbContext.Set<BusinessFormFolderMembership>().AsNoTracking()
                       where membership.ItemKind == FormFolderItemKind.Form && ids.Contains(membership.FolderId)
-                      join definition in FormOverviewDefinitionQuery.Published(dbContext).Where(definition => definition.DeactivatedAtUtc == null)
+                      join definition in FormOverviewDefinitionQuery.Published(dbContext).Where(definition => definition.DeactivatedAtUtc == null && visible.Contains(definition.Id))
                           on membership.ItemId equals definition.Id
                       join version in dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.PublishedCultures != null)
                           on definition.ActiveVersionId equals version.Id

@@ -292,6 +292,13 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         var nothing = await none.ReadJsonAsync();
         Assert.DoesNotContain(nothing.GetProperty("menus").EnumerateArray(), item => item.GetProperty("folderId").GetGuid() == own.Id);
         Assert.Empty(nothing.GetProperty("administration").EnumerateArray());
+
+        // F20: whoever only decides approvals sees the forms with something for them to decide, as the tree does; here, none.
+        using var approver = await OperatorAsync(P.ApprovalsDecide);
+        using var forApprover = await approver.GetAsync("/api/forms/menu", Ct);
+        Assert.Equal(HttpStatusCode.OK, forApprover.StatusCode);
+        var approverMenu = (await forApprover.ReadJsonAsync()).GetRawText();
+        foreach (var form in new[] { route, delivery, load }) Assert.DoesNotContain(form.ToString(), approverMenu);
     }
 
     private static Guid[] Ids(JsonElement forms) => forms.EnumerateArray().Select(form => form.GetProperty("id").GetGuid()).ToArray();

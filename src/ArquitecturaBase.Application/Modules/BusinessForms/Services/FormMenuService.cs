@@ -28,16 +28,17 @@ internal sealed class FormMenuService(ICurrentUser currentUser, IPermissionServi
         {
             if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;
             if (await users.FindByIdAsync(actor, cancellationToken) is not { IsActive: true }) return FormDefinitionErrors.Forbidden;
-            if (!await permissions.HasPermissionAsync(actor, P.RecordsRead, cancellationToken)
-                && !await permissions.HasPermissionAsync(actor, P.ApprovalsDecide, cancellationToken)
-                && !await permissions.HasPermissionAsync(actor, P.RecordsCreate, cancellationToken)) return Empty;
+            var canReadRecords = await permissions.HasPermissionAsync(actor, P.RecordsRead, cancellationToken);
+            var canCreate = await permissions.HasPermissionAsync(actor, P.RecordsCreate, cancellationToken);
+            if (!canReadRecords && !canCreate && !await permissions.HasPermissionAsync(actor, P.ApprovalsDecide, cancellationToken)) return Empty;
             var folders = await reader.ListAsync(cancellationToken);
             var placed = folders.Where(folder => folder.MenuPlacement != nameof(FormFolderMenuPlacement.None)).ToArray();
             if (placed.Length == 0) return Empty;
             var nodes = FormFolderService.Nodes(folders);
             var subtrees = folders.ToDictionary(folder => folder.Id, folder => FormFolderTree.Subtree(folder.Id, nodes));
             var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-            var rows = await reader.ListMenuFormsAsync(placed.SelectMany(folder => subtrees[folder.Id]).Distinct().ToArray(), culture, cancellationToken);
+            var rows = await reader.ListMenuFormsAsync(placed.SelectMany(folder => subtrees[folder.Id]).Distinct().ToArray(), culture,
+                actor, canReadRecords, canCreate, cancellationToken);
             var byFolder = rows.ToLookup(row => row.FolderId);
             IReadOnlyList<FormMenuFormResponse> Forms(IEnumerable<Guid> inside) => FormFolderService.Alphabetical(
                 inside.SelectMany(id => byFolder[id]).DistinctBy(row => row.DefinitionId).Select(row => new FormMenuFormResponse(row.DefinitionId, row.Name)),

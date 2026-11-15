@@ -25,7 +25,10 @@ public interface IFormFolderReader
     /// <summary>How many different forms (not deleted) and catalogs these folders hold.</summary>
     Task<FormFolderItemCounts> CountItemsAsync(IReadOnlyCollection<Guid> folderIds, CancellationToken cancellationToken);
 
-    /// <summary>The active forms (published, neither deactivated nor deleted) directly in these folders, with their published name.</summary>
+    /// <summary>
+    /// The active forms (published, neither deactivated nor deleted) directly in these folders that this person can open, with their
+    /// published name: the same ones the tree of the forms listing shows them.
+    /// </summary>
     Task<IReadOnlyList<FormFolderMenuFormRow>> ListMenuFormsAsync(IReadOnlyCollection<Guid> folderIds, string culture,
-        CancellationToken cancellationToken);
+        Guid actorUserId, bool canReadRecords, bool canCreate, CancellationToken cancellationToken);
 }

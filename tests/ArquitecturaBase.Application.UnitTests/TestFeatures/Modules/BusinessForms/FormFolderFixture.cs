@@ -126,7 +126,7 @@ internal sealed class FormFolderFixture : IFormFolderRepository, IFormFolderRead
             inside.Where(value => value.ItemKind == FormFolderItemKind.Catalog).Select(value => value.ItemId).Distinct().Count()));
     }
 
-    public Task<IReadOnlyList<FormFolderMenuFormRow>> ListMenuFormsAsync(IReadOnlyCollection<Guid> folderIds, string culture, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<FormFolderMenuFormRow>> ListMenuFormsAsync(IReadOnlyCollection<Guid> folderIds, string culture, Guid actorUserId, bool canReadRecords, bool canCreate, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormFolderMenuFormRow>>(Memberships
             .Where(value => value.ItemKind == FormFolderItemKind.Form && folderIds.Contains(value.FolderId) && ActiveForms.ContainsKey(value.ItemId))
             .Select(value => new FormFolderMenuFormRow(value.FolderId, value.ItemId, ActiveForms[value.ItemId])).ToArray());
