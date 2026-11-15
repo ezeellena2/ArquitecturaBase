@@ -199,6 +199,28 @@ public sealed class FormActionEffectServiceTests
         Assert.Equal(FormActionRunState.Completed,outcome.State);
         Assert.Equal("Emitimos la Factura C 0004-00000012.",Assert.Single(channel.Messages).Body);
     }
+    [Fact]
+    public async Task A_notice_the_closed_window_cannot_send_is_not_applicable_for_that_person_and_does_not_stop_the_rule()
+    {
+        var person=Guid.NewGuid();var channel=new FakeFormActionChannel();channel.Statuses[person]=new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.WindowClosed",true);
+        var service=new FormActionEffectService(new FakeFormPdfActionService(),[channel],NullLogger<FormActionEffectService>.Instance,new FormRecordResultReaderDouble());
+        var outcome=await service.ExecuteAsync(Work(people:[person]),CancellationToken.None);
+        Assert.Equal(FormActionRunState.NotApplicable,outcome.State);Assert.False(outcome.CanRetry);
+        var recipient=Assert.Single(outcome.Recipients!);Assert.Equal(StructuredRecordActionState.NotApplicable,recipient.Status.State);
+        Assert.Equal("WhatsApp.FormAction.WindowClosed",recipient.Status.FailureCode);Assert.Empty(channel.Retries);
+    }
+    [Fact]
+    public async Task A_role_notice_with_one_person_out_of_the_window_completes_and_keeps_the_reason_without_retrying_them()
+    {
+        var closed=Guid.NewGuid();var reached=Guid.NewGuid();var channel=new FakeFormActionChannel();
+        channel.Statuses[closed]=new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.WindowClosed",true);channel.Statuses[reached]=new(StructuredRecordActionState.Accepted);
+        var service=new FormActionEffectService(new FakeFormPdfActionService(),[channel],NullLogger<FormActionEffectService>.Instance,new FormRecordResultReaderDouble());
+        var first=await service.ExecuteAsync(Work("NotifyRole",reconcile:true,people:[closed,reached]),CancellationToken.None);
+        Assert.Equal(FormActionRunState.Completed,first.State);
+        Assert.Equal(StructuredRecordActionState.NotApplicable,Assert.Single(first.Recipients!,item=>item.UserId==closed).Status.State);
+        var again=await service.ExecuteAsync(Work("NotifyRole",reconcile:true,retry:true,people:[closed,reached]) with{PriorRecipients=first.Recipients},CancellationToken.None);
+        Assert.Equal(FormActionRunState.Completed,again.State);Assert.Empty(channel.Retries);Assert.Empty(channel.Messages);
+    }
     private static FormActionWorkResponse Work(string kind="NotifyAuthor",bool reconcile=false,bool retry=false,IReadOnlyList<Guid>? people=null)
     {
         var fixture=new FormActionFixture();var action=FormActionFixture.Action(kind);var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[action])]);var runId=Guid.NewGuid();

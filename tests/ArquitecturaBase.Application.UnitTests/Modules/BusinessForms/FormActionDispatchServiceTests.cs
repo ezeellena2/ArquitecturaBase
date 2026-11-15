@@ -36,6 +36,70 @@ public sealed class FormActionDispatchServiceTests
         Assert.Equal(0, second.Fence);
     }
 
+    // F2: an effect left in doubt by a local error is asked about again on its own, with a growing wait, and a consult never sends again.
+    [Fact]
+    public async Task A_pdf_left_in_doubt_is_consulted_again_on_its_own_with_a_growing_wait_and_then_waits_for_a_person()
+    {
+        var fixture = new FormActionFixture();
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action("GeneratePdf")])]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var service = Dispatch(fixture);
+        var run = Assert.Single(fixture.Runs.Runs);
+        var first = (await service.ReserveAsync(run.Id, CancellationToken.None)).Value!;
+        Assert.False(first.ReconciliationOnly);
+        Assert.True((await service.CompleteAsync(first, new(FormActionRunState.Uncertain, FormActionErrors.EffectUnconfirmed.Code), CancellationToken.None)).IsSuccess);
+        Assert.Equal(FormActionRunState.Running, run.State);
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        fixture.Clock.Advance(BusinessFormActionRun.AutoConsultDelay(0));
+        var consult = (await service.ReserveAsync(run.Id, CancellationToken.None)).Value!;
+        Assert.True(consult.ReconciliationOnly);
+        Assert.True((await service.CompleteAsync(consult, new(FormActionRunState.Uncertain, FormActionErrors.EffectUnconfirmed.Code), CancellationToken.None)).IsSuccess);
+        fixture.Clock.Advance(BusinessFormActionRun.AutoConsultDelay(0));
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        fixture.Clock.Advance(BusinessFormActionRun.AutoConsultDelay(1));
+        for (var attempt = 2; attempt < BusinessFormActionRun.MaxAutoConsults; attempt++)
+        {
+            var work = (await service.ReserveAsync(run.Id, CancellationToken.None)).Value!;
+            Assert.True((await service.CompleteAsync(work, new(FormActionRunState.Uncertain, FormActionErrors.EffectUnconfirmed.Code), CancellationToken.None)).IsSuccess);
+            Assert.Equal(FormActionRunState.Running, run.State);
+            fixture.Clock.Advance(BusinessFormActionRun.AutoConsultDelay(attempt));
+        }
+        var last = (await service.ReserveAsync(run.Id, CancellationToken.None)).Value!;
+        Assert.True((await service.CompleteAsync(last, new(FormActionRunState.Uncertain, FormActionErrors.EffectUnconfirmed.Code), CancellationToken.None)).IsSuccess);
+        Assert.Equal(FormActionRunState.Uncertain, run.State);
+    }
+
+    // F28: a kind this version does not know is left for the version that does, never reserved nor failed.
+    [Fact]
+    public async Task An_action_of_a_kind_this_version_does_not_know_keeps_waiting()
+    {
+        var fixture = new FormActionFixture();
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action()])]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var known = Assert.Single(fixture.Runs.Runs);
+        var unknown = BusinessFormActionRun.Create(known.DefinitionId, known.RecordId, known.RuleSetId, Guid.NewGuid(), Guid.NewGuid(), "Received", "FutureKind", 0, null, known.SnapshotJson, true, fixture.Clock.GetUtcNow().UtcDateTime);
+        fixture.Runs.Runs.Add(unknown);
+        var service = Dispatch(fixture);
+        Assert.Null((await service.ReserveAsync(unknown.Id, CancellationToken.None)).Value);
+        Assert.Equal((FormActionRunState.Waiting, 0L), (unknown.State, unknown.Fence));
+        Assert.NotNull((await service.ReserveAsync(known.Id, CancellationToken.None)).Value);
+    }
+
+    [Fact]
+    public async Task What_needs_a_decision_is_not_consulted_on_its_own()
+    {
+        var fixture = new FormActionFixture();
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action()])]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var service = Dispatch(fixture);
+        var run = Assert.Single(fixture.Runs.Runs);
+        var work = (await service.ReserveAsync(run.Id, CancellationToken.None)).Value!;
+        Assert.True((await service.CompleteAsync(work, new(FormActionRunState.Uncertain, "WhatsApp.Send.Unconfirmed"), CancellationToken.None)).IsSuccess);
+        Assert.Equal(FormActionRunState.Uncertain, run.State);
+        fixture.Clock.Advance(TimeSpan.FromDays(1));
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+    }
+
     [Fact]
     public async Task Requesting_approval_confirms_task_response_and_run_in_one_transaction()
     {

@@ -8,6 +8,8 @@ public enum StructuredRecordActionState
     Accepted,
     Failed,
     Uncertain,
+    /// <summary>F2: the notice cannot go out to this person (their reply window is closed); it is a reason, not a failure, and it does not stop the rule.</summary>
+    NotApplicable,
 }
 
 /// <summary>Provider-independent evidence for a run and its fixed recipient. Uncertainty never authorizes a resend.</summary>

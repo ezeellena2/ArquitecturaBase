@@ -68,9 +68,9 @@ internal sealed class FormWorkflowService(FormWorkflowReadPolicy readPolicy,IFor
                 var outcome=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson);
                 if(outcome?.Recipients?.Any(recipient=>recipient.UserId==recipientUserId&&recipient.Status.State==ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Failed
                     &&recipient.Status.CanRetry)!=true)return Result.Failure(FormActionErrors.StateConflict);
-                return run.RequestRecipientRetry(recipientUserId,expectedRevision,now);
+                return run.RequestRecipientRetry(recipientUserId,expectedRevision,now,actor.Value);
             }
-            return retry?run.RequestRetry(now):run.RequestConsult(now);
+            return retry?run.RequestRetry(now,actor.Value):run.RequestConsult(now,actor.Value);
         },CommitPolicy.OnSuccess,cancellationToken);
         return changed.IsFailure?changed.Error:await GetAsync(recordId,cancellationToken);
     }

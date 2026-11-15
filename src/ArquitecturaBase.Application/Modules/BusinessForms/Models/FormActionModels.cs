@@ -86,5 +86,8 @@ public sealed record FormActionOutcomeResponse(FormActionRunState State,string? 
     /// <summary>The copy by email of a «SendCopy», queued with the confirmation of its run; never stored with the outcome.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public ArquitecturaBase.Application.Models.Emails.EmailMessage? Email { get; init; }
+    /// <summary>F2: the doubt comes from a local error (an exception while asking), so the system may consult on its own; never stored.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool LocalError { get; init; }
     public override string ToString()=>"FormActionOutcomeResponse { Content = [REDACTED] }";
 }

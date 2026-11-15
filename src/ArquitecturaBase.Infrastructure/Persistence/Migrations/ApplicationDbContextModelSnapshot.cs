@@ -1408,6 +1408,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ActionId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AutoConsultCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("CanRetry")
                         .HasColumnType("boolean");
 
@@ -1464,6 +1469,16 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<string>("LastRequestKind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime?>("LastRequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastRequestedByUserId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("LeaseExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");

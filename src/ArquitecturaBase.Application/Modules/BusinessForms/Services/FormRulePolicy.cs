@@ -37,7 +37,7 @@ internal static class FormRulePolicy
             {
                 var actionPath = rulePath + $".actions[{actionIndex}]";
                 if (action is null || action.Id == Guid.Empty || !actionIds.Add(action.Id)) return Invalid(actionPath + ".id");
-                if (action.Kind is not ("RequestApproval" or "GeneratePdf" or "NotifyAuthor" or "NotifyRole" or "IssueDocument" or "SendCopy")) return Invalid(actionPath + ".kind");
+                if (action.Kind is null || !FormActionKinds.Known.Contains(action.Kind)) return Invalid(actionPath + ".kind");
                 // The copy by email sends the document of an earlier issuance of its rule to its receiver.
                 if (action.Kind == "SendCopy" && !issued) return Invalid(actionPath + ".kind");
                 // One issuance per rule, on arrival or approval and before the messages that may use its result.

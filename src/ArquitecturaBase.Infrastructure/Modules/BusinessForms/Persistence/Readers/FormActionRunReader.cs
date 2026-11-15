@@ -13,7 +13,7 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
         await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run => runIds.Contains(run.Id) && run.Kind == "GeneratePdf"
             && db.Set<BusinessFormRecord>().Any(record => record.Id == run.RecordId)).Select(run => run.Id).ToArrayAsync(cancellationToken);
     public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(DateTime nowUtc,CancellationToken cancellationToken)=>await db.Set<BusinessFormActionRun>().AsNoTracking()
-        .Where(run=>(run.State==FormActionRunState.Waiting||run.State==FormActionRunState.Running)
+        .Where(run=>FormActionKinds.Known.Contains(run.Kind)&&(run.State==FormActionRunState.Waiting||run.State==FormActionRunState.Running)
             &&(run.LeaseExpiresAtUtc==null||run.LeaseExpiresAtUtc<=nowUtc)&&(run.NextCheckAtUtc==null||run.NextCheckAtUtc<=nowUtc)
             &&(run.DependsOnRunId==null||db.Set<BusinessFormActionRun>().Any(previous=>previous.Id==run.DependsOnRunId
                 &&(previous.State==FormActionRunState.Completed||previous.State==FormActionRunState.NotApplicable))))

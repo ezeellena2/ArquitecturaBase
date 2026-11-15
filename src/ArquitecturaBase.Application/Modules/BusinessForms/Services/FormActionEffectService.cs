@@ -9,6 +9,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed partial class FormActionEffectService:IFormActionEffectService
 {
+    private const string WindowClosedCode="WhatsApp.FormAction.WindowClosed";
     private readonly ILogger<FormActionEffectService> _logger;
     private readonly IFormPdfActionService _pdf;private readonly IStructuredRecordActionChannel[] _channels;
     private readonly IFormRecordResultReader _results;private readonly IFormIssueActionService? _issues;private readonly IFormIssueCopyService? _copies;
@@ -23,11 +24,11 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
     {
         OperationLog.Handling(_logger,"ExecuteFormAction");FormActionOutcomeResponse outcome;
         try{outcome=work.Kind switch{"GeneratePdf"=>await PdfAsync(work,cancellationToken),"IssueDocument"=>_issues is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _issues.ExecuteAsync(work,cancellationToken),
-            "SendCopy"=>_copies is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _copies.CopyAsync(work,cancellationToken),_=>await NotifyAsync(work,cancellationToken)};}
+            "SendCopy"=>_copies is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _copies.CopyAsync(work,cancellationToken),"NotifyAuthor" or "NotifyRole"=>await NotifyAsync(work,cancellationToken),_=>throw new InvalidOperationException("Unknown form action kind.")};}
         catch(Exception exception)when(!cancellationToken.IsCancellationRequested)
         {
             LogUnconfirmed(_logger,work.RunId,exception.GetType().Name);
-            outcome=new(FormActionRunState.Uncertain,FormActionErrors.EffectUnconfirmed.Code);
+            outcome=new(FormActionRunState.Uncertain,FormActionErrors.EffectUnconfirmed.Code){LocalError=true};
         }
         if(outcome.State is FormActionRunState.Failed or FormActionRunState.Uncertain)OperationLog.Failed(_logger,"ExecuteFormAction",outcome.FailureCode??FormActionErrors.EffectUnconfirmed.Code);
         else OperationLog.Handled(_logger,"ExecuteFormAction");
@@ -56,7 +57,7 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
         if(_channels.Length==0)return role
             ?new(FormActionRunState.Completed,Recipients:work.Snapshot.Recipients.Select(recipient=>new FormActionRecipientOutcome(recipient.UserId,recipient.DisplayName,null,new(StructuredRecordActionState.Failed,FormActionErrors.ChannelUnavailable.Code))).ToArray())
             :new(FormActionRunState.Failed,FormActionErrors.ChannelUnavailable.Code,true);
-        var recipients=new List<FormActionRecipientOutcome>();
+        var recipients=new List<FormActionRecipientOutcome>();var localErrors=new HashSet<Guid>();
         // RE1-A: a message with data of a result reads the results the earlier actions of its rule left, to fill them in.
         IReadOnlyList<FormRecordResultRow> results=work.Snapshot.Recipients.Any(recipient=>FormActionResultTokenPolicy.HasData(recipient.Body))
             ?await _results.ListAsync([work.RecordId],ct):[];
@@ -70,7 +71,7 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
             // In a role, a known failure stays as it is unless the retry of that very person was requested.
             var retried=work.RetryRequested&&work.RetryRecipientUserId==recipient.UserId;
             var previous=work.PriorRecipients?.SingleOrDefault(item=>item.UserId==recipient.UserId&&item.ChannelId==channel.ChannelId);
-            if(previous is not null&&(previous.Status.State==StructuredRecordActionState.Accepted
+            if(previous is not null&&(previous.Status.State is StructuredRecordActionState.Accepted or StructuredRecordActionState.NotApplicable
                 ||role&&!retried&&previous.Status.State==StructuredRecordActionState.Failed&&previous.Status.Review?.WasSent!=false)){recipients.Add(previous);continue;}
             StructuredRecordActionResponse status;
             try
@@ -93,20 +94,27 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
                     status=await channel.RetryAsync(work.RunId,recipient.UserId,work.Fence,ct);
                 if(status.State==StructuredRecordActionState.NotFound)
                     status=status with{State=StructuredRecordActionState.Failed,FailureCode=FormActionErrors.RecipientUnavailable.Code,CanRetry=true};
+                // F2: a notice the closed 24-hour window cannot send is «No aplica» for that person, with its reason, and the rule goes on.
+                if(status.State==StructuredRecordActionState.Failed&&status.FailureCode==WindowClosedCode)
+                    status=status with{State=StructuredRecordActionState.NotApplicable,CanRetry=false};
             }
             catch(Exception exception)when(!ct.IsCancellationRequested)
             {
-                LogUnconfirmed(_logger,work.RunId,exception.GetType().Name);
+                LogUnconfirmed(_logger,work.RunId,exception.GetType().Name);localErrors.Add(recipient.UserId);
                 status=new(StructuredRecordActionState.Uncertain,FormActionErrors.EffectUnconfirmed.Code);
             }
             recipients.Add(new(recipient.UserId,recipient.DisplayName,channel.ChannelId,status));
         }
         if(recipients.Count==0)return new(FormActionRunState.Failed,FormActionErrors.RecipientUnavailable.Code,Recipients:recipients);
         if(recipients.Any(item=>item.Status.State==StructuredRecordActionState.Uncertain))
-            return new(FormActionRunState.Uncertain,recipients.First(item=>item.Status.State==StructuredRecordActionState.Uncertain).Status.FailureCode??FormActionErrors.EffectUnconfirmed.Code,Recipients:recipients);
+            return new(FormActionRunState.Uncertain,recipients.First(item=>item.Status.State==StructuredRecordActionState.Uncertain).Status.FailureCode??FormActionErrors.EffectUnconfirmed.Code,Recipients:recipients)
+                {LocalError=recipients.Where(item=>item.Status.State==StructuredRecordActionState.Uncertain).All(item=>localErrors.Contains(item.UserId))};
         if(recipients.Any(item=>item.Status.State is StructuredRecordActionState.Pending or StructuredRecordActionState.Sending))
             return new(FormActionRunState.Running,Recipients:recipients);
-        if(role||recipients.All(item=>item.Status.State==StructuredRecordActionState.Accepted))return new(FormActionRunState.Completed,Recipients:recipients);
+        if(role)return new(FormActionRunState.Completed,Recipients:recipients);
+        if(recipients.All(item=>item.Status.State==StructuredRecordActionState.NotApplicable))
+            return new(FormActionRunState.NotApplicable,recipients[0].Status.FailureCode,Recipients:recipients);
+        if(recipients.All(item=>item.Status.State is StructuredRecordActionState.Accepted or StructuredRecordActionState.NotApplicable))return new(FormActionRunState.Completed,Recipients:recipients);
         return new(FormActionRunState.Failed,recipients.First(item=>item.Status.State==StructuredRecordActionState.Failed).Status.FailureCode??FormActionErrors.EffectUnconfirmed.Code,
             recipients.Any(item=>item.Status.CanRetry),Recipients:recipients);
     }

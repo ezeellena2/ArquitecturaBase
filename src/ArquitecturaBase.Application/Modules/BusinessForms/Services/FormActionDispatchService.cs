@@ -21,6 +21,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
     private async Task<Result<FormActionWorkResponse?>> ReserveCoreAsync(Guid runId,CancellationToken ct)
     {
         await drafts.LockDefinitionsAsync(ct);var run=await runs.GetAsync(runId,ct);if(run is null)return Result.Success<FormActionWorkResponse?>(null);
+        // F28: a kind this version does not know waits for the version that does.
+        if(!FormActionKinds.Known.Contains(run.Kind))return Result.Success<FormActionWorkResponse?>(null);
         if(run.DependsOnRunId is {} dependency)
         {
             var previous=await runs.GetAsync(dependency,ct);
@@ -81,6 +83,11 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
                 await outcomes.AddAsync(run,work.Snapshot,outcome,now,ct);
             await outcomes.AddIssuedItemAsync(outcome,ct);
             await outcomes.VoidNotIssuedAsync(run,work,outcome,now,ct);
+            // F2: an effect left in doubt by a local error (or a PDF in doubt) is asked about again on its own; an issuance and whatever the
+            // channel cannot confirm wait for a person.
+            if(outcome.State==FormActionRunState.Uncertain&&work.Kind!="IssueDocument"
+                &&(work.Kind=="GeneratePdf"||outcome.LocalError))
+                return run.RecordUnconfirmed(work.Fence,now,outcome.FailureCode??FormActionErrors.EffectUnconfirmed.Code,FormDraftPolicy.Serialize(outcome));
             return run.RecordOutcome(work.Fence,now,outcome.State,outcome.FailureCode,outcome.CanRetry,FormDraftPolicy.Serialize(outcome),outcome.Issue?.NextCheckAtUtc);
         },CommitPolicy.OnSuccess,cancellationToken));
 }

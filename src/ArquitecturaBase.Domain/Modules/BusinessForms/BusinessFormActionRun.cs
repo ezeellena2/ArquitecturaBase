@@ -31,6 +31,13 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     public DateTime? DeliveryReviewedAtUtc { get; private set; }
     /// <summary>H21: the channel's tap of its latest decision from a button, so that same tap handed again is answered the same.</summary>
     public Guid? DecisionTapId { get; private set; }
+    /// <summary>F19: what a person last asked of this action («Retry», «RecipientRetry» or «Consult»), who and when; it stays after the result.</summary>
+    public string? LastRequestKind { get; private set; }
+    public Guid? LastRequestedByUserId { get; private set; }
+    public DateTime? LastRequestedAtUtc { get; private set; }
+    /// <summary>F2: how many times the system asked on its own, with a growing wait, about an effect left in doubt by a local error.</summary>
+    public int AutoConsultCount { get; private set; }
+    public const int MaxAutoConsults = 8;
     public long Fence { get; private set; }
     public DateTime? LeaseExpiresAtUtc { get; private set; }
     public DateTime? NextCheckAtUtc { get; private set; }
@@ -70,20 +77,36 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         LeaseExpiresAtUtc=null;NextCheckAtUtc=state==FormActionRunState.Running?(nextCheckAtUtc>nowUtc.AddSeconds(5)?nextCheckAtUtc:nowUtc.AddSeconds(5)):null;
         CompletedAtUtc=state is FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.NotApplicable?nowUtc:null;RetryRequested=false;RetryRecipientUserId=null;DeliveryReviewRequested=false;return Result.Success();
     }
+    /// <summary>F2: the wait before the next automatic consult: 15 s, doubling, up to 15 minutes. A consult never sends again.</summary>
+    public static TimeSpan AutoConsultDelay(int attempt)=>TimeSpan.FromSeconds(Math.Min(900,15*Math.Pow(2,Math.Max(0,attempt))));
+    /// <summary>
+    /// F2: an effect left in doubt by a local error is asked about again on its own, with a growing wait, up to <see cref="MaxAutoConsults"/>
+    /// times; after that it stays uncertain, for a person. It is the same consult as the manual one (it never sends again).
+    /// </summary>
+    public Result RecordUnconfirmed(long fence,DateTime nowUtc,string failureCode,string? outcomeJson=null)
+    {
+        if(AutoConsultCount>=MaxAutoConsults)return RecordOutcome(fence,nowUtc,FormActionRunState.Uncertain,failureCode,false,outcomeJson);
+        var recorded=RecordOutcome(fence,nowUtc,FormActionRunState.Running,null,false,outcomeJson,nowUtc.Add(AutoConsultDelay(AutoConsultCount)));
+        if(recorded.IsSuccess)AutoConsultCount++;
+        return recorded;
+    }
     public bool OwnsLease(long fence,DateTime nowUtc)=>Fence==fence&&State==FormActionRunState.Running&&LeaseExpiresAtUtc>nowUtc;
-    public Result RequestRetry(DateTime nowUtc)
+    private void Requested(string kind,Guid? byUserId,DateTime nowUtc){LastRequestKind=kind;LastRequestedByUserId=byUserId;LastRequestedAtUtc=nowUtc;}
+    public Result RequestRetry(DateTime nowUtc,Guid? requestedBy=null)
     {
         if(State is FormActionRunState.Completed or FormActionRunState.NotApplicable || RetryRequested)return Result.Success();
         if(State!=FormActionRunState.Failed || !CanRetry)return FormActionErrors.StateConflict;
+        Requested("Retry",requestedBy,nowUtc);
         State=FormActionRunState.Waiting;FailureCode=null;CompletedAtUtc=null;CanRetry=false;
         RetryRequested=true;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
     // A role notice is done once every person got it or failed; only a person whose failure is confirmed is sent again,
     // and the people who got it are never repeated. Application checks the confirmed failure in the outcome.
-    public Result RequestRecipientRetry(Guid recipientUserId,long expectedRevision,DateTime nowUtc)
+    public Result RequestRecipientRetry(Guid recipientUserId,long expectedRevision,DateTime nowUtc,Guid? requestedBy=null)
     {
         if(RetryRequested && RetryRecipientUserId==recipientUserId && recipientUserId!=Guid.Empty)return Result.Success();
         if(Kind!="NotifyRole" || State!=FormActionRunState.Completed || Fence!=expectedRevision || recipientUserId==Guid.Empty)return FormActionErrors.StateConflict;
+        Requested("RecipientRetry",requestedBy,nowUtc);
         State=FormActionRunState.Waiting;FailureCode=null;CompletedAtUtc=null;CanRetry=false;
         RetryRequested=true;RetryRecipientUserId=recipientUserId;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
@@ -113,10 +136,11 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         DecisionTapId=tapId;
         return true;
     }
-    public Result RequestConsult(DateTime nowUtc)
+    public Result RequestConsult(DateTime nowUtc,Guid? requestedBy=null)
     {
         if(State is FormActionRunState.Completed or FormActionRunState.NotApplicable) return Result.Success();
         if(State!=FormActionRunState.Uncertain && !(State==FormActionRunState.Running&&LeaseExpiresAtUtc<=nowUtc)) return FormActionErrors.StateConflict;
+        if(requestedBy is not null)Requested("Consult",requestedBy,nowUtc);
         State=FormActionRunState.Running;LeaseExpiresAtUtc=null;
         RetryRequested=false;RetryRecipientUserId=null;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
