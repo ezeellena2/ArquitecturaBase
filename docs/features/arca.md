@@ -261,6 +261,10 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   IVA, lo que falta. Al pedido van `ImpNeto`, `ImpIVA`, `ImpOpEx` (exento), `ImpTotConc` (no gravado) y el array `Iva`,
   una entrada por alícuota. La A exige CUIT; un renglón sin IVA en la A o la B no se encola (`Arca.Invoicing.ItemsInvalid`).
   La C descarta el IVA que llegue.
+- **Seguimiento (H26):** los logs del worker llevan el id del comprobante, su clave de pedido y el código de cada espera,
+  también las que antes esperaban calladas (el ticket, la numeración y la conciliación sin respuesta), y el PDF fiscal que
+  espera dice su código. De una excepción propia va el mensaje, que está en inglés y sin datos personales; de una ajena, sólo
+  el tipo.
 - **Numeración:** `ArcaVoucherSequences` tiene una fila por ambiente, CUIT, punto de venta y tipo, con una reserva corta y
   el comprobante pendiente. El worker (`Arca:Invoicing:Worker`) toma una secuencia por vez y su comprobante más viejo sin
   resolver; nadie toma otro número mientras haya un pendiente. El número (último autorizado más 1) y la huella SHA-256 se

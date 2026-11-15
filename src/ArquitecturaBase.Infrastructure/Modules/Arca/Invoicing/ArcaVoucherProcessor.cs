@@ -48,7 +48,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
-                LogFailed(exception.GetType().Name, sequence.PointOfSale, sequence.VoucherType);
+                LogFailed(exception.GetType().Name, OwnMessage(exception), sequence.PointOfSale, sequence.VoucherType);
             }
         }
 
@@ -74,7 +74,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
-                LogPdfFailed(exception.GetType().Name);
+                LogPdfFailed(voucherId, exception.GetType().Name, OwnMessage(exception));
             }
         }
 
@@ -98,7 +98,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            LogPdfFailed(exception.GetType().Name);
+            LogPdfPostponed(voucherId, ArcaInvoicingErrors.PdfRenderFailed.Code, exception.GetType().Name, OwnMessage(exception));
             await StepAsync(store => store.PostponePdfAsync(voucherId, ArcaInvoicingErrors.PdfRenderFailed.Code, cancellationToken));
             return false;
         }
@@ -120,7 +120,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            LogPdfFailed(exception.GetType().Name);
+            LogPdfPostponed(voucherId, ArcaInvoicingErrors.PdfStorageUnavailable.Code, exception.GetType().Name, OwnMessage(exception));
             await StepAsync(store => store.PostponePdfAsync(voucherId, ArcaInvoicingErrors.PdfStorageUnavailable.Code, cancellationToken));
             return false;
         }
@@ -135,7 +135,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         var ticket = await tickets.GetAsync(work.Certificate, Wsfe, cancellationToken);
         if (ticket is not ArcaTicketOutcome.Ready ready)
         {
-            await StepAsync(store => store.PostponeAsync(work, TicketFailure(ticket), cancellationToken));
+            await PostponeAsync(work, TicketFailure(ticket), cancellationToken);
             return false;
         }
 
@@ -146,12 +146,12 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         if (reply is { Status: ArcaServiceCheckStatus.Ready, Value: { } authorization })
         {
             await StepAsync(store => store.CompleteAsync(toSend, authorization, cancellationToken));
-            LogAnswered(authorization.Result, toSend.Request.PointOfSale, toSend.Request.VoucherType, toSend.Request.Number);
+            LogAnswered(toSend.VoucherId, toSend.RequestKey, authorization.Result, toSend.Request.PointOfSale, toSend.Request.VoucherType, toSend.Request.Number);
         }
         else
         {
             await StepAsync(store => store.PostponeAsync(toSend, ArcaInvoicingErrors.ArcaNoAnswer.Code, cancellationToken));
-            LogUnanswered(toSend.Request.PointOfSale, toSend.Request.VoucherType, toSend.Request.Number);
+            LogUnanswered(toSend.VoucherId, toSend.RequestKey, toSend.Request.PointOfSale, toSend.Request.VoucherType, toSend.Request.Number);
         }
 
         return true;
@@ -163,7 +163,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         var last = await client.GetLastAuthorizedAsync(work.Certificate, ticket, work.Request.PointOfSale, work.Request.VoucherType, cancellationToken);
         if (last is not { Status: ArcaServiceCheckStatus.Ready })
         {
-            await StepAsync(store => store.PostponeAsync(work, Failure(last.Status, last.FailureCode), cancellationToken));
+            await PostponeAsync(work, Failure(last.Status, last.FailureCode), cancellationToken);
             return null;
         }
 
@@ -181,7 +181,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         var found = await client.FindVoucherAsync(work.Certificate, ticket, request.PointOfSale, request.VoucherType, request.Number, cancellationToken);
         if (found.Status != ArcaServiceCheckStatus.Ready)
         {
-            await StepAsync(store => store.PostponeAsync(work, Failure(found.Status, found.FailureCode), cancellationToken));
+            await PostponeAsync(work, Failure(found.Status, found.FailureCode), cancellationToken);
             return null;
         }
 
@@ -192,7 +192,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
             var last = await client.GetLastAuthorizedAsync(work.Certificate, ticket, request.PointOfSale, request.VoucherType, cancellationToken);
             if (last.Status != ArcaServiceCheckStatus.Ready)
             {
-                await StepAsync(store => store.PostponeAsync(work, Failure(last.Status, last.FailureCode), cancellationToken));
+                await PostponeAsync(work, Failure(last.Status, last.FailureCode), cancellationToken);
                 return null;
             }
 
@@ -202,7 +202,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
                 var latest = await client.FindVoucherAsync(work.Certificate, ticket, request.PointOfSale, request.VoucherType, lastAuthorized, cancellationToken);
                 if (latest.Status != ArcaServiceCheckStatus.Ready)
                 {
-                    await StepAsync(store => store.PostponeAsync(work, Failure(latest.Status, latest.FailureCode), cancellationToken));
+                    await PostponeAsync(work, Failure(latest.Status, latest.FailureCode), cancellationToken);
                     return null;
                 }
 
@@ -210,9 +210,21 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
             }
         }
 
-        LogReconciled(request.PointOfSale, request.VoucherType, request.Number, found.Value is not null);
+        LogReconciled(work.VoucherId, work.RequestKey, request.PointOfSale, request.VoucherType, request.Number, found.Value is not null);
         return await StepAsync(store => store.ReconcileAsync(work, found.Value, lastAuthorized, lastIssuedOn, cancellationToken));
     }
+
+    // H26: cada espera deja su log con el comprobante, su clave de pedido y el código, también las que antes esperaban calladas.
+    private async Task PostponeAsync(ArcaVoucherWorkResponse work, string code, CancellationToken cancellationToken)
+    {
+        LogPostponed(work.VoucherId, work.RequestKey, code, work.Request.PointOfSale, work.Request.VoucherType);
+        await StepAsync(store => store.PostponeAsync(work, code, cancellationToken));
+    }
+
+    // H26: el mensaje de una excepción propia (en inglés y sin datos personales, como manda el proyecto); el de una ajena, no.
+    private static string OwnMessage(Exception exception) =>
+        exception is InvalidOperationException && exception.TargetSite?.DeclaringType?.Namespace?.StartsWith("ArquitecturaBase.", StringComparison.Ordinal) == true
+            ? exception.Message : string.Empty;
 
     private static string TicketFailure(ArcaTicketOutcome outcome) => outcome switch
     {
@@ -236,18 +248,24 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         return await step(scope.ServiceProvider.GetRequiredService<IArcaVoucherStore>());
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "ARCA answered {Result} for voucher type {VoucherType} number {Number} of point of sale {PointOfSale}.")]
-    private partial void LogAnswered(ArcaAuthorizationResult result, int pointOfSale, int voucherType, long number);
+    [LoggerMessage(Level = LogLevel.Information, Message = "ARCA answered {Result} for voucher {VoucherId} (request {RequestKey}), type {VoucherType} number {Number} of point of sale {PointOfSale}.")]
+    private partial void LogAnswered(Guid voucherId, Guid requestKey, ArcaAuthorizationResult result, int pointOfSale, int voucherType, long number);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "ARCA did not answer for voucher type {VoucherType} number {Number} of point of sale {PointOfSale}; it is reconciled next time.")]
-    private partial void LogUnanswered(int pointOfSale, int voucherType, long number);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "ARCA did not answer for voucher {VoucherId} (request {RequestKey}), type {VoucherType} number {Number} of point of sale {PointOfSale}; it is reconciled next time.")]
+    private partial void LogUnanswered(Guid voucherId, Guid requestKey, int pointOfSale, int voucherType, long number);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Reconciled voucher type {VoucherType} number {Number} of point of sale {PointOfSale}; found in ARCA: {Found}.")]
-    private partial void LogReconciled(int pointOfSale, int voucherType, long number, bool found);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Reconciled voucher {VoucherId} (request {RequestKey}), type {VoucherType} number {Number} of point of sale {PointOfSale}; found in ARCA: {Found}.")]
+    private partial void LogReconciled(Guid voucherId, Guid requestKey, int pointOfSale, int voucherType, long number, bool found);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "A fiscal PDF could not be stored after {ExceptionType}; the voucher stays authorized and the PDF waits.")]
-    private partial void LogPdfFailed(string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The ARCA voucher {VoucherId} (request {RequestKey}), type {VoucherType} at point of sale {PointOfSale}, waits with {FailureCode}.")]
+    private partial void LogPostponed(Guid voucherId, Guid requestKey, string failureCode, int pointOfSale, int voucherType);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The ARCA voucher sequence of type {VoucherType} at point of sale {PointOfSale} failed with {ExceptionType}; it is retried later.")]
-    private partial void LogFailed(string exceptionType, int pointOfSale, int voucherType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The fiscal PDF of voucher {VoucherId} waits with {FailureCode} after {ExceptionType} {Detail}; the voucher stays authorized.")]
+    private partial void LogPdfPostponed(Guid voucherId, string failureCode, string exceptionType, string detail);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The fiscal PDF of voucher {VoucherId} failed with {ExceptionType} {Detail}; it is tried again later.")]
+    private partial void LogPdfFailed(Guid voucherId, string exceptionType, string detail);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The ARCA voucher sequence of type {VoucherType} at point of sale {PointOfSale} failed with {ExceptionType} {Detail}; it is retried later.")]
+    private partial void LogFailed(string exceptionType, string detail, int pointOfSale, int voucherType);
 }

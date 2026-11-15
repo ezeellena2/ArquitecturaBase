@@ -108,7 +108,7 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
 
         var request = ArcaVoucherRequestPolicy.Build(voucher, payload, voucher.Number ?? 0);
         return Result.Success<ArcaVoucherWorkResponse?>(new ArcaVoucherWorkResponse(voucher.Id, owner, fence, key,
-            certificate.ToRef(new HashSet<string>(StringComparer.Ordinal) { Wsfe }), request, voucher.Number is not null));
+            certificate.ToRef(new HashSet<string>(StringComparer.Ordinal) { Wsfe }), request, voucher.Number is not null, voucher.RequestKey));
     }
 
     private async Task<Result<ArcaVoucherWorkResponse?>> AssignNumberCoreAsync(ArcaVoucherWorkResponse work, long lastAuthorized, CancellationToken cancellationToken)

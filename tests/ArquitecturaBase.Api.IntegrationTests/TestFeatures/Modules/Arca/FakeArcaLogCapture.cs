@@ -13,6 +13,9 @@ internal sealed class FakeArcaLogCapture : ILoggerProvider
 
     public bool Contains(string text) => entries.Any(entry => entry.Contains(text, StringComparison.Ordinal));
 
+    /// <summary>Una misma entrada con todos esos textos (H26: el comprobante, su clave de pedido y el código).</summary>
+    public bool ContainsAll(params string[] texts) => entries.Any(entry => texts.All(text => entry.Contains(text, StringComparison.Ordinal)));
+
     public ILogger CreateLogger(string categoryName) => new Logger(categoryName, entries);
 
     public void Dispose() { }

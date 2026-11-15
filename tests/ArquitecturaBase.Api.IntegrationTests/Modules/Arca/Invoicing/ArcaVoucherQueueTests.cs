@@ -167,6 +167,9 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
             var waiting = await VoucherAsync(order.RequestKey);
             Assert.Equal((ArcaVoucherState.Queued, (long?)null, true), (waiting.State, waiting.Number, waiting.WaitedForArca));
             Assert.Equal(factory.Clock.GetUtcNow().UtcDateTime.AddSeconds(30), waiting.NextAttemptAtUtc);
+            // H26: the wait leaves its log with the voucher, its request key and the code.
+            Assert.True(factory.Services.GetRequiredService<FakeArcaLogCapture>()
+                .ContainsAll(waiting.Id.ToString(), order.RequestKey.ToString(), waiting.FailureCode!), waiting.FailureCode);
 
             factory.Clock.Advance(TimeSpan.FromSeconds(30));
             await ProcessAsync();
