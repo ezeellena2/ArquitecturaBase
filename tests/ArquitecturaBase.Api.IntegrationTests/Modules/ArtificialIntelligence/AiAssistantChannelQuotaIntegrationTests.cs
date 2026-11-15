@@ -109,6 +109,8 @@ public sealed class AiAssistantChannelQuotaIntegrationTests(ApiFactory factory)
 
     // I1: four lanes and turns of 80 seconds start eight of twelve within the 120 pending seconds. The four that expire without an
     // attempt give their quota back and still deduplicate their id; a turn that reserved a step keeps counting, even when it ends uncertain.
+    // Twelve may wait only because the test raises the cap: the default, 4, is what four lanes start before any of them expires.
+    // The lanes run one after the other on the shared clock (the fictitious provider pairs its answers by order).
     [Fact]
     public async Task A_batch_of_long_turns_gives_back_the_quota_of_those_that_expired_without_an_attempt()
     {

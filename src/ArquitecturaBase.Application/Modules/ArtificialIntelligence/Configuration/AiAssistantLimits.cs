@@ -25,9 +25,10 @@ public sealed record AiAssistantLimits
     public int RunningSeconds { get; init; } = 90;
     public int PendingSeconds { get; init; } = 120;
     public int LeaseGraceSeconds { get; init; } = 15;
-    // I1, a pilot figure: what four lanes start within PendingSeconds with long turns (60 to 80 seconds: two per lane), so a batch is not
-    // accepted only to expire. What still expires without an attempt gives its quota back.
-    public int PendingCapacity { get; init; } = 8;
+    // I1, a pilot figure: what is waiting must start before PendingSeconds. The cap bounds how many wait at once, not a batch: as the lanes
+    // take turns, resubmissions fill it again, so it is RunningCapacity × floor(PendingSeconds / the long turn) = 4 × floor(120 / 80) = 4.
+    // With turns under 60 seconds the pilot may raise it to 8. What still expires without an attempt gives its quota back.
+    public int PendingCapacity { get; init; } = 4;
     public int RunningCapacity { get; init; } = 4;
     public int ActorDailyQuota { get; init; } = 10;
     public int InstallationDailyQuota { get; init; } = 100;

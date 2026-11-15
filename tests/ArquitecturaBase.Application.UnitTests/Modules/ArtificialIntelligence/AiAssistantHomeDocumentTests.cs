@@ -601,17 +601,18 @@ public sealed class AiAssistantHomeDocumentTests
         var gone = await host.ReadAsync();
         var failed = await host.ReadAsync(complete: false);
         var uncertain = await host.ReadAsync(complete: false);
-        var canceled = await host.ReadAsync(complete: false);
-        var request = host.Turn("", held);
-        Assert.True((await host.AcceptAsync(request)).IsSuccess);
-        host.Turn(held).PurgeContent();
-        host.Turn(gone).PurgeContent();
+        // They close before the next uploads, so no more than the default capacity (4, I1) waits at once.
         foreach (var (requestId, isUncertain) in new[] { (failed, false), (uncertain, true) })
         {
             var turn = host.Turn(requestId);
             Assert.True(turn.Claim(Guid.NewGuid(), host.Now.AddSeconds(90)).IsSuccess);
             Assert.True(turn.Fail(turn.Fence, AiAssistantErrors.ProviderUncertain.Code, isUncertain, host.Now).IsSuccess);
         }
+        var canceled = await host.ReadAsync(complete: false);
+        var request = host.Turn("", held);
+        Assert.True((await host.AcceptAsync(request)).IsSuccess);
+        host.Turn(held).PurgeContent();
+        host.Turn(gone).PurgeContent();
         host.Turn(canceled).RequestCancellation(host.Now);
         Assert.Equal(AiAssistantTurnState.Canceled, host.Turn(canceled).State);
         var keys = new[] { read, pending, held, gone, failed, uncertain, canceled }.Select(id => AiAssistantHomeDocumentPolicy.Key(id, "application/pdf")).ToArray();
