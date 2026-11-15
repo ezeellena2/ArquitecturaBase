@@ -7,6 +7,7 @@ public sealed class ArcaRobotRunTests
 {
     private static readonly DateTime Now = new(2026, 11, 9, 16, 0, 0, DateTimeKind.Utc);
     private static readonly TimeSpan Lease = TimeSpan.FromMinutes(3);
+    private const int MaxAttempts = 3;
     private static readonly Guid ConnectionId = Guid.CreateVersion7();
     private static readonly Guid Operator = Guid.CreateVersion7();
     private static readonly Guid Owner = Guid.CreateVersion7();
@@ -160,9 +161,9 @@ public sealed class ArcaRobotRunTests
 
         Assert.Equal(ArcaRobotSide.Platform, run.Side);
         Assert.Equal(ArcaRobotRunStatus.Waiting, run.Status);
-        Assert.True(run.TryReserve(Owner, Now, Lease));
+        Assert.True(run.TryReserve(Owner, Now, Lease, MaxAttempts));
         Assert.Equal(1, run.Attempts);
-        Assert.False(run.TryReserve(Guid.CreateVersion7(), Now.AddMinutes(1), Lease));
+        Assert.False(run.TryReserve(Guid.CreateVersion7(), Now.AddMinutes(1), Lease, MaxAttempts));
         Assert.True(run.IsHeld(Now.AddMinutes(1)));
     }
 
@@ -170,15 +171,15 @@ public sealed class ArcaRobotRunTests
     public void A_postponed_platform_side_is_not_due_before_its_time()
     {
         var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
-        run.TryReserve(Owner, Now, Lease);
+        run.TryReserve(Owner, Now, Lease, MaxAttempts);
 
         Assert.True(run.Postpone(Owner, ArcaRobotFailure.Unavailable, ArcaRobotSteps.PlatformAccept, Now.AddMinutes(5)));
 
         Assert.Equal(ArcaRobotRunStatus.Waiting, run.Status);
         Assert.Equal(ArcaRobotFailure.Unavailable, run.Failure);
         Assert.Equal(Now.AddMinutes(5), run.NextAttemptAtUtc);
-        Assert.False(run.TryReserve(Owner, Now.AddMinutes(4), Lease));
-        Assert.True(run.TryReserve(Owner, Now.AddMinutes(5), Lease));
+        Assert.False(run.TryReserve(Owner, Now.AddMinutes(4), Lease, MaxAttempts));
+        Assert.True(run.TryReserve(Owner, Now.AddMinutes(5), Lease, MaxAttempts));
         Assert.Equal(2, run.Attempts);
         Assert.Null(run.Failure);
     }
@@ -187,21 +188,21 @@ public sealed class ArcaRobotRunTests
     public void A_platform_side_held_by_a_host_that_died_can_be_reserved_again()
     {
         var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
-        run.TryReserve(Owner, Now, Lease);
+        run.TryReserve(Owner, Now, Lease, MaxAttempts);
 
-        Assert.True(run.TryReserve(Guid.CreateVersion7(), Now.Add(Lease), Lease));
+        Assert.True(run.TryReserve(Guid.CreateVersion7(), Now.Add(Lease), Lease, MaxAttempts));
     }
 
     [Fact]
     public void Waking_a_waiting_platform_side_makes_it_due_now()
     {
         var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
-        run.TryReserve(Owner, Now, Lease);
+        run.TryReserve(Owner, Now, Lease, MaxAttempts);
         run.Postpone(Owner, null, null, Now.AddHours(1));
 
         run.Wake(Now.AddMinutes(1));
 
-        Assert.True(run.TryReserve(Owner, Now.AddMinutes(1), Lease));
+        Assert.True(run.TryReserve(Owner, Now.AddMinutes(1), Lease, MaxAttempts));
         Assert.Equal(1, run.Attempts);
     }
 
@@ -209,7 +210,7 @@ public sealed class ArcaRobotRunTests
     public void Rescheduling_starts_the_platform_side_over_unless_it_succeeded_or_its_login_was_rejected()
     {
         var failed = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
-        failed.TryReserve(Owner, Now, Lease);
+        failed.TryReserve(Owner, Now, Lease, MaxAttempts);
         failed.Complete(ArcaRobotSteps.PlatformCertificate, null, Owner, Now, Lease);
         failed.Fail(ArcaRobotFailure.Captcha, ArcaRobotSteps.PlatformLogin, Owner, Now);
 
@@ -219,10 +220,10 @@ public sealed class ArcaRobotRunTests
         Assert.Equal(0, failed.Attempts);
         Assert.Null(failed.Failure);
         Assert.Equal([ArcaRobotSteps.PlatformCertificate], failed.CompletedSteps);
-        Assert.True(failed.TryReserve(Owner, Now.AddMinutes(1), Lease));
+        Assert.True(failed.TryReserve(Owner, Now.AddMinutes(1), Lease, MaxAttempts));
 
         var done = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
-        done.TryReserve(Owner, Now, Lease);
+        done.TryReserve(Owner, Now, Lease, MaxAttempts);
         done.Succeed(Owner, Now);
         done.Reschedule(Now.AddMinutes(1));
         Assert.Equal(ArcaRobotRunStatus.Succeeded, done.Status);
@@ -231,7 +232,7 @@ public sealed class ArcaRobotRunTests
         var rejected = RejectedPlatform();
         rejected.Reschedule(Now.AddMinutes(1));
         Assert.Equal((ArcaRobotRunStatus.Failed, ArcaRobotFailure.LoginRejected), (rejected.Status, rejected.Failure));
-        Assert.False(rejected.TryReserve(Owner, Now.AddMinutes(1), Lease));
+        Assert.False(rejected.TryReserve(Owner, Now.AddMinutes(1), Lease, MaxAttempts));
     }
 
     // H5: whoever manages ARCA tries the platform key again, once it is updated; only a platform side whose login was rejected.
@@ -242,10 +243,10 @@ public sealed class ArcaRobotRunTests
 
         Assert.True(rejected.RearmPlatform(Now.AddMinutes(1)).IsSuccess);
         Assert.Equal((ArcaRobotRunStatus.Waiting, (ArcaRobotFailure?)null, 0), (rejected.Status, rejected.Failure, rejected.Attempts));
-        Assert.True(rejected.TryReserve(Owner, Now.AddMinutes(1), Lease));
+        Assert.True(rejected.TryReserve(Owner, Now.AddMinutes(1), Lease, MaxAttempts));
 
         var captcha = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
-        captcha.TryReserve(Owner, Now, Lease);
+        captcha.TryReserve(Owner, Now, Lease, MaxAttempts);
         captcha.Fail(ArcaRobotFailure.Captcha, ArcaRobotSteps.PlatformLogin, Owner, Now);
         Assert.Equal(ArcaConnectionErrors.RobotPlatformNotRejected, captcha.RearmPlatform(Now).Error);
         var company = ArcaRobotRun.StartCompany(ConnectionId, Guid.CreateVersion7(), Owner, Now, Lease);
@@ -253,10 +254,28 @@ public sealed class ArcaRobotRunTests
         Assert.Equal(ArcaConnectionErrors.RobotPlatformNotRejected, company.RearmPlatform(Now).Error);
     }
 
+    // H19: an interrupted pass counts as an attempt: past the attempts, the platform side stops as interrupted at the step it was
+    // on instead of being taken again.
+    [Fact]
+    public void An_interrupted_platform_side_past_its_attempts_stops_instead_of_being_taken_again()
+    {
+        var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
+        var at = Now;
+        for (var attempt = 0; attempt < MaxAttempts; attempt++)
+        {
+            Assert.True(run.TryReserve(Owner, at, Lease, MaxAttempts));
+            run.Begin(ArcaRobotSteps.PlatformLogin, Owner, at, Lease);
+            at = at.Add(Lease).AddSeconds(1);
+        }
+
+        Assert.False(run.TryReserve(Owner, at, Lease, MaxAttempts));
+        Assert.Equal((ArcaRobotRunStatus.Failed, ArcaRobotFailure.Interrupted, ArcaRobotSteps.PlatformLogin), (run.Status, run.Failure, run.FailedStep));
+    }
+
     private static ArcaRobotRun RejectedPlatform()
     {
         var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
-        run.TryReserve(Owner, Now, Lease);
+        run.TryReserve(Owner, Now, Lease, MaxAttempts);
         run.Fail(ArcaRobotFailure.LoginRejected, ArcaRobotSteps.PlatformLogin, Owner, Now);
         return run;
     }

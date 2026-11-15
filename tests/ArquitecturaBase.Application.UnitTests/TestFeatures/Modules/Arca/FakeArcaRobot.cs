@@ -28,7 +28,7 @@ internal sealed class FakeArcaRobotRuns : IArcaRobotRunRepository, IArcaRobotRun
     public Task<IReadOnlyList<ArcaRobotRunRow>> ListAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ArcaRobotRunRow>>(
         [.. Runs.Select(run => new ArcaRobotRunRow(run.Id, run.Side, run.Status, [.. run.CompletedSteps], run.CurrentStep,
             new Dictionary<string, string>(run.Outputs, StringComparer.Ordinal), run.Failure, run.FailedStep, run.Attempts, run.NextAttemptAtUtc,
-            run.LeaseExpiresAtUtc, run.StartedAtUtc, run.FinishedAtUtc))]);
+            run.LeaseExpiresAtUtc, run.StartedAtUtc, run.FinishedAtUtc, run.AlertKey))]);
 
     public Task<IReadOnlyList<Guid>> ListDuePlatformRunsAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Guid>>([.. Runs.Where(run => run.Side == ArcaRobotSide.Platform

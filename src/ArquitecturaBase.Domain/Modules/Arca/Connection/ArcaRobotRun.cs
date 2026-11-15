@@ -138,11 +138,24 @@ public sealed class ArcaRobotRun : Entity
 
     public bool IsInterrupted(DateTime nowUtc) => Status == ArcaRobotRunStatus.Running && LeaseExpiresAtUtc <= nowUtc;
 
-    /// <summary>Toma el lado de la plataforma si le toca o si el host que lo tenía se cayó.</summary>
-    public bool TryReserve(Guid owner, DateTime nowUtc, TimeSpan lease)
+    /// <summary>
+    /// Toma el lado de la plataforma si le toca o si el host que lo tenía se cayó. Una pasada interrumpida cuenta como un intento
+    /// (H19): agotados los intentos, el lado queda frenado como interrumpido, en el paso en que estaba, en vez de volver a tomarse.
+    /// </summary>
+    public bool TryReserve(Guid owner, DateTime nowUtc, TimeSpan lease, int maxAttempts)
     {
         var due = Status == ArcaRobotRunStatus.Waiting && NextAttemptAtUtc <= nowUtc;
         if (!due && !IsInterrupted(nowUtc)) return false;
+        if (!due && Attempts >= maxAttempts)
+        {
+            Status = ArcaRobotRunStatus.Failed;
+            Failure = ArcaRobotFailure.Interrupted;
+            // Cada pasada empieza por el ingreso: si el host se cayó antes del primer paso, quedó en ése.
+            FailedStep = CurrentStep ?? ArcaRobotSteps.PlatformLogin;
+            Finish(nowUtc);
+            return false;
+        }
+
         Status = ArcaRobotRunStatus.Running;
         Attempts = checked(Attempts + 1);
         ClearFailure();
@@ -198,6 +211,9 @@ public sealed class ArcaRobotRun : Entity
         ReleaseLease();
         return true;
     }
+
+    /// <summary>La clave de un aviso: el motivo y el paso. La pantalla promete el aviso cuando la del último es la de la falla (H19).</summary>
+    public static string AlertKeyFor(ArcaRobotFailure failure, string? step) => $"{failure}:{step}";
 
     public bool ShouldAlert(string key, DateTime nowUtc, TimeSpan interval) =>
         !string.Equals(AlertKey, key, StringComparison.Ordinal) || AlertedAtUtc is not { } last || nowUtc - last >= interval;

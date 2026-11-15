@@ -353,13 +353,16 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
 - **Motivos:** ingreso rechazado, captcha, validación extra, pantalla cambiada, ARCA no responde e interrumpida. El robot no
   resuelve captchas ni pide un segundo factor. ARCA no responde es una página que no carga a tiempo, la red caída o un 5xx en
   cualquier página; pantalla cambiada, una página cargada a la que le falta lo esperado (H18). Del lado de la plataforma, ARCA sin responder reintenta con espera creciente
-  (`RetryDelay`, hasta `MaxAttempts`); lo demás frena, y un ingreso rechazado no se reintenta para no bloquear la clave (H5):
+  (`RetryDelay`, hasta `MaxAttempts`, que cuentan también una pasada interrumpida, H19); lo demás frena, y un ingreso
+  rechazado no se reintenta para no bloquear la clave (H5):
   ni al volver a delegar ni al terminar a mano. Lo vuelve a probar sólo quien tiene `arca.manage`, después de actualizarla,
   con «Volver a probar la clave de la plataforma» en la zona del robot.
-- **El aviso (RB4-A):** una pantalla cambiada de cualquier lado, y del lado de la plataforma también un captcha, una
-  validación extra o su ingreso rechazado, mandan un correo a `Arca:Robot:AlertEmail` por la cola de siempre, con el paso,
+- **El aviso (RB4-A):** una pantalla cambiada de cualquier lado, y todo lo que frena para siempre el lado de la plataforma
+  (también ARCA sin responder o una pasada interrumpida, agotados los intentos, H19), mandan un correo a
+  `Arca:Robot:AlertEmail` por la cola de siempre, con el paso,
   el motivo y la hora, como mucho uno por motivo y paso por día; el del ingreso rechazado dice cómo volver a probar la clave.
-  Siempre queda el log de error.
+  Siempre queda el log de error. Cada lado dice en `alerted` si el aviso de su falla salió, y la pantalla lo promete sólo
+  entonces.
 - **Rutas:** `GET api/arca/connection/robot-runs/current` (`arca.read`) dice si el robot está prendido y cómo va cada lado;
   `POST api/arca/connection/robot-runs` (`arca.read` + `arca.manage`, límite `arca-remote`) arranca el lado del cliente con
   el consentimiento, la CUIT o CUIL de ingreso, la clave y la revisión esperada, y responde 202;

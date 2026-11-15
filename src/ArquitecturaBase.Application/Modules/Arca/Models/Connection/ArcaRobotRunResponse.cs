@@ -26,7 +26,8 @@ public sealed record ArcaRobotRunResponse(bool Enabled, ArcaRobotSideResponse? C
         State(run, nowUtc), run.CurrentStep, run.CompletedSteps, run.Outputs,
         run.Status == ArcaRobotRunStatus.Running && run.LeaseExpiresAtUtc <= nowUtc ? ArcaRobotFailure.Interrupted : run.Failure,
         run.FailedStep ?? (run.Status == ArcaRobotRunStatus.Running && run.LeaseExpiresAtUtc <= nowUtc ? run.CurrentStep : null),
-        run.Status == ArcaRobotRunStatus.Waiting ? run.NextAttemptAtUtc : null, run.StartedAtUtc, run.FinishedAtUtc);
+        run.Status == ArcaRobotRunStatus.Waiting ? run.NextAttemptAtUtc : null, run.StartedAtUtc, run.FinishedAtUtc,
+        run is { Status: ArcaRobotRunStatus.Failed, Failure: { } failure } && run.AlertKey == ArcaRobotRun.AlertKeyFor(failure, run.FailedStep));
 
     private static ArcaRobotRunState State(ArcaRobotRunRow run, DateTime nowUtc) => run.Status switch
     {
@@ -40,13 +41,14 @@ public sealed record ArcaRobotRunResponse(bool Enabled, ArcaRobotSideResponse? C
 
 /// <summary>
 /// Un lado del robot: el paso en curso, los hechos (las claves de la guía), lo que dejó cada paso (el punto de venta), el
-/// motivo y el paso de la falla, y cuándo vuelve a probar el lado de la plataforma.
+/// motivo y el paso de la falla, cuándo vuelve a probar el lado de la plataforma y si el aviso de su falla salió (H19: la
+/// pantalla lo promete sólo entonces).
 /// </summary>
 public sealed record ArcaRobotSideResponse(ArcaRobotRunState State, string? CurrentStep, IReadOnlyList<string> CompletedSteps,
     IReadOnlyDictionary<string, string> Outputs, ArcaRobotFailure? Failure, string? FailedStep, DateTime? NextAttemptAtUtc,
-    DateTime StartedAtUtc, DateTime? FinishedAtUtc);
+    DateTime StartedAtUtc, DateTime? FinishedAtUtc, bool Alerted);
 
-/// <summary>Un lado del robot como lo lee el lector, sin la reserva salvo su vencimiento.</summary>
+/// <summary>Un lado del robot como lo lee el lector, sin la reserva salvo su vencimiento, con la clave del último aviso.</summary>
 public sealed record ArcaRobotRunRow(Guid Id, ArcaRobotSide Side, ArcaRobotRunStatus Status, IReadOnlyList<string> CompletedSteps,
     string? CurrentStep, IReadOnlyDictionary<string, string> Outputs, ArcaRobotFailure? Failure, string? FailedStep, int Attempts,
-    DateTime? NextAttemptAtUtc, DateTime? LeaseExpiresAtUtc, DateTime StartedAtUtc, DateTime? FinishedAtUtc);
+    DateTime? NextAttemptAtUtc, DateTime? LeaseExpiresAtUtc, DateTime StartedAtUtc, DateTime? FinishedAtUtc, string? AlertKey);

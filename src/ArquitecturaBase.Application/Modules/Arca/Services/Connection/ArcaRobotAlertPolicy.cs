@@ -27,16 +27,17 @@ internal sealed partial class ArcaRobotAlertPolicy(IEmailQueue emailQueue, IOpti
     private const string Language = "es";
     private static readonly CultureInfo Culture = CultureInfo.GetCultureInfo(Language);
 
+    // H19: el lado de la plataforma se frena sólo para siempre (ARCA sin responder o una pasada interrumpida, agotados los
+    // intentos, también): cualquier motivo avisa. Del lado del cliente avisa sólo una pantalla cambiada; lo demás lo resuelve él.
     public static bool Applies(ArcaRobotSide side, ArcaRobotFailure failure) =>
-        failure == ArcaRobotFailure.ScreenChanged
-        || (side == ArcaRobotSide.Platform && failure is ArcaRobotFailure.Captcha or ArcaRobotFailure.ExtraValidation or ArcaRobotFailure.LoginRejected);
+        failure == ArcaRobotFailure.ScreenChanged || side == ArcaRobotSide.Platform;
 
     public void Notify(ArcaRobotRun run, ArcaRobotOutcome.Failed failed, DateTime nowUtc)
     {
         LogStopped(run.Side, failed.Failure, failed.Step);
         if (!Applies(run.Side, failed.Failure)) return;
 
-        var key = $"{failed.Failure}:{failed.Step}";
+        var key = ArcaRobotRun.AlertKeyFor(failed.Failure, failed.Step);
         if (!run.ShouldAlert(key, nowUtc, options.Value.AlertInterval)) return;
         if (string.IsNullOrWhiteSpace(options.Value.AlertEmail)) return;
         if (!emailQueue.TryEnqueue(Compose(options.Value.AlertEmail.Trim(), run.Side, failed, nowUtc)))

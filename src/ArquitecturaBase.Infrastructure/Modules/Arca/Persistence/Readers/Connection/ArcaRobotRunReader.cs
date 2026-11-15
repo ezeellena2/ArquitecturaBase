@@ -13,7 +13,7 @@ internal sealed class ArcaRobotRunReader(ApplicationDbContext dbContext) : IArca
     {
         var runs = await dbContext.Set<ArcaRobotRun>().AsNoTracking().OrderBy(x => x.Side).ToListAsync(cancellationToken);
         return [.. runs.Select(run => new ArcaRobotRunRow(run.Id, run.Side, run.Status, run.CompletedSteps, run.CurrentStep, run.Outputs, run.Failure,
-            run.FailedStep, run.Attempts, run.NextAttemptAtUtc, run.LeaseExpiresAtUtc, run.StartedAtUtc, run.FinishedAtUtc))];
+            run.FailedStep, run.Attempts, run.NextAttemptAtUtc, run.LeaseExpiresAtUtc, run.StartedAtUtc, run.FinishedAtUtc, run.AlertKey))];
     }
 
     public async Task<IReadOnlyList<Guid>> ListDuePlatformRunsAsync(DateTime nowUtc, CancellationToken cancellationToken) =>

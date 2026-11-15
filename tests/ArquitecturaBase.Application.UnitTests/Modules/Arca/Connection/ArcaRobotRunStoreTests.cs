@@ -120,6 +120,7 @@ public sealed class ArcaRobotRunStoreTests
 
         Assert.Empty(host.Emails.Messages);
         Assert.Null(host.Runs.Company!.AlertedAtUtc);
+        Assert.False((await host.Robot.GetAsync(Ct)).Value.Company!.Alerted);
     }
 
     [Fact]
@@ -177,7 +178,7 @@ public sealed class ArcaRobotRunStoreTests
     }
 
     [Fact]
-    public async Task Arca_not_answering_postpones_the_platform_side_with_a_growing_wait_until_the_attempts_run_out()
+    public async Task Arca_not_answering_postpones_the_platform_side_with_a_growing_wait_until_the_attempts_run_out_and_then_alerts()
     {
         using var host = new ArcaApplicationHost(withRobot: true);
         await StartCompanyAsync(host);
@@ -196,7 +197,28 @@ public sealed class ArcaRobotRunStoreTests
         Assert.Equal([TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(4), TimeSpan.FromMinutes(8), TimeSpan.FromMinutes(16)], waits);
         Assert.Equal(ArcaRobotRunStatus.Failed, platform.Status);
         Assert.Equal(ArcaRobotFailure.Unavailable, platform.Failure);
-        Assert.Empty(host.Emails.Messages);
+        // H19: the platform side stopped for good also by ARCA not answering mails the owner.
+        Assert.Contains("ARCA no respondió", Assert.Single(host.Emails.Messages).TextBody, StringComparison.Ordinal);
+    }
+
+    // H19: an interrupted pass counts as an attempt; past them, the platform side stops as interrupted and mails the owner.
+    [Fact]
+    public async Task An_interrupted_platform_side_past_its_attempts_stops_and_alerts()
+    {
+        using var host = new ArcaApplicationHost(withRobot: true);
+        await StartCompanyAsync(host);
+        var platform = host.Runs.Platform!;
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            Assert.NotNull(await host.RobotStore.ReservePlatformAsync(platform.Id, Guid.NewGuid(), Ct));
+            host.Clock.Advance(TimeSpan.FromMinutes(4));
+        }
+
+        Assert.Null(await host.RobotStore.ReservePlatformAsync(platform.Id, Guid.NewGuid(), Ct));
+
+        Assert.Equal((ArcaRobotRunStatus.Failed, ArcaRobotFailure.Interrupted), (platform.Status, platform.Failure));
+        Assert.Contains("el servidor se reinició", Assert.Single(host.Emails.Messages).TextBody, StringComparison.Ordinal);
+        Assert.True((await host.Robot.GetAsync(Ct)).Value.Platform!.Alerted);
     }
 
     [Fact]
@@ -212,6 +234,8 @@ public sealed class ArcaRobotRunStoreTests
 
         Assert.Equal(ArcaRobotRunStatus.Failed, host.Runs.Platform.Status);
         Assert.Contains(ArcaRobotSteps.PlatformLogin, Assert.Single(host.Emails.Messages).TextBody, StringComparison.Ordinal);
+        // H19: the screen promises the alert because it went out.
+        Assert.True((await host.Robot.GetAsync(Ct)).Value.Platform!.Alerted);
     }
 
     [Fact]

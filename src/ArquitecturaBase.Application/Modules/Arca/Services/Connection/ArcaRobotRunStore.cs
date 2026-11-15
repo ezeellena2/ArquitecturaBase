@@ -140,13 +140,21 @@ internal sealed class ArcaRobotRunStore(IArcaConnectionRepository connections, I
         if (await runs.GetAsync(runId, cancellationToken) is not { Side: ArcaRobotSide.Platform } run) return Result.Success<ArcaPlatformRobotWorkResponse?>(null);
         if (await connections.GetConnectionAsync(cancellationToken) is not { PlatformCuit: { } platformCuit } connection || connection.Id != run.ConnectionId)
             return Result.Success<ArcaPlatformRobotWorkResponse?>(null);
-        if (!run.TryReserve(owner, nowUtc, options.Value.Lease)) return Result.Success<ArcaPlatformRobotWorkResponse?>(null);
+        var interrupted = run.IsInterrupted(nowUtc);
+        if (!run.TryReserve(owner, nowUtc, options.Value.Lease, options.Value.MaxAttempts))
+        {
+            // H19: una pasada interrumpida más allá de los intentos frena el lado de la plataforma, y avisa.
+            if (interrupted && run.Status == ArcaRobotRunStatus.Failed)
+                alerts.Notify(run, (ArcaRobotOutcome.Failed)ArcaRobotOutcome.Stopped(ArcaRobotFailure.Interrupted, run.FailedStep ?? ArcaRobotSteps.PlatformLogin), nowUtc);
+            return Result.Success<ArcaPlatformRobotWorkResponse?>(null);
+        }
 
         var active = await connections.GetCertificateAsync(connection.Id, ArcaCertificateRole.Active, cancellationToken);
         var pending = await connections.GetCertificateAsync(connection.Id, ArcaCertificateRole.Pending, cancellationToken);
         if ((active ?? pending) is not { } certificate)
         {
-            run.Fail(ArcaRobotFailure.ScreenChanged, ArcaRobotSteps.PlatformCertificate, owner, nowUtc);
+            if (run.Fail(ArcaRobotFailure.ScreenChanged, ArcaRobotSteps.PlatformCertificate, owner, nowUtc))
+                alerts.Notify(run, (ArcaRobotOutcome.Failed)ArcaRobotOutcome.Stopped(ArcaRobotFailure.ScreenChanged, ArcaRobotSteps.PlatformCertificate), nowUtc);
             return Result.Success<ArcaPlatformRobotWorkResponse?>(null);
         }
 
