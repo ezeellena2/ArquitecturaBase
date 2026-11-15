@@ -305,7 +305,9 @@ fuente: cambiarla lo decidís vos.
   de valer mientras la espera (se cerró la ventana de 24 horas), deriva en la misma unidad con `assistantFailed`; lo pendiente
   o reintentable, la sugerencia tras una captura, un chat que tomó una persona o un mensaje más nuevo no. Quedan afuera, de
   antes: un mensaje que no es fuente (un sticker o una ubicación) después del pedido evita la derivación, y un `NotFound` de
-  `Submit` en una continuación deja el pedido pendiente y lo vuelve a mandar en cada vuelta.
+  `Submit` en una continuación deja el pedido pendiente y lo vuelve a mandar en cada vuelta. Los dos se arreglaron el 2026-11-15 en
+  7601b1e5: un mensaje que nunca es fuente no reemplaza al pedido en curso, y una continuación que el motor no puede continuar
+  deriva.
 
 #### H6. Las acciones de una respuesta del asistente salen en cualquier orden
 
@@ -607,8 +609,8 @@ fuente: cambiarla lo decidís vos.
 - **Arreglado el 2026-11-14** en 852857fa: el puerto recibe el id del toque y Formularios lo guarda con la decisión
   (`DecisionTapId`): al mismo toque le contesta lo mismo sin decidir otra vez. WhatsApp encola cada confirmación en su propia
   unidad apenas vuelve el dueño, un solo texto por toque; si un toque falla, la vuelta se corta ahí para que decida el primero
-  de dos toques sobre el mismo aviso. Queda, de antes: un botón viejo del mismo sentido puede decidir la pregunta nueva
-  después de «Volver a probar».
+  de dos toques sobre el mismo aviso. Quedaba, de antes, que un botón viejo del mismo sentido podía decidir la pregunta nueva
+  después de «Volver a probar»: se arregló el 2026-11-15 en 7601b1e5, y ahora decide sólo el botón del mensaje que el run espera.
 
 #### H22. La guía para quitar WhatsApp olvida una tabla
 

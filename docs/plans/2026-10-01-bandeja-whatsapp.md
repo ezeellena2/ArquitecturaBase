@@ -290,7 +290,8 @@ reintenta sale de la retención antes de abandonarse.
 aplicada: H5 también deriva el pedido que vence la ventana esperando al motor, y H21 corta la vuelta en el toque que falla.
 Se corrió el build sin advertencias, Domain, Application y ArchitectureTests enteros y la integración del asistente y de los
 toques; en el front, tsc, oxlint y vitest de WhatsApp. Quedan para el reporte final un sticker después del pedido, que evita
-derivar, el `NotFound` de `Submit` en una continuación y el botón viejo después de «Volver a probar».
+derivar, el `NotFound` de `Submit` en una continuación y el botón viejo después de «Volver a probar»; los tres se arreglaron el
+2026-11-15 en 7601b1e5.
 
 ### Etapa 6: datos y privacidad
 
