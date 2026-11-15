@@ -54,7 +54,11 @@ Sin conexión → esperando el certificado → sin verificar → activa ⇄ requ
 ## Contrato HTTP
 
 Rutas MVC, todas con `arca.read`; las que escriben o llaman a ARCA, también con `arca.manage`. Las escrituras llevan la
-revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cambió.
+revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cambió. Una conexión nueva empieza su revisión en
+el instante del alta (milisegundos), así una pantalla de una conexión que alguien desconectó no escribe sobre la que se
+empezó después, aunque esté en el mismo paso: la revisión dice también qué conexión se leyó (H15). La prueba y el punto de
+venta, que llaman a ARCA antes de guardar, confirman bajo el lock la conexión y los servicios con que llamaron (409 si
+cambiaron), y el estado se recalcula en el mismo guardado.
 
 | Verbo y ruta | Qué hace |
 | --- | --- |

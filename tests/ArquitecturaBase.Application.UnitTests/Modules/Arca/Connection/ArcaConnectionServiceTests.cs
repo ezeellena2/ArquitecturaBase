@@ -31,7 +31,8 @@ public sealed class ArcaConnectionServiceTests
         var result = await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [Invoicing], 0, ArcaAccessMode.CompanyCertificate, Ct);
 
         var connection = result.Value;
-        Assert.Equal((ArcaConnectionStatus.AwaitingCertificate, "20000000060", 1L), (connection.Status, connection.Cuit, connection.Revision));
+        Assert.Equal((ArcaConnectionStatus.AwaitingCertificate, "20000000060", host.Clock.GetUtcNow().ToUnixTimeMilliseconds()),
+            (connection.Status, connection.Cuit, connection.Revision));
         Assert.Equal([Registry, Invoicing], connection.EnabledServices);
         var certificate = Assert.Single(connection.Certificates);
         Assert.Equal((ArcaCertificateRole.Pending, "plataforma", false), (certificate.Role, certificate.Alias, certificate.IsLoaded));
@@ -91,6 +92,20 @@ public sealed class ArcaConnectionServiceTests
 
         Assert.Equal([Registry], chosen.EnabledServices);
         Assert.Equal(ArcaConnectionErrors.ServiceNotInstalled, (await host.Connection.ChooseServicesAsync(["wsmtxca"], chosen.Revision, Ct)).Error);
+    }
+
+    // H15: a screen of a connection that someone disconnected does not write on the one started after it, even at the same step.
+    [Fact]
+    public async Task A_screen_of_a_disconnected_connection_does_not_write_on_the_next_one()
+    {
+        using var host = new ArcaApplicationHost();
+        var first = (await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [Invoicing], 0, ArcaAccessMode.CompanyCertificate, Ct)).Value;
+        Assert.True((await host.Connection.DisconnectAsync(first.Revision, Ct)).IsSuccess);
+        host.Clock.Advance(TimeSpan.FromSeconds(5));
+        Assert.True((await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [Invoicing], 0, ArcaAccessMode.CompanyCertificate, Ct)).IsSuccess);
+
+        Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.DisconnectAsync(first.Revision, Ct)).Error);
+        Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.ChooseServicesAsync([], first.Revision, Ct)).Error);
     }
 
     [Fact]

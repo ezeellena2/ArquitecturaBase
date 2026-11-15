@@ -11,6 +11,4 @@ public interface IArcaConnectionTestService
     /// </summary>
     Task<Result<ArcaTestResponse>> TestAsync(CancellationToken cancellationToken);
 
-    /// <summary>Vuelve a calcular el estado con la configuración de las familias elegidas; lo llama una familia al guardar lo suyo.</summary>
-    Task<Result<ArcaConnectionResponse>> ReevaluateAsync(CancellationToken cancellationToken);
 }

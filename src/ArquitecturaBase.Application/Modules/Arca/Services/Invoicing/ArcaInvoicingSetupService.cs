@@ -3,7 +3,6 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoicing;
-using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
@@ -18,12 +17,12 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 
 /// <summary>
 /// El punto de venta de la plataforma y los datos del comprobante. El punto de venta se elige entre los que ARCA devuelve
-/// en ese momento y, guardado, la conexión vuelve a calcular su estado con la configuración de todas las familias
-/// elegidas. Ingresos brutos e inicio de actividades se guardan sin llamar a ARCA: sólo van en el PDF fiscal. Los pedidos se
+/// en ese momento, se guarda sólo en la conexión con que se consultó (H15) y, en el mismo guardado, la conexión vuelve a
+/// calcular su estado con la configuración de todas las familias elegidas. Ingresos brutos e inicio de actividades se guardan sin llamar a ARCA: sólo van en el PDF fiscal. Los pedidos se
 /// validan antes del límite, y se guardan sólo con la revisión que se leyó (ADR 0018).
 /// </summary>
 internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access, IArcaInvoicingClient client, ArcaInvoicingSettingsGuard settingsGuard,
-    IArcaInvoicingReader reader, IArcaConnectionTestService connectionTest, IRequestValidator validator, IUnitOfWork unitOfWork,
+    IArcaInvoicingReader reader, ArcaServiceCatalogPolicy catalog, IRequestValidator validator, IUnitOfWork unitOfWork,
     ILogger<ArcaInvoicingSetupService> logger) : IArcaInvoicingSetupService
 {
     private static readonly ArcaServiceCode Wsfe = ArcaServiceCode.Create("wsfe")!.Value;
@@ -50,15 +49,13 @@ internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access,
         return OperationLog.RunAsync<Result<ArcaInvoicingSettingsResponse>>(logger, "ChooseArcaPointOfSale", async () =>
         {
             if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-            var points = await PointsOfSaleAsync(cancellationToken);
+            var points = await PointsOfSaleWithConnectionAsync(cancellationToken);
             if (points.IsFailure) return points.Error;
-            if (!points.Value.Any(point => point.Number == request.PointOfSale && !point.Blocked && point.DroppedOn is null))
+            if (!points.Value.Points.Any(point => point.Number == request.PointOfSale && !point.Blocked && point.DroppedOn is null))
                 return ArcaInvoicingErrors.PointOfSaleUnavailable;
 
-            var saved = await unitOfWork.ExecuteInTransactionAsync(token => ChooseCoreAsync(request, token), CommitPolicy.OnSuccess, cancellationToken);
-            if (saved.IsFailure) return saved.Error;
-            var reevaluated = await connectionTest.ReevaluateAsync(cancellationToken);
-            return reevaluated.IsFailure ? reevaluated.Error : saved.Value;
+            return await unitOfWork.ExecuteInTransactionAsync(token => ChooseCoreAsync(request, points.Value.ConnectionId, token), CommitPolicy.OnSuccess,
+                cancellationToken);
         });
     }
 
@@ -73,20 +70,37 @@ internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access,
 
     private async Task<Result<IReadOnlyList<ArcaPointOfSale>>> PointsOfSaleAsync(CancellationToken cancellationToken)
     {
+        var points = await PointsOfSaleWithConnectionAsync(cancellationToken);
+        return points.IsFailure ? points.Error : Result.Success(points.Value.Points);
+    }
+
+    // The points of sale ARCA gives now, with the connection they were asked with.
+    private async Task<Result<(IReadOnlyList<ArcaPointOfSale> Points, Guid ConnectionId)>> PointsOfSaleWithConnectionAsync(CancellationToken cancellationToken)
+    {
         var session = await access.OpenAsync(Wsfe, cancellationToken);
         if (session.IsFailure) return session.Error;
         var reply = await client.ListPointsOfSaleAsync(session.Value.Certificate, session.Value.Ticket, cancellationToken);
         return reply is { Status: ArcaServiceCheckStatus.Ready, Value: { } points }
-            ? Result.Success(points)
+            ? (points, session.Value.Certificate.ConnectionId)
             : ArcaServiceSessionIssuer.Failure(reply.Status);
     }
 
-    private async Task<Result<ArcaInvoicingSettingsResponse>> ChooseCoreAsync(ChooseArcaPointOfSaleRequest request, CancellationToken cancellationToken)
+    private async Task<Result<ArcaInvoicingSettingsResponse>> ChooseCoreAsync(ChooseArcaPointOfSaleRequest request, Guid checkedWith,
+        CancellationToken cancellationToken)
     {
-        var settings = await settingsGuard.LockAsync(request.ExpectedRevision, cancellationToken);
-        if (settings.IsFailure) return settings.Error;
-        var chosen = settings.Value.ChoosePointOfSale(request.PointOfSale);
-        return chosen.IsFailure ? chosen.Error : Response(settings.Value);
+        var locked = await settingsGuard.LockWithConnectionAsync(request.ExpectedRevision, cancellationToken);
+        if (locked.IsFailure) return locked.Error;
+        var (connection, settings) = locked.Value;
+        // H15: the point was checked in ARCA with the connection read then; another one, or one without Facturación, is a conflict.
+        if (connection.Id != checkedWith || !connection.EnabledServices.Contains(Wsfe.Value, StringComparer.Ordinal))
+            return ArcaConnectionErrors.RevisionConflict;
+        var chosen = settings.ChoosePointOfSale(request.PointOfSale);
+        if (chosen.IsFailure) return chosen.Error;
+        // H15: the status is recalculated in the same save. Facturación is complete with its point of sale; the other families,
+        // as they are.
+        connection.ReevaluateFamilies(await catalog.FamiliesCompleteAsync(connection.Id,
+            [.. connection.EnabledServices.Where(service => service != Wsfe.Value)], cancellationToken));
+        return Response(settings);
     }
 
     private async Task<Result<ArcaInvoicingSettingsResponse>> SetVoucherDataCoreAsync(SetArcaVoucherDataRequest request, CancellationToken cancellationToken)

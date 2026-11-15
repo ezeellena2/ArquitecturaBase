@@ -111,11 +111,14 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
     /// </summary>
     private Result<ArcaConnection> Start(string cuit, ArcaEnvironment environment, IReadOnlyCollection<ArcaServiceCode> chosen, ArcaAccessMode mode)
     {
+        // H15: the revision starts at the instant of the alta, so a screen of a connection that someone disconnected never matches
+        // the one started after it, even at the same step: every write compares the connection it read.
+        var firstRevision = timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
         if (mode == ArcaAccessMode.CompanyCertificate)
-            return ArcaConnection.Start(cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes);
+            return ArcaConnection.Start(cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes, firstRevision);
         if (!modes.Offers(mode)) return ArcaConnectionErrors.ModeUnavailable;
         if (modes.Platform is not { } configured) return ArcaConnectionErrors.PlatformNotConfigured;
-        return ArcaConnection.StartDelegated(cuit, configured.Cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes, mode);
+        return ArcaConnection.StartDelegated(cuit, configured.Cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes, mode, firstRevision);
     }
 
     private async Task<Result> ChangeCoreAsync(long expectedRevision, Func<ArcaConnection, CancellationToken, Task<Result>> change,

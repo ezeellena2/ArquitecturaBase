@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoicing;
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 using ArquitecturaBase.Domain.Results;
@@ -14,6 +15,17 @@ internal sealed class ArcaInvoicingSettingsGuard(IArcaConnectionRepository conne
 {
     public async Task<Result<ArcaInvoicingSettings>> LockAsync(long expectedRevision, CancellationToken cancellationToken)
     {
+        var locked = await LockWithConnectionAsync(expectedRevision, cancellationToken);
+        return locked.IsFailure ? locked.Error : locked.Value.Settings;
+    }
+
+    /// <summary>
+    /// Lo mismo, con la conexión bloqueada: quien llamó a ARCA antes de guardar confirma que sigue siendo la que leyó, y recalcula
+    /// su estado en el mismo guardado (H15).
+    /// </summary>
+    public async Task<Result<(ArcaConnection Connection, ArcaInvoicingSettings Settings)>> LockWithConnectionAsync(long expectedRevision,
+        CancellationToken cancellationToken)
+    {
         await connections.LockConnectionAsync(cancellationToken);
         if (await connections.GetConnectionAsync(cancellationToken) is not { } connection) return ArcaConnectionErrors.NotConnected;
         if (await repository.GetSettingsAsync(connection.Id, cancellationToken) is not { } settings)
@@ -23,6 +35,6 @@ internal sealed class ArcaInvoicingSettingsGuard(IArcaConnectionRepository conne
         }
 
         var current = settings.EnsureRevision(expectedRevision);
-        return current.IsFailure ? current.Error : settings;
+        return current.IsFailure ? current.Error : (connection, settings);
     }
 }

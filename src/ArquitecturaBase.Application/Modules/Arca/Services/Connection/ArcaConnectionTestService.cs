@@ -44,20 +44,10 @@ internal sealed class ArcaConnectionTestService(IArcaConnectionRepository reposi
                 if (renewal is not null && !passed) return new ArcaTestResponse(checks, await ResponseAsync(cancellationToken));
             }
 
-            var complete = !expired && await catalog.FamiliesCompleteAsync(connection.Id, connection.EnabledServices, cancellationToken);
             var saved = await unitOfWork.ExecuteInTransactionAsync(token => expired ? ExpiredCoreAsync(tested, token)
-                : RecordCoreAsync(tested, renewal is not null, passed, complete, token), CommitPolicy.OnSuccess, cancellationToken);
+                : RecordCoreAsync(tested, connection.EnabledServices, renewal is not null, passed, token), CommitPolicy.OnSuccess, cancellationToken);
             if (saved.IsFailure) return saved.Error;
             return expired ? ArcaConnectionErrors.CertificateExpired : new ArcaTestResponse(checks, await ResponseAsync(cancellationToken));
-        });
-
-    public Task<Result<ArcaConnectionResponse>> ReevaluateAsync(CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<ArcaConnectionResponse>>(logger, "ReevaluateArcaConnection", async () =>
-        {
-            if (await reader.FindAsync(cancellationToken) is not { } connection) return ArcaConnectionErrors.NotConnected;
-            var complete = await catalog.FamiliesCompleteAsync(connection.Id, connection.EnabledServices, cancellationToken);
-            var saved = await unitOfWork.ExecuteInTransactionAsync(token => ReevaluateCoreAsync(complete, token), CommitPolicy.OnSuccess, cancellationToken);
-            return saved.IsFailure ? saved.Error : await ResponseAsync(cancellationToken);
         });
 
     private async Task<Result> ExpiredCoreAsync(ArcaSigningCertificateRow tested, CancellationToken cancellationToken)
@@ -69,11 +59,13 @@ internal sealed class ArcaConnectionTestService(IArcaConnectionRepository reposi
         return Result.Success();
     }
 
-    private async Task<Result> RecordCoreAsync(ArcaSigningCertificateRow tested, bool renewal, bool passed, bool complete,
+    private async Task<Result> RecordCoreAsync(ArcaSigningCertificateRow tested, IReadOnlyList<string> testedServices, bool renewal, bool passed,
         CancellationToken cancellationToken)
     {
         await repository.LockConnectionAsync(cancellationToken);
-        if (await repository.GetConnectionAsync(cancellationToken) is not { } connection || connection.Id != tested.ConnectionId)
+        // H15: another connection, or services that changed while the test ran, did not get this test.
+        if (await repository.GetConnectionAsync(cancellationToken) is not { } connection || connection.Id != tested.ConnectionId
+            || !connection.EnabledServices.SequenceEqual(testedServices, StringComparer.Ordinal))
             return ArcaConnectionErrors.RevisionConflict;
         var role = renewal ? ArcaCertificateRole.Pending : ArcaCertificateRole.Active;
         if (await repository.GetCertificateAsync(connection.Id, role, cancellationToken) is not { IsLoaded: true } certificate
@@ -87,15 +79,8 @@ internal sealed class ArcaConnectionTestService(IArcaConnectionRepository reposi
             certificate.Promote();
         }
 
+        var complete = await catalog.FamiliesCompleteAsync(connection.Id, connection.EnabledServices, cancellationToken);
         connection.RecordTest(passed, complete, timeProvider.GetUtcNow().UtcDateTime);
-        return Result.Success();
-    }
-
-    private async Task<Result> ReevaluateCoreAsync(bool complete, CancellationToken cancellationToken)
-    {
-        await repository.LockConnectionAsync(cancellationToken);
-        if (await repository.GetConnectionAsync(cancellationToken) is not { } connection) return ArcaConnectionErrors.NotConnected;
-        connection.ReevaluateFamilies(complete);
         return Result.Success();
     }
 

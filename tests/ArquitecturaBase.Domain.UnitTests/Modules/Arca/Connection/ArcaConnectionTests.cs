@@ -188,6 +188,13 @@ public sealed class ArcaConnectionTests
         Assert.Equal(ArcaConnectionStatus.Active, connection.Status);
     }
 
+    // H15: a new connection starts at the revision it is given (the instant of its alta), so it does not repeat the one of another.
+    [Fact]
+    public void A_connection_starts_at_the_revision_it_is_given()
+    {
+        Assert.Equal(1_763_200_000_000L, ArcaConnection.Start("30-71000123-1", ArcaEnvironment.Production, [], Installed, Required, 1_763_200_000_000L).Value.Revision);
+    }
+
     [Fact]
     public void The_text_representation_masks_the_cuit()
     {

@@ -135,21 +135,6 @@ public sealed class ArcaConnectionTestServiceTests
     }
 
     [Fact]
-    public async Task Reevaluating_uses_the_configuration_of_the_chosen_families_without_testing_again()
-    {
-        using var host = new ArcaApplicationHost();
-        await host.StartAndUploadAsync(Invoicing);
-        host.InvoicingFamily.Complete = () => false;
-        await host.Test.TestAsync(Ct);
-        host.InvoicingFamily.Complete = () => true;
-
-        var connection = (await host.Test.ReevaluateAsync(Ct)).Value;
-
-        Assert.Equal(ArcaConnectionStatus.Active, connection.Status);
-        Assert.Single(host.InvoicingFamily.CheckedCertificates);
-    }
-
-    [Fact]
     public async Task By_delegation_the_families_get_the_platform_certificate_with_the_company_and_what_it_delegates()
     {
         using var host = new ArcaApplicationHost(withPlatform: true);

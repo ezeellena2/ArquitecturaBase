@@ -39,8 +39,9 @@ public sealed class ArcaConnection : Entity, IAuditable
         ArcaEnvironment environment,
         IReadOnlyCollection<ArcaServiceCode> chosen,
         IReadOnlyCollection<ArcaServiceCode> installed,
-        IReadOnlyCollection<ArcaServiceCode> required) =>
-        Create(ArcaAccessMode.CompanyCertificate, cuit, platformCuit: null, environment, chosen, installed, required);
+        IReadOnlyCollection<ArcaServiceCode> required,
+        long firstRevision = 1) =>
+        Create(ArcaAccessMode.CompanyCertificate, cuit, platformCuit: null, environment, chosen, installed, required, firstRevision);
 
     /// <summary>
     /// El alta en modo delegación: la empresa delega sus servicios en la CUIT de la plataforma, que llega validada desde la
@@ -53,13 +54,14 @@ public sealed class ArcaConnection : Entity, IAuditable
         IReadOnlyCollection<ArcaServiceCode> chosen,
         IReadOnlyCollection<ArcaServiceCode> installed,
         IReadOnlyCollection<ArcaServiceCode> required,
-        ArcaAccessMode mode = ArcaAccessMode.PlatformDelegation)
+        ArcaAccessMode mode = ArcaAccessMode.PlatformDelegation,
+        long firstRevision = 1)
     {
         if (mode is not (ArcaAccessMode.PlatformDelegation or ArcaAccessMode.PlatformDelegationAutomated))
             throw new ArgumentOutOfRangeException(nameof(mode), mode, "Only the delegation modes start a delegated connection.");
         var platform = CuitNumber.Normalize(platformCuit)
             ?? throw new ArgumentException("The platform CUIT must come validated from the configuration.", nameof(platformCuit));
-        return Create(mode, cuit, platform, environment, chosen, installed, required);
+        return Create(mode, cuit, platform, environment, chosen, installed, required, firstRevision);
     }
 
     /// <summary>
@@ -136,7 +138,8 @@ public sealed class ArcaConnection : Entity, IAuditable
         ArcaEnvironment environment,
         IReadOnlyCollection<ArcaServiceCode> chosen,
         IReadOnlyCollection<ArcaServiceCode> installed,
-        IReadOnlyCollection<ArcaServiceCode> required)
+        IReadOnlyCollection<ArcaServiceCode> required,
+        long firstRevision)
     {
         if (CuitNumber.Normalize(cuit) is not { } normalized) return ArcaConnectionErrors.CuitInvalid;
         if (Services(chosen, installed, required) is not { } services) return ArcaConnectionErrors.ServiceNotInstalled;
@@ -148,7 +151,7 @@ public sealed class ArcaConnection : Entity, IAuditable
             PlatformCuit = platformCuit,
             Status = ArcaConnectionStatus.AwaitingCertificate,
             EnabledServices = services,
-            Revision = 1,
+            Revision = firstRevision,
         };
     }
 
