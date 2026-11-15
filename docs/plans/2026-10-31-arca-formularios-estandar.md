@@ -442,6 +442,17 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     Cambiar CUIT, ambiente o modo pasa a ser un solo pedido que reemplaza la conexión en una transacción del servidor, con una
     ruta nueva y su test, y la pantalla vuelve a leer la conexión ante `NotConnected` o un 409. Mediano.
 
+**Hecha el 2026-11-15:** B4 en adaf6d6b (front d518f018), H4 en 0b42d899, H8 en 945513cf, H15 en 5537d08b y H30 en e9a2e280 (front 80281db9).
+- **Cambios:** en H15, una pantalla vieja no escribe sobre la conexión que se empezó después porque una conexión nueva
+  empieza su revisión en el instante del alta (milisegundos): la revisión dice también qué conexión se leyó, sin sumar el id a
+  seis contratos y al front. La prueba y el punto de venta confirman bajo el lock la conexión y los servicios con que llamaron a
+  ARCA, y el punto de venta recalcula el estado en el mismo guardado; `ReevaluateAsync` quedó sin uso y se fue. En H4 el
+  escenario de prueba deja activa la conexión con su certificado, como la deja el alta. En H8 el ticket guardado se sigue
+  entregando mientras no venza también si la renovación no respondió, no sólo si ARCA la bloqueó.
+- **Pruebas:** el build sin advertencias; Domain, Application y ArchitectureTests enteros; la integración de ARCA entera
+  (conexión, padrón y facturación, 206); en el front, los tests de ARCA, tipos y oxlint.
+- **Revisión:** propia, porque el cupo ya pasaba el 85 %.
+
 ### Etapa 6: el padrón y los clientes
 
 21. **B3. Una constancia con errores no decide la clase.** Con errores en el grupo que decide la condición frente al IVA, no se
