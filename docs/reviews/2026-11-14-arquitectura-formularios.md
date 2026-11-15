@@ -380,6 +380,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   sin abrir, si la ruta admite un PDF. Mediano. **Prueba que lo resuelve:** un PDF de 10 MiB con la tabla de referencias y, aparte,
   un flujo de objetos hechos de ceros comprimidos, leído midiendo la memoria, también dentro de un contenedor con 1 GB; y un
   corpus de PDF malformados con un vigilante de 20 segundos.
+- **Arreglado el 2026-11-15** en `7a30c616` (tope de 64 MiB al inflar, plazo de 20 s, intentos del worker, Inicio por los bytes y log de falta de memoria). Quedan sin probar el contenedor de 1 GB y el corpus de PDF malformados.
 
 #### F7. Los temas de «Formularios que faltan» entran en el asistente de todas las personas, aunque nombren a un tercero
 

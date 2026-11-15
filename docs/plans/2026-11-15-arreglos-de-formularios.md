@@ -131,7 +131,7 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     cada lectura tiene un plazo que contesta «ilegible» y libera su lugar de `PdfGate`; el worker de WhatsApp cuenta los intentos de
     un mensaje y lo deja ilegible en lugar de tomarlo para siempre; Inicio decide por los bytes, sin abrir, si la ruta admite un
     PDF; y una falta de memoria no se informa como archivo ilegible sin log. Tests con una bomba en la tabla de referencias y en un
-    flujo de objetos, y con un PDF lento. Mediano.
+    flujo de objetos, y con un PDF lento. Mediano. Hecha el 2026-11-15 en `7a30c616`.
 19. **F9. El documento propuesto vence** (decisión 6). Un documento propuesto que nadie revisa, o uno descartado que alguien
     reabre, pasa a descartado con motivo «venció» a los 90 días (desde que vence su envío, o desde que se reabrió) y sigue la purga.
     Cambia la regla de los documentos recibidos (la decisión 9 de su plan, en [formularios](../features/formularios.md)). Test con
