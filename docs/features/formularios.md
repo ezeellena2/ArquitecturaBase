@@ -672,6 +672,8 @@ La misma lectura de formularios incluye temas generalizados existentes. Una inte
 Los pedidos se agrupan por tema, con cantidades de pedidos y personas distintas y su última fecha. El tablero y descarte requieren sólo `formtemplates.manage`; no entregan nombres de quienes piden, mensajes, teléfonos ni valores de respuestas. Descartar conserva autor y fecha con revisión esperada; un pedido nuevo vuelve el tema a pendientes. Reinterpretar el mismo mensaje no cuenta otra vez ni reabre un descarte. Crear un formulario abre la autoría normal con el nombre elegido y no resuelve el tema.
 
 
+La completitud de la lectura de candidatas cuenta sólo los formularios: los temas que pasan de 100 o no entran en los 16 KiB se omiten sin marcarla parcial, porque el registro encuentra el tema por su nombre. Los temas llegan al asistente sólo con su nombre, con la descripción vacía (F14 y parte de F7, 2026-11-15); el estado de revisión de los temas sigue pendiente.
+
 ## Cierre local de la Etapa 5 y del review de la Etapa 4
 
 El `2026-10-18`, sobre backend `59c03587` y front `7ecabd6d`,

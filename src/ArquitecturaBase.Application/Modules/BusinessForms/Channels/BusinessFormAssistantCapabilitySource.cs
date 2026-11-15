@@ -99,7 +99,6 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
         var payload = new FormAssistantCandidatesPayload("complete", recipient, culture, true, [], []);
         var selectedForms = new List<FormAssistantCandidate>();
         var selectedTopics = new List<FormMissingTopicRow>();
-        complete &= topics.Count <= 100;
         foreach (var form in forms)
         {
             if (!FormAssistantCapabilityCodec.ValidCandidate(form)) { complete = false; continue; }
@@ -108,10 +107,11 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
             selectedForms.Add(form);
             payload = next;
         }
-        foreach (var topic in topics.Take(100))
+        foreach (var row in topics.Take(100))
         {
+            var topic = row with { Description = "" };
             var next = payload with { Topics = [.. selectedTopics, topic] };
-            if (ResponseBytes(next) > 16384) { complete = false; continue; }
+            if (ResponseBytes(next) > 16384) continue;
             selectedTopics.Add(topic);
             payload = next;
         }

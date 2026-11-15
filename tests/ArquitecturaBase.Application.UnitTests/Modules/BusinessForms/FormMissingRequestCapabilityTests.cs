@@ -25,7 +25,7 @@ public sealed class FormMissingRequestCapabilityTests
         var result = await f.Source.ExecuteAsync(Read(f), Ct);
         Assert.True(result.IsSuccess);
         var payload = Assert.IsType<FormAssistantCandidatesPayload>(result.Value.Payload);
-        Assert.Equal(f.Topics, payload.Topics); Assert.Single(payload.Forms);
+        Assert.Equal(f.Topics.Select(topic => topic with { Description = "" }).ToArray(), payload.Topics); Assert.Single(payload.Forms);
         Assert.Equal(2, result.Value.ItemCount);
     }
     [Fact]
@@ -45,19 +45,41 @@ public sealed class FormMissingRequestCapabilityTests
         Assert.True((await f.Source.ExecuteAsync(request, Ct)).IsFailure);
     }
     [Fact]
-    public async Task Topic_overflow_returns_a_partial_snapshot_that_cannot_authorize_absence()
+    public async Task Topic_overflow_keeps_the_read_complete_and_still_authorizes_a_proposal()
     {
-        var f = Fixture(); f.Topics.AddRange(Enumerable.Range(0, 100).Select(i => Topic() with { Name = "Tema " + i }));
+        var f = Fixture(); f.Topics.AddRange(Enumerable.Range(0, 150).Select(i => Topic() with { Name = "Tema " + i }));
         var result = await f.Source.ExecuteAsync(Read(f), Ct);
         Assert.True(result.IsSuccess);
         var payload = Assert.IsType<FormAssistantCandidatesPayload>(result.Value.Payload);
-        Assert.False(payload.IsComplete);
-        Assert.Equal("partial", payload.State);
+        Assert.True(payload.IsComplete);
+        Assert.Equal("complete", payload.State);
         Assert.InRange(payload.Topics.Count, 1, 100);
         var request = Proposal(f, false) with { ObservedReads = [new(Read(f).TurnId, 3,
             new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), payload)] };
         request = request with { TurnId = request.ObservedReads[0].TurnId };
-        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates, f.Users).ExecuteAsync(request, Ct)).IsFailure);
+        Assert.True((await new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates, f.Users).ExecuteAsync(request, Ct)).IsSuccess);
+    }
+    [Fact]
+    public async Task Topics_reach_the_assistant_with_their_name_and_an_empty_description()
+    {
+        var f = Fixture();
+        var result = await f.Source.ExecuteAsync(Read(f), Ct);
+        var payload = Assert.IsType<FormAssistantCandidatesPayload>(result.Value.Payload);
+        var topic = Assert.Single(payload.Topics);
+        Assert.Equal((f.Topics[0].Name, ""), (topic.Name, topic.Description));
+        var reference = new AssistantCapabilityReference(BusinessFormAssistantCapabilitySource.CandidatesId, 1);
+        Assert.True(f.Source.ParseOutput(reference, FormDraftPolicy.Serialize(payload)).IsSuccess);
+    }
+    [Fact]
+    public async Task Incomplete_forms_keep_the_read_partial_even_with_few_topics()
+    {
+        var f = Fixture(); var row = f.Rows[0]; f.Rows.Clear();
+        for (var i = 0; i < 60; i++) f.Rows.Add(row with { DefinitionId = Guid.CreateVersion7(), VersionId = Guid.CreateVersion7(), OfferWhen = new string('á', 1000) });
+        var result = await f.Source.ExecuteAsync(Read(f), Ct);
+        var payload = Assert.IsType<FormAssistantCandidatesPayload>(result.Value.Payload);
+        Assert.False(payload.IsComplete);
+        Assert.Equal("partial", payload.State);
+        Assert.Single(payload.Topics);
     }
     [Fact]
     public void The_read_codec_requires_topics_and_rejects_unknown_topic_content()

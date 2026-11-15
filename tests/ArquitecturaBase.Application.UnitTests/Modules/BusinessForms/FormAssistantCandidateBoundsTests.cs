@@ -147,15 +147,25 @@ public sealed class FormAssistantCandidateBoundsTests
     [Fact]
     public async Task A_payload_that_fits_without_its_envelope_is_still_marked_partial()
     {
-        var f = new FormAssistantFixture();
+        var f = new FormAssistantFixture(); var row = f.Rows[0];
         var baseline = await ReadAsync(f);
-        for (var i = 0; i < 30; i++) f.Topics.Add(new(Guid.CreateVersion7(), "Tema", "x", "es"));
-        var baseBytes = Encoding.UTF8.GetByteCount(FormDraftPolicy.Serialize(baseline with { Topics = f.Topics }));
-        var extra = 16374 - baseBytes;
-        for (var i = 0; i < f.Topics.Count; i++) f.Topics[i] = f.Topics[i] with
-            { Description = new string('x', 1 + extra / f.Topics.Count + (i < extra % f.Topics.Count ? 1 : 0)) };
-        var full = baseline with { Topics = f.Topics };
-        Assert.All(f.Topics, topic => Assert.InRange(topic.Description.Length, 1, 500));
+        var forms = new List<FormAssistantCandidate> { baseline.Forms[0] };
+        int Bytes() => Encoding.UTF8.GetByteCount(FormDraftPolicy.Serialize(baseline with { Forms = forms }));
+        while (true)
+        {
+            var id = Guid.CreateVersion7(); var version = Guid.CreateVersion7();
+            forms.Add(baseline.Forms[0] with { DefinitionId = id, VersionId = version, OfferWhen = "x" });
+            if (Bytes() > 16374) { forms.RemoveAt(forms.Count - 1); break; }
+            f.Rows.Add(row with { DefinitionId = id, VersionId = version, OfferWhen = "x" });
+        }
+        var remaining = 16374 - Bytes();
+        for (var i = 1; i < forms.Count && remaining > 0; i++)
+        {
+            var add = Math.Min(remaining, 999); remaining -= add;
+            forms[i] = forms[i] with { OfferWhen = new string('x', 1 + add) };
+            f.Rows[i] = f.Rows[i] with { OfferWhen = forms[i].OfferWhen };
+        }
+        var full = baseline with { Forms = forms };
         Assert.Equal(16374, Encoding.UTF8.GetByteCount(FormDraftPolicy.Serialize(full)));
         Assert.True(Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(new { state = full.State, payload = full }, JsonSerializerOptions.Web)) > 16384);
         var result = await ReadAsync(f);

@@ -120,7 +120,7 @@ internal static class FormAssistantCapabilityCodec
         && value.Culture is "es" or "en" && value.Forms.Count <= 100 && value.Forms.Select(form => form.DefinitionId).Distinct().Count() == value.Forms.Count
         && value.Forms.All(ValidCandidate) && value.Topics is { Count: <= 100 } topics
         && topics.Select(topic => topic.Id).Distinct().Count() == topics.Count
-        && topics.All(topic => topic.Id != Guid.Empty && Text(topic.Name, 120) && Text(topic.Description, 500) && topic.OriginalCulture is "es" or "en");
+        && topics.All(topic => topic.Id != Guid.Empty && Text(topic.Name, 120) && topic.Description.Length <= 500 && StorableText.IsStorable(topic.Description) && topic.OriginalCulture is "es" or "en");
 
     internal static bool ValidCandidate(FormAssistantCandidate form) => form.DefinitionId != Guid.Empty && form.VersionId != Guid.Empty
         && form.DefinitionRevision is >= 1 and <= 9007199254740991 && form.OriginalCulture is "es" or "en"
