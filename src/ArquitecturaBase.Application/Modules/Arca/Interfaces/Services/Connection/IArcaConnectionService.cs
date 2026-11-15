@@ -20,6 +20,13 @@ public interface IArcaConnectionService
     Task<Result<ArcaConnectionResponse>> StartCertificateRequestAsync(string cuit, ArcaEnvironment environment, string alias,
         IReadOnlyCollection<string> services, long expectedRevision, ArcaAccessMode mode, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Cambiar CUIT, ambiente o modo en el alta (H30): borra la conexión leída, con todo lo suyo, y crea la nueva con su pedido de
+    /// certificado en un solo guardado. Sin conexión, <c>NotConnected</c>; con otra revisión, el conflicto de siempre.
+    /// </summary>
+    Task<Result<ArcaConnectionResponse>> ReplaceAsync(string cuit, ArcaEnvironment environment, string alias, IReadOnlyCollection<string> services,
+        long expectedRevision, ArcaAccessMode mode, CancellationToken cancellationToken);
+
     Task<Result<ArcaConnectionResponse>> ChooseServicesAsync(IReadOnlyCollection<string> services, long expectedRevision,
         CancellationToken cancellationToken);
 

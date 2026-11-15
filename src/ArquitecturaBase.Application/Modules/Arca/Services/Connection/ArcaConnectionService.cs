@@ -27,6 +27,23 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
             return await SaveAsync(token => StartCoreAsync(cuit, environment, alias, chosen, expectedRevision, mode, token), cancellationToken);
         });
 
+    public Task<Result<ArcaConnectionResponse>> ReplaceAsync(string cuit, ArcaEnvironment environment, string alias, IReadOnlyCollection<string> services,
+        long expectedRevision, ArcaAccessMode mode, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync(logger, "ReplaceArcaConnection", async () =>
+        {
+            if (!ArcaCertificate.IsValidAlias(alias)) return ArcaConnectionErrors.AliasInvalid;
+            if (Codes(services) is not { } chosen) return ArcaConnectionErrors.ServiceNotInstalled;
+            // H30: the old connection goes with everything it had, and the new one starts with its request, in one save.
+            return await SaveAsync(token => ChangeCoreAsync(expectedRevision, (connection, _) =>
+            {
+                repository.Remove(connection);
+                var started = Start(cuit, environment, chosen, mode);
+                if (started.IsFailure) return Task.FromResult<Result>(started.Error);
+                repository.Add(started.Value);
+                return Task.FromResult(Request(started.Value, alias));
+            }, token), cancellationToken);
+        });
+
     public Task<Result<ArcaConnectionResponse>> ChooseServicesAsync(IReadOnlyCollection<string> services, long expectedRevision,
         CancellationToken cancellationToken) =>
         OperationLog.RunAsync(logger, "ChooseArcaServices", async () =>
@@ -97,6 +114,12 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
             connection.CertificateRequested();
         }
 
+        return Request(connection, alias);
+    }
+
+    // The key and the certificate request of the connection, pending until its certificate is uploaded.
+    private Result Request(ArcaConnection connection, string alias)
+    {
         var certificateId = Guid.CreateVersion7();
         var request = credentials.CreateRequest(connection.Id, certificateId, connection.SignerCuit, alias);
         var certificate = ArcaCertificate.Request(certificateId, connection.Id, alias, request.RequestPem, request.ProtectedPrivateKey);

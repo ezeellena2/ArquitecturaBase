@@ -23,6 +23,7 @@ public sealed class ArcaConnectionEndpointsTests(ApiFactory factory) : IDisposab
     [InlineData("PUT", "/api/arca/connection/certificate", true)]
     [InlineData("POST", "/api/arca/connection/test", true)]
     [InlineData("DELETE", "/api/arca/connection?expectedRevision=1", true)]
+    [InlineData("PUT", "/api/arca/connection", true)]
     [InlineData("GET", "/api/arca/registry/company", false)]
     [InlineData("GET", "/api/arca/invoicing/settings", false)]
     [InlineData("GET", "/api/arca/invoicing/points-of-sale", true)]
@@ -37,6 +38,27 @@ public sealed class ArcaConnectionEndpointsTests(ApiFactory factory) : IDisposab
         Assert.Equal(HttpStatusCode.Unauthorized, await StatusAsync(anonymous, method, path));
         Assert.Equal(HttpStatusCode.Forbidden, await StatusAsync(manager, method, path));
         if (manages) Assert.Equal(HttpStatusCode.Forbidden, await StatusAsync(reader, method, path));
+    }
+
+    // H30: changing CUIT, environment or mode is one request that replaces the connection on the server; a stale one changes nothing.
+    [Fact]
+    public async Task Replacing_the_connection_is_one_request_and_a_stale_one_changes_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
+        var revision = (await scenario.StartAsync([FakeArca.InvoicingService])).GetProperty("revision").GetInt64();
+        factory.Clock.Advance(TimeSpan.FromSeconds(1));
+        var body = new { cuit = "20-00000006-0", environment = "Production", alias = "otro", services = new[] { FakeArca.InvoicingService }, expectedRevision = revision };
+
+        using var replaced = await scenario.Client.PutAsJsonAsync("/api/arca/connection", body, ct);
+        Assert.Equal(HttpStatusCode.OK, replaced.StatusCode);
+        var connection = await replaced.ReadJsonAsync();
+        Assert.Equal(("Production", "otro", "AwaitingCertificate"), (connection.GetProperty("environment").GetString(),
+            connection.GetProperty("certificates")[0].GetProperty("alias").GetString(), connection.GetProperty("status").GetString()));
+
+        using var stale = await scenario.Client.PutAsJsonAsync("/api/arca/connection", body, ct);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        Assert.Equal("otro", (await scenario.GetConnectionAsync()).GetProperty("certificates")[0].GetProperty("alias").GetString());
     }
 
     [Fact]

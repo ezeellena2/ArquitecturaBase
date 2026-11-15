@@ -37,6 +37,15 @@ public sealed class ArcaConnectionController(IArcaConnectionService service, IAr
         (await service.StartCertificateRequestAsync(request.Cuit, request.Environment, request.Alias, request.Services ?? [],
             request.ExpectedRevision, request.Mode ?? ArcaAccessMode.CompanyCertificate, cancellationToken)).ToActionResult(this);
 
+    [HttpPut]
+    [HasPermission(ArcaPermissions.Manage)]
+    [EnableRateLimiting(ArcaApiRegistration.WritePolicy)]
+    [ProducesResponseType<ArcaConnectionResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Replace([FromBody] ReplaceArcaConnectionHttpRequest request, CancellationToken cancellationToken) =>
+        (await service.ReplaceAsync(request.Cuit, request.Environment, request.Alias, request.Services ?? [], request.ExpectedRevision,
+            request.Mode ?? ArcaAccessMode.CompanyCertificate, cancellationToken)).ToActionResult(this);
+
     [HttpGet("certificate-requests/current")]
     [HasPermission(ArcaPermissions.Manage)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, "application/pkcs10")]

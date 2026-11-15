@@ -108,6 +108,27 @@ public sealed class ArcaConnectionServiceTests
         Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.ChooseServicesAsync([], first.Revision, Ct)).Error);
     }
 
+    // H30: changing CUIT, environment or mode in the alta replaces the connection in one save; a stale screen or no connection
+    // changes nothing.
+    [Fact]
+    public async Task Replacing_changes_the_cuit_the_environment_or_the_mode_in_one_save()
+    {
+        using var host = new ArcaApplicationHost();
+        var started = (await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [Invoicing], 0, ArcaAccessMode.CompanyCertificate, Ct)).Value;
+        host.Clock.Advance(TimeSpan.FromSeconds(1));
+
+        var replaced = (await host.Connection.ReplaceAsync("30-71000123-1", ArcaEnvironment.Production, "facturacion", [], started.Revision, ArcaAccessMode.CompanyCertificate, Ct)).Value;
+
+        Assert.Equal((ArcaConnectionStatus.AwaitingCertificate, "30710001231", (ArcaEnvironment?)ArcaEnvironment.Production), (replaced.Status, replaced.Cuit, replaced.Environment));
+        Assert.Equal([Registry], replaced.EnabledServices);
+        Assert.Equal("facturacion", Assert.Single(replaced.Certificates).Alias);
+        Assert.Equal(ArcaConnectionErrors.RevisionConflict,
+            (await host.Connection.ReplaceAsync("20-00000006-0", ArcaEnvironment.Testing, "otro", [], started.Revision, ArcaAccessMode.CompanyCertificate, Ct)).Error);
+        Assert.True((await host.Connection.DisconnectAsync(replaced.Revision, Ct)).IsSuccess);
+        Assert.Equal(ArcaConnectionErrors.NotConnected,
+            (await host.Connection.ReplaceAsync("20-00000006-0", ArcaEnvironment.Testing, "otro", [], replaced.Revision, ArcaAccessMode.CompanyCertificate, Ct)).Error);
+    }
+
     [Fact]
     public async Task A_stale_revision_is_a_conflict_that_changes_nothing()
     {

@@ -69,6 +69,7 @@ cambiaron), y el estado se recalcula en el mismo guardado.
 | `PUT api/arca/connection/services` | Elige los servicios que usa la empresa |
 | `PUT api/arca/connection/certificate` | Sube el `.crt` en PEM, lo valida y prueba; responde el resultado de la prueba. En una renovación, el nuevo reemplaza al activo sólo con la prueba en verde |
 | `POST api/arca/connection/test` | Prueba los servicios elegidos con la prueba de cada familia |
+| `PUT api/arca/connection` | Cambia CUIT, ambiente o modo en el alta (H30): con los datos del alta y la revisión leída, borra la conexión con todo lo suyo y crea la nueva con su pedido, en un solo guardado. Sin conexión responde `Arca.Connection.NotConnected` |
 | `DELETE api/arca/connection` | Desconecta (revisión en la query) |
 | `GET api/arca/registry/company` | Razón social, condición frente al IVA y domicilio fiscal que trajo el padrón |
 | `GET api/arca/invoicing/settings` | El punto de venta elegido, ingresos brutos e inicio de actividades (cada uno null mientras no se cargó) y la revisión de la configuración (0 mientras no se guardó nada) |
