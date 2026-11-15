@@ -8,9 +8,8 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
-internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IFormActionRunReader reader,IFormDraftRepository drafts,IFormRuleReader ruleReader,
-    IUnitOfWork unitOfWork,FormActionOutcomeRecorder outcomes,TimeProvider timeProvider,ILogger<FormActionDispatchService> logger,
-    IFormActionRecipientReader? recipients=null):IFormActionDispatchService
+internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IFormActionRunReader reader,IFormDraftRepository drafts,FormActionRoleGuard roles,
+    IUnitOfWork unitOfWork,FormActionOutcomeRecorder outcomes,TimeProvider timeProvider,ILogger<FormActionDispatchService> logger):IFormActionDispatchService
 {
     public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(CancellationToken cancellationToken)
     {
@@ -41,10 +40,15 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
                 var skipped=run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.NotApplicable,null,false);
                 return skipped.IsFailure?Result.Failure<FormActionWorkResponse?>(skipped.Error):Result.Success<FormActionWorkResponse?>(null);
             }
-            var availableRoles=await ruleReader.ListRolesAsync(ct);
-            if(!availableRoles.Any(role=>role.Id==snapshot.ApprovalRoleId))
+            if(!await roles.ExistsAsync(snapshot.ApprovalRoleId!.Value,ct))
             {
                 run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,FormRuleErrors.RoleUnavailable.Code,false);
+                return Result.Success<FormActionWorkResponse?>(null);
+            }
+            // B3: a task nobody can decide is not opened: the action fails with its own reason, and retries once the role has someone.
+            if((await roles.MembersAsync(snapshot.ApprovalRoleId!.Value,ct)).Count==0)
+            {
+                run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,FormRuleErrors.RoleWithoutMembers.Code,true);
                 return Result.Success<FormActionWorkResponse?>(null);
             }
             var pending=await runs.GetOpenTaskAsync(run.RecordId,ct);
@@ -67,9 +71,9 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
         }
         // A notice to a role goes to who is in it when it is sent: whoever left since the response was captured is skipped as «No aplica».
         IReadOnlySet<Guid>? left=null;
-        if(run.Kind=="NotifyRole"&&snapshot.NoticeRoleId is {} noticeRole&&recipients is not null)
+        if(run.Kind=="NotifyRole"&&snapshot.NoticeRoleId is {} noticeRole)
         {
-            var members=(await recipients.ListForRoleAsync(noticeRole,ct)).Select(member=>member.UserId).ToHashSet();
+            var members=await roles.MembersAsync(noticeRole,ct);
             left=snapshot.Recipients.Select(recipient=>recipient.UserId).Where(id=>!members.Contains(id)).ToHashSet();
         }
         return new FormActionWorkResponse(run.Id,run.RecordId,run.Kind,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,

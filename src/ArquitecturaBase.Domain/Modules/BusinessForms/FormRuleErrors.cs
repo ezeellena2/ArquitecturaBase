@@ -5,6 +5,7 @@ public static class FormRuleErrors
     public static readonly Error ContentInvalid = Error.Validation("Forms.Rule.ContentInvalid", "The rule configuration is invalid.");
     public static readonly Error RevisionConflict = Error.Conflict("Forms.Rule.RevisionConflict", "The rules changed. Reload them and try again.");
     public static readonly Error RevisionNotFound = Error.NotFound("Forms.Rule.RevisionNotFound", "The rule revision was not found.");
+    public static readonly Error RoleWithoutMembers = Error.Validation("Forms.Rule.RoleWithoutMembers", "The selected role has no active people who can decide.");
     public static readonly Error RoleUnavailable = Error.Validation("Forms.Rule.RoleUnavailable", "The selected role is no longer available.");
     public static readonly Error IssuerUnavailable = Error.Validation("Forms.Rule.IssuerUnavailable", "The selected issuer is not available for this form.");
     public static readonly Error RecordsReadRequired = Error.Forbidden("Forms.Rule.RecordsReadRequired", "Rules whose notices cite answers also need to see the responses.");

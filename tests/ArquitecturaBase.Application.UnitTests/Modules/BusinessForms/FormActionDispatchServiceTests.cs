@@ -111,6 +111,29 @@ public sealed class FormActionDispatchServiceTests
         Assert.Contains(channel.Messages, message => message.RecipientUserId == stays);
     }
 
+    // B3: «Pedir aprobación» to a role without active members opens no task nobody can decide: it fails with its own reason and retries with someone in it.
+    [Fact]
+    public async Task Requesting_approval_from_a_role_without_members_fails_with_its_own_reason_and_retries_once_it_has_someone()
+    {
+        var fixture = new FormActionFixture();
+        var rule = new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action("RequestApproval") with { RoleId = fixture.Rules.RoleId }]);
+        var (record, snapshot) = fixture.Capture([rule]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        fixture.Recipients.People.Clear();
+        var service = Dispatch(fixture);
+        var run = Assert.Single(fixture.Runs.Runs);
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Equal((FormActionRunState.Failed, FormRuleErrors.RoleWithoutMembers.Code, true), (run.State, run.FailureCode, run.CanRetry));
+        Assert.Empty(fixture.Runs.Tasks);
+        Assert.Equal(FormRecordState.Received, record.State);
+        var member = Guid.NewGuid();
+        fixture.Recipients.People[member] = new(member, "es", "Member");
+        Assert.True(run.RequestRetry(fixture.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Equal(FormActionRunState.Completed, run.State);
+        Assert.Single(fixture.Runs.Tasks);
+    }
+
     [Fact]
     public async Task What_needs_a_decision_is_not_consulted_on_its_own()
     {
@@ -504,11 +527,11 @@ public sealed class FormActionDispatchServiceTests
     private static FormActionDispatchService Dispatch(FormActionFixture fixture, FakeUnitOfWork? boundary = null,
         MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null, FakeEmailQueue? emails = null,
         IFormRecordResultRepository? results = null) =>
-        new(fixture.Runs, fixture.Runs, fixture.Rules, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,
+        new(fixture.Runs, fixture.Runs, fixture.Rules, new FormActionRoleGuard(fixture.Rules, fixture.Recipients), boundary ?? fixture.Rules.UnitOfWork,
             new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()),
                 new FormRecordResultRecorder(results ?? new IgnoredResults(), fixture.Clock), fixture.Runs,
                 new FormIssuedCatalogItemRecorder(null!, null!, null!, null!, null!), emails ?? new FakeEmailQueue(), new FormRecordVoidRecorder(fixture.Runs)),
-            fixture.Clock, NullLogger<FormActionDispatchService>.Instance, fixture.Recipients);
+            fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
 
     private sealed class IgnoredResults : IFormRecordResultRepository
     {
