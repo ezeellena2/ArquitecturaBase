@@ -93,6 +93,8 @@ public sealed record FormReceivedDocumentStoredRow(Guid Id, string ChannelId, st
     public Guid? ExtractionActorUserId { get; init; }
     public string? ExtractionCulture { get; init; }
     public string? ExtractionTimeZoneId { get; init; }
+    /// <summary>F31: the context sealed with the extraction, as JSON; null before it was kept.</summary>
+    public string? ExtractionContextJson { get; init; }
     /// <summary>VC1-A: a row's sheet (only when the book has more than one) and number, both null in a document; why it was not sent.</summary>
     public string? SheetName { get; init; }
     public int? RowNumber { get; init; }

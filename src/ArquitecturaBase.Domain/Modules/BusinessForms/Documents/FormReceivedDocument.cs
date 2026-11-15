@@ -44,6 +44,8 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public const int MaxPages = 10;
     public const int MaxTimeZoneIdLength = Users.AccountRules.TimeZoneIdMaxLength;
     public const int MaxSheetNameLength = 120;
+    /// <summary>The longest context an extraction seals (F31): a few capability references and ids.</summary>
+    public const int MaxExtractionContextLength = 4000;
     /// <summary>The last row a sheet of Excel has.</summary>
     public const int MaxRowNumber = 1_048_576;
 
@@ -97,7 +99,7 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public DateTime? DeleteAfterUtc { get; private set; }
     /// <summary>
     /// The extraction a reviewer asked for to change its form, while it runs: its request, its form, when it was asked and who asked, in
-    /// which language and time zone, the context the engine's operation is always read with, whoever polls it.
+    /// which language and time zone, and the context the engine's operation is always read with, whoever polls it.
     /// </summary>
     public Guid? ExtractionRequestId { get; private set; }
     public Guid? ExtractionDefinitionId { get; private set; }
@@ -105,6 +107,11 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public Guid? ExtractionActorUserId { get; private set; }
     public string? ExtractionCulture { get; private set; }
     public string? ExtractionTimeZoneId { get; private set; }
+    /// <summary>
+    /// F31: the context the request was sealed with, as the engine knows it (capability versions included), so a later version of the code
+    /// still reads the operation with it. Null in a request made before it was kept: it is then rebuilt with the current versions.
+    /// </summary>
+    public string? ExtractionContextJson { get; private set; }
     public long Revision { get; private set; } = 1;
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
@@ -292,16 +299,17 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     /// keeps who asked, in which language and time zone, and waits until it is applied or fails.
     /// </summary>
     public Result RequestExtraction(long expectedRevision, Guid requestId, Guid definitionId, Guid actorUserId, string culture, string timeZoneId,
-        DateTime nowUtc)
+        DateTime nowUtc, string? contextJson = null)
     {
         if (Changed(expectedRevision) is { } changed) return changed;
         if (requestId == Guid.Empty || definitionId == Guid.Empty || actorUserId == Guid.Empty || culture is not ("es" or "en")
-            || !Text(timeZoneId, MaxTimeZoneIdLength) || nowUtc.Kind != DateTimeKind.Utc) return FormReceivedDocumentErrors.ContentInvalid;
+            || !Text(timeZoneId, MaxTimeZoneIdLength) || nowUtc.Kind != DateTimeKind.Utc
+            || contextJson is not null && !Text(contextJson, MaxExtractionContextLength)) return FormReceivedDocumentErrors.ContentInvalid;
         if (State is not (FormReceivedDocumentState.Proposed or FormReceivedDocumentState.Unclassified)) return FormReceivedDocumentErrors.StateConflict;
         if (AwaitsSender(nowUtc)) return FormReceivedDocumentErrors.AwaitingSender;
         if (ProtectedReading is null) return FormReceivedDocumentErrors.ReadingUnavailable;
         ExtractionRequestId = requestId; ExtractionDefinitionId = definitionId; ExtractionRequestedAtUtc = nowUtc;
-        ExtractionActorUserId = actorUserId; ExtractionCulture = culture; ExtractionTimeZoneId = timeZoneId;
+        ExtractionActorUserId = actorUserId; ExtractionCulture = culture; ExtractionTimeZoneId = timeZoneId; ExtractionContextJson = contextJson;
         return Advance();
     }
 
@@ -430,7 +438,7 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     private void ClearExtraction()
     {
         ExtractionRequestId = null; ExtractionDefinitionId = null; ExtractionRequestedAtUtc = null;
-        ExtractionActorUserId = null; ExtractionCulture = null; ExtractionTimeZoneId = null;
+        ExtractionActorUserId = null; ExtractionCulture = null; ExtractionTimeZoneId = null; ExtractionContextJson = null;
     }
 
     private static bool Code(string? value) => value is { Length: > 0 and <= MaxReasonCodeLength } && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-');

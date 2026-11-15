@@ -125,6 +125,21 @@ public sealed class FormReceivedDocumentTests
     }
 
     [Fact]
+    public void An_extraction_keeps_the_context_it_was_sealed_with_until_it_ends()
+    {
+        var document = Received().Value;
+        Assert.Equal(FormReceivedDocumentErrors.ContentInvalid, document.RequestExtraction(1, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "es", "UTC", Now,
+            new string('x', FormReceivedDocument.MaxExtractionContextLength + 1)).Error);
+        document = Received().Value;
+        Assert.True(document.Describe([1], null, "").IsSuccess);
+        var requestId = Guid.NewGuid();
+        Assert.True(document.RequestExtraction(1, requestId, Guid.NewGuid(), Guid.NewGuid(), "es", "UTC", Now, "{\"a\":1}").IsSuccess);
+        Assert.Equal("{\"a\":1}", document.ExtractionContextJson);
+        Assert.True(document.FailExtraction(requestId).IsSuccess);
+        Assert.Null(document.ExtractionContextJson);
+    }
+
+    [Fact]
     public void A_proposed_document_for_the_team_that_nobody_touched_for_ninety_days_is_discarded_as_expired_and_follows_the_retention()
     {
         var later = Now.AddDays(91);

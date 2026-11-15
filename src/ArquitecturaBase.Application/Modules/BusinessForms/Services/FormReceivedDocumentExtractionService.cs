@@ -59,7 +59,7 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
                 return document.ExtractionDefinitionId == definitionId ? Result.Success() : FormReceivedDocumentErrors.RequestConflict;
             if (!await guard.HasAsync(actor.Value.Id, BusinessFormsPermissions.DocumentsReview, ct)) return FormDefinitionErrors.Forbidden;
             var requested = document.RequestExtraction(request.ExpectedRevision.Value, requestId, definitionId, actor.Value.Id, context.Culture,
-                context.TimeZoneId, now);
+                context.TimeZoneId, now, FormReceivedDocumentExtractionPolicy.Seal(context));
             return requested.IsFailure ? requested
                 : recorder.Record(document.Id, FormReceivedDocumentEventKind.ExtractionRequested, actor.Value.Id, FormDocumentFormPolicy.Name(form, actor.Value.Culture));
         }, CommitPolicy.OnSuccess, cancellationToken);
@@ -101,7 +101,7 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
             if (await repository.GetAsync(row.Id, ct) is not { } document) return FormReceivedDocumentErrors.NotFound;
             if (document is not { State: FormReceivedDocumentState.Unclassified, ExtractionRequestId: null }) return FormReceivedDocumentErrors.StateConflict;
             var requested = document.RequestExtraction(document.Revision, requestId, request.DefinitionId, request.ActorUserId, request.Culture,
-                request.TimeZoneId, now);
+                request.TimeZoneId, now, FormReceivedDocumentExtractionPolicy.Seal(context));
             return requested.IsFailure ? requested
                 : recorder.Record(document.Id, FormReceivedDocumentEventKind.ExtractionRequested, request.ActorUserId, FormDocumentFormPolicy.Name(form, request.Culture));
         }, CommitPolicy.OnSuccess, cancellationToken);
@@ -125,6 +125,9 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
         if (found.IsFailure && !refused && found.Error.Type != ErrorType.NotFound) return EngineError(found.Error);
         var operation = found.IsSuccess ? found.Value : null;
         if (operation is { State: "pending" or "running" }) return Pending(requestId);
+        // F31: a «not found» of the engine proves nothing (its turn may still run): the request stays reading until its own expiry.
+        if (operation is null && !refused && row.ExtractionRequestedAtUtc is { } requestedAt
+            && clock.GetUtcNow().UtcDateTime < requestedAt.AddDays(FormReceivedDocumentExtractionPolicy.ContentDays)) return Pending(requestId);
         var outcome = operation is { State: "completed" } ? await extractions.PrepareAsync(operation, row, definitionId, cancellationToken) : null;
         var failure = refused ? FormReceivedDocumentExtractionPolicy.Refused
             : outcome is { Proposal: not null } ? null

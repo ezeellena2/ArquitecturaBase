@@ -186,7 +186,7 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
         document.ExtractionRequestedAtUtc, document.Revision)
     {
         ExtractionActorUserId = document.ExtractionActorUserId, ExtractionCulture = document.ExtractionCulture, ExtractionTimeZoneId = document.ExtractionTimeZoneId,
-        SheetName = document.SheetName, RowNumber = document.RowNumber, NotSentReason = document.NotSentReason, RowOrder = document.RowOrder,
+        ExtractionContextJson = document.ExtractionContextJson, SheetName = document.SheetName, RowNumber = document.RowNumber, NotSentReason = document.NotSentReason, RowOrder = document.RowOrder,
         RowKind = document.RowKind,
     };
 }

@@ -1116,6 +1116,41 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task An_extraction_is_read_with_the_context_it_was_sealed_with_and_a_not_found_of_the_engine_waits_for_the_request_to_expire()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var sent = await scenario.SendAsync(Ct);
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        var path = $"/api/forms/documents/{sent.Id}";
+        var requestId = Guid.NewGuid();
+        using var accepted = await reviewer.PutAsJsonAsync(path + "/form", new { requestId, definitionId = scenario.Other.DefinitionId, expectedRevision = 1 }, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+
+        // A later deployment raises the versions of the capabilities: the request is still read with the ones it was asked with.
+        var sealedJson = await factory.ExecuteDbContextAsync(db => db.Set<FormReceivedDocument>().AsNoTracking()
+            .Where(document => document.Id == sent.Id).Select(document => document.ExtractionContextJson).SingleAsync(Ct));
+        Assert.Contains("forms.documents.form", sealedJson);
+        await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlAsync(
+            $"""UPDATE "FormReceivedDocuments" SET "ExtractionContextJson" = replace("ExtractionContextJson", '"version":1', '"version":7') WHERE "Id" = {sent.Id}""", Ct));
+        using var sealedRead = await reviewer.GetAsync($"{path}/extraction?requestId={requestId}", Ct);
+        Assert.Equal((requestId, "pending"), await ExtractionAsync(sealedRead));
+        Assert.All(scenario.Engine.Read.Last().AllowedCapabilities, capability => Assert.Equal(7, capability.Version));
+
+        // A «not found» of the engine proves nothing: the request keeps reading until its own expiry, and then it fails for good.
+        scenario.Engine.ReadFailure = FormReceivedDocumentErrors.ExtractionNotFound;
+        using var uncertain = await reviewer.GetAsync($"{path}/extraction?requestId={requestId}", Ct);
+        Assert.Equal((requestId, "pending"), await ExtractionAsync(uncertain));
+        var old = factory.Clock.GetUtcNow().UtcDateTime.AddDays(-FormReceivedDocumentExtractionPolicy.ContentDays - 1);
+        await factory.ExecuteDbContextAsync(db => db.Database.ExecuteSqlAsync(
+            $"""UPDATE "FormReceivedDocuments" SET "ExtractionRequestedAtUtc" = {old} WHERE "Id" = {sent.Id}""", Ct));
+        using var expired = await reviewer.GetAsync($"{path}/extraction?requestId={requestId}", Ct);
+        var failure = await expired.ReadJsonAsync();
+        Assert.Equal(("failed", FormReceivedDocumentErrors.ExtractionNotFound.Code), (failure.GetProperty("state").GetString(), failure.GetProperty("failureCode").GetString()));
+        var dropped = await (await reviewer.GetAsync(path, Ct)).ReadJsonAsync();
+        Assert.Equal(JsonValueKind.Null, dropped.GetProperty("extraction").ValueKind);
+    }
+
+    [Fact]
     public async Task The_filters_and_the_forms_to_change_to_are_capped_say_when_they_cut_and_keep_what_is_chosen()
     {
         // The forms to change to are all the forms with reading: a database of its own.

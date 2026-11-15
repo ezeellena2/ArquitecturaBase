@@ -3307,6 +3307,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ExtractionActorUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ExtractionContextJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
                     b.Property<string>("ExtractionCulture")
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)");

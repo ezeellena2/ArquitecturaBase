@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
@@ -37,10 +38,24 @@ internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentC
                     BusinessFormDocumentAssistantCapabilitySource.Version)],
             [new("assistant_proposal", 1)]) { FocusDefinitionId = definitionId, ChannelConversationId = documentId };
 
-    /// <summary>The context sealed with the extraction that runs (who asked, in which language and zone), or null without one.</summary>
-    public static AssistantChannelContext? Sealed(FormReceivedDocumentStoredRow row) =>
-        row is { ExtractionDefinitionId: { } definitionId, ExtractionActorUserId: { } actorUserId, ExtractionCulture: { } culture, ExtractionTimeZoneId: { } zone }
-            ? Context(actorUserId, culture, zone, definitionId, row.Id, row.RowNumber is not null) : null;
+    /// <summary>The context sealed with the extraction, as it is kept with its request (F31).</summary>
+    public static string Seal(AssistantChannelContext context) => JsonSerializer.Serialize(context, JsonSerializerOptions.Web);
+
+    /// <summary>
+    /// The context sealed with the extraction that runs (who asked, in which language and zone, with the versions it was asked with), or null
+    /// without one. A request made before the context was kept, or whose copy cannot be read, is rebuilt with the current versions.
+    /// </summary>
+    public static AssistantChannelContext? Sealed(FormReceivedDocumentStoredRow row)
+    {
+        if (row is not { ExtractionDefinitionId: { } definitionId, ExtractionActorUserId: { } actorUserId, ExtractionCulture: { } culture, ExtractionTimeZoneId: { } zone })
+            return null;
+        if (row.ExtractionContextJson is { } json)
+        {
+            try { if (JsonSerializer.Deserialize<AssistantChannelContext>(json, JsonSerializerOptions.Web) is { } kept) return kept; }
+            catch (JsonException) { }
+        }
+        return Context(actorUserId, culture, zone, definitionId, row.Id, row.RowNumber is not null);
+    }
 
     /// <summary>The operation that extracts the document for the fixed form, or null when it has no reading it can attach.</summary>
     public AssistantOperationRequest? Request(FormReceivedDocumentStoredRow row, Guid requestId, AssistantChannelContext context, DateTime requestedAtUtc)

@@ -46,6 +46,7 @@ internal sealed class FormReceivedDocumentConfiguration : IEntityTypeConfigurati
         builder.Property(value => value.SearchText).HasMaxLength(FormReceivedDocument.MaxSearchTextLength);
         builder.Property(value => value.ExtractionCulture).HasMaxLength(2);
         builder.Property(value => value.ExtractionTimeZoneId).HasMaxLength(FormReceivedDocument.MaxTimeZoneIdLength);
+        builder.Property(value => value.ExtractionContextJson).HasMaxLength(FormReceivedDocument.MaxExtractionContextLength);
         builder.Property(value => value.NotSentReason).HasConversion<string>().HasMaxLength(16);
         builder.Property(value => value.SheetName).HasMaxLength(FormReceivedDocument.MaxSheetNameLength);
         builder.Property(value => value.RowKind).HasConversion<string>().HasMaxLength(16);

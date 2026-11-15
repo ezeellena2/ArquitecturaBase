@@ -24,7 +24,7 @@ internal static class FormReceivedDocumentQuery
             document.ExtractionDefinitionId, document.ExtractionRequestedAtUtc, document.Revision)
         {
             ExtractionActorUserId = document.ExtractionActorUserId, ExtractionCulture = document.ExtractionCulture,
-            ExtractionTimeZoneId = document.ExtractionTimeZoneId, SheetName = document.SheetName, RowNumber = document.RowNumber,
+            ExtractionTimeZoneId = document.ExtractionTimeZoneId, ExtractionContextJson = document.ExtractionContextJson, SheetName = document.SheetName, RowNumber = document.RowNumber,
             NotSentReason = document.NotSentReason, RowOrder = document.RowOrder, RowKind = document.RowKind,
         });
 
