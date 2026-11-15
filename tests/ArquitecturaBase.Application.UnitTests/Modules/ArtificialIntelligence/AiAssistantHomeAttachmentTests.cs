@@ -157,6 +157,24 @@ public sealed class AiAssistantHomeAttachmentTests
         Assert.Equal((0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
     }
 
+    // I14: with the quota spent or the capacity full, the file is neither read nor kept and the owner is not asked: the same error and
+    // retryAfter as the acceptance, which still decides.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task What_the_acceptance_would_refuse_neither_reads_nor_keeps_the_file(bool quota)
+    {
+        var host = new Host();
+        if (quota) host.Fixture.SpendQuota(host.ActorId, "home", host.Now, new AiAssistantLimits().ActorDailyQuota);
+        else host.Fixture.FillCapacity(host.Now);
+        var request = host.Request();
+        var refused = (await host.Service.SubmitAsync(request, Ct)).Error;
+        Assert.Equal((0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
+        var accepted = (await host.AcceptAsync(request.Turn with { Question = "Pedido" })).Error;
+        Assert.Equal(quota ? "Ai.Assistant.QuotaExceeded" : "Ai.Assistant.CapacityLimited", accepted.Code);
+        Assert.Equal((accepted.Code, accepted.Metadata?["retryAfter"]), (refused.Code, refused.Metadata?["retryAfter"]));
+    }
+
     [Fact]
     public async Task Who_cannot_attach_gets_its_own_forbidden_code_before_the_file_is_read()
     {

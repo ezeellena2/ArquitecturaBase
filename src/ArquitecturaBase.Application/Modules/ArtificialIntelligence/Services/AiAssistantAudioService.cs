@@ -17,7 +17,7 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 // IA4: a Home recording is a private copy normalized by the engine's own NormalizeAudio in a channel of its own; the turn then
 // names it and the server takes its transcript. Get comes first: retrying the same request recovers it and never submits again.
 internal sealed class AiAssistantAudioService(IAssistantOperations operations, AiAssistantHomeAudioPolicy audio, AiAssistantAccessGuard guard,
-    ICurrentUser current, AiAssistantLimits limits, TimeProvider clock, ILogger<AiAssistantAudioService> logger) : IAiAssistantAudioService
+    AiAssistantSubmissionPolicy submissions, ICurrentUser current, AiAssistantLimits limits, TimeProvider clock, ILogger<AiAssistantAudioService> logger) : IAiAssistantAudioService
 {
     public Task<Result<AiAssistantAudioResponse>> SubmitAsync(SubmitAiAssistantAudioRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AiAssistantAudioResponse>>(logger, "SubmitAiAssistantAudio", async () =>
@@ -32,6 +32,8 @@ internal sealed class AiAssistantAudioService(IAssistantOperations operations, A
             var existing = await operations.GetAsync(context, request.RequestId, cancellationToken);
             if (existing.IsSuccess) return Response(existing.Value, request.Culture);
             if (existing.Error != AiAssistantErrors.NotFound) return existing.Error;
+            // I14: what the acceptance would refuse (the quota, the capacity, the transcription profile) refuses before the copy is kept.
+            if (await submissions.PrecheckAudioAsync(context, mediaType, request.Content.Length, cancellationToken) is { } refused) return refused;
             var now = clock.GetUtcNow().UtcDateTime;
             var expiresAtUtc = now.AddDays(limits.RetentionDays);
             var stored = await audio.StoreAsync(request.RequestId, request.Content, mediaType, expiresAtUtc, cancellationToken);

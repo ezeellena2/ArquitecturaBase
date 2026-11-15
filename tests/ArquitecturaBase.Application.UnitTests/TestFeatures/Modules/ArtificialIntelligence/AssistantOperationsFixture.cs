@@ -65,6 +65,26 @@ internal sealed class AssistantOperationsFixture
         Service = new(Store, guard, submissions, Work, Store, responses, NullLogger<AiAssistantOperations>.Instance);
     }
 
+    // I14: a person's quota of a channel spent that day, with receipts whose turns did not expire.
+    public void SpendQuota(Guid actorId, string channelId, DateTime acceptedAtUtc, int count, bool isAudio = false, bool isDocument = false)
+    {
+        for (var index = 0; index < count; index++)
+            Store.Receipts.Add(AiAssistantRequestReceipt.Create(actorId, Guid.NewGuid(), "fixture-fingerprint", "test", Guid.NewGuid(), Guid.NewGuid(),
+                acceptedAtUtc, acceptedAtUtc.AddDays(30), channelId, isAudio, isDocument));
+    }
+
+    // I14: the installation's pending turns up to its capacity, of another person.
+    public void FillCapacity(DateTime submittedAtUtc)
+    {
+        for (var index = 0; index < Limits.PendingCapacity; index++)
+        {
+            var conversation = AiConversation.Create(SubjectId, submittedAtUtc);
+            Store.Conversations.Add(conversation);
+            Store.Turns.Add(AiAssistantTurn.Create(SubjectId, conversation.Id, Guid.NewGuid(), 1, "", "en", "UTC", AiProvider.OpenAI, "model", 1,
+                submittedAtUtc, submittedAtUtc.AddHours(1)));
+        }
+    }
+
     public AssistantOperationRequest Request(Guid? requestId = null) => new(requestId ?? Guid.NewGuid(), Context,
         "Fictitious visit requiring a form", Clock.GetUtcNow().UtcDateTime.AddMinutes(-2), Clock.GetUtcNow().UtcDateTime.AddHours(2));
 

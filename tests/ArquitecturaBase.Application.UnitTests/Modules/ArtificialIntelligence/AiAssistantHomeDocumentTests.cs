@@ -87,6 +87,21 @@ public sealed class AiAssistantHomeDocumentTests
         Assert.Equal((0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count));
     }
 
+    // I14: with the reading quota spent, the document is neither read nor kept and the owner is not asked: the acceptance's own
+    // refusal, with its retryAfter.
+    [Fact]
+    public async Task With_the_reading_quota_spent_the_document_is_neither_read_nor_kept()
+    {
+        var host = new Host();
+        host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeDocumentChannelId, host.Now, new AiAssistantLimits().DocumentActorDailyQuota,
+            isDocument: true);
+        var error = (await host.UploadAsync()).Error;
+        var expected = AiAssistantErrors.QuotaExceeded((int)(host.Now.Date.AddDays(1) - host.Now).TotalSeconds);
+        Assert.Equal((expected.Code, expected.Metadata?["retryAfter"]), (error.Code, error.Metadata?["retryAfter"]));
+        Assert.Equal((0, 0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count,
+            host.Fixture.Work.Transactions));
+    }
+
     [Fact]
     public async Task Who_cannot_attach_documents_gets_its_own_forbidden_code_before_the_file_is_read()
     {
@@ -645,7 +660,7 @@ public sealed class AiAssistantHomeDocumentTests
             submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, Responses);
             var operations = new AiAssistantOperations(Fixture.Store, guard, submissions, Fixture.Work, Fixture.Store, Responses,
                 NullLogger<AiAssistantOperations>.Instance);
-            Documents = new(operations, new AiAssistantHomeDocumentPolicy(Files, Reader, guard, Fixture.Store), guard, limits, Fixture.Clock,
+            Documents = new(operations, new AiAssistantHomeDocumentPolicy(Files, Reader, guard, Fixture.Store), guard, submissions, limits, Fixture.Clock,
                 NullLogger<AiAssistantDocumentService>.Instance);
             var attachments = new AiAssistantHomeAttachmentPolicy(Files, Reader, Fixture.Store, Fixture.Protector);
             Bootstrap = new(Fixture.Store, Fixture.Store, Fixture.Permissions, guard, Responses, catalog, limits, attachments);

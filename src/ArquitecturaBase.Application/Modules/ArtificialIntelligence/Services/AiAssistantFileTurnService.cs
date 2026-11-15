@@ -39,6 +39,8 @@ internal sealed class AiAssistantFileTurnService(IUnitOfWork unitOfWork, IReques
         var retried = await attachments.FindRetryAsync(userId, request.Turn.RequestId, request.Content, name, ct);
         if (retried.IsFailure) return retried.Error;
         if (retried.Value is { } accepted) return await ValidateAsync(request.Turn with { Attachment = accepted }, ct);
+        // I14: with Home's quota spent or the capacity full, the owner is not asked and nothing is read or kept.
+        if (await submissions.PrecheckAsync(userId, "home", AiAssistantPurpose.Interpret, ct) is { } refused) return refused;
         var access = await attachments.CheckAttachAsync(userId, ct);
         if (access.IsFailure) return access.Error;
         var prepared = await attachments.PrepareAsync(request.Content, name, access.Value, ct);

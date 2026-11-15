@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 // turn then names it and the server takes the reading. Get comes first: retrying the same request with the same file recovers it and
 // never reads, keeps or submits again; another file under it is a conflict, as in file-turns.
 internal sealed class AiAssistantDocumentService(IAssistantOperations operations, AiAssistantHomeDocumentPolicy documents, AiAssistantAccessGuard guard,
-    AiAssistantLimits limits, TimeProvider clock, ILogger<AiAssistantDocumentService> logger) : IAiAssistantDocumentService
+    AiAssistantSubmissionPolicy submissions, AiAssistantLimits limits, TimeProvider clock, ILogger<AiAssistantDocumentService> logger) : IAiAssistantDocumentService
 {
     public Task<Result<AiAssistantDocumentResponse>> SubmitAsync(SubmitAiAssistantDocumentRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AiAssistantDocumentResponse>>(logger, "SubmitAiAssistantDocument", async () =>
@@ -35,6 +35,8 @@ internal sealed class AiAssistantDocumentService(IAssistantOperations operations
             var existing = await operations.GetAsync(context, request.RequestId, cancellationToken);
             if (existing.IsSuccess) return Recovered(existing.Value, request, name);
             if (existing.Error != AiAssistantErrors.NotFound) return existing.Error;
+            // I14: with the reading quotas spent or the capacity full, the owner is not asked and nothing is read or kept.
+            if (await submissions.PrecheckAsync(userId, context.ChannelId, AiAssistantPurpose.ReadDocument, cancellationToken) is { } spent) return spent;
             if (await documents.CheckAsync(userId, cancellationToken) is { } refused) return refused;
             var prepared = await documents.PrepareAsync(request.Content, name, cancellationToken);
             if (prepared.IsFailure) return prepared.Error;

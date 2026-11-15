@@ -148,6 +148,29 @@ public sealed class AiAssistantHomeAudioTests
         Assert.Equal(1, host.Files.WriteCount);
     }
 
+    // I14: what the acceptance would refuse (the quota, the capacity, the transcription profile) refuses before the copy is kept,
+    // with the same error and retryAfter, and nothing is submitted.
+    [Theory]
+    [InlineData("quota")]
+    [InlineData("capacity")]
+    [InlineData("profile")]
+    public async Task A_recording_the_acceptance_would_refuse_is_not_kept(string refusal)
+    {
+        var host = new ServiceHost(transcribes: refusal != "profile");
+        if (refusal == "quota") host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeAudioChannelId, host.Now, new AiAssistantLimits().ActorDailyQuota, isAudio: true);
+        if (refusal == "capacity") host.Fixture.FillCapacity(host.Now);
+        var error = (await host.Service.SubmitAsync(new(Guid.NewGuid(), "es", Webm), TestContext.Current.CancellationToken)).Error;
+        var expected = refusal switch
+        {
+            "quota" => AiAssistantErrors.QuotaExceeded((int)(host.Now.Date.AddDays(1) - host.Now).TotalSeconds),
+            "capacity" => AiAssistantErrors.CapacityLimited(new AiAssistantLimits().PollingAfterSeconds),
+            _ => AiAssistantErrors.Unavailable,
+        };
+        Assert.Equal((expected.Code, expected.Metadata?["retryAfter"]), (error.Code, error.Metadata?["retryAfter"]));
+        Assert.Equal(0, host.Files.WriteCount);
+        Assert.Empty(host.Operations.Submitted);
+    }
+
     [Fact]
     public async Task Repeating_a_recording_returns_its_normalization_without_storing_or_submitting_again()
     {
@@ -203,19 +226,26 @@ public sealed class AiAssistantHomeAudioTests
         public FakePermissionService Permissions { get; } = new();
         public MemoryPrivateFileStore Files { get; } = new();
         public RecordingOperations Operations { get; } = new();
+        // The acceptance's counts and the saved connection, which the check before keeping the copy reads (I14).
+        public AssistantOperationsFixture Fixture { get; } = new();
         public Guid ActorId { get; }
+        public DateTime Now { get; } = new(2026, 11, 4, 12, 0, 0, DateTimeKind.Utc);
         public AiAssistantAudioService Service { get; }
 
-        public ServiceHost()
+        public ServiceHost(bool transcribes = true)
         {
             ActorId = Users.AddUser("dictating@example.test").Id;
             Permissions.Permissions[ActorId] = [ArtificialIntelligencePermissions.AssistantUse];
-            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 4, 12, 0, 0, TimeSpan.Zero));
+            var clock = new FakeTimeProvider(new DateTimeOffset(Now));
             var limits = new AiAssistantLimits();
             var current = new FakeCurrentUser { UserId = ActorId };
-            var guard = new AiAssistantAccessGuard(Users, Permissions, [], limits, current,
-                new AiAssistantCapabilityCatalogPolicy([], Permissions), new([], [], Files), FictionalCredentials.Policy);
-            Service = new(Operations, new AiAssistantHomeAudioPolicy(Files, null!, null!, clock), guard, current, limits, clock,
+            var catalog = new AiAssistantCapabilityCatalogPolicy([], Permissions);
+            AiAssistantAudioModelProfile[] hears = transcribes ? [new(AiProvider.OpenAI, "audio-model", "fixture-audio", 1, ["audio/webm", "audio/mp4"], 25000000)] : [];
+            var guard = new AiAssistantAccessGuard(Users, Permissions, [], limits, current, catalog, new(hears, [], Files), FictionalCredentials.Policy);
+            var responses = new AiAssistantResponsePolicy(Fixture.Protector, clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
+            var submissions = new AiAssistantSubmissionPolicy(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector,
+                new OperationsFingerprint(), limits, responses);
+            Service = new(Operations, new AiAssistantHomeAudioPolicy(Files, null!, null!, clock), guard, submissions, current, limits, clock,
                 NullLogger<AiAssistantAudioService>.Instance);
         }
     }
