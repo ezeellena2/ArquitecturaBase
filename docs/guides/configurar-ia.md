@@ -321,6 +321,10 @@ No borres filas de operación para recuperar una generación incierta.
   Los meters `ArquitecturaBase.AiAssistant` y
   `ArquitecturaBase.AiAssistant.Maintenance` están registrados con OpenTelemetry. Las métricas
   no incluyen contenido/UUID/cuenta como etiquetas; no acreditan exportación a un host desplegado.
+- `System.Query.Unavailable` (una fuente cuya base falló) y `Ai.Assistant.ExecutionFailed` (una excepción del motor fuera de la
+  llamada al proveedor) no son del proveedor: revisá PostgreSQL y el log, que nombra la capacidad, la versión, el turno y el
+  SQLSTATE. En Error, la falla no es transitoria (por ejemplo 42703, una columna que falta después de un despliegue) y se repite en
+  cada turno hasta corregirla; en Warning, es transitoria.
 - Si faltan claves históricas, recuperalas de su respaldo. Cambiar la conexión o recrear un keyId
   no recupera preguntas ni comprobantes antiguos y no justifica regenerarlos.
 - En audio, conservá la referencia ya fijada: una pérdida de acceso, vencimiento o incertidumbre

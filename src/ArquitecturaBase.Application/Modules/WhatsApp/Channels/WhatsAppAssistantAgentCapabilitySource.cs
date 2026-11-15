@@ -78,7 +78,10 @@ internal sealed class WhatsAppAssistantAgentCapabilitySource(IWhatsAppAssistantA
                 AgentId when empty => Read(WhatsAppAssistantAgentViewPolicy.Agent(agent, request.Context.Culture)),
                 KnowledgeId when empty => Read(WhatsAppAssistantAgentViewPolicy.Knowledge(await knowledge.ReadAsync(request.Context.Culture, ct))),
                 HistoryId when empty => Read(await HistoryAsync(request.Context, subject, agent, ct)),
-                ReplyId => Reply(JsonSerializer.Deserialize<ReplyArguments>(request.ArgumentsJson, Options), agent, request.Context.Culture),
+                // I5: a preloaded agent read that failed is unavailable and the turn goes on; without its cases the model could pick the
+                // fallback and send the generic text. A reply needs the agent this turn read: else the turn fails and WhatsApp hands off.
+                ReplyId or DraftId when !SawAgent(request) => WhatsAppAssistantErrors.Unavailable,
+                ReplyId =>Reply(JsonSerializer.Deserialize<ReplyArguments>(request.ArgumentsJson, Options), agent, request.Context.Culture),
                 DraftId => await DraftAsync(JsonSerializer.Deserialize<DraftArguments>(request.ArgumentsJson, Options), agent, request, ct),
                 _ => WhatsAppAssistantErrors.InvalidProposal,
             };
@@ -231,6 +234,9 @@ internal sealed class WhatsAppAssistantAgentCapabilitySource(IWhatsAppAssistantA
         var found = agent.Cases.SingleOrDefault(item => item.Id == id && item.IsActive);
         return found is null || !agent.Limits.AllowedActions.Contains(found.Action.Kind) ? null : ("own", found.Id, found.When, found.Action);
     }
+
+    private static bool SawAgent(AssistantCapabilityRequest request) => request.ObservedReads.Any(read => read.TurnId == request.TurnId
+        && read.Capability == new AssistantCapabilityReference(AgentId, 1));
 
     private static bool SameSource(string? source, Guid? caseId) => source == "own" ? caseId is { } id && id != Guid.Empty : source == "fallback" && caseId is null;
 

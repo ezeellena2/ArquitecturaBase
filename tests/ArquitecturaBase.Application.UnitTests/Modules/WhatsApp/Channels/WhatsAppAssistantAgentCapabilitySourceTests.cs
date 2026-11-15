@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using Microsoft.Extensions.Time.Testing;
@@ -270,7 +271,7 @@ public sealed class WhatsAppAssistantAgentCapabilitySourceTests
     {
         var host = new Host();
         var observed = new WhatsAppAssistantKnowledgePayload(true, [new("hours-2", "Hours", "Horario de verano", "De 8 a 14.")], false);
-        var reads = new[] { new AssistantObservedRead(Turn, 1, new(WhatsAppAssistantAgentCapabilitySource.KnowledgeId, 1), observed) };
+        var reads = new[] { AgentRead(Turn), new AssistantObservedRead(Turn, 2, new(WhatsAppAssistantAgentCapabilitySource.KnowledgeId, 1), observed) };
 
         var draft = await host.Source.ExecuteAsync(Request(WhatsAppAssistantAgentCapabilitySource.DraftId,
             Draft(Drafted, "En verano abrimos de 8 a 14.", "hours-2"), reads: reads), Ct);
@@ -280,6 +281,34 @@ public sealed class WhatsAppAssistantAgentCapabilitySourceTests
         Assert.Equal(["Horario de verano"], Assert.IsType<WhatsAppAssistantDraftPayload>(draft.Value.Payload).Used);
         Assert.Equal(0, host.Knowledge.Reads);
         Assert.Equal("WhatsApp.Assistant.InvalidProposal", current.Error.Code);
+    }
+
+    // I5: a preloaded agent read that failed (its database, say) is unavailable and the turn goes on, but without the cases the model
+    // could pick «anything else» and send the business's generic text. A reply or a draft needs the agent the turn read: else the turn
+    // fails, and WhatsApp hands the conversation to a person, as when the turn died.
+    [Theory]
+    [InlineData(WhatsAppAssistantAgentCapabilitySource.ReplyId, "none")]
+    [InlineData(WhatsAppAssistantAgentCapabilitySource.ReplyId, "otherTurn")]
+    [InlineData(WhatsAppAssistantAgentCapabilitySource.ReplyId, "otherRead")]
+    [InlineData(WhatsAppAssistantAgentCapabilitySource.DraftId, "none")]
+    [InlineData(WhatsAppAssistantAgentCapabilitySource.DraftId, "otherTurn")]
+    public async Task A_reply_or_a_draft_needs_the_agent_read_in_this_turn(string capability, string reads)
+    {
+        var host = new Host();
+        AssistantObservedRead[] observed = reads switch
+        {
+            "otherTurn" => [AgentRead(Guid.Parse("018f0000-0000-7000-8000-0000000000f2"))],
+            "otherRead" => [new(Turn, 1, new(WhatsAppAssistantAgentCapabilitySource.KnowledgeId, 1), WhatsAppAssistantAgentViewPolicy.Knowledge(Knowledge()))],
+            _ => [],
+        };
+        var json = capability == WhatsAppAssistantAgentCapabilitySource.ReplyId
+            ? Reply("own", Hours, "exactText", null, "Pregunta a qué hora abren.") : Draft(Drafted, "Abrimos de 9 a 18.", "hours-1");
+
+        var withoutAgent = await host.Source.ExecuteAsync(Request(capability, json, reads: observed), Ct);
+        var withAgent = await host.Source.ExecuteAsync(Request(capability, json, reads: [.. observed, AgentRead(Turn)]), Ct);
+
+        Assert.Equal("WhatsApp.Assistant.Unavailable", withoutAgent.Error.Code);
+        Assert.True(withAgent.IsSuccess);
     }
 
     [Fact]
@@ -394,9 +423,13 @@ public sealed class WhatsAppAssistantAgentCapabilitySourceTests
             """{"kind":"send","caseSource":"own","caseId":null,"caseTitle":null,"reason":"x","text":null,"buttons":null,"handoffReasonCode":null,"handoffReason":null}""").IsFailure);
     }
 
+    // A proposal comes after the preloads, so the turn has already seen the agent unless a test says otherwise.
     private static AssistantCapabilityRequest Request(string id, string json, string culture = "es", IReadOnlyList<AssistantObservedRead>? reads = null) =>
         new(Turn, new AssistantChannelContext("whatsapp-assistant", Subject, Subject, culture, "America/Argentina/Buenos_Aires", new([], []), [], [])
-            { ChannelConversationId = Conversation }, new(id, 1), json, reads ?? []);
+            { ChannelConversationId = Conversation }, new(id, 1), json, reads ?? [AgentRead(Turn)]);
+
+    private static AssistantObservedRead AgentRead(Guid turn) =>
+        new(turn, 1, new(WhatsAppAssistantAgentCapabilitySource.AgentId, 1), WhatsAppAssistantAgentViewPolicy.Agent(Agent(), "es"));
 
     private static string Reply(string source, Guid? caseId, string kind, string? handoffReason, string reason) =>
         JsonSerializer.Serialize(new { caseSource = source, caseId, kind, handoffReason, reason });

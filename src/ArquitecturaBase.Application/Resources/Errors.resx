@@ -121,6 +121,7 @@
   <data name="Ai.Places.RateLimited" xml:space="preserve"><value>La búsqueda de lugares está limitada. Esperá antes de buscar de nuevo.</value></data>
   <data name="Ai.Places.Busy" xml:space="preserve"><value>Hay otras búsquedas de lugares en curso. Esperá antes de buscar de nuevo.</value></data>
   <data name="System.Query.NotFound" xml:space="preserve"><value>No se encontró el dato de la fuente.</value></data>
+  <data name="System.Query.Unavailable" xml:space="preserve"><value>La fuente no está disponible en este momento. Probá de nuevo en unos minutos.</value></data>
   <data name="System.Query.Forbidden" xml:space="preserve"><value>Tu cuenta no puede acceder a esta fuente.</value></data>
   <data name="System.Query.InvalidArguments" xml:space="preserve"><value>Revisá los argumentos de la consulta.</value></data>
   <data name="Ai.Assistant.Invalid" xml:space="preserve"><value>Revisá los datos de la consulta.</value></data>
@@ -145,6 +146,7 @@
   <data name="Ai.Assistant.ProviderUncertain" xml:space="preserve"><value>La consulta pudo enviarse al proveedor, pero no hay un resultado confirmado. Revisá el posible consumo antes de iniciar otra.</value></data>
   <data name="Ai.Assistant.ProviderRejected" xml:space="preserve"><value>El proveedor rechazó la consulta. Revisá la conexión y el modelo configurados.</value></data>
   <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>El proveedor devolvió una respuesta incompleta. No se publicó ni se amplió el límite automáticamente.</value></data>
+  <data name="Ai.Assistant.ExecutionFailed" xml:space="preserve"><value>La consulta no se completó por una falla del sistema, no del proveedor. Podés iniciar otra.</value></data>
   <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>Alcanzaste la cuota de consultas aceptadas. Esperá el plazo indicado.</value></data>
   <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>El asistente está ocupado. Esperá el plazo indicado antes de volver a enviar.</value></data>
   <data name="Ai.Assistant.AttachmentForbidden" xml:space="preserve"><value>Para adjuntar planillas, pedile a quien administra la instalación el permiso de administrar catálogos.</value></data>

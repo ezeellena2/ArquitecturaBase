@@ -36,6 +36,8 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public bool CompletionTokenWasCanceled { get; private set; }
     /// <summary>B3: the cancellation monitor's first read fails, as in a brief database outage, while the provider answers.</summary>
     public bool FailFirstMonitorRead { get; init; }
+    /// <summary>I5: preparing the turn throws, as a bug or a failure of the engine itself before anything reaches the provider.</summary>
+    public Exception? PrepareFailure { get; init; }
     public AiAssistantProposalCoordinatorFixture(TimeProvider clock, Action? stopAfterAdvance, bool normalize = false, bool read = false)
     {
         this.normalize = normalize;
@@ -67,7 +69,8 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
         BeginCalls++;
         return Task.FromResult(Result.Success(BeginCalls == 1));
     }
-    public Task<Result<AiAssistantExecutionContextResponse>> PrepareAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken) => Task.FromResult(Result.Success(context));
+    public Task<Result<AiAssistantExecutionContextResponse>> PrepareAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken) =>
+        PrepareFailure is { } failure ? throw failure : Task.FromResult(Result.Success(context));
     public async Task<Result<LlmConversationResponse>> CallProviderAsync(AiAssistantExecutionContextResponse accepted, CancellationToken cancellationToken)
     {
         ProviderCalls++;

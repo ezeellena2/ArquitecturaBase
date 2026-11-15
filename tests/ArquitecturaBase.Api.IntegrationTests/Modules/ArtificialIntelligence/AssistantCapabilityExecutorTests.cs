@@ -4,7 +4,10 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Assistant;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Domain.SystemQueries;
 using ArquitecturaBase.Infrastructure.Assistant;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -49,6 +52,7 @@ public sealed class AssistantCapabilityExecutorTests
         var registrations = new ServiceCollection();
         registrations.AddScoped<IAssistantCapabilitySource>(_ => new AssistantCapabilityExecutorSource(first));
         registrations.AddScoped<IAssistantCapabilitySource>(_ => new AssistantCapabilityExecutorSource(second));
+        registrations.AddLogging();
         registrations.AddSingleton<IAssistantCapabilityExecutor, ScopedAssistantCapabilityExecutor>();
         await using var services = registrations.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         Assert.True((await services.GetRequiredService<IAssistantCapabilityExecutor>().ExecuteAsync(Request(2), Ct)).IsSuccess);
@@ -118,9 +122,71 @@ public sealed class AssistantCapabilityExecutorTests
         Assert.Equal(probe.CreatedScopes, probe.DisposedScopes);
     }
 
-    private static ServiceProvider Services(AssistantCapabilityExecutorProbe probe, bool twoSources = false)
+    // I5: a database failure of the source (EF wraps Npgsql's DbException) is the source's, never the provider's: a failed result the
+    // engine records as an unavailable read or that ends a proposal, logged with the capability, its version and the turn, and with the
+    // type and SQLSTATE of the DbException in the chain (never its message). What is not transient (a column missing after a deploy) is an
+    // Error, because every turn loses that read until someone fixes it; a transient one (the connection dropped) is a Warning.
+    [Theory]
+    [InlineData("database", false, "42703", "Error")]
+    [InlineData("database", true, "57P01", "Warning")]
+    [InlineData("update", false, "23505", "Error")]
+    [InlineData("wrapped", true, null, "Warning")]
+    [InlineData("updateOnly", false, null, "Error")]
+    public async Task A_database_failure_of_the_source_is_an_unavailable_result_logged_with_its_capability_version_turn_and_sql_state(
+        string failure, bool transient, string? sqlState, string level)
+    {
+        var database = new FictionalDbException(transient, sqlState);
+        var probe = new AssistantCapabilityExecutorProbe
+        {
+            Throws = failure switch
+            {
+                "database" => database,
+                "update" => new DbUpdateException("private-database-detail", database),
+                "wrapped" => new InvalidOperationException("private-database-detail of an exhausted retry", database),
+                _ => new DbUpdateException("private-database-detail without a provider exception"),
+            },
+        };
+        var log = new FakeLogger<ScopedAssistantCapabilityExecutor>();
+        await using var services = Services(probe, log: log);
+        var request = Request(2);
+
+        var result = await services.GetRequiredService<IAssistantCapabilityExecutor>().ExecuteAsync(request, Ct);
+
+        Assert.Equal(SystemQueryErrors.Unavailable, result.Error);
+        var record = Assert.Single(log.Collector.GetSnapshot());
+        Assert.Equal(Enum.Parse<LogLevel>(level), record.Level);
+        Assert.Contains("fictional.read", record.Message, StringComparison.Ordinal);
+        Assert.Contains("@2", record.Message, StringComparison.Ordinal);
+        Assert.Contains(request.TurnId.ToString(), record.Message, StringComparison.Ordinal);
+        Assert.Contains(failure == "updateOnly" ? nameof(DbUpdateException) : nameof(FictionalDbException), record.Message, StringComparison.Ordinal);
+        Assert.Equal(sqlState, record.StructuredState!.Single(pair => pair.Key == "SqlState").Value);
+        Assert.Equal(transient.ToString(), record.StructuredState!.Single(pair => pair.Key == "Transient").Value);
+        Assert.DoesNotContain("private", record.Message, StringComparison.Ordinal);
+        Assert.Null(record.Exception);
+        Assert.Equal(probe.CreatedScopes, probe.DisposedScopes);
+    }
+
+    [Fact]
+    public async Task A_database_failure_after_cancellation_is_not_turned_into_a_result()
+    {
+        var probe = new AssistantCapabilityExecutorProbe { Throws = new FictionalDbException() };
+        await using var services = Services(probe);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        await cancellation.CancelAsync();
+
+        // The engine classifies a canceled call (the turn, or the read's own timeout): the executor never turns it into a result.
+        await Assert.ThrowsAsync<FictionalDbException>(() =>
+            services.GetRequiredService<IAssistantCapabilityExecutor>().ExecuteAsync(Request(1), cancellation.Token));
+        Assert.Single(probe.Requests);
+        Assert.Equal(probe.CreatedScopes, probe.DisposedScopes);
+    }
+
+    private static ServiceProvider Services(AssistantCapabilityExecutorProbe probe, bool twoSources = false,
+        ILogger<ScopedAssistantCapabilityExecutor>? log = null)
     {
         var services = new ServiceCollection();
+        services.AddLogging();
+        if (log is not null) services.AddSingleton(log);
         services.AddSingleton(probe);
         services.AddScoped<IAssistantCapabilitySource, AssistantCapabilityExecutorSource>();
         if (twoSources) services.AddScoped<IAssistantCapabilitySource, AssistantCapabilityExecutorSource>();

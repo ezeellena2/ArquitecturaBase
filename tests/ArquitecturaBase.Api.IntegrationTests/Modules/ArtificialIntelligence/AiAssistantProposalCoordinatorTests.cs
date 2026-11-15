@@ -7,6 +7,8 @@ using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
+using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
+using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -62,4 +64,33 @@ public sealed class AiAssistantProposalCoordinatorTests
         Assert.Equal(1, fixture.CompleteCalls);
         Assert.Equal(fixture.Proposal.Id, fixture.CompletedProposal!.Id);
     }
+
+    // I5: ProviderUnavailable is only for what came out of the provider call. An exception of the engine before it (or after a
+    // response) is the engine's own failure, and it is not uncertain because nothing was sent.
+    [Fact]
+    public async Task An_exception_outside_the_provider_call_is_an_execution_failure_never_the_providers()
+    {
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, null) { PrepareFailure = new InvalidOperationException("Fictional engine failure.") };
+
+        await using var services = Services(fixture);
+
+        Assert.True(await Coordinator(services, clock).ProcessNextAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, fixture.ProviderCalls);
+        Assert.Equal((AiAssistantErrors.ExecutionFailed.Code, false), (fixture.FailureCode, fixture.FailureWasUncertain));
+    }
+
+    private static ServiceProvider Services(AiAssistantProposalCoordinatorFixture fixture)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IAiAssistantDispatchService>(fixture);
+        services.AddSingleton<IAiAssistantExecutionService>(fixture);
+        services.AddSingleton<IAiAssistantReader>(fixture);
+        return services.BuildServiceProvider();
+    }
+
+    private static AiAssistantCoordinator Coordinator(ServiceProvider services, FakeTimeProvider clock, ILogger<AiAssistantCoordinator>? logger = null) =>
+        new(services.GetRequiredService<IServiceScopeFactory>(), clock, Options.Create(new AiAssistantOptions()),
+            logger ?? NullLogger<AiAssistantCoordinator>.Instance);
 }

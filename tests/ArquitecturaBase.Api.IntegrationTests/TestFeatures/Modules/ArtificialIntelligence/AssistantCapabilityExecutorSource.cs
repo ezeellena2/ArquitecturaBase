@@ -13,6 +13,8 @@ internal sealed class AssistantCapabilityExecutorProbe
     public List<AssistantCapabilityRequest> Requests { get; } = [];
     public bool ThrowOnExecute { get; init; }
     public bool FailOnExecute { get; init; }
+    /// <summary>I5: what the source throws, for example a database failure.</summary>
+    public Exception? Throws { get; init; }
 
     public static AssistantCapabilityDefinition Definition(int version) => new("fictional.read", version,
         AssistantCapabilityKind.Read, "Fictional local read", "{}", "{}", new([], []), new(100, 100, 1, 1));
@@ -34,6 +36,7 @@ internal sealed class AssistantCapabilityExecutorSource : IAssistantCapabilitySo
     public Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken cancellationToken)
     {
         probe.Requests.Add(request);
+        if (probe.Throws is { } exception) throw exception;
         cancellationToken.ThrowIfCancellationRequested();
         if (probe.ThrowOnExecute) throw new InvalidOperationException("Synthetic capability failure.");
         return Task.FromResult(probe.FailOnExecute

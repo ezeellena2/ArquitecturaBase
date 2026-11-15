@@ -24,6 +24,8 @@ public static class AiAssistantErrors
     public static readonly Error InvalidOutput = Error.Conflict("Ai.Assistant.InvalidOutput", "The assistant output did not satisfy the required contract.");
     public static readonly Error ToolRejected = Error.Forbidden("Ai.Assistant.ToolRejected", "The requested query is not authorized or is invalid.");
     public static readonly Error ProviderUnavailable = Error.Failure("Ai.Assistant.ProviderUnavailable", "The provider is unavailable.");
+    // I5: an exception of the engine itself, outside the provider call: never blamed on the provider.
+    public static readonly Error ExecutionFailed = Error.Failure("Ai.Assistant.ExecutionFailed", "The operation failed outside the provider call.");
     public static readonly Error ProviderUncertain = Error.Failure("Ai.Assistant.ProviderUncertain", "The provider request may have been sent without a confirmed result.");
     public static readonly Error ProviderRejected = Error.Conflict("Ai.Assistant.ProviderRejected", "The provider rejected the request.");
     public static readonly Error ProviderIncomplete = Error.Conflict("Ai.Assistant.ProviderIncomplete", "The provider returned an incomplete result.");

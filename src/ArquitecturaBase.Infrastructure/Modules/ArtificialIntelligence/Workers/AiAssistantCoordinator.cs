@@ -105,10 +105,11 @@ internal sealed partial class AiAssistantCoordinator(
         }
         catch (Exception exception)
         {
-            // After a committed external-step reservation, absence of a response cannot establish that it was not sent.
+            // After a committed external-step reservation, absence of a response cannot establish that it was not sent. Anything else is
+            // the engine's own failure (I5): ProviderUnavailable comes only from the provider call.
             LogExecutionFailed(logger, claim.TurnId, exception.GetType().Name);
             await FailAsync(claim, providerMayHaveBeenSent ? AiAssistantErrors.ProviderUncertain.Code
-                : execution.IsCancellationRequested ? AiAssistantErrors.Canceled.Code : AiAssistantErrors.ProviderUnavailable.Code, providerMayHaveBeenSent, knownUsage);
+                : execution.IsCancellationRequested ? AiAssistantErrors.Canceled.Code : AiAssistantErrors.ExecutionFailed.Code, providerMayHaveBeenSent, knownUsage);
         }
         finally
         {
