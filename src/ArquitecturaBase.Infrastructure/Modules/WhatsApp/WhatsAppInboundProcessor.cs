@@ -282,8 +282,10 @@ internal sealed partial class WhatsAppInboundProcessor(
         ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse work;
         await using (var prepareScope = scopeFactory.CreateAsyncScope())
         {
-            var prepared = await prepareScope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentDispatchService>()
-                .PrepareAsync(contactId, cancellationToken);
+            var documents = prepareScope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentDispatchService>();
+            // Counted before it is read: a reading that never comes back is not taken for ever.
+            if (await documents.TakeAsync(contactId, cancellationToken) is not { IsSuccess: true, Value: true }) return;
+            var prepared = await documents.PrepareAsync(contactId, cancellationToken);
             if (prepared.IsFailure || prepared.Value is null) return;
             work = prepared.Value;
         }

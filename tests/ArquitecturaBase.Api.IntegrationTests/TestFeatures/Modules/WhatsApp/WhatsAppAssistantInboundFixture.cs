@@ -301,6 +301,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     }
     private sealed class DocumentDispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppReceivedDocumentDispatchService
     {
+        public Task<Result<bool>> TakeAsync(Guid id,CancellationToken ct)=>Task.FromResult(Result.Success(true));
         public Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid id,CancellationToken ct)
         {
             if(!host.HasDocumentWork)return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(null));

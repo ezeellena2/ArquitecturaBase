@@ -213,6 +213,21 @@ public sealed class WhatsAppMessageDocumentTests
         Assert.False(message.RegisterDocumentFailure(Now.AddDays(2), "Files.Content.Unavailable"));
     }
 
+    // F6: a reading that never comes back (it hangs, or ends the process) leaves only the count of the times the document was taken.
+    [Fact]
+    public void A_pending_document_is_taken_to_be_read_only_a_few_times_unless_the_reading_comes_back()
+    {
+        var message = Described();
+
+        for (var attempt = 0; attempt < WhatsAppMessage.MaxDocumentReadAttempts; attempt++) Assert.True(message.TakeDocumentForReading());
+        Assert.False(message.TakeDocumentForReading());
+        Assert.Equal((WhatsAppMessage.MaxDocumentReadAttempts, WhatsAppDocumentState.Pending), (message.DocumentReadAttempts, message.DocumentState));
+
+        message.ReleaseDocumentReading();
+        Assert.True(message.TakeDocumentForReading());
+        Assert.False(Stored().TakeDocumentForReading());
+    }
+
     // A Word is read by its owner while it is prepared: once it is used it is read without the engine, and never asks for a reading.
     [Fact]
     public void A_word_with_its_prepared_reading_is_read_once_it_is_used_without_a_request()

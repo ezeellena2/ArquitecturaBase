@@ -24,6 +24,9 @@ public sealed partial class WhatsAppMessage
     /// <summary>The longest file name the column holds.</summary>
     public const int MaxDocumentFileNameLength = 255;
 
+    /// <summary>How many times a pending document is taken to be read before it is left unreadable.</summary>
+    public const int MaxDocumentReadAttempts = 3;
+
     /// <summary>The largest document copied: as much as the assistant attaches.</summary>
     public const long MaxDocumentBytes = 10 * 1024 * 1024;
 
@@ -64,6 +67,9 @@ public sealed partial class WhatsAppMessage
     public string? DocumentFailureCode { get; private set; }
     public int DocumentFailureCount { get; private set; }
     public DateTime? DocumentFirstFailureAtUtc { get; private set; }
+
+    /// <summary>The times a pending document was taken to be read (F6); a reading that never came back leaves only this.</summary>
+    public int DocumentReadAttempts { get; private set; }
 
     /// <summary>Until when a pending document without a request waits for one: the text or the audio that may follow it.</summary>
     public DateTime? DocumentRequestAwaitedUntilUtc { get; private set; }
@@ -165,6 +171,21 @@ public sealed partial class WhatsAppMessage
         DocumentState = WhatsAppDocumentState.Unavailable;
         return true;
     }
+
+    /// <summary>
+    /// Counts the taking of a pending document to be downloaded and read, before it is read: a file that hangs the reading or ends the
+    /// process never comes back to say so, and without this count the first round after the restart would take it again. False when
+    /// it is not pending or was already taken <see cref="MaxDocumentReadAttempts"/> times, a document that is not read any more.
+    /// </summary>
+    public bool TakeDocumentForReading()
+    {
+        if (DocumentState != WhatsAppDocumentState.Pending || DocumentReadAttempts >= MaxDocumentReadAttempts) return false;
+        DocumentReadAttempts++;
+        return true;
+    }
+
+    /// <summary>The reading came back with an answer, whatever it was: the attempt does not count.</summary>
+    public void ReleaseDocumentReading() => DocumentReadAttempts = 0;
 
     /// <summary>A stored Word that is used is read with what its owner prepared, without the engine.</summary>
     public Result UsePreparedDocumentReading()

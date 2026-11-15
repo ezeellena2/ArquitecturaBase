@@ -361,6 +361,34 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         Assert.Equal(1, f.Downloads);
     }
 
+    // F6: a reading that hangs or ends the process never comes back to say so, so the document is counted before it is read: taken too many
+    // times it is not downloaded again, the person is told it is unreadable once, and a reading that comes back leaves no count.
+    [Fact]
+    public async Task A_document_taken_too_many_times_without_coming_back_is_left_unreadable_without_being_downloaded()
+    {
+        var f = new WhatsAppReceivedDocumentFixture(caption: null);
+        for (var attempt = 0; attempt < WhatsAppMessage.MaxDocumentReadAttempts; attempt++) Assert.True(f.Message.TakeDocumentForReading());
+
+        Assert.False((await f.Dispatch.TakeAsync(f.Contact.Id, Ct)).Value);
+        Assert.True((await f.Dispatch.TakeAsync(f.Contact.Id, Ct)).Value);
+
+        Assert.Equal((WhatsAppDocumentState.Rejected, "unreadable", 0), (f.Message.DocumentState, f.Message.DocumentFailureCode, f.Downloads));
+        Assert.Equal("No pude abrir el archivo. Mandámelo de nuevo como PDF o como foto.", Assert.Single(f.Replies).Body);
+    }
+
+    [Fact]
+    public async Task A_reading_that_comes_back_does_not_count_as_an_attempt()
+    {
+        var f = new WhatsAppReceivedDocumentFixture(caption: null);
+
+        var taken = await f.Dispatch.TakeAsync(f.Contact.Id, Ct);
+        Assert.True(taken.Value);
+        Assert.Equal(1, f.Message.DocumentReadAttempts);
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal((WhatsAppDocumentState.Reading, 0), (f.Message.DocumentState, f.Message.DocumentReadAttempts));
+    }
+
     // Every file that cannot be opened goes to the inbox discarded; one it must not keep (an old Word, one with macros, a protected one or
     // anything else) goes without its bytes: its name, the type Meta declared, its size and the reason.
     [Theory]

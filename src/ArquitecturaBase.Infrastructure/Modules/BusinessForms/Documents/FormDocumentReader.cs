@@ -3,6 +3,7 @@ using System.Xml;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Infrastructure.Files;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Exceptions;
@@ -14,12 +15,15 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Documents;
 // a photo; a Word .docx gives its body as text, read node by node from the main part OpenXml finds, after the ZIP preflight of the
 // import. A PDF or a Word is accepted
 // only as the private files accept it (DocumentSignature), so what is prepared here can later be stored with a response. The reader
-// logs nothing: names, hashes and contents never leave it.
+// logs only that a PDF ran out of time or memory: names, hashes and contents never leave it.
 internal sealed partial class FormDocumentReader : IFormDocumentReader
 {
     // PdfPig follows the page tree and chains of references recursively: a PDF with more indirect objects than this is unreadable
     // before PdfPig sees it, which bounds every chain, and PdfPig runs on a thread of its own with a large stack, a few at a time.
     internal const int MaximumPdfObjects = 20_000;
+    // What all the compressed streams of a PDF may inflate to, in all, and how long a PDF may take to be read (F6).
+    internal const long MaximumPdfInflatedBytes = 64L * 1024 * 1024;
+    internal static readonly TimeSpan PdfReadTimeout = TimeSpan.FromSeconds(20);
     private const int PdfStackBytes = 128 * 1024 * 1024;
     private const int MaximumConcurrentPdfs = 2;
     private const int MaximumManifestBytes = 64 * 1024;
@@ -27,6 +31,22 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
     private const string WordContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml";
     private static readonly FormDocumentContent Unreadable = new(FormDocumentReadStatus.Unreadable);
     private static readonly SemaphoreSlim PdfGate = new(MaximumConcurrentPdfs, MaximumConcurrentPdfs);
+
+    private readonly ILogger<FormDocumentReader> logger;
+    private readonly TimeSpan pdfTimeout;
+    private readonly Func<byte[], FormDocumentContent> openPdf;
+
+    public FormDocumentReader(ILogger<FormDocumentReader> logger) : this(logger, PdfReadTimeout, null)
+    {
+    }
+
+    // The way to open a PDF and its time are replaceable only for the tests of the timeout.
+    internal FormDocumentReader(ILogger<FormDocumentReader> logger, TimeSpan pdfTimeout, Func<byte[], FormDocumentContent>? openPdf)
+    {
+        this.logger = logger;
+        this.pdfTimeout = pdfTimeout;
+        this.openPdf = openPdf ?? OpenPdf;
+    }
 
     private static ReadOnlySpan<byte> JpegSignature => [0xFF, 0xD8, 0xFF];
     private static ReadOnlySpan<byte> PngSignature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
@@ -52,8 +72,8 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
         return format switch
         {
             FormDocumentFormat.Pdf => await ReadPdfAsync(content, cancellationToken),
-            FormDocumentFormat.Jpeg => ReadPhoto(content, SKEncodedImageFormat.Jpeg),
-            FormDocumentFormat.Png => ReadPhoto(content, SKEncodedImageFormat.Png),
+            FormDocumentFormat.Jpeg => ReadPhoto(content, SKEncodedImageFormat.Jpeg, logger),
+            FormDocumentFormat.Png => ReadPhoto(content, SKEncodedImageFormat.Png, logger),
             FormDocumentFormat.Docx => ReadWord(content, cancellationToken),
             _ => Unreadable,
         };
@@ -107,9 +127,10 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
     }
 
     // The private files accept a PDF only with «%%EOF» in its last KiB, and its objects are counted before PdfPig opens it. Then it
-    // opens on a thread of its own with a large stack, at most MaximumConcurrentPdfs at a time: the slot is given back only when that
-    // thread ends, and PdfPig cannot be cancelled, so the caller waits for it.
-    private static async Task<FormDocumentContent> ReadPdfAsync(byte[] content, CancellationToken ct)
+    // opens on a thread of its own with a large stack, at most MaximumConcurrentPdfs at a time, after its compressed streams were
+    // inflated into nothing against a budget. PdfPig cannot be cancelled, so a reading that takes more than the timeout is unreadable
+    // and gives its place back while the thread, which is in the background, ends or not on its own.
+    private async Task<FormDocumentContent> ReadPdfAsync(byte[] content, CancellationToken ct)
     {
         if (!DocumentSignature.IsPdf(content) || FormPdfObjects.Count(content, MaximumPdfObjects) > MaximumPdfObjects) return Unreadable;
         await PdfGate.WaitAsync(ct);
@@ -119,11 +140,28 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
             var thread = new Thread(() =>
             {
                 // Nothing may escape a thread of its own: it would end the process.
-                try { opened.SetResult(OpenPdf(content)); }
+                try
+                {
+                    opened.SetResult(FormPdfStreams.Fits(content, MaximumPdfInflatedBytes, MaximumPdfObjects) ? openPdf(content) : Unreadable);
+                }
+                catch (OutOfMemoryException exception)
+                {
+                    // Not the file's fault: it is logged, so it is not mistaken for one, and answered as unreadable.
+                    LogOutOfMemory(logger, exception);
+                    opened.SetResult(Unreadable);
+                }
                 catch (Exception exception) { opened.SetException(exception); }
             }, PdfStackBytes) { IsBackground = true, Name = "FormDocumentReader.Pdf" };
             thread.Start();
-            return await opened.Task;
+            using var waiting = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var finished = await Task.WhenAny(opened.Task, Task.Delay(pdfTimeout, waiting.Token));
+            await waiting.CancelAsync();
+            if (finished == opened.Task) return await opened.Task;
+            ct.ThrowIfCancellationRequested();
+            // Whatever the abandoned thread ends with is of no one.
+            _ = opened.Task.ContinueWith(task => _ = task.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+            LogPdfTimedOut(logger);
+            return Unreadable;
         }
         finally
         {
@@ -131,9 +169,15 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
         }
     }
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Reading a PDF took longer than its time and was abandoned as unreadable")]
+    private static partial void LogPdfTimedOut(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The memory ran out reading a document; it is answered as unreadable")]
+    private static partial void LogOutOfMemory(ILogger logger, Exception exception);
+
     // A PDF opens only to count the leaves of its page tree, never to render them: one that asks for a password to open is
     // Protected, and one that opens without it and only restricts permissions is read. Unknown failures of the library are contained
-    // only at this boundary and make it unreadable; cancellation is not one of them.
+    // only at this boundary and make it unreadable; cancellation is not one of them, and a lack of memory goes on to be logged.
     private static FormDocumentContent OpenPdf(byte[] content)
     {
         try
@@ -145,14 +189,14 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
         {
             return new(FormDocumentReadStatus.Protected);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (exception is not (OperationCanceledException or OutOfMemoryException))
         {
             return Unreadable;
         }
     }
 
     // SkiaSharp decides the format from the bytes and reads only the header: the size the photo declares, never its pixels.
-    private static FormDocumentContent ReadPhoto(byte[] content, SKEncodedImageFormat format)
+    private static FormDocumentContent ReadPhoto(byte[] content, SKEncodedImageFormat format, ILogger logger)
     {
         try
         {
@@ -161,6 +205,11 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
             if (codec is null || codec.EncodedFormat != format) return Unreadable;
             var info = codec.Info;
             return new(FormDocumentReadStatus.Read, Width: info.Width, Height: info.Height);
+        }
+        catch (OutOfMemoryException exception)
+        {
+            LogOutOfMemory(logger, exception);
+            return Unreadable;
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or ArgumentException or InvalidOperationException)
         {

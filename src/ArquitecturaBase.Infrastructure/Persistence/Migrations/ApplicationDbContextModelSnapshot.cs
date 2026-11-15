@@ -4277,6 +4277,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<int?>("DocumentPages")
                         .HasColumnType("integer");
 
+                    b.Property<int>("DocumentReadAttempts")
+                        .HasColumnType("integer");
+
                     b.Property<byte[]>("DocumentReadingJson")
                         .HasColumnType("bytea");
 

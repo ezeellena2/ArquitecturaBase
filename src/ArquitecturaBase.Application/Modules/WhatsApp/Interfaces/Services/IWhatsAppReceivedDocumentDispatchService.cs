@@ -13,6 +13,13 @@ public interface IWhatsAppReceivedDocumentDispatchService
     /// </summary>
     Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid contactId, CancellationToken ct);
 
+    /// <summary>
+    /// Before <see cref="PrepareAsync"/> reads it, counts the taking of a document that is going to be downloaded, so one that hangs the
+    /// reading or ends the process is not taken for ever: taken too many times it is left unreadable and the person is told once. False
+    /// when the document is not to be read now.
+    /// </summary>
+    Task<Result<bool>> TakeAsync(Guid contactId, CancellationToken ct);
+
     /// <summary>Keeps what came of the reading: its text with the message, a reading that waits again, or the reason it ends without one.</summary>
     Task<Result> CompleteAsync(Guid contactId, Guid requestId, Result<AssistantOperationResponse> outcome, CancellationToken ct);
 }

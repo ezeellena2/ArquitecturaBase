@@ -7,6 +7,8 @@ using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Seed;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms;
 public static class BusinessFormsInfrastructureRegistration
 {
@@ -18,7 +20,9 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IDatabaseSeedParticipant, FormVersionPresentationSeeder>());
         services.TryAddSingleton<IFormWorkbookWriter, Export.ClosedXmlFormWorkbookWriter>();
         services.TryAddSingleton<IFormSpreadsheetReader, Import.ClosedXmlFormSpreadsheetReader>();
-        services.TryAddSingleton<IFormDocumentReader, Documents.FormDocumentReader>();
+        // The tests that build only this module read documents without a host, so without logging: they get the reader with no log.
+        services.TryAddSingleton<IFormDocumentReader>(provider => new Documents.FormDocumentReader(
+            provider.GetService<ILogger<Documents.FormDocumentReader>>() ?? NullLogger<Documents.FormDocumentReader>.Instance));
         services.TryAddScoped<IFormPdfDesignReader, FormPdfDesignReader>();
         services.TryAddScoped<IFormPdfDesignRepository, FormPdfDesignRepository>();
         services.TryAddScoped<IFormPdfRenderer, Pdf.SkiaFormPdfRenderer>();

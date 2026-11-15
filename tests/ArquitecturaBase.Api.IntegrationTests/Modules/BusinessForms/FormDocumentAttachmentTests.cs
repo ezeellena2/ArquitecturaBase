@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
@@ -10,6 +11,9 @@ using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Documents;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using SkiaSharp;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 
@@ -299,6 +303,72 @@ public sealed class FormDocumentAttachmentTests
         await RejectedAsync(bytes, "contrato.docx", StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Word);
     }
 
+    // F6: a few hundred KiB that inflate to half a GiB, in the cross-reference stream or in an object stream, are unreadable without
+    // being inflated: the reader stops at its budget, long before PdfPig would have held the whole stream.
+    [Theory]
+    [InlineData("references")]
+    [InlineData("object-stream")]
+    public async Task A_decompression_bomb_is_unreadable_without_inflating_it(string where)
+    {
+        var bytes = where == "references" ? FormHostilePdfFixture.BombInReferences() : FormHostilePdfFixture.BombInObjectStream();
+        Assert.True(bytes.Length < StructuredAttachmentLimits.MaximumBytes);
+        var reader = Reader();
+        var watch = Stopwatch.StartNew();
+
+        var before = GC.GetTotalAllocatedBytes(precise: true);
+        var content = await reader.ReadAsync(bytes, FormDocumentFormat.Pdf, TestContext.Current.CancellationToken);
+        var allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+
+        Assert.Equal(FormDocumentReadStatus.Unreadable, content.Status);
+        Assert.InRange(allocated, 0, 192L * 1024 * 1024);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(20));
+        await RejectedAsync(bytes, "bomba.pdf", StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Pdf);
+    }
+
+    // A reading that takes longer than its time is unreadable and gives its place back, although its thread goes on: three of them
+    // pass through the two places of the gate.
+    [Fact]
+    public async Task A_pdf_that_takes_too_long_is_unreadable_and_gives_its_place_back()
+    {
+        using var release = new ManualResetEventSlim();
+        var logger = new FakeLogger<FormDocumentReader>();
+        var reader = new FormDocumentReader(logger, TimeSpan.FromMilliseconds(300), _ =>
+        {
+            release.Wait(TimeSpan.FromSeconds(60));
+            return new(FormDocumentReadStatus.Read, Pages: 1);
+        });
+        var watch = Stopwatch.StartNew();
+        try
+        {
+            for (var attempt = 0; attempt < 3; attempt++)
+                Assert.Equal(FormDocumentReadStatus.Unreadable,
+                    (await reader.ReadAsync(FormDocumentFixture.Pdf(1), FormDocumentFormat.Pdf, TestContext.Current.CancellationToken)).Status);
+        }
+        finally
+        {
+            release.Set();
+        }
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(20));
+        Assert.Equal(3, logger.Collector.GetSnapshot().Count(record => record.Level == LogLevel.Warning));
+    }
+
+    // A lack of memory is not the file's fault: it is logged, whatever is read, and the file answers unreadable.
+    [Fact]
+    public async Task A_lack_of_memory_reading_a_pdf_is_logged()
+    {
+#pragma warning disable CA2201 // The test raises what the runtime raises when the memory runs out.
+        var logger = new FakeLogger<FormDocumentReader>();
+        var reader = new FormDocumentReader(logger, FormDocumentReader.PdfReadTimeout, _ => throw new OutOfMemoryException());
+#pragma warning restore CA2201
+
+        var content = await reader.ReadAsync(FormDocumentFixture.Pdf(1), FormDocumentFormat.Pdf, TestContext.Current.CancellationToken);
+
+        Assert.Equal(FormDocumentReadStatus.Unreadable, content.Status);
+        var record = Assert.Single(logger.Collector.GetSnapshot());
+        Assert.Equal((LogLevel.Error, typeof(OutOfMemoryException)), (record.Level, record.Exception?.GetType()));
+    }
+
     // A Word is read up to its limits whatever it holds: deep nesting (also inside a text, where a library that loads the element
     // would recurse once per level) or millions of empty paragraphs keep the text read before them, marked truncated, without reading
     // the rest; without any text before, the Word is unreadable.
@@ -311,7 +381,7 @@ public sealed class FormDocumentAttachmentTests
     public async Task A_word_past_its_limits_keeps_what_came_before_marked_truncated(string sample)
     {
         var bytes = FormDocumentFixture.StreamedWord(target => WriteBody(target, "<w:p><w:r><w:t>Inicio</w:t></w:r></w:p>", sample));
-        var reader = new FormDocumentReader();
+        var reader = Reader();
 
         var before = GC.GetAllocatedBytesForCurrentThread();
         var reading = reader.ReadAsync(bytes, FormDocumentFormat.Docx, TestContext.Current.CancellationToken);
@@ -330,7 +400,7 @@ public sealed class FormDocumentAttachmentTests
     public async Task A_huge_text_keeps_its_first_characters_marked_truncated()
     {
         var bytes = FormDocumentFixture.StreamedWord(target => WriteBody(target, "<w:p><w:r><w:t>Inicio</w:t></w:r></w:p>", "giant-text"));
-        var reader = new FormDocumentReader();
+        var reader = Reader();
 
         var before = GC.GetAllocatedBytesForCurrentThread();
         var reading = reader.ReadAsync(bytes, FormDocumentFormat.Docx, TestContext.Current.CancellationToken);
@@ -484,4 +554,6 @@ public sealed class FormDocumentAttachmentTests
         Assert.Null(preparation.Document);
         Assert.Null(preparation.Spreadsheet);
     }
+
+    private static FormDocumentReader Reader() => new(NullLogger<FormDocumentReader>.Instance);
 }

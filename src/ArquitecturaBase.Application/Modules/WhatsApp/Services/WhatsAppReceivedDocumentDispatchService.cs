@@ -37,6 +37,28 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
                 CommitPolicy.OnSuccess, ct);
         });
 
+    // Saves, before the document is read, that it was taken, and tells the person it is unreadable when it was taken too many times (F6):
+    // a reading that hangs or ends the process never comes back to say so. Only one that is going to be downloaded counts; false when
+    // it is not to be read now, and the next round decides again. It decides as PrepareAsync does, which decides again with the lock.
+    public Task<Result<bool>> TakeAsync(Guid contactId, CancellationToken ct) =>
+        OperationLog.RunAsync<Result<bool>>(logger, "TakeWhatsAppReceivedDocument", async () =>
+        {
+            var nowUtc = reading.NowUtc;
+            if (await reader.FindPendingAsync(contactId, nowUtc, ct) is not { State: WhatsAppDocumentState.Pending } source) return true;
+            if ((await preparation.DecideAsync(source, nowUtc, ct)).Decision != WhatsAppReceivedDocumentDecision.Download) return true;
+            var taken = false;
+            var saved = await unitOfWork.ExecuteInTransactionAsync(async token =>
+            {
+                if (await conversations.GetForUpdateAsync(source.ContactId, token) is not { } contact) return Result.Success();
+                if (await messages.GetForUpdateAsync(source.ContactId, source.MessageId, token) is not { } message) return Result.Success();
+                taken = message.TakeDocumentForReading();
+                if (!taken && message.DocumentState == WhatsAppDocumentState.Pending)
+                    await replies.RejectAsync(contact, message, StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Unknown, token);
+                return Result.Success();
+            }, CommitPolicy.OnSuccess, ct);
+            return saved.IsFailure ? Result.Failure<bool>(saved.Error) : Result.Success(taken);
+        });
+
     private async Task<Result<WhatsAppAssistantWorkResponse?>> KeepAsync(WhatsAppReceivedDocumentSourceRow source, WhatsAppReceivedDocumentPlan plan,
         Result<WhatsAppPreparedDocument>? acquired, DateTime nowUtc, CancellationToken token)
     {
@@ -44,6 +66,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         var message = await messages.GetForUpdateAsync(source.ContactId, source.MessageId, token);
         var current = await reader.FindAsync(source.ContactId, source.MessageId, token);
         if (message is null || current is not { State: WhatsAppDocumentState.Pending }) return Nothing;
+        message.ReleaseDocumentReading();
         // Losing the link or the mode while downloading, or relinking, leaves it as if it never qualified. Otherwise what is decided here
         // applies, so a request that came in between is not lost: only a download taken with this same decision is kept, and one that now
         // needs a download, or another one, stays pending for the next round.

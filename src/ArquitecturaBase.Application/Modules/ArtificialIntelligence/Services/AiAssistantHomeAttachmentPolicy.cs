@@ -96,9 +96,12 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
     }
 
     // A file that is not read answers under the file, with a code for each reason, and never reaches the model. File-turns takes a
-    // spreadsheet or a Word, each for whom the owner allows it; a photo or a PDF is read before its turn, so here it is a request error.
+    // spreadsheet or a Word, each for whom the owner allows it; a photo or a PDF is read before its turn, so here it is a request error,
+    // and the bytes say so before the reader opens it (F6): a PDF this route rejects is never opened.
     public async Task<Result<StructuredAttachmentPreparation>> PrepareAsync(byte[] content, string name, StructuredAttachmentAccess access, CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(content);
+        if (IsPdfOrPhoto(content)) return FieldErrors.On(AiAssistantErrors.Invalid, "file");
         var prepared = await reader.PrepareAsync(content, name, ct);
         if (prepared.Document is { Kind: not StructuredDocumentKind.Docx } || prepared.FileKind is StructuredAttachmentFileKind.Pdf
             or StructuredAttachmentFileKind.Image) return FieldErrors.On(AiAssistantErrors.Invalid, "file");
@@ -107,6 +110,12 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
         if ((prepared.Document is not null || prepared.FileKind == StructuredAttachmentFileKind.Word) && !access.Documents)
             return AiAssistantErrors.AttachmentDocumentForbidden;
         return prepared.Spreadsheet is not null || prepared.Document is not null ? prepared : Rejected(prepared);
+    }
+
+    private static bool IsPdfOrPhoto(byte[] content)
+    {
+        var bytes = content.AsSpan();
+        return bytes.StartsWith("%PDF-"u8) || bytes.StartsWith(new byte[] { 0xFF, 0xD8, 0xFF }) || bytes.StartsWith(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
     }
 
     // Why a file was not read, under the file: a document's text names what it was; a spreadsheet's, or one the owner could not tell,
