@@ -201,7 +201,7 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
             }
         }
         finally { CultureInfo.CurrentCulture = previousCulture; CultureInfo.CurrentUICulture = previousUiCulture; }
-        var block = AssistantTexts.Get("Prompt.PreloadedReads", context.Turn.Culture) + "\n" + JsonSerializer.Serialize(blocks, AiAssistantResponsePolicy.JsonOptions);
+        var block = AssistantTexts.Prompt("Prompt.PreloadedReads", context.Turn.Culture) + "\n" + JsonSerializer.Serialize(blocks, AiAssistantResponsePolicy.JsonOptions);
         var request = context.ProviderRequest with { Messages = [new("user", block), .. context.ProviderRequest.Messages] };
         if (RequestBytes(request) > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;
         return context with { ProviderRequest = request, ObservedTools = tools, ObservedReads = reads, Evidences = evidences, ToolBytes = bytes,

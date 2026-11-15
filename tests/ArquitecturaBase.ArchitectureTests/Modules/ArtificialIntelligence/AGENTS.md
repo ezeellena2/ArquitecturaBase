@@ -11,3 +11,5 @@ La lista de puertos de capacidades combina los del núcleo con CapabilityReadPor
 El detector prohíbe a las capacidades el almacenamiento privado y el lector de planillas: leen la planilla sólo de su pedido.
 
 AiAssistantBoundaryTests fija que sólo `LlmConversationClient` llama a los transportes de audio y de documentos.
+
+AiAssistantPromptKeysTests (B4) lee el código del módulo: cada clave `Prompt.*` que nombra existe en `Assistant.resx` y `.en.resx` y se lee con `AssistantTexts.Prompt`, que lanza si falta, nunca con el `Get` que responde el texto de una falla.

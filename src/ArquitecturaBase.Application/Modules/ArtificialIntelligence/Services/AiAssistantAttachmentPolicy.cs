@@ -95,11 +95,11 @@ internal static class AiAssistantAttachmentPolicy
     public static string Message(string question, AssistantAttachmentInput attachment, string culture)
     {
         var block = attachment.Document is { } document
-            ? string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.DocumentAttachment", culture), attachment.MoreDocuments is { } more
+            ? string.Format(CultureInfo.InvariantCulture, AssistantTexts.Prompt("Prompt.DocumentAttachment", culture), attachment.MoreDocuments is { } more
                 ? string.Concat(more.Prepend(document).Select((each, index) => "\n" + string.Format(CultureInfo.InvariantCulture,
-                    AssistantTexts.Get("Prompt.DocumentNumber", culture), index + 1, DocumentJson(each))))
+                    AssistantTexts.Prompt("Prompt.DocumentNumber", culture), index + 1, DocumentJson(each))))
                 : DocumentJson(document))
-            : string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.Attachment", culture),
+            : string.Format(CultureInfo.InvariantCulture, AssistantTexts.Prompt("Prompt.Attachment", culture),
                 JsonSerializer.Serialize(attachment.Spreadsheet, AiAssistantResponsePolicy.JsonOptions));
         return question.Trim().Length == 0 ? block : question + "\n\n" + block;
     }

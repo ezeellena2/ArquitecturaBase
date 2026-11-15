@@ -24,14 +24,14 @@ internal static class AiAssistantHistoryPolicy
             // A turn that brought only a file is never an empty message, which a provider may reject; the file itself travels in the
             // current message, so only its name goes here, as a JSON string: the person chose it, so it never goes raw in their message.
             if (asked.Trim().Length == 0 && turn.AttachedDocument is { } document)
-                asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.AttachedDocument", culture), Quoted(document));
+                asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Prompt("Prompt.AttachedDocument", culture), Quoted(document));
             else if (asked.Trim().Length == 0 && turn.Attachment is { } attachment)
-                asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.AttachedSpreadsheet", culture), Quoted(attachment.Name));
+                asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Prompt("Prompt.AttachedSpreadsheet", culture), Quoted(attachment.Name));
             var answer = turn.Answer?.Text ?? "";
             // A turn closed with assistant_proposal@2 shows each of its proposals, in order.
             IReadOnlyList<AssistantObservedProposal> shown = !latest ? [] : turn.ObservedProposals.Count != 0 ? turn.ObservedProposals : [turn.ObservedProposal!];
             foreach (var proposal in shown)
-                answer += (answer.Length == 0 ? "" : "\n\n") + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.PreviousProposal", culture),
+                answer += (answer.Length == 0 ? "" : "\n\n") + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Prompt("Prompt.PreviousProposal", culture),
                     JsonSerializer.Serialize(proposal.Payload, proposal.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions));
             var length = asked.Length + answer.Length;
             if (used + length > historyCharacters) continue;

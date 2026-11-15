@@ -74,7 +74,7 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
             var qualified = guard.DocumentProfile(profile.Value, connection);
             if (document is null || qualified is null || !AiAssistantDocumentPolicy.Fits(document, qualified)) return AiAssistantErrors.ContentUnavailable;
             if (document.ExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime || turn.ContentExpiresAtUtc > document.ExpiresAtUtc) return AiAssistantErrors.Expired;
-            var reading = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, AssistantTexts.Get("Prompt.DocumentReadV1", turn.Culture),
+            var reading = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, AssistantTexts.Prompt("Prompt.DocumentReadV1", turn.Culture),
                 [], [], [], null, limits.DocumentOutputTokens, limits.ProviderResponseBytes, limits.ContinuationBytes)
                 { Document = document, DocumentMaximumBytes = qualified.MaximumDocumentBytes, LowReasoningEffort = qualified.SupportsReasoningEffort };
             return new AiAssistantExecutionContextResponse(claim, turn, reading, [], [], 0, 0) { ExecutionProfile = profile.Value };
@@ -110,7 +110,7 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         var messages = AiAssistantHistoryPolicy.Messages(history, limits.HistoryCharacters, turn.Culture).ToList();
         // The message's time goes at the very end, after any file, so the instructions and what precedes it stay the same between turns.
         if (profile.Value.OccurredAtUtc is { } occurredAtUtc)
-            question += "\n\n" + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.SourceTime", turn.Culture),
+            question += "\n\n" + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Prompt("Prompt.SourceTime", turn.Culture),
                 occurredAtUtc.ToString("O", CultureInfo.InvariantCulture), turn.TimeZoneId);
         messages.Add(new("user", question));
         const string proposalSchema = "{\"type\":\"object\",\"properties\":{\"proposalId\":{\"type\":\"string\"}},\"required\":[\"proposalId\"],\"additionalProperties\":false}";
@@ -119,12 +119,12 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         foreach (var terminal in offered.Value.Terminals)
             tools.Add(terminal switch
             {
-                { Id: "assistant_answer", Version: 2 } => new("assistant_answer", AssistantTexts.Get("Prompt.TerminalAnswerV2Description", turn.Culture), AnswerSchemaV2),
-                { Id: "assistant_answer" } => new("assistant_answer", AssistantTexts.Get("Prompt.TerminalAnswerDescription", turn.Culture), AnswerSchema),
-                { Id: "assistant_proposal", Version: 2 } => new("assistant_proposal", AssistantTexts.Get("Prompt.TerminalProposalV2Description", turn.Culture), proposalsSchema),
-                _ => new("assistant_proposal", AssistantTexts.Get("Prompt.TerminalProposalDescription", turn.Culture), proposalSchema),
+                { Id: "assistant_answer", Version: 2 } => new("assistant_answer", AssistantTexts.Prompt("Prompt.TerminalAnswerV2Description", turn.Culture), AnswerSchemaV2),
+                { Id: "assistant_answer" } => new("assistant_answer", AssistantTexts.Prompt("Prompt.TerminalAnswerDescription", turn.Culture), AnswerSchema),
+                { Id: "assistant_proposal", Version: 2 } => new("assistant_proposal", AssistantTexts.Prompt("Prompt.TerminalProposalV2Description", turn.Culture), proposalsSchema),
+                _ => new("assistant_proposal", AssistantTexts.Prompt("Prompt.TerminalProposalDescription", turn.Culture), proposalSchema),
             });
-        var system = AssistantTexts.Get(profile.Value.InstructionsId != "home-system" ? "Prompt.CapabilitiesV1"
+        var system = AssistantTexts.Prompt(profile.Value.InstructionsId != "home-system" ? "Prompt.CapabilitiesV1"
             : profile.Value.InstructionsVersion == AiAssistantChannelPolicy.HomeInstructionsVersion ? "Prompt.SystemV2" : "Prompt.SystemV1", turn.Culture);
         var request = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, system, messages, tools, [], null,
             limits.OutputTokens, limits.ProviderResponseBytes, limits.ContinuationBytes);
