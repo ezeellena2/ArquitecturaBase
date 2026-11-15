@@ -35,7 +35,7 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
             StepTimeout = TimeSpan.FromSeconds(4),
             RunTimeout = TimeSpan.FromMinutes(1),
             Platform = new ArcaRobotPlatformCredentials { LoginCuit = "30-71999888-3", FiscalKey = FakeArcaWeb.PlatformKey },
-        }), NullLogger<PlaywrightArcaDelegationRobot>.Instance);
+        }), TimeProvider.System, NullLogger<PlaywrightArcaDelegationRobot>.Instance);
         return ValueTask.CompletedTask;
     }
 
@@ -122,6 +122,19 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
         var outcome = await robot.RunCompanyAsync(CompanyJob(), Client(), new RecordingProgress(), Ct);
 
         Assert.Equal(ArcaRobotOutcome.Stopped(ArcaRobotFailure.Unavailable, ArcaPointOfSaleRobotStep.StepKey), outcome);
+    }
+
+    // H20: a step longer than the step timeout renews its lease with a heartbeat while it runs.
+    [Fact]
+    public async Task A_long_step_renews_its_lease_while_it_runs()
+    {
+        web.Slow = true;
+        var progress = new RecordingProgress();
+
+        var outcome = await robot.RunCompanyAsync(CompanyJob(), Client(), progress, Ct);
+
+        Assert.Equal(ArcaRobotOutcome.Success, outcome);
+        Assert.True(progress.Renewals > 0);
     }
 
     [Fact]
@@ -243,6 +256,16 @@ public sealed class ArcaDelegationRobotTests : IAsyncLifetime
         public List<string> Certificates { get; } = [];
         public string? LoseAfter { get; init; }
         public bool RejectCertificate { get; init; }
+
+        public int Renewals => Volatile.Read(ref renewals);
+
+        private int renewals;
+
+        public Task<bool> RenewAsync(CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref renewals);
+            return Task.FromResult(true);
+        }
 
         public Task<bool> BeginAsync(string step, CancellationToken cancellationToken) =>
             Task.FromResult(LoseAfter is null || !Completed.Contains(LoseAfter));

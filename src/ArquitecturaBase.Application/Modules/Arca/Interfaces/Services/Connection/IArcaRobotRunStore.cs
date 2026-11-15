@@ -32,6 +32,9 @@ public interface IArcaRobotRunStore
     /// </summary>
     Task<Result> CompleteCompanyByHandAsync(CancellationToken cancellationToken);
 
+    /// <summary>H20: el latido de un paso que sigue corriendo renueva la reserva propia; false si ya no lo es.</summary>
+    Task<bool> RenewLeaseAsync(Guid runId, Guid owner, CancellationToken cancellationToken);
+
     /// <summary>H5: el lado de la plataforma frenado por ingreso rechazado vuelve a la espera, con el lock de la conexión.</summary>
     Task<Result> RearmPlatformAsync(CancellationToken cancellationToken);
 

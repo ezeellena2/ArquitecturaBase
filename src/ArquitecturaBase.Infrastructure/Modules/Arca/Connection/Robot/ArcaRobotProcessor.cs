@@ -24,6 +24,8 @@ internal sealed partial class ArcaRobotProcessor(IServiceScopeFactory scopes, IA
         ArcaRobotOutcome outcome;
         try
         {
+            // H20: la reserva se tomó al encolar; al salir de la cola se renueva, así el primer paso tiene la reserva entera.
+            await progress.RenewAsync(cancellationToken);
             outcome = await robot.RunCompanyAsync(job, credentials, progress, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
@@ -109,6 +111,9 @@ internal sealed partial class ArcaRobotProcessor(IServiceScopeFactory scopes, IA
 
         public Task<bool> CompleteAsync(string step, string? output, CancellationToken cancellationToken) =>
             processor.StepAsync(store => store.CompleteStepAsync(runId, owner, step, output, cancellationToken));
+
+        public Task<bool> RenewAsync(CancellationToken cancellationToken) =>
+            processor.StepAsync(store => store.RenewLeaseAsync(runId, owner, cancellationToken));
 
         public Task<bool> InstallCertificateAsync(string certificatePem, CancellationToken cancellationToken) =>
             processor.StepAsync(store => store.InstallPlatformCertificateAsync(runId, owner, certificatePem, cancellationToken));

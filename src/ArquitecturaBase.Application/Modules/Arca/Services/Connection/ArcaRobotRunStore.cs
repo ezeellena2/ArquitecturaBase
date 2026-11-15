@@ -29,6 +29,9 @@ internal sealed class ArcaRobotRunStore(IArcaConnectionRepository connections, I
     public Task<bool> BeginStepAsync(Guid runId, Guid owner, string step, CancellationToken cancellationToken) =>
         ChangeAsync(runId, (run, _, nowUtc) => run.Begin(step, owner, nowUtc, options.Value.Lease), cancellationToken);
 
+    public Task<bool> RenewLeaseAsync(Guid runId, Guid owner, CancellationToken cancellationToken) =>
+        ChangeAsync(runId, (run, _, nowUtc) => run.Renew(owner, nowUtc, options.Value.Lease), cancellationToken);
+
     public Task<bool> CompleteStepAsync(Guid runId, Guid owner, string step, string? output, CancellationToken cancellationToken) =>
         ChangeAsync(runId, (run, _, nowUtc) => run.Complete(step, output, owner, nowUtc, options.Value.Lease), cancellationToken);
 

@@ -272,6 +272,19 @@ public sealed class ArcaRobotRunTests
         Assert.Equal((ArcaRobotRunStatus.Failed, ArcaRobotFailure.Interrupted, ArcaRobotSteps.PlatformLogin), (run.Status, run.Failure, run.FailedStep));
     }
 
+    // H20: a heartbeat renews the lease while a step runs; only the host that holds it, before it runs out.
+    [Fact]
+    public void Only_the_holder_renews_the_lease_before_it_runs_out()
+    {
+        var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);
+        run.TryReserve(Owner, Now, Lease, MaxAttempts);
+
+        Assert.True(run.Renew(Owner, Now.AddMinutes(2), Lease));
+        Assert.False(run.TryReserve(Guid.CreateVersion7(), Now.AddMinutes(4), Lease, MaxAttempts));
+        Assert.False(run.Renew(Guid.CreateVersion7(), Now.AddMinutes(4), Lease));
+        Assert.False(run.Renew(Owner, Now.AddMinutes(6), Lease));
+    }
+
     private static ArcaRobotRun RejectedPlatform()
     {
         var run = ArcaRobotRun.SchedulePlatform(ConnectionId, Now);

@@ -33,6 +33,9 @@ public interface IArcaRobotProgress
 
     Task<bool> CompleteAsync(string step, string? output, CancellationToken cancellationToken);
 
+    /// <summary>H20: renueva la reserva mientras corre un paso largo; false si otro host ya la tomó.</summary>
+    Task<bool> RenewAsync(CancellationToken cancellationToken);
+
     /// <summary>Carga el certificado que bajó el robot por el mismo camino que la persona, con sus validaciones (RB5-A).</summary>
     Task<bool> InstallCertificateAsync(string certificatePem, CancellationToken cancellationToken);
 }

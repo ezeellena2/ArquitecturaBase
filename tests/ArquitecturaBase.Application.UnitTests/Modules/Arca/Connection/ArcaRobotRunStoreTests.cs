@@ -221,6 +221,27 @@ public sealed class ArcaRobotRunStoreTests
         Assert.True((await host.Robot.GetAsync(Ct)).Value.Platform!.Alerted);
     }
 
+    // H20: a step longer than the lease keeps it with the heartbeat: another host does not take the platform side.
+    [Fact]
+    public async Task A_step_longer_than_the_lease_keeps_it_with_the_heartbeat()
+    {
+        using var host = new ArcaApplicationHost(withRobot: true);
+        await StartCompanyAsync(host);
+        var platform = host.Runs.Platform!;
+        var owner = Guid.NewGuid();
+        Assert.NotNull(await host.RobotStore.ReservePlatformAsync(platform.Id, owner, Ct));
+        Assert.True(await host.RobotStore.BeginStepAsync(platform.Id, owner, ArcaRobotSteps.PlatformLogin, Ct));
+
+        for (var beat = 0; beat < 3; beat++)
+        {
+            host.Clock.Advance(TimeSpan.FromMinutes(2));
+            Assert.True(await host.RobotStore.RenewLeaseAsync(platform.Id, owner, Ct));
+        }
+
+        Assert.Null(await host.RobotStore.ReservePlatformAsync(platform.Id, Guid.NewGuid(), Ct));
+        Assert.True(await host.RobotStore.CompleteStepAsync(platform.Id, owner, ArcaRobotSteps.PlatformLogin, null, Ct));
+    }
+
     [Fact]
     public async Task A_rejected_platform_login_fails_at_once_and_alerts()
     {

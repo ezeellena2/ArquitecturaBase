@@ -163,6 +163,14 @@ public sealed class ArcaRobotRun : Entity
         return true;
     }
 
+    /// <summary>H20: el latido de un paso que sigue corriendo renueva la reserva; sólo la propia y antes de que venza.</summary>
+    public bool Renew(Guid owner, DateTime nowUtc, TimeSpan lease)
+    {
+        if (!Owns(owner, nowUtc)) return false;
+        Hold(owner, nowUtc, lease);
+        return true;
+    }
+
     public bool Begin(string step, Guid owner, DateTime nowUtc, TimeSpan lease)
     {
         if (!Owns(owner, nowUtc)) return false;

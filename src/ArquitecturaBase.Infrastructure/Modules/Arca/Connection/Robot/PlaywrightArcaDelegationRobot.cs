@@ -16,7 +16,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Robot;
 /// navegador.
 /// </summary>
 internal sealed partial class PlaywrightArcaDelegationRobot(IEnumerable<IArcaRobotCompanyStep> companySteps, IOptions<ArcaRobotBrowserOptions> options,
-    ILogger<PlaywrightArcaDelegationRobot> logger) : IArcaDelegationRobot, IAsyncDisposable
+    TimeProvider timeProvider, ILogger<PlaywrightArcaDelegationRobot> logger) : IArcaDelegationRobot, IAsyncDisposable
 {
     private readonly SemaphoreSlim start = new(1, 1);
     private IPlaywright? playwright;
@@ -122,7 +122,7 @@ internal sealed partial class PlaywrightArcaDelegationRobot(IEnumerable<IArcaRob
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(options.Value.RunTimeout);
-        var steps = new StepRunner(progress, firstStep, deadline.Token);
+        var steps = new StepRunner(progress, firstStep, options.Value.StepTimeout, timeProvider, deadline.Token);
         try
         {
             var browser = await (await PlaywrightAsync()).Chromium.LaunchAsync(new() { Headless = options.Value.Headless });
@@ -275,8 +275,12 @@ internal sealed partial class PlaywrightArcaDelegationRobot(IEnumerable<IArcaRob
     [LoggerMessage(Level = LogLevel.Error, Message = "The ARCA robot browser failed with {ExceptionType} at {Step}.")]
     private partial void LogBrowserFailed(string exceptionType, string step);
 
-    /// <summary>Corre cada paso entre su aviso de inicio y de fin; una reserva perdida detiene la pasada sin guardar más.</summary>
-    private sealed class StepRunner(IArcaRobotProgress progress, string first, CancellationToken cancellationToken)
+    /// <summary>
+    /// Corre cada paso entre su aviso de inicio y de fin; una reserva perdida detiene la pasada sin guardar más. Mientras corre,
+    /// un latido renueva la reserva cada plazo de un paso (H20): la reserva cubre cuatro, así que un paso largo no la pierde.
+    /// </summary>
+    private sealed class StepRunner(IArcaRobotProgress progress, string first, TimeSpan beat, TimeProvider timeProvider,
+        CancellationToken cancellationToken)
     {
         public string Current { get; private set; } = first;
 
@@ -285,8 +289,44 @@ internal sealed partial class PlaywrightArcaDelegationRobot(IEnumerable<IArcaRob
             Current = step;
             cancellationToken.ThrowIfCancellationRequested();
             if (!await progress.BeginAsync(step, cancellationToken)) throw new ArcaRobotStoppedException(ArcaRobotFailure.Interrupted);
-            var output = await action();
+            string? output;
+            using (var stop = new CancellationTokenSource())
+            {
+                var heartbeat = BeatAsync(stop.Token);
+                try
+                {
+                    output = await action();
+                }
+                finally
+                {
+                    await stop.CancelAsync();
+                    await heartbeat;
+                }
+            }
+
             if (!await progress.CompleteAsync(step, output, cancellationToken)) throw new ArcaRobotStoppedException(ArcaRobotFailure.Interrupted);
+        }
+
+        // El latido es de mejor esfuerzo: si no renueva (otro host ya tomó la reserva, o falló la base), deja de latir y la
+        // pasada se corta al cerrar el paso, cuando guardarlo falla.
+        private async Task BeatAsync(CancellationToken stop)
+        {
+            using var timer = new PeriodicTimer(beat, timeProvider);
+            try
+            {
+                while (await timer.WaitForNextTickAsync(stop))
+                {
+                    if (!await progress.RenewAsync(cancellationToken)) return;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // El paso terminó, o la pasada se canceló.
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                // Sin renovar, la reserva vence y el cierre del paso lo nota.
+            }
         }
     }
 }

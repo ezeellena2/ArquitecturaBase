@@ -340,7 +340,9 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
   cifrada ni a otro host. Entra a ARCA, elige la empresa si quien entra la administra, delega cada servicio delegable en la
   CUIT de la plataforma y corre los pasos de cada familia: Facturación da de alta el punto de venta de web service con el
   sistema «… Web Services» que ARCA ofrezca, o usa el que ya hay. Si el host se cae, la reserva vence y la corrida se lee
-  interrumpida.
+  interrumpida. La reserva acompaña al paso (H20): un latido la renueva cada `StepTimeout` mientras corre un paso, de
+  cualquier lado, y la del cliente se renueva al salir de la cola; un paso más largo que la reserva no deja que otro host la
+  tome.
 - **El lado de la plataforma es durable** y lo toma cualquier host con la reserva: crea el alias del certificado con el
   pedido de la app y lo carga por la subida de siempre (RB5-A), autoriza las consultas para el alias y, cuando el cliente
   terminó, acepta la delegación y la asigna al alias. Confirma con la prueba de la conexión (la detección de la etapa 5):

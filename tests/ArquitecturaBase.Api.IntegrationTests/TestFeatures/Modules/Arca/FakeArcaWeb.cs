@@ -62,6 +62,9 @@ internal sealed class FakeArcaWeb : IAsyncDisposable
     /// <summary>H18: los puntos de venta no cargan a tiempo («pos») o contestan un 5xx («pos-5xx»).</summary>
     public string? Down { get; set; }
 
+    /// <summary>H20: cada página de los puntos de venta tarda 3 segundos, menos que el plazo de un paso: el paso entero, más.</summary>
+    public bool Slow { get; set; }
+
     /// <summary>Cómo emite ARCA el certificado de un pedido; sin él, el alta del alias falla.</summary>
     public Func<string, string>? IssueCertificate { get; set; }
 
@@ -85,6 +88,7 @@ internal sealed class FakeArcaWeb : IAsyncDisposable
             ExtraValidation = false;
             Broken = null;
             Down = null;
+            Slow = false;
             IssueCertificate = null;
             logins.Clear();
             Keys.Clear();
@@ -280,6 +284,7 @@ internal sealed class FakeArcaWeb : IAsyncDisposable
         routes.MapGet("/pos/abm", async (string rep) =>
         {
             if (Down == "pos") await Task.Delay(TimeSpan.FromSeconds(6));
+            if (Slow) await Task.Delay(TimeSpan.FromSeconds(3));
             if (Down == "pos-5xx") return Page("Error", "<p>Servicio no disponible.</p>", StatusCodes.Status503ServiceUnavailable);
             if (Broken == "pos") return Page("Mantenimiento", "<p>El servicio está en mantenimiento.</p>");
             var rows = Points.Where(point => point.Owner == rep).Select(point =>
@@ -287,8 +292,9 @@ internal sealed class FakeArcaWeb : IAsyncDisposable
             return Page("Puntos de venta", $"<table><tr><th>Número</th><th>Sistema</th><th>Estado</th></tr>{string.Concat(rows)}</table>"
                 + $"<a href=\"/pos/new?rep={rep}\">Agregar</a>");
         });
-        routes.MapGet("/pos/new", (string rep) =>
+        routes.MapGet("/pos/new", async (string rep) =>
         {
+            if (Slow) await Task.Delay(TimeSpan.FromSeconds(3));
             var next = Points.Where(point => point.Owner == rep).Select(point => point.Number).DefaultIfEmpty(0).Max() + 1;
             var systems = string.Concat(Systems.Select(system => $"<option>{Encode(system)}</option>"));
             return Page("Alta de Punto de Venta", $"<form method=\"post\" action=\"/pos/new\"><input type=\"hidden\" name=\"rep\" value=\"{rep}\">"
