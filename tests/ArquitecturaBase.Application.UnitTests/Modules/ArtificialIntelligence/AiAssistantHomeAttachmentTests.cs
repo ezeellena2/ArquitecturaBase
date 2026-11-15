@@ -157,8 +157,8 @@ public sealed class AiAssistantHomeAttachmentTests
         Assert.Equal((0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
     }
 
-    // I14: with the quota spent or the capacity full, the file is neither read nor kept and the owner is not asked: the same error and
-    // retryAfter as the acceptance, which still decides.
+    // I14: with the quota spent or the capacity full, the file is neither read nor kept; the owner is only asked who may attach (review).
+    // The same error and retryAfter as the acceptance, which still decides.
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -169,10 +169,43 @@ public sealed class AiAssistantHomeAttachmentTests
         else host.Fixture.FillCapacity(host.Now);
         var request = host.Request();
         var refused = (await host.Service.SubmitAsync(request, Ct)).Error;
-        Assert.Equal((0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
+        Assert.Equal((1, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
         var accepted = (await host.AcceptAsync(request.Turn with { Question = "Pedido" })).Error;
         Assert.Equal(quota ? "Ai.Assistant.QuotaExceeded" : "Ai.Assistant.CapacityLimited", accepted.Code);
         Assert.Equal((accepted.Code, accepted.Metadata?["retryAfter"]), (refused.Code, refused.Metadata?["retryAfter"]));
+    }
+
+    // I14, review: the storage and the permission answer before a spent quota, which would only say to wait until it renews.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task The_storage_and_the_permission_answer_before_a_spent_quota(bool storage)
+    {
+        var host = new Host(storage);
+        host.Fixture.SpendQuota(host.ActorId, "home", host.Now, new AiAssistantLimits().ActorDailyQuota);
+        host.Reader.Allowed = false;
+        var error = (await host.Service.SubmitAsync(host.Request(), Ct)).Error;
+        Assert.Equal(storage ? AiAssistantErrors.AttachmentForbidden.Code : AiAssistantErrors.AttachmentUnavailable.Code, error.Code);
+        Assert.Equal((0, 0, 0), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
+    }
+
+    // I14, review: a retry with the quota spent recovers its turn, also when the other upload of the same request takes the last place
+    // between the lookup and the check: before refusing, the retry is looked for once more.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_retry_with_the_quota_spent_recovers_its_turn(bool overlapping)
+    {
+        var host = new Host();
+        host.Fixture.SpendQuota(host.ActorId, "home", host.Now, new AiAssistantLimits().ActorDailyQuota - 1);
+        var request = host.Request(question: "Armame un catálogo con esta planilla");
+        var first = await host.Service.SubmitAsync(request, Ct);
+        Assert.True(first.IsSuccess);
+        host.Fixture.Store.HiddenAcceptedLookups = overlapping ? 1 : 0;
+        var again = await host.Service.SubmitAsync(request, Ct);
+        Assert.True(again.IsSuccess, again.IsFailure ? again.Error.Code : null);
+        Assert.Equal((first.Value.ConversationId, first.Value.RequestId), (again.Value.ConversationId, again.Value.RequestId));
+        Assert.Equal((1, 1, 1), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count));
     }
 
     [Fact]

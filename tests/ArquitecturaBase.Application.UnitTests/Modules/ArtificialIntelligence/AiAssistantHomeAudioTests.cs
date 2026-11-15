@@ -9,6 +9,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
+using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -171,6 +172,32 @@ public sealed class AiAssistantHomeAudioTests
         Assert.Empty(host.Operations.Submitted);
     }
 
+    // I14, review: without private storage the recording says so before a spent quota, which would only say to wait until it renews.
+    [Fact]
+    public async Task Without_private_storage_a_recording_says_so_before_a_spent_quota()
+    {
+        var host = new ServiceHost(storage: false);
+        host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeAudioChannelId, host.Now, new AiAssistantLimits().ActorDailyQuota, isAudio: true);
+        var error = (await host.Service.SubmitAsync(new(Guid.NewGuid(), "es", Webm), TestContext.Current.CancellationToken)).Error;
+        Assert.Equal(FileErrors.Unavailable, error);
+        Assert.Empty(host.Operations.Submitted);
+    }
+
+    // I14, review: a retry with the audio quota spent recovers its normalization: the lookup goes before the check.
+    [Fact]
+    public async Task A_retry_with_the_audio_quota_spent_recovers_its_normalization()
+    {
+        var host = new OperationsHost();
+        host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeAudioChannelId, host.Now, new AiAssistantLimits().ActorDailyQuota - 1,
+            isAudio: true);
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(Webm, requestId)).IsSuccess);
+        var again = await host.UploadAsync(Webm, requestId);
+        Assert.True(again.IsSuccess, again.IsFailure ? again.Error.Code : null);
+        Assert.Equal((requestId, "pending"), (again.Value.RequestId, again.Value.State));
+        Assert.Equal((1, 1), (host.Files.WriteCount, host.Fixture.Store.Turns.Count));
+    }
+
     [Fact]
     public async Task Repeating_a_recording_returns_its_normalization_without_storing_or_submitting_again()
     {
@@ -241,11 +268,16 @@ public sealed class AiAssistantHomeAudioTests
     }
 
     // I13: two uploads of the same recording at once: the second does not see the first's normalization yet, keeps the same copy, and its
-    // acceptance meets the first's, sealed at another instant: it answers with that normalization, as a retry would.
-    [Fact]
-    public async Task Two_overlapping_uploads_of_the_same_recording_end_in_one_normalization()
+    // acceptance meets the first's, sealed at another instant: it answers with that normalization, as a retry would. When the first took
+    // the last audio of the day (a resend after a network cut), the second's check refuses and looks for it once more (I14, review).
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Two_overlapping_uploads_of_the_same_recording_end_in_one_normalization(bool lastPlace)
     {
         var host = new OperationsHost();
+        var spent = lastPlace ? new AiAssistantLimits().ActorDailyQuota - 1 : 0;
+        host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeAudioChannelId, host.Now, spent, isAudio: true);
         var requestId = Guid.NewGuid();
         Assert.True((await host.UploadAsync(Webm, requestId)).IsSuccess);
         host.Fixture.Clock.Advance(TimeSpan.FromMinutes(1));
@@ -255,7 +287,7 @@ public sealed class AiAssistantHomeAudioTests
 
         Assert.True(second.IsSuccess, second.IsFailure ? second.Error.Code : null);
         Assert.Equal((requestId, "pending"), (second.Value.RequestId, second.Value.State));
-        Assert.Equal((1, 1, 1), (host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
+        Assert.Equal((1, 1, spent + 1), (host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
     }
 
     // B2: a recording belongs to its person and its request: changing the language or the zone while it is heard does not lose it,
@@ -292,7 +324,7 @@ public sealed class AiAssistantHomeAudioTests
     {
         public InMemoryUserAccounts Users { get; } = new();
         public FakePermissionService Permissions { get; } = new();
-        public MemoryPrivateFileStore Files { get; } = new();
+        public MemoryPrivateFileStore Files { get; }
         public RecordingOperations Operations { get; } = new();
         // The acceptance's counts and the saved connection, which the check before keeping the copy reads (I14).
         public AssistantOperationsFixture Fixture { get; } = new();
@@ -300,8 +332,9 @@ public sealed class AiAssistantHomeAudioTests
         public DateTime Now { get; } = new(2026, 11, 4, 12, 0, 0, DateTimeKind.Utc);
         public AiAssistantAudioService Service { get; }
 
-        public ServiceHost(bool transcribes = true)
+        public ServiceHost(bool transcribes = true, bool storage = true)
         {
+            Files = new(storage);
             ActorId = Users.AddUser("dictating@example.test").Id;
             Permissions.Permissions[ActorId] = [ArtificialIntelligencePermissions.AssistantUse];
             var clock = new FakeTimeProvider(new DateTimeOffset(Now));

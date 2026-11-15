@@ -35,9 +35,11 @@ internal sealed class AiAssistantDocumentService(IAssistantOperations operations
             var existing = await operations.GetAsync(context, request.RequestId, cancellationToken);
             if (existing.IsSuccess) return Recovered(existing.Value, request, name);
             if (existing.Error != AiAssistantErrors.NotFound) return existing.Error;
-            // I14: with the reading quotas spent or the capacity full, the owner is not asked and nothing is read or kept.
-            if (await submissions.PrecheckAsync(userId, context.ChannelId, AiAssistantPurpose.ReadDocument, cancellationToken) is { } spent) return spent;
             if (await documents.CheckAsync(userId, cancellationToken) is { } refused) return refused;
+            // I14: after the installation and the permission, with the reading quotas spent or the capacity full nothing is read or kept.
+            // Another upload of the same request may have taken the last reading since the lookup: its reading answers this one too.
+            if (await submissions.PrecheckAsync(userId, context.ChannelId, AiAssistantPurpose.ReadDocument, cancellationToken) is { } spent)
+                return await RecoverAsync(context, request, name, cancellationToken) ?? spent;
             var prepared = await documents.PrepareAsync(request.Content, name, cancellationToken);
             if (prepared.IsFailure) return prepared.Error;
             var now = clock.GetUtcNow().UtcDateTime;
@@ -51,9 +53,16 @@ internal sealed class AiAssistantDocumentService(IAssistantOperations operations
             if (accepted.IsSuccess) return new AiAssistantDocumentResponse(request.RequestId, accepted.Value.State, null, null, limits.PollingAfterSeconds);
             // Another upload of the same request got there first with this same copy, sealed at another instant: its reading answers both.
             if (accepted.Error != AiAssistantErrors.RequestReused) return accepted.Error;
-            var raced = await operations.GetAsync(context, request.RequestId, cancellationToken);
-            return raced.IsSuccess ? Recovered(raced.Value, request, name) : accepted.Error;
+            return await RecoverAsync(context, request, name, cancellationToken) ?? accepted.Error;
         });
+
+    // The reading another upload of the same request accepted meanwhile, compared with this file; null when there is none.
+    private async Task<Result<AiAssistantDocumentResponse>?> RecoverAsync(AssistantChannelContext context, SubmitAiAssistantDocumentRequest request,
+        string name, CancellationToken ct)
+    {
+        var found = await operations.GetAsync(context, request.RequestId, ct);
+        return found.IsSuccess ? Recovered(found.Value, request, name) : null;
+    }
 
     public Task<Result<AiAssistantDocumentResponse>> GetAsync(Guid requestId, string culture, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AiAssistantDocumentResponse>>(logger, "GetAiAssistantDocument", async () =>

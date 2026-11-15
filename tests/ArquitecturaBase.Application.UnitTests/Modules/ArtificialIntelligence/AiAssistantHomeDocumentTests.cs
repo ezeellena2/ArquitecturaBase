@@ -87,8 +87,8 @@ public sealed class AiAssistantHomeDocumentTests
         Assert.Equal((0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count));
     }
 
-    // I14: with the reading quota spent, the document is neither read nor kept and the owner is not asked: the acceptance's own
-    // refusal, with its retryAfter.
+    // I14: with the reading quota spent, the document is neither read nor kept; the owner is only asked who may attach (review). The
+    // acceptance's own refusal, with its retryAfter.
     [Fact]
     public async Task With_the_reading_quota_spent_the_document_is_neither_read_nor_kept()
     {
@@ -98,8 +98,39 @@ public sealed class AiAssistantHomeDocumentTests
         var error = (await host.UploadAsync()).Error;
         var expected = AiAssistantErrors.QuotaExceeded((int)(host.Now.Date.AddDays(1) - host.Now).TotalSeconds);
         Assert.Equal((expected.Code, expected.Metadata?["retryAfter"]), (error.Code, error.Metadata?["retryAfter"]));
-        Assert.Equal((0, 0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count,
+        Assert.Equal((1, 0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count,
             host.Fixture.Work.Transactions));
+    }
+
+    // I14, review: an installation that does not read documents, or a person who may not attach them, is told so before a spent reading
+    // quota, which would only say to wait until it renews.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task The_installation_and_the_permission_answer_before_a_spent_reading_quota(bool reading)
+    {
+        var host = new Host(reading: reading);
+        host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeDocumentChannelId, host.Now, new AiAssistantLimits().DocumentActorDailyQuota,
+            isDocument: true);
+        host.Reader.Documents = false;
+        var error = (await host.UploadAsync()).Error;
+        Assert.Equal(reading ? AiAssistantErrors.AttachmentDocumentForbidden.Code : AiAssistantErrors.AttachmentDocumentUnavailable.Code, error.Code);
+        Assert.Equal((0, 0, 0), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count));
+    }
+
+    // I14, review: a retry with the reading quota spent recovers its reading: the lookup goes before the check.
+    [Fact]
+    public async Task A_retry_with_the_reading_quota_spent_recovers_its_reading()
+    {
+        var host = new Host();
+        host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeDocumentChannelId, host.Now,
+            new AiAssistantLimits().DocumentActorDailyQuota - 1, isDocument: true);
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(requestId: requestId)).IsSuccess);
+        var again = await host.UploadAsync(requestId: requestId);
+        Assert.True(again.IsSuccess, again.IsFailure ? again.Error.Code : null);
+        Assert.Equal((requestId, "pending"), (again.Value.RequestId, again.Value.State));
+        Assert.Equal((1, 1, 1), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count));
     }
 
     [Fact]
@@ -236,11 +267,16 @@ public sealed class AiAssistantHomeDocumentTests
     }
 
     // Two uploads of the same request at once: the second does not see the first's reading yet, keeps the same copy, and its acceptance
-    // meets the first's, sealed at another instant: it answers with that reading, as a retry would.
-    [Fact]
-    public async Task Two_overlapping_uploads_of_the_same_request_end_in_one_reading()
+    // meets the first's, sealed at another instant: it answers with that reading, as a retry would. When the first took the last reading
+    // of the day, the second's check refuses and looks for it once more, without reading or keeping (I14, review).
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Two_overlapping_uploads_of_the_same_request_end_in_one_reading(bool lastPlace)
     {
         var host = new Host();
+        var spent = lastPlace ? new AiAssistantLimits().DocumentActorDailyQuota - 1 : 0;
+        host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeDocumentChannelId, host.Now, spent, isDocument: true);
         var requestId = Guid.NewGuid();
         Assert.True((await host.UploadAsync(requestId: requestId)).IsSuccess);
         host.Fixture.Clock.Advance(TimeSpan.FromMinutes(1));
@@ -250,7 +286,8 @@ public sealed class AiAssistantHomeDocumentTests
 
         Assert.True(second.IsSuccess, second.IsFailure ? second.Error.Code : null);
         Assert.Equal((requestId, "pending"), (second.Value.RequestId, second.Value.State));
-        Assert.Equal((2, 1, 1, 1), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
+        Assert.Equal((lastPlace ? 1 : 2, 1, 1, spent + 1),
+            (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
     }
 
     // B2: a reading belongs to its person and its request: changing the language or the zone while it is read does not lose it, neither

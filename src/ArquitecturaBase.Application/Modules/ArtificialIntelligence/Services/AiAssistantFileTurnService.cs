@@ -36,13 +36,13 @@ internal sealed class AiAssistantFileTurnService(IUnitOfWork unitOfWork, IReques
     private async Task<Result<SubmitAiAssistantTurnRequest>> TurnAsync(Guid userId, SubmitAiAssistantFileTurnRequest request, CancellationToken ct)
     {
         var name = AiAssistantHomeAttachmentPolicy.Name(request.FileName);
-        var retried = await attachments.FindRetryAsync(userId, request.Turn.RequestId, request.Content, name, ct);
-        if (retried.IsFailure) return retried.Error;
-        if (retried.Value is { } accepted) return await ValidateAsync(request.Turn with { Attachment = accepted }, ct);
-        // I14: with Home's quota spent or the capacity full, the owner is not asked and nothing is read or kept.
-        if (await submissions.PrecheckAsync(userId, "home", AiAssistantPurpose.Interpret, ct) is { } refused) return refused;
+        if (await RetryAsync(userId, request, name, ct) is { } retried) return retried;
         var access = await attachments.CheckAttachAsync(userId, ct);
         if (access.IsFailure) return access.Error;
+        // I14: after the storage and the permission, with Home's quota spent or the capacity full nothing is read or kept. Another upload of
+        // the same request may have taken the last place since the lookup: its turn answers this one too.
+        if (await submissions.PrecheckAsync(userId, "home", AiAssistantPurpose.Interpret, ct) is { } refused)
+            return await RetryAsync(userId, request, name, ct) ?? refused;
         var prepared = await attachments.PrepareAsync(request.Content, name, access.Value, ct);
         if (prepared.IsFailure) return prepared.Error;
         var attachment = AiAssistantHomeAttachmentPolicy.Describe(request.Turn.RequestId, request.Content, name, prepared.Value,
@@ -52,6 +52,14 @@ internal sealed class AiAssistantFileTurnService(IUnitOfWork unitOfWork, IReques
         if (turn.IsFailure) return turn;
         var stored = await attachments.StoreAsync(attachment, request.Content, ct);
         return stored.IsFailure ? stored.Error : turn;
+    }
+
+    // A retry of an accepted request: its turn with the file it kept, or why it cannot be; null when there is none.
+    private async Task<Result<SubmitAiAssistantTurnRequest>?> RetryAsync(Guid userId, SubmitAiAssistantFileTurnRequest request, string name, CancellationToken ct)
+    {
+        var retried = await attachments.FindRetryAsync(userId, request.Turn.RequestId, request.Content, name, ct);
+        if (retried.IsFailure) return retried.Error;
+        return retried.Value is { } accepted ? await ValidateAsync(request.Turn with { Attachment = accepted }, ct) : null;
     }
 
     private async Task<Result<SubmitAiAssistantTurnRequest>> ValidateAsync(SubmitAiAssistantTurnRequest turn, CancellationToken ct)

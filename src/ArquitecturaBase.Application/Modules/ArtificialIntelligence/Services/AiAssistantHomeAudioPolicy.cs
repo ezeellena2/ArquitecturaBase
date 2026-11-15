@@ -34,6 +34,9 @@ internal sealed class AiAssistantHomeAudioPolicy(IPrivateFileStore files, IAiAss
         descriptor.Size == content.LongLength && AiAssistantAudioPolicy.MediaType(descriptor) == mediaType
         && descriptor.Sha256 == Convert.ToHexStringLower(SHA256.HashData(content));
 
+    // Without private storage no recording is kept: said before the checks of the acceptance (I14).
+    public Error? Check() => files.IsAvailable ? null : FileErrors.Unavailable;
+
     public async Task<Result<AssistantAudioInput>> StoreAsync(Guid requestId, byte[] content, string mediaType, DateTime expiresAtUtc, CancellationToken ct)
     {
         if (!files.IsAvailable) return FileErrors.Unavailable;

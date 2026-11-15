@@ -33,8 +33,11 @@ internal sealed class AiAssistantAudioService(IAssistantOperations operations, A
             var existing = await operations.GetAsync(context, request.RequestId, cancellationToken);
             if (existing.IsSuccess) return Recovered(existing.Value, request, mediaType);
             if (existing.Error != AiAssistantErrors.NotFound) return existing.Error;
-            // I14: what the acceptance would refuse (the quota, the capacity, the transcription profile) refuses before the copy is kept.
-            if (await submissions.PrecheckAudioAsync(context, mediaType, request.Content.Length, cancellationToken) is { } refused) return refused;
+            if (audio.Check() is { } unavailable) return unavailable;
+            // I14: after the storage, what the acceptance would refuse (the quota, the capacity, the transcription profile) refuses before the
+            // copy is kept. Another upload of the same request may have taken the last place since the lookup: its normalization answers both.
+            if (await submissions.PrecheckAudioAsync(context, mediaType, request.Content.Length, cancellationToken) is { } refused)
+                return await RecoverAsync(context, request, mediaType, cancellationToken) ?? refused;
             var now = clock.GetUtcNow().UtcDateTime;
             var expiresAtUtc = now.AddDays(limits.RetentionDays);
             var stored = await audio.StoreAsync(request.RequestId, request.Content, mediaType, expiresAtUtc, cancellationToken);
@@ -44,9 +47,16 @@ internal sealed class AiAssistantAudioService(IAssistantOperations operations, A
             if (accepted.IsSuccess) return new AiAssistantAudioResponse(request.RequestId, accepted.Value.State, null, null, limits.PollingAfterSeconds);
             // Another upload of the same request got there first with this same copy, sealed at another instant: its normalization answers both.
             if (accepted.Error != AiAssistantErrors.RequestReused) return accepted.Error;
-            var raced = await operations.GetAsync(context, request.RequestId, cancellationToken);
-            return raced.IsSuccess ? Recovered(raced.Value, request, mediaType) : accepted.Error;
+            return await RecoverAsync(context, request, mediaType, cancellationToken) ?? accepted.Error;
         });
+
+    // The normalization another upload of the same request accepted meanwhile, compared with this recording; null when there is none.
+    private async Task<Result<AiAssistantAudioResponse>?> RecoverAsync(AssistantChannelContext context, SubmitAiAssistantAudioRequest request,
+        string mediaType, CancellationToken ct)
+    {
+        var found = await operations.GetAsync(context, request.RequestId, ct);
+        return found.IsSuccess ? Recovered(found.Value, request, mediaType) : null;
+    }
 
     public Task<Result<AiAssistantAudioResponse>> GetAsync(Guid requestId, string culture, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AiAssistantAudioResponse>>(logger, "GetAiAssistantAudio", async () =>
