@@ -101,6 +101,8 @@ public static class ArcaInfrastructureRegistration
         services.AddSingleton<IArcaInvoicingClient, ArcaInvoicingClient>();
         services.AddSingleton<IArcaFiscalPdfRenderer, ArcaFiscalPdfRenderer>();
         services.AddSingleton<ArcaVoucherProcessor>();
+        services.AddSingleton<ArcaInvoicingTelemetry>();
+        services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter(ArcaInvoicingTelemetry.MeterName));
         services.AddHostedService<ArcaInvoicingStorageCheck>();
         services.AddHostedService<ArcaVoucherBackgroundService>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IArcaRobotCompanyStep, ArcaPointOfSaleRobotStep>());

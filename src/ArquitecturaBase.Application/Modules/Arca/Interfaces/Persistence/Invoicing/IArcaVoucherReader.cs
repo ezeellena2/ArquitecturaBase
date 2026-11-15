@@ -11,6 +11,9 @@ public interface IArcaVoucherReader
     /// </summary>
     Task<IReadOnlyList<ArcaVoucherSequenceRow>> ListDueSequencesAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
 
+    /// <summary>H26: los comprobantes por emitir, los que esperan una revisión y cuándo entró el más viejo por emitir.</summary>
+    Task<ArcaVoucherWorkloadCounts> CountWorkloadAsync(CancellationToken cancellationToken);
+
     /// <summary>Los comprobantes autorizados que todavía no tienen su PDF fiscal y ya pueden intentarlo.</summary>
     Task<IReadOnlyList<Guid>> ListDuePdfsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
 

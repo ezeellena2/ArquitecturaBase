@@ -22,8 +22,15 @@ namespace ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
 /// </summary>
 internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, IArcaAccessTicketProvider tickets, IArcaInvoicingClient client,
     IArcaFiscalPdfRenderer renderer, IPrivateFileStore files, IOptions<ArcaVoucherWorkerOptions> options, TimeProvider timeProvider,
-    ILogger<ArcaVoucherProcessor> logger)
+    ArcaInvoicingTelemetry telemetry, ILogger<ArcaVoucherProcessor> logger)
 {
+    /// <summary>H26: lee cómo está la cola para la métrica.</summary>
+    public async Task ObserveAsync(CancellationToken cancellationToken)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        telemetry.Observe(await scope.ServiceProvider.GetRequiredService<IArcaVoucherReader>().CountWorkloadAsync(cancellationToken));
+    }
+
     private static readonly ArcaServiceCode Wsfe = ArcaServiceCode.Create("wsfe")!.Value;
 
     /// <summary>

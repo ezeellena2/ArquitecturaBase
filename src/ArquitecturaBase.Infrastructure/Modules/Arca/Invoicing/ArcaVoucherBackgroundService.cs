@@ -14,6 +14,7 @@ internal sealed partial class ArcaVoucherBackgroundService(ArcaVoucherProcessor 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.ProcessInBackground) return;
+        var observedAt = DateTimeOffset.MinValue;
         while (!stoppingToken.IsCancellationRequested)
         {
             var worked = false;
@@ -21,6 +22,12 @@ internal sealed partial class ArcaVoucherBackgroundService(ArcaVoucherProcessor 
             {
                 worked = await processor.ProcessDueAsync(stoppingToken);
                 worked |= await processor.ProcessDuePdfsAsync(stoppingToken);
+                // H26: la métrica de la cola, como mucho una vez por intervalo aunque haya trabajo seguido.
+                if (timeProvider.GetUtcNow() - observedAt >= options.Value.PollInterval)
+                {
+                    await processor.ObserveAsync(stoppingToken);
+                    observedAt = timeProvider.GetUtcNow();
+                }
             }
             catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
             {

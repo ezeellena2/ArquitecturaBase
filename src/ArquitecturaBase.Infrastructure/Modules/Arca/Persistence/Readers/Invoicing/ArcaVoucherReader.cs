@@ -8,6 +8,16 @@ namespace ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Invoi
 
 internal sealed class ArcaVoucherReader(ApplicationDbContext dbContext) : IArcaVoucherReader
 {
+    public async Task<ArcaVoucherWorkloadCounts> CountWorkloadAsync(CancellationToken cancellationToken)
+    {
+        var vouchers = dbContext.Set<ArcaVoucher>().AsNoTracking();
+        var pending = vouchers.Where(voucher => voucher.State == ArcaVoucherState.Queued || voucher.State == ArcaVoucherState.Sending
+            || voucher.State == ArcaVoucherState.Uncertain);
+        return new ArcaVoucherWorkloadCounts(await pending.CountAsync(cancellationToken),
+            await vouchers.CountAsync(voucher => voucher.State == ArcaVoucherState.NeedsReview, cancellationToken),
+            await pending.MinAsync(voucher => (DateTime?)voucher.CreatedAtUtc, cancellationToken));
+    }
+
     public async Task<IReadOnlyList<ArcaVoucherSequenceRow>> ListDueSequencesAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken)
     {
         var due = await dbContext.Set<ArcaVoucher>().AsNoTracking()

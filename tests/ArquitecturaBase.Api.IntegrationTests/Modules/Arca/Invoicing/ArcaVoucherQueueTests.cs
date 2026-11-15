@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Xml.Linq;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.Arca;
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca;
@@ -215,6 +216,31 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
             await ProcessAsync();
             Assert.Equal((long?)2, (await VoucherAsync(first.RequestKey)).Number);
             Assert.Equal((long?)3, (await VoucherAsync(second.RequestKey)).Number);
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // H26: the queue metric reads the vouchers to issue, the ones that wait for a review and when the oldest to issue entered.
+    [Fact]
+    public async Task The_workload_counts_the_vouchers_to_issue_the_reviews_and_the_oldest_to_issue()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            await EnqueueAsync(ArcaVoucherScenario.Order(Today));
+            factory.Clock.Advance(TimeSpan.FromDays(6));
+            await ProcessAsync();
+            var entered = factory.Clock.GetUtcNow().UtcDateTime;
+            await EnqueueAsync(ArcaVoucherScenario.Order(Today));
+
+            var counts = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReader>().CountWorkloadAsync(ct));
+
+            Assert.Equal(new ArcaVoucherWorkloadCounts(1, 1, entered), counts);
         }
         finally
         {
