@@ -330,6 +330,29 @@ public sealed class AiAssistantHomeDocumentTests
         Assert.Equal(AiAssistantErrors.NotFound, (await host.Documents.GetAsync(requestId, "es", Ct)).Error);
     }
 
+    // B2, review: another person uploading under the same request never finds nor reuses the first one's reading. The copy's key does
+    // not name the person, so another file meets the copy kept under that request (409, as before B2) and the same one starts a reading
+    // of its own; neither says the first one's state nor what was read.
+    [Fact]
+    public async Task Another_person_uploading_under_the_same_request_never_gets_the_first_ones_reading()
+    {
+        var host = new Host();
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(requestId: requestId)).IsSuccess);
+        host.CompleteReading(requestId, Read);
+        host.Current.UserId = host.OtherId;
+        host.Fixture.Permissions.Permissions[host.OtherId] = [ArtificialIntelligencePermissions.AssistantUse];
+
+        Assert.Equal(AiAssistantErrors.RequestReused, (await host.UploadAsync([.. Pdf, (byte)'x'], requestId: requestId)).Error);
+        var same = await host.Documents.SubmitAsync(new(requestId, "en", Pdf, "comprobante.pdf"), Ct);
+
+        Assert.Equal((requestId, "pending", null), (same.Value.RequestId, same.Value.State, same.Value.Document));
+        Assert.Equal([host.ActorId, host.OtherId], host.Fixture.Store.Turns.Select(turn => turn.OwnerUserId));
+        Assert.Equal((1, 2), (host.Files.WriteCount, host.Fixture.Store.Receipts.Count));
+        host.Current.UserId = host.ActorId;
+        Assert.Equal("partial", (await host.Documents.GetAsync(requestId, "es", Ct)).Value.Document?.Readability);
+    }
+
     [Fact]
     public async Task A_completed_reading_says_the_document_and_how_readable_it_was_only_to_its_person()
     {

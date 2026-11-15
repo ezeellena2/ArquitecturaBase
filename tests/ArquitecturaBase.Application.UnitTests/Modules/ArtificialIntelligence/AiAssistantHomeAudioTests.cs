@@ -330,6 +330,29 @@ public sealed class AiAssistantHomeAudioTests
         Assert.Equal(AiAssistantErrors.NotFound, (await host.Service.GetAsync(requestId, "es", TestContext.Current.CancellationToken)).Error);
     }
 
+    // B2, review: another person uploading under the same request never finds nor reuses the first one's normalization. The copy's key
+    // does not name the person, so another recording meets the copy kept under that request (409, as before B2) and the same one starts
+    // a normalization of its own; neither says the first one's state nor what was said.
+    [Fact]
+    public async Task Another_person_uploading_under_the_same_request_never_gets_the_first_ones_normalization()
+    {
+        var host = new OperationsHost();
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(Webm, requestId)).IsSuccess);
+        host.Complete(requestId, "Armame un formulario de visitas");
+        host.Current.UserId = host.OtherId;
+        host.Fixture.Permissions.Permissions[host.OtherId] = [ArtificialIntelligencePermissions.AssistantUse];
+
+        Assert.Equal(AiAssistantErrors.RequestReused, (await host.UploadAsync([.. Webm, 0x01], requestId)).Error);
+        var same = await host.UploadAsync(Webm, requestId, "en");
+
+        Assert.Equal((requestId, "pending", null), (same.Value.RequestId, same.Value.State, same.Value.Transcript));
+        Assert.Equal([host.ActorId, host.OtherId], host.Fixture.Store.Turns.Select(turn => turn.OwnerUserId));
+        Assert.Equal((1, 2), (host.Files.WriteCount, host.Fixture.Store.Receipts.Count));
+        host.Current.UserId = host.ActorId;
+        Assert.Equal("Armame un formulario de visitas", (await host.Service.GetAsync(requestId, "es", TestContext.Current.CancellationToken)).Value.Transcript);
+    }
+
     private static AiAssistantAccessGuard Guard(AiAssistantAudioModelProfile[] audioProfiles, MemoryPrivateFileStore files)
     {
         var permissions = new FakePermissionService();
