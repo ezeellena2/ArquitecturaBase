@@ -10,6 +10,13 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Import;
 // central directory is not read again). Nothing is extracted to disk.
 internal static class FormArchivePreflight
 {
+    // Parts a library loads whole into memory: each has its own cap under the archive one, judged by the declared size (a forged shorter one truncates the delivery).
+    private static readonly Dictionary<string, long> PartLimits = new(StringComparer.Ordinal)
+    {
+        ["xl/styles.xml"] = FormCatalogImportLimits.MaximumStylesBytes,
+        ["xl/sharedStrings.xml"] = FormCatalogImportLimits.MaximumSharedStringsBytes,
+    };
+
     public static Result Check(ZipArchive archive, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(archive);
@@ -21,6 +28,7 @@ internal static class FormArchivePreflight
             ct.ThrowIfCancellationRequested();
             if (!names.Add(entry.FullName)) return FormCatalogImportErrors.FileUnreadable;
             if (entry.Length > FormCatalogImportLimits.MaximumArchiveBytes - declared) return FormCatalogImportErrors.FileTooLarge;
+            if (PartLimits.TryGetValue(entry.FullName, out var partLimit) && entry.Length > partLimit) return FormCatalogImportErrors.FileTooLarge;
             declared += entry.Length;
             using var source = entry.Open();
             int count;

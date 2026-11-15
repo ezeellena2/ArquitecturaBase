@@ -10,6 +10,9 @@ public static class FormCatalogImportLimits
 {
     public const int MaximumFileBytes = StructuredAttachmentLimits.MaximumBytes;
     public const int MaximumArchiveBytes = 100 * 1024 * 1024;
+    // The parts ClosedXML loads whole, whatever the rows say: measured at about 6 times (styles) and 15 times (shared strings) their size in memory (F12).
+    public const int MaximumStylesBytes = 8 * 1024 * 1024;
+    public const int MaximumSharedStringsBytes = 16 * 1024 * 1024;
     public const int MaximumColumns = 64;
     public const int MaximumPhysicalRows = BusinessFormCatalog.MaxItems + 2;
     public const int MaximumPhysicalCells = MaximumPhysicalRows * MaximumColumns;
