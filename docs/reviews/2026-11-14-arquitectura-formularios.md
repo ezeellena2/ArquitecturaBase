@@ -53,7 +53,7 @@ Los hallazgos van numerados F1 a F48 y, aparte, B1 a B3; las piezas de la ficha 
   (F34), borrar opciones y el catálogo de personas recorren tablas enteras (F35, F36), y varios caminos alargan el lock
   global de formularios que ya registró WhatsApp H32 (F37).
 - **Fuera de los criterios:** el «¿La emito?» que se vuelve a preguntar puede ignorar el toque (B1) y, para el núcleo, una cuenta
-  borrada conservaría sus permisos (B2, por confirmar con un test).
+  borrada conserva sus permisos (B2, confirmado con un test el 2026-11-15).
 - **Tus decisiones** ([decisiones](#decisiones-del-2026-11-14)): el 2026-11-14 elegiste las ocho recomendadas, del horizonte a los
   números en claro de la bandeja; el plan de «Hoy» está en [arreglos de Formularios](../plans/2026-11-15-arreglos-de-formularios.md).
 
@@ -231,9 +231,9 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   contenido. Chico.
 - **Arreglado el 2026-11-15** en `9fd3bfbc` (sin el caso de la reserva perdida antes de guardar el resultado).
 
-#### B2. Para el núcleo: una cuenta borrada conservaría sus permisos en lo que se revalida por id
+#### B2. Para el núcleo: una cuenta borrada conserva sus permisos en lo que se revalida por id
 
-- **Dónde falla:** probable; lo encontraron dos verificadores leyendo el código y falta confirmarlo con un test. Es del criterio
+- **Dónde falla:** hoy; lo encontraron dos verificadores leyendo el código y lo confirmó un test el 2026-11-15. Es del criterio
   21, pero va aparte porque el arreglo es del núcleo; se registra acá porque Formularios lo usa.
 - **Escenario:** borrar una cuenta es lógico y corta sus sesiones, pero nadie le quita los roles, y el servicio de permisos los lee
   por id sin mirar si la cuenta existe o está activa. Los trabajos que revalidan permisos por id (el worker de publicación, la
@@ -242,6 +242,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   en Formularios, `FormPublicationDispatchService.cs:126-127` y `FormRecordCaptureGuard.cs:30-31`.
 - **Arreglo:** un test de integración (cuenta con rol, borrarla, preguntar sus permisos) y, si se confirma, que el servicio de
   permisos no conceda nada a una cuenta borrada o inactiva. Chico. Va con la revisión del núcleo.
+- **Confirmado el 2026-11-15:** el test (una cuenta con un rol, borrarla y preguntar sus permisos) falla: la cuenta borrada
+  sigue teniendo los permisos de sus roles. No se commiteó en rojo; el arreglo, con el test, es del núcleo.
 
 #### B3. «Pedir aprobación» a un rol que se quedó sin miembros abre una tarea que nadie puede decidir
 
@@ -325,6 +327,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   consultando, con espera larga, mientras diga «sin confirmar». Mediano.
 - **Arreglado el 2026-11-15** en `fbec87c5` (backend) y `bb99803a` (front).
 - Corregido tras la revisión adversarial el 2026-11-15 en `baa6245e`: otra persona que publica recibe el id de la operación abierta desde el detalle del formulario, ve «Failed» después de descartar y el backend sólo descarta una operación sin confirmar.
+- El test de la recarga (`FormPublicationPresentationTests`) esperaba lo contrario y se puso al día en `d73177a1`.
 
 #### F4. Quien corrige una respuesta, o la pasa al formulario desde un documento, puede aprobarla
 
@@ -360,6 +363,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** pedir también «Ver respuestas» para guardar una regla cuyos avisos citen respuestas; o decidir y escribir que
   administrar reglas permite mandar respuestas por aviso, y decirlo en la descripción del permiso. Chico.
 - **Arreglado el 2026-11-15** en `a765080f` (se eligió pedir «Ver respuestas»; la descripción del permiso y la regla escrita lo dicen).
+- Su texto en `Errors.resx` lo borró `6ff85b99` (F13, armado sobre una copia anterior) y volvió el 2026-11-15 en `974fea7c`.
 
 #### F6. Un PDF armado para atacar puede frenar la lectura de documentos de una copia y, por WhatsApp, todo lo que entra
 
@@ -1245,7 +1249,7 @@ los destinatarios de un aviso y el toque viejo, y escribir el costo de los núme
 ## Límites de esta revisión
 
 - **Verificación.** Todos los «No cumple» y «Con reservas» que vienen de los revisores pasaron por un verificador; F14 y B3 los
-  encontró un verificador y no tuvieron otra verificación, B2 espera su test y O12 queda a confirmar.
+  encontró un verificador y no tuvieron otra verificación, B2 se confirmó con su test el 2026-11-15 y O12 queda a confirmar.
 - **Alcance.** Es de solo lectura sobre `a9f57202` y `7b95095b`, y no incluye los cambios sin commitear de ese día. Mientras se
   revisaba entraron seis commits de otras sesiones; uno toca Formularios: `42d8f47f` (H25 y N27) lee como «Otro» un motivo de
   lectura de documento que la versión no conoce y suma a la guía de migración que un valor nuevo de una columna se empieza a
