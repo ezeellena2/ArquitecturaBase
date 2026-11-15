@@ -92,23 +92,30 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
    puede salir porque la ventana de 24 horas está cerrada queda «No aplica» para esa persona, con su motivo, y no frena lo que
    sigue. Cambian las reglas del motor de acciones en [formularios](../features/formularios.md). Tests con `FakeTimeProvider`: un
    PDF en duda se confirma solo sin volver a generarse, y un aviso con la ventana cerrada deja seguir la regla. Mediano.
+   Hecha en parte el 2026-11-15 en `4dc53b94`: consulta sola con espera creciente y aviso «No aplica» por la ventana de 24 horas cerrada. Faltan la marca «Con acciones por resolver» de la planilla (con su filtro y el contador para quien administra reglas, que cambian el contrato y el front) y el aviso a quien cargó cuando su regla se frena.
 8. **F28. El worker reserva sólo los tipos de acción que conoce.** Filtro de tipos en la búsqueda de trabajo y un `switch` de
    efectos sin rama por defecto, con un test que recorre los tipos que acepta el editor de reglas y otro donde un tipo desconocido
    sigue esperando. Chico.
+   Hecha el 2026-11-15 en `4dc53b94` (el worker reserva sólo los tipos que conoce, `FormActionKinds`, y el `switch` sin rama por defecto; el test recorre la reserva de un tipo desconocido, no los tipos del editor uno por uno).
 9. **F19. Queda quién pidió reintentar o consultar.** El run guarda quién y cuándo pidió el reintento, el reintento por persona y
    la consulta, y el detalle de la respuesta lo muestra. Chico.
+   Hecha el 2026-11-15 en `760fee98` (columnas en la migración de `4dc53b94`).
 10. **Tres reglas escritas** (decisión 4). Las horas del PDF van en la zona de la cuenta de quien cargó, con su nombre, en lugar de
     UTC (cambia `formularios.md:425` y los textos de `Pdf.resx`); el aviso a un rol saltea al mandar, como «No aplica», a quien ya
     no es del rol (cambia `formularios.md:271`); y ante un toque viejo en «¿La emito?», quien cargó recibe una vez «Esa respuesta
     ya no se puede emitir», en su idioma, mientras lo ajeno se sigue ignorando (cambia `formularios.md:1199-1204`; toca la
     respuesta del canal de WhatsApp). Chico cada una.
+    Hechas el 2026-11-15 en `312898b2` (horas del PDF en la zona de quien cargó, aviso a un rol que saltea a quien se fue y toque viejo de «¿La emito?»; el front y los ejemplos exportados no cambian).
 11. **B1. El «¿La emito?» que se vuelve a preguntar no ignora el toque.** Al retomar se reusa la vista previa guardada, que se
     guarda antes de mandar, o el id del mensaje sale de su contenido. Chico.
+    Hecha el 2026-11-15 en `9fd3bfbc` (reusa la vista previa guardada; queda el caso de la reserva perdida antes de guardar el resultado).
 12. **B3. «Pedir aprobación» a un rol sin miembros se avisa.** El editor de reglas lo advierte, o la acción falla con un motivo
     propio. Chico.
+    Hecha el 2026-11-15 en `84e22c2f` (la acción falla con `Forms.Rule.RoleWithoutMembers`; el editor no advierte).
 13. **F18. Se puede seguir una respuesta de la captura al aviso.** Los logs de los workers llevan el id del run, de la respuesta o
     de la operación, y las dos purgas registran sólo el tipo de la excepción (O8). Una fuente de trazas del módulo guarda el
     contexto al crear el run y la operación y lo continúa en el worker, como WhatsApp desde H19. Chico los ids; mediano la traza.
+    Hecha en parte el 2026-11-15 en `032a682d` (ids en los logs de los workers y purgas con sólo el tipo de la excepción, O8); falta la fuente de trazas del módulo.
 
 ### Etapa 4: publicación
 

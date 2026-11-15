@@ -229,6 +229,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   `FormIssueConfirmationService.cs:36-48`.
 - **Arreglo:** reusar la vista previa ya guardada al retomar, guardándola antes de mandar, o derivar el id del mensaje de su
   contenido. Chico.
+- **Arreglado el 2026-11-15** en `9fd3bfbc` (sin el caso de la reserva perdida antes de guardar el resultado).
 
 #### B2. Para el núcleo: una cuenta borrada conservaría sus permisos en lo que se revalida por id
 
@@ -250,6 +251,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   alguien sume una persona al rol. Se recupera así, sin tocar la base. Gravedad baja.
 - **Evidencia:** `FormActionDispatchService.cs:41-46`, `FormApprovalService.cs:62-63`.
 - **Arreglo:** avisar en el editor de reglas cuando el rol no tiene miembros, o que la acción falle con un motivo propio. Chico.
+- **Arreglado el 2026-11-15** en `84e22c2f`.
 
 ### Hoy, con una sola copia
 
@@ -297,6 +299,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   planilla de cada formulario, con su filtro, y un contador para quien administra reglas; y avisar a quien cargó cuando su regla
   se frena, que es lo que pide ARCA H11. Mediano. El aviso que no puede salir por la ventana de 24 horas queda «No aplica» y no
   frena lo que sigue ([decisión 2](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15** en `4dc53b94` (en parte: consulta sola y ventana de 24 horas; faltan la marca de la planilla y el aviso a quien cargó).
 
 #### F3. Una publicación que queda «sin confirmar» traba el formulario y nadie la puede destrabar
 
@@ -596,6 +599,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** los ids del run, la respuesta o la operación en cada log de los workers, que es chico; y una fuente de trazas del
   módulo que guarde el contexto al crear el run y la operación y lo continúe en el worker, como WhatsApp desde
   [H19](2026-11-12-arquitectura-whatsapp.md), que es mediano.
+- **Arreglado el 2026-11-15** en `032a682d` (los ids de los logs y O8; falta la fuente de trazas).
 
 #### F19. Quién pidió reintentar o consultar una acción se pierde a los dos segundos
 
@@ -608,6 +612,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   `AuditableEntityInterceptor.cs:39,48-51`; la reserva modifica la fila (`FormActionDispatchService.cs:29`).
 - **Arreglo:** guardar quién y cuándo en el run para el reintento, el reintento por persona y la consulta, y mostrarlo en el
   detalle de la respuesta. Chico.
+- **Arreglado el 2026-11-15** en `760fee98`.
 
 #### F20. El menú lateral le muestra a quien sólo decide aprobaciones los nombres de todos los formularios del menú
 
@@ -740,6 +745,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
 - **Arreglo:** que el worker reserve sólo los tipos que conoce, para que los tome la versión nueva, y que el `switch` no tenga
   una rama por defecto. Chico. Es un caso de la regla común de [WhatsApp H25](2026-11-12-arquitectura-whatsapp.md) y
   [núcleo N27](2026-11-14-arquitectura-nucleo.md).
+- **Arreglado el 2026-11-15** en `4dc53b94`.
 
 #### F29. Durante un despliegue, la versión vieja no puede guardar un documento recibido como «no se pudo mandar»
 
