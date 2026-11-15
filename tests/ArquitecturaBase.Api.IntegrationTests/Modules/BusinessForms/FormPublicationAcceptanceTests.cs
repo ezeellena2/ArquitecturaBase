@@ -101,8 +101,12 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Null(accepted.Headers.Location);
         var recoveryPath = (await accepted.ReadJsonAsync()).GetProperty("recoveryPath").GetString();
         using var other = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish]);
-        using var hidden = await other.GetAsync(recoveryPath, Ct);
-        Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
+        // F3: whoever can publish sees the open operation, to discard it; one without Publish does not.
+        using var seen = await other.GetAsync(recoveryPath, Ct);
+        Assert.Equal(HttpStatusCode.OK, seen.StatusCode);
+        using var readOnly = await OperatorAsync([BusinessFormsPermissions.Read]);
+        using var hidden = await readOnly.GetAsync(recoveryPath, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, hidden.StatusCode);
         using var anonymous = host.CreateClient();
         using var unauthorized = await anonymous.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
         Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
