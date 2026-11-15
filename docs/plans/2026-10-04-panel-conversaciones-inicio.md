@@ -93,7 +93,7 @@ y [vacuum](https://www.postgresql.org/docs/current/routine-vacuuming.html). El p
 
 ## Arreglos de la revisión de arquitectura
 
-Decididos el 2026-11-14 y sin programar. Salen de la [revisión de arquitectura de IA](../reviews/2026-11-14-arquitectura-ia.md),
+Decididos el 2026-11-14; se programan desde el 2026-11-15, etapa por etapa (cada una anota abajo sus commits). Salen de la [revisión de arquitectura de IA](../reviews/2026-11-14-arquitectura-ia.md),
 que tiene el escenario, la evidencia (archivo y línea en `a9f57202`) y el esfuerzo de cada hallazgo, y de las
 [decisiones del usuario](../reviews/2026-11-14-arquitectura-ia.md#decisiones-del-2026-11-14), que no se vuelven a preguntar.
 
@@ -158,6 +158,15 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
    error de cupo, la hora local en que se renueva, a partir de `retryAfter`; [configurar IA](../guides/configurar-ia.md)
    escribe el máximo diario en tokens que resulta de las cuotas y de los techos de cada turno, y sugiere una alerta en la
    cuenta del proveedor. Chico.
+
+**Hecha el 2026-11-15:** B3 en 07b57864, B4 en a0eeb4d3, B5 en 38648b9f, I10 (el log) en 7d97d88d, I16 en e1425a6e, I15
+en ed519cc7 y los dos costos en 02a474bc (front edd82618). También B1, que el alcance incluía sin número de tarea, en
+de3ccfb4: la última propuesta se reserva primero, el resto entra del más nuevo al más viejo sin huecos y, si la propuesta sola
+no entra, el turno falla con `Ai.Assistant.ProposalTooLarge`. En Inicio la hora usa `Prompt.SourceTime`, que dice «zona del
+negocio» aunque sea la del perfil: corregirlo es un cambio de instrucciones y va con la próxima calificación (decisión 7).
+Build sin advertencias, Domain 1168, Application 6080 y Architecture 229 enteros, e integración de IA (148) y de WhatsApp que
+consume el motor (41) en verde; en el front, tsc, lint y vitest de la feature (dos cortes por carga en `AiAssistantPage`,
+que solo da 86/86).
 
 ### Etapa 2: las fallas se entienden
 

@@ -193,6 +193,8 @@ cambiarla lo decidís vos.
   (`AiAssistantHistoryPolicyTests.cs:20-32,47-51`).
 - **Arreglo:** reservar primero el turno de la última propuesta, llenar el resto del más nuevo al más viejo y mandarlo en
   orden cronológico; si la propuesta sola no entra, un error visible. Con su test. Chico.
+- **Arreglado el 2026-11-15 en de3ccfb4:** la propuesta se reserva primero y el resto entra del más nuevo al más viejo hasta el
+  primero que no cabe, en orden cronológico; si la propuesta sola no entra, el turno falla con `Ai.Assistant.ProposalTooLarge`.
 
 #### B2. Cambiar el idioma con una lectura en curso deja el documento o el audio sin encontrar
 
@@ -218,6 +220,8 @@ cambiarla lo decidís vos.
 - **Evidencia:** `AiAssistantCoordinator.cs:129-151` (`:146-150`: cualquier excepción cancela); la confirmación final ya
   verifica fence, estado y cancelación (`AiAssistantTurn.cs:150-158`). Ningún test cubre una falla del vigilante.
 - **Arreglo:** ante una excepción que no sea la cancelación, registrar y seguir con la lectura siguiente. Trivial.
+- **Arreglado el 2026-11-15 en 07b57864:** el vigilante registra la lectura fallida y sigue; el turno termina con la respuesta
+  del proveedor.
 
 #### B4. Una instrucción que falta en los textos se reemplaza, sin aviso, por un mensaje de error
 
@@ -231,6 +235,8 @@ cambiarla lo decidís vos.
   `AiAssistantContextPolicyTests.cs:21-33` verifica `Prompt.SystemV1`, no las versiones en uso.
 - **Arreglo:** separar un `AssistantTexts.Prompt(key)` que lance si falta la clave del `Get` con respaldo para los códigos de
   falla, y un test que recorra las claves de instrucciones usadas. Trivial.
+- **Arreglado el 2026-11-15 en a0eeb4d3:** `AssistantTexts.Prompt` lanza si falta la clave, y `AiAssistantPromptKeysTests`
+  comprueba que cada `Prompt.*` del código existe en los dos idiomas y que ninguno pasa por `Get`.
 
 #### B5. Inicio y los canales arman los mismos hechos del negocio con reglas distintas
 
@@ -241,6 +247,8 @@ cambiarla lo decidís vos.
 - **Evidencia:** `AiBusinessSystemQuerySource.cs:45-47` frente a `AiBusinessKnowledgePolicy.cs:33-39`;
   `inteligencia-artificial.md:51`.
 - **Arreglo:** que Inicio use el mismo armador, o un test que compare los hechos de los dos con los mismos datos. Trivial.
+- **Arreglado el 2026-11-15 en 38648b9f:** `business.information` arma sus filas con `AiBusinessKnowledgePolicy`, y un test
+  compara Inicio con los canales en los dos idiomas, con y sin días confirmados.
 
 ### Hoy, con una sola copia
 
@@ -484,6 +492,8 @@ cambiarla lo decidís vos.
 - **Arreglo:** como H19: una fuente de trazas del asistente, el contexto de quien llama guardado en el turno al aceptar, una
   actividad por turno en el coordinador que lo continúe y el turno en el scope de los logs (chico a mediano); el sondeo vacío
   sin `OperationLog` y los comandos de EF en Warning (trivial).
+- **El sondeo, arreglado el 2026-11-15 en 7d97d88d:** el claim y la reconciliación ya no pasan por `OperationLog` y los
+  comandos de EF van en Warning fuera de Development. La traza es la tarea 25 del plan.
 
 #### I11. Una pestaña de Inicio abierta durante un despliegue deja de mostrar las respuestas
 
@@ -563,6 +573,9 @@ cambiarla lo decidís vos.
   instrucciones); y pedir fechas y números como la app en una versión nueva de las instrucciones, que se vuelve a calificar
   (`inteligencia-artificial.md:139`). Trivial, más la calificación. **Decidido el 2026-11-14:** el instante ya; el formato,
   con la próxima calificación ([decisiones](#decisiones-del-2026-11-14)).
+- **El instante, arreglado el 2026-11-15 en ed519cc7:** en Inicio, la hora del pedido y la zona del perfil van al final del
+  mensaje actual con `Prompt.SourceTime`, sin tocar el perfil sellado ni las instrucciones. Ese texto dice «zona del negocio»:
+  ajustarlo para Inicio va con el formato, en la próxima versión que se califique.
 
 #### I16. La guía para quitar IA quedó atrás del código
 
@@ -577,6 +590,9 @@ cambiarla lo decidís vos.
   (`FormReceivedDocumentExtractionService.cs:102,124-125,161-166`). Las tablas y las claves foráneas coinciden con la guía.
 - **Arreglo:** corregir la guía: sin número fijo (remitir al test), con el prefijo de documentos y un paso previo que pase a
   Manual los chats en modo Asistente y cierre las extracciones pendientes. Chico.
+- **Arreglado el 2026-11-15 en e1425a6e:** la guía remite a `ErrorCodeTests`, nombra los tres prefijos y las tres fuentes de
+  retención, y suma «Antes de quitarlo» (chats a Manual, la conexión pausada y cómo comprobar que no quedan extracciones),
+  además de las dos pruebas de WhatsApp, el arnés y las cohortes que también se quitan.
 
 ### Con varias copias
 
@@ -746,6 +762,8 @@ ADR nuevo.
 - **Sin precios:** el gasto se limita en la cuenta del proveedor (`configurar-ia.md:5,218-219`, `inteligencia-artificial.md:47,213`);
   las cuotas no tienen techo en la validación (`AiAssistantOptions.cs:33,36`). El máximo diario se puede calcular en tokens:
   con las cuotas por defecto, unos 22 millones de entrada y 2 de salida, más 50 lecturas.
+- **Los dos costos, escritos el 2026-11-15 en 02a474bc (front edd82618):** la regla dice que la cuota corta en el día UTC,
+  Inicio muestra con el error de cupo la hora local en que se renueva y configurar IA escribe el máximo diario en tokens.
 - **Los límites por copia:** los de pedidos y los semáforos de la prueba y de lugares (`inteligencia-artificial.md:47`; H26).
 - **Sin la clave histórica,** la clave del proveedor, los comprobantes y el contenido quedan ilegibles, sin regeneración
   (`inteligencia-artificial.md:39,101`).
