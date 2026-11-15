@@ -73,6 +73,8 @@ internal sealed partial class AiAssistantCoordinator(
                     response = await scope.ServiceProvider.GetRequiredService<IAiAssistantExecutionService>().CallProviderAsync(context, execution.Token);
                 if (response.IsFailure)
                 {
+                    // I6: the code and the HTTP status the provider answered, with the turn and the provider; never its body.
+                    LogProviderFailed(logger, claim.TurnId, context.ProviderRequest.Provider, response.Error.Code, AiAssistantErrors.ProviderStatus(response.Error));
                     await FailAsync(claim, response.Error.Code, response.Error.Code == AiAssistantErrors.ProviderUncertain.Code);
                     return true;
                 }
@@ -201,4 +203,6 @@ internal sealed partial class AiAssistantCoordinator(
     private static partial void LogCancellationCheckFailed(ILogger logger, Guid turnId, string exceptionType);
     [LoggerMessage(Level = LogLevel.Warning, Message = "Assistant result persistence failed with {ExceptionType}; only its commit is retried.")]
     private static partial void LogCompletionFailed(ILogger logger, string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Assistant turn {TurnId} provider call to {Provider} failed with {Code} (HTTP status {ProviderStatus}).")]
+    private static partial void LogProviderFailed(ILogger logger, Guid turnId, AiProvider provider, string code, int? providerStatus);
 }

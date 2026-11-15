@@ -410,6 +410,25 @@ public sealed class WhatsAppAssistantReplyTests
         Assert.Equal((WhatsAppAssistantRequestState.Blocked, (string?)null), (row.State, row.OutcomeJson));
     }
 
+    // H5 with I6: the engine now says what failed at the provider (the key, the account's limit, the model, a connection that never
+    // opened), and WhatsApp hands off on the failed state the same way, whatever its code.
+    [Theory]
+    [InlineData("Ai.Assistant.ProviderCredentialRejected")]
+    [InlineData("Ai.Assistant.ProviderLimited")]
+    [InlineData("Ai.Assistant.ProviderModelRejected")]
+    [InlineData("Ai.Assistant.ProviderUnavailable")]
+    public async Task A_failure_with_any_provider_code_of_the_engine_hands_off_the_same(string code)
+    {
+        var arranged = await PendingAsync();
+
+        Assert.True((await FailAsync(arranged, "failed", code)).IsSuccess);
+
+        var contact = arranged.Host.Context.Contact;
+        Assert.Equal((WhatsAppConversationMode.Manual, true, "assistantFailed"), (contact.Mode, contact.NeedsPerson, contact.HandoffReasonCode));
+        Assert.True(Assert.Single(arranged.Host.Conversation.Outgoing).IsAssistantHandoff);
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, Assert.Single(arranged.Host.Requests.Rows).State);
+    }
+
     [Fact]
     public async Task An_engine_error_that_is_not_retried_hands_off_too()
     {
@@ -607,13 +626,13 @@ public sealed class WhatsAppAssistantReplyTests
         return await arranged.Dispatch.CompleteAsync(host.Context.Contact.Id, arranged.RequestId, host.Assistant.Outcome, Ct);
     }
 
-    private static Task<Result> FailAsync(Arranged arranged, string state)
+    private static Task<Result> FailAsync(Arranged arranged, string state, string? failureCode = null)
     {
         var host = arranged.Host;
         var outcome = host.Assistant.Outcome.Value;
         host.Assistant.Outcome = outcome with
         {
-            RequestId = arranged.RequestId, State = state, Proposal = null, Proposals = [],
+            RequestId = arranged.RequestId, State = state, Proposal = null, Proposals = [], FailureCode = failureCode,
             Provenance = outcome.Provenance! with { ChannelId = "whatsapp-assistant" },
         };
         return arranged.Dispatch.CompleteAsync(host.Context.Contact.Id, arranged.RequestId, host.Assistant.Outcome, Ct);

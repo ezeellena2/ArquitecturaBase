@@ -21,3 +21,5 @@ HomeAttachmentReader reemplaza el puerto neutral del dueño de los archivos para
 DocumentReadingHandler y DocumentReadingClient son los dobles de la lectura de documentos: guardan el cuerpo exacto o el pedido y responden lo que dice la prueba; sus bytes no califican un PDF ni una foto reales.
 
 `FailingReadAssistantSource` es una lectura cuya base falla siempre (`FictionalDbException`, I5).
+
+`AiAssistantExecutionProviderHandler` responde también un estado o rechaza la conexión (`FailWith`, `RefuseConnection`), y `ProviderConnectionFailure` usa el handler del registro con una conexión que nunca llega (nombre, rechazo, TLS o plazo de conexión), sin red (I6).

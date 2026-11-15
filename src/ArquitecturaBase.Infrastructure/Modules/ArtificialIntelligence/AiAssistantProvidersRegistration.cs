@@ -13,6 +13,8 @@ internal static class AiAssistantProvidersRegistration
     internal const string OpenAiAudioHttpClientName = "AiAssistantOpenAIAudio";
     internal const string OpenAiDocumentHttpClientName = "AiAssistantOpenAIDocument";
     internal const string AnthropicConversationHttpClientName = "AiAssistantAnthropic";
+    // I6: a provider that does not accept the connection fails in seconds, as unavailable, instead of taking the request's whole timeout.
+    internal static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
 
     internal static void AddAiAssistantProvidersAndProtection(this IServiceCollection services)
     {
@@ -31,5 +33,9 @@ internal static class AiAssistantProvidersRegistration
     }
 
     private static void Configure(IHttpClientBuilder client) => client.RemoveAllLoggers().RemoveAllResilienceHandlers()
-        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, PooledConnectionLifetime = TimeSpan.FromMinutes(2) });
+        .ConfigurePrimaryHttpMessageHandler(ProviderHandler);
+
+    // No redirects, resilience or retries: a billable POST is sent once.
+    internal static SocketsHttpHandler ProviderHandler() =>
+        new() { AllowAutoRedirect = false, PooledConnectionLifetime = TimeSpan.FromMinutes(2), ConnectTimeout = ConnectTimeout };
 }

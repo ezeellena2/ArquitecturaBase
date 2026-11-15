@@ -8,6 +8,7 @@ El deadline del intento no se renueva. Un Running abandonado se reconcilia sin r
 Si ya hay un resultado, el reintento técnico se limita a confirmar ese mismo cierre con su fence.
 Cancelación y shutdown son cooperativos; una salida posible sin cierre queda durable para reconciliar.
 ProviderUnavailable sale sólo de la llamada al proveedor; una excepción fuera de ella es ExecutionFailed (I5).
+Una falla del proveedor se registra con su código, el estado HTTP, el turno y el proveedor; `LlmProviderFailures` la clasifica (I6).
 
 Los schedulers usan TimeProvider y tokens de parada. Logs y métricas contienen estados, códigos,
 duraciones e IDs operativos; nunca preguntas, respuestas, resultados ni credenciales.

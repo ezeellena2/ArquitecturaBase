@@ -142,11 +142,14 @@
   <data name="Ai.Assistant.ProposalTooLarge" xml:space="preserve"><value>The latest proposal is too large to keep adjusting in this conversation. Start a new conversation and ask for it with the changes.</value></data>
   <data name="Ai.Assistant.InvalidOutput" xml:space="preserve"><value>The response could not be validated and was not published. You can start another question.</value></data>
   <data name="Ai.Assistant.ToolRejected" xml:space="preserve"><value>The requested source is not authorized or its arguments are invalid.</value></data>
-  <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>The provider is unavailable. Review the operation before asking again.</value></data>
+  <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>We could not connect to the provider and nothing was sent. Try again; if it persists, check the server's network to the provider.</value></data>
   <data name="Ai.Assistant.ProviderUncertain" xml:space="preserve"><value>The question may have reached the provider, but no result was confirmed. Review possible usage before starting another operation.</value></data>
   <data name="Ai.Assistant.ProviderRejected" xml:space="preserve"><value>The provider rejected the question. Review the configured connection and model.</value></data>
   <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>The provider returned an incomplete response. It was not published and its limit was not increased automatically.</value></data>
   <data name="Ai.Assistant.ExecutionFailed" xml:space="preserve"><value>The question did not complete because of a system failure, not the provider. You can start another one.</value></data>
+  <data name="Ai.Assistant.ProviderCredentialRejected" xml:space="preserve"><value>The provider rejected the connection's key. Review it or change it with “Replace key” in Artificial intelligence › Provider connection.</value></data>
+  <data name="Ai.Assistant.ProviderLimited" xml:space="preserve"><value>The provider account reached its quota or usage limit. Review the account's credit and limits before asking again.</value></data>
+  <data name="Ai.Assistant.ProviderModelRejected" xml:space="preserve"><value>The provider rejected the model configured for this task, or the file or the request. Review that model; if you sent a file, try another one.</value></data>
   <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>The accepted question quota is exhausted. Wait for the indicated period.</value></data>
   <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>The assistant is busy. Wait for the indicated period before submitting again.</value></data>
   <data name="Ai.Assistant.AttachmentForbidden" xml:space="preserve"><value>To attach spreadsheets, ask whoever manages the installation for the permission to manage catalogs.</value></data>

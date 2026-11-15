@@ -146,11 +146,15 @@ public sealed class AiAudioTranscriptionProviderContractTests
         Assert.Equal(1, handler.Calls);
     }
 
+    // I6: by status only, never by the body, as the text client; the status goes with the error for the turn's log.
     [Theory]
-    [InlineData(HttpStatusCode.BadRequest, "Ai.Assistant.ProviderRejected")]
-    [InlineData(HttpStatusCode.Unauthorized, "Ai.Assistant.ProviderRejected")]
-    [InlineData(HttpStatusCode.Forbidden, "Ai.Assistant.ProviderRejected")]
-    [InlineData(HttpStatusCode.TooManyRequests, "Ai.Assistant.ProviderRejected")]
+    [InlineData(HttpStatusCode.BadRequest, "Ai.Assistant.ProviderModelRejected")]
+    [InlineData(HttpStatusCode.Unauthorized, "Ai.Assistant.ProviderCredentialRejected")]
+    [InlineData(HttpStatusCode.PaymentRequired, "Ai.Assistant.ProviderLimited")]
+    [InlineData(HttpStatusCode.Forbidden, "Ai.Assistant.ProviderCredentialRejected")]
+    [InlineData(HttpStatusCode.NotFound, "Ai.Assistant.ProviderModelRejected")]
+    [InlineData(HttpStatusCode.Conflict, "Ai.Assistant.ProviderRejected")]
+    [InlineData(HttpStatusCode.TooManyRequests, "Ai.Assistant.ProviderLimited")]
     [InlineData(HttpStatusCode.TemporaryRedirect, "Ai.Assistant.ProviderRejected")]
     [InlineData(HttpStatusCode.InternalServerError, "Ai.Assistant.ProviderUncertain")]
     [InlineData(HttpStatusCode.ServiceUnavailable, "Ai.Assistant.ProviderUncertain")]
@@ -160,9 +164,26 @@ public sealed class AiAudioTranscriptionProviderContractTests
         using var http = new HttpClient(handler);
         var result = await Client(http).TranscribeAsync(Request(), Ct);
         Assert.Equal(code, result.Error.Code);
+        Assert.Equal((int)status, AiAssistantErrors.ProviderStatus(result.Error));
         Assert.DoesNotContain("private-provider", result.Error.Description, StringComparison.Ordinal);
         Assert.DoesNotContain("fictional-audio-key", result.Error.Description, StringComparison.Ordinal);
         Assert.Equal(1, handler.Calls);
+    }
+
+    // I6: what never left (the name, a refused connection, TLS or the connect timeout) is unavailable, not uncertain, and is not repeated.
+    [Theory]
+    [InlineData("refused")]
+    [InlineData("name")]
+    [InlineData("tls")]
+    [InlineData("connectTimeout")]
+    public async Task A_request_that_never_left_is_unavailable_and_not_uncertain(string fault)
+    {
+        var connection = new ProviderConnectionFailure(fault);
+        using var http = new HttpClient(connection.Handler());
+        var result = await Client(http).TranscribeAsync(Request(), Ct);
+        Assert.Equal(AiAssistantErrors.ProviderUnavailable.Code, result.Error.Code);
+        Assert.Null(AiAssistantErrors.ProviderStatus(result.Error));
+        Assert.Equal(1, connection.Attempts);
     }
 
     [Theory]

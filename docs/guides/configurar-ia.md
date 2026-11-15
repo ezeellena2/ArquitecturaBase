@@ -321,6 +321,15 @@ No borres filas de operación para recuperar una generación incierta.
   Los meters `ArquitecturaBase.AiAssistant` y
   `ArquitecturaBase.AiAssistant.Maintenance` están registrados con OpenTelemetry. Las métricas
   no incluyen contenido/UUID/cuenta como etiquetas; no acreditan exportación a un host desplegado.
+- Una consulta fallida por el proveedor dice qué revisar, y el log del coordinador repite su código con el turno, el proveedor y
+  el estado HTTP, sin el cuerpo: `Ai.Assistant.ProviderCredentialRejected` (401 o 403), la clave de la conexión, que se cambia
+  con **Reemplazar clave** en Inteligencia artificial › Conexión con el proveedor (`/configuracion/ia`); `ProviderLimited` (402
+  o 429), el crédito y los límites de la cuenta del proveedor; `ProviderModelRejected` (400 o 404), el modelo configurado para
+  esa tarea, que puede haberse retirado, o el archivo o el pedido (un audio o un PDF que el proveedor no puede leer):
+  en texto, el modelo es el de la conexión; en audio y documentos, el del perfil (`AudioModelProfiles` o
+  `DocumentModelProfiles`); `ProviderUnavailable`, que nada salió (DNS, conexión rechazada, TLS o el plazo de conexión de
+  10 s): la red del servidor hacia el proveedor. **Probar conexión** usa el modelo de texto de la conexión: confirma la clave,
+  el cupo y la red sin tocar el turno, pero no comprueba el modelo de audio ni el de documentos, ni el archivo.
 - `System.Query.Unavailable` (una fuente cuya base falló) y `Ai.Assistant.ExecutionFailed` (una excepción del motor fuera de la
   llamada al proveedor) no son del proveedor: revisá PostgreSQL y el log, que nombra la capacidad, la versión, el turno y el
   SQLSTATE. En Error, la falla no es transitoria (por ejemplo 42703, una columna que falta después de un despliegue) y se repite en

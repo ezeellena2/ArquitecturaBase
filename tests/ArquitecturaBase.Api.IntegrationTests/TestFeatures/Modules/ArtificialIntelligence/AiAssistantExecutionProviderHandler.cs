@@ -10,6 +10,10 @@ internal sealed class AiAssistantExecutionProviderHandler(AiProvider provider, s
 {
     public List<JsonElement> Requests { get; } = [];
     public Guid RoleId { get; set; }
+    /// <summary>I6: the provider answers this status with a private body, as a revoked key, an exhausted account or a retired model.</summary>
+    public HttpStatusCode? FailWith { get; set; }
+    /// <summary>I6: the connection to the provider is refused before anything is sent.</summary>
+    public bool RefuseConnection { get; set; }
     public List<int> ActiveTransactionsDuringHttp { get; } = [];
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -19,8 +23,11 @@ internal sealed class AiAssistantExecutionProviderHandler(AiProvider provider, s
         Assert.Equal("fictional-assistant-key", provider == AiProvider.OpenAI
             ? request.Headers.Authorization?.Parameter : Assert.Single(request.Headers.GetValues("x-api-key")));
         ActiveTransactionsDuringHttp.Add(transactions.ActiveTransactions);
+        if (RefuseConnection) throw new HttpRequestException(HttpRequestError.ConnectionError, "Fictional refused connection.");
         var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
         using (json) Requests.Add(json.RootElement.Clone());
+        if (FailWith is { } status)
+            return new(status) { Content = new StringContent("{\"error\":{\"message\":\"private provider body\"}}", Encoding.UTF8, "application/json") };
         Assert.Equal("fictional-model", Requests[^1].GetProperty("model").GetString());
         if (provider == AiProvider.OpenAI) Assert.False(Requests[^1].GetProperty("store").GetBoolean());
         Assert.Contains(Requests[^1].GetProperty("tools").EnumerateArray(), tool => tool.GetProperty("name").GetString() == toolId.Replace('.', '_'));

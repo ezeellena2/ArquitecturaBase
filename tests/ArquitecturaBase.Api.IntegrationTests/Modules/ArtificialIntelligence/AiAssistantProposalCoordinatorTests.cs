@@ -9,6 +9,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Per
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -79,6 +80,27 @@ public sealed class AiAssistantProposalCoordinatorTests
 
         Assert.Equal(0, fixture.ProviderCalls);
         Assert.Equal((AiAssistantErrors.ExecutionFailed.Code, false), (fixture.FailureCode, fixture.FailureWasUncertain));
+    }
+
+    // I6: the turn ends with the provider's own code, not uncertain, and the log names the turn, the provider and the HTTP status.
+    [Fact]
+    public async Task A_provider_status_failure_ends_the_turn_with_its_code_and_logs_the_turn_provider_and_status()
+    {
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, null)
+        {
+            ProviderError = AiAssistantErrors.WithProviderStatus(AiAssistantErrors.ProviderCredentialRejected, 401),
+        };
+        var log = new FakeLogger<AiAssistantCoordinator>();
+        await using var services = Services(fixture);
+
+        Assert.True(await Coordinator(services, clock, log).ProcessNextAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal((AiAssistantErrors.ProviderCredentialRejected.Code, false), (fixture.FailureCode, fixture.FailureWasUncertain));
+        var record = Assert.Single(log.Collector.GetSnapshot(), entry => entry.Message.Contains("401", StringComparison.Ordinal));
+        Assert.Contains(fixture.TurnId.ToString(), record.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(AiProvider.OpenAI), record.Message, StringComparison.Ordinal);
+        Assert.Contains(AiAssistantErrors.ProviderCredentialRejected.Code, record.Message, StringComparison.Ordinal);
     }
 
     private static ServiceProvider Services(AiAssistantProposalCoordinatorFixture fixture)

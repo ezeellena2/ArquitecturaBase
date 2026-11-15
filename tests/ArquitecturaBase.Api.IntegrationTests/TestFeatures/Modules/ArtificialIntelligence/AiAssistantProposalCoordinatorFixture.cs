@@ -38,6 +38,7 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public bool FailFirstMonitorRead { get; init; }
     /// <summary>I5: preparing the turn throws, as a bug or a failure of the engine itself before anything reaches the provider.</summary>
     public Exception? PrepareFailure { get; init; }
+    public Guid TurnId => claim.TurnId;
     public AiAssistantProposalCoordinatorFixture(TimeProvider clock, Action? stopAfterAdvance, bool normalize = false, bool read = false)
     {
         this.normalize = normalize;

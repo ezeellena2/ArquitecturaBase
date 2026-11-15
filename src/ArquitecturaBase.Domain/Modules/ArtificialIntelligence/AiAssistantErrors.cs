@@ -29,6 +29,16 @@ public static class AiAssistantErrors
     public static readonly Error ProviderUncertain = Error.Failure("Ai.Assistant.ProviderUncertain", "The provider request may have been sent without a confirmed result.");
     public static readonly Error ProviderRejected = Error.Conflict("Ai.Assistant.ProviderRejected", "The provider rejected the request.");
     public static readonly Error ProviderIncomplete = Error.Conflict("Ai.Assistant.ProviderIncomplete", "The provider returned an incomplete result.");
+    // I6: what the provider answered, by its HTTP status and never by its body, each with a text for whoever administers it.
+    public static readonly Error ProviderCredentialRejected = Error.Conflict("Ai.Assistant.ProviderCredentialRejected", "The provider rejected the connection's key.");
+    public static readonly Error ProviderLimited = Error.Conflict("Ai.Assistant.ProviderLimited", "The provider account reached its quota or rate limit.");
+    public static readonly Error ProviderModelRejected = Error.Conflict("Ai.Assistant.ProviderModelRejected", "The provider rejected the model or the request.");
+    /// <summary>I6: the key of the HTTP status a provider answered, which travels with its error only for the turn's log.</summary>
+    public const string ProviderStatusKey = "providerStatus";
+    public static Error WithProviderStatus(Error error, int status) =>
+        error with { Metadata = new Dictionary<string, object?> { [ProviderStatusKey] = status } };
+    public static int? ProviderStatus(Error error) =>
+        error.Metadata is { } metadata && metadata.TryGetValue(ProviderStatusKey, out var value) && value is int status ? status : null;
     public static Error QuotaExceeded(int retryAfterSeconds) => Error.TooManyRequests("Ai.Assistant.QuotaExceeded", "The acceptance quota is exhausted.", new Dictionary<string, object?> { ["retryAfter"] = retryAfterSeconds });
     public static Error CapacityLimited(int retryAfterSeconds) => Error.TooManyRequests("Ai.Assistant.CapacityLimited", "The assistant capacity is exhausted.", new Dictionary<string, object?> { ["retryAfter"] = retryAfterSeconds, ["retryable"] = true });
     // Stage 2: who may attach a spreadsheet in Home, and why one was not read; each reason has its own code under the file.

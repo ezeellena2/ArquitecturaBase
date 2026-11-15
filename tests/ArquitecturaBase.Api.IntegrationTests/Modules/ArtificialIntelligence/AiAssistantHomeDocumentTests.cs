@@ -208,7 +208,7 @@ public sealed class AiAssistantHomeDocumentTests(ApiFactory factory)
         var body = await failed.ReadJsonAsync();
         Assert.Equal(("failed", JsonValueKind.Null), (body.GetProperty("state").GetString(), body.GetProperty("document").ValueKind));
         var failure = body.GetProperty("failure");
-        Assert.Equal(("Ai.Assistant.ProviderRejected", "newAttempt"), (failure.GetProperty("code").GetString(), failure.GetProperty("recovery").GetString()));
+        Assert.Equal(("Ai.Assistant.ProviderModelRejected", "newAttempt"), (failure.GetProperty("code").GetString(), failure.GetProperty("recovery").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(failure.GetProperty("detail").GetString()));
         Assert.Empty(await RetainedAsync(scenario, key));
     }

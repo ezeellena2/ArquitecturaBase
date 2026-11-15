@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -12,6 +13,7 @@ using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Providers.O
 using Microsoft.Extensions.Time.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Http.Resilience;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -176,23 +178,82 @@ public sealed partial class AiAssistantProviderContractTests
         Assert.Equal(1, handler.Calls);
     }
 
+    // I6: by status only, never by the body: the key (401, 403), the account's quota or rate limit (402, 429), the model or the request
+    // (400, 404); the rest of 4xx stays a rejection and a 5xx is uncertain, because generation may have started. The status goes with
+    // the error for the turn's log.
     [Theory]
-    [InlineData(AiProvider.OpenAI, HttpStatusCode.BadRequest, "Ai.Assistant.ProviderRejected")]
-    [InlineData(AiProvider.OpenAI, HttpStatusCode.Unauthorized, "Ai.Assistant.ProviderRejected")]
-    [InlineData(AiProvider.OpenAI, HttpStatusCode.TooManyRequests, "Ai.Assistant.ProviderRejected")]
+    [InlineData(AiProvider.OpenAI, HttpStatusCode.BadRequest, "Ai.Assistant.ProviderModelRejected")]
+    [InlineData(AiProvider.OpenAI, HttpStatusCode.Unauthorized, "Ai.Assistant.ProviderCredentialRejected")]
+    [InlineData(AiProvider.OpenAI, HttpStatusCode.PaymentRequired, "Ai.Assistant.ProviderLimited")]
+    [InlineData(AiProvider.OpenAI, HttpStatusCode.NotFound, "Ai.Assistant.ProviderModelRejected")]
+    [InlineData(AiProvider.OpenAI, HttpStatusCode.Conflict, "Ai.Assistant.ProviderRejected")]
+    [InlineData(AiProvider.OpenAI, HttpStatusCode.TooManyRequests, "Ai.Assistant.ProviderLimited")]
     [InlineData(AiProvider.OpenAI, HttpStatusCode.ServiceUnavailable, "Ai.Assistant.ProviderUncertain")]
-    [InlineData(AiProvider.Anthropic, HttpStatusCode.BadRequest, "Ai.Assistant.ProviderRejected")]
-    [InlineData(AiProvider.Anthropic, HttpStatusCode.Forbidden, "Ai.Assistant.ProviderRejected")]
-    [InlineData(AiProvider.Anthropic, HttpStatusCode.TooManyRequests, "Ai.Assistant.ProviderRejected")]
+    [InlineData(AiProvider.Anthropic, HttpStatusCode.BadRequest, "Ai.Assistant.ProviderModelRejected")]
+    [InlineData(AiProvider.Anthropic, HttpStatusCode.Forbidden, "Ai.Assistant.ProviderCredentialRejected")]
+    [InlineData(AiProvider.Anthropic, HttpStatusCode.NotFound, "Ai.Assistant.ProviderModelRejected")]
+    [InlineData(AiProvider.Anthropic, HttpStatusCode.UnprocessableEntity, "Ai.Assistant.ProviderRejected")]
+    [InlineData(AiProvider.Anthropic, HttpStatusCode.TooManyRequests, "Ai.Assistant.ProviderLimited")]
     [InlineData(AiProvider.Anthropic, HttpStatusCode.InternalServerError, "Ai.Assistant.ProviderUncertain")]
-    public async Task Http_failures_are_classified_without_parsing_or_exposing_provider_errors(AiProvider provider, HttpStatusCode status, string code)
+    public async Task Http_failures_are_classified_by_status_without_parsing_or_exposing_provider_errors(AiProvider provider, HttpStatusCode status, string code)
     {
-        using var handler = new RecordingHandler("private provider body and fictional-key", status: status);
+        using var handler = new RecordingHandler("{\"error\":{\"code\":\"insufficient_quota\",\"message\":\"private provider body and fictional-key\"}}", status: status);
         using var http = new HttpClient(handler);
         var result = await Client(provider, http).SendAsync(Request(provider), Ct);
         Assert.Equal(code, result.Error.Code);
+        Assert.Equal((int)status, AiAssistantErrors.ProviderStatus(result.Error));
         Assert.DoesNotContain("private", result.Error.Description, StringComparison.Ordinal);
         Assert.Single(handler.Bodies);
+    }
+
+    // I6: nothing left when the name did not resolve, the connection was refused, TLS failed or the handler's connect timeout expired:
+    // unavailable, never uncertain, and never repeated. The handler is the one the registration configures.
+    [Theory]
+    [InlineData(AiProvider.OpenAI, "refused")]
+    [InlineData(AiProvider.OpenAI, "name")]
+    [InlineData(AiProvider.OpenAI, "tls")]
+    [InlineData(AiProvider.OpenAI, "connectTimeout")]
+    [InlineData(AiProvider.Anthropic, "refused")]
+    [InlineData(AiProvider.Anthropic, "tls")]
+    public async Task A_request_that_never_left_is_unavailable_and_not_uncertain(AiProvider provider, string fault)
+    {
+        var connection = new ProviderConnectionFailure(fault);
+        using var http = new HttpClient(connection.Handler());
+        var result = await Client(provider, http).SendAsync(Request(provider), Ct);
+        Assert.Equal(AiAssistantErrors.ProviderUnavailable.Code, result.Error.Code);
+        Assert.Null(AiAssistantErrors.ProviderStatus(result.Error));
+        Assert.Equal(1, connection.Attempts);
+    }
+
+    // I6: a canceled request with a TimeoutException inside is read as the handler's connect timeout (nothing left) only because the
+    // HttpClient of every assistant client has no timeout of its own, which would throw the same shape after sending; and nothing in
+    // between retries or hedges a billable POST. Both with the service defaults, which add the standard resilience to every client.
+    [Fact]
+    public void Every_assistant_provider_client_has_the_connect_timeout_without_its_own_timeout_redirects_or_retries()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.AddServiceDefaults();
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddArtificialIntelligenceInfrastructure(builder.Configuration);
+        using var services = builder.Services.BuildServiceProvider();
+        var handlers = services.GetRequiredService<IHttpMessageHandlerFactory>();
+        var clients = services.GetRequiredService<IHttpClientFactory>();
+        foreach (var name in new[] { AiAssistantProvidersRegistration.OpenAiConversationHttpClientName, AiAssistantProvidersRegistration.AnthropicConversationHttpClientName,
+            AiAssistantProvidersRegistration.OpenAiAudioHttpClientName, AiAssistantProvidersRegistration.OpenAiDocumentHttpClientName })
+        {
+            using var client = clients.CreateClient(name);
+            Assert.Equal(Timeout.InfiniteTimeSpan, client.Timeout);
+            HttpMessageHandler handler = handlers.CreateHandler(name);
+            var between = new List<DelegatingHandler>();
+            while (handler is DelegatingHandler delegating)
+            {
+                between.Add(delegating);
+                handler = delegating.InnerHandler!;
+            }
+            Assert.DoesNotContain(between, delegating => delegating is ResilienceHandler);
+            var sockets = Assert.IsType<SocketsHttpHandler>(handler);
+            Assert.Equal((TimeSpan.FromSeconds(10), false), (sockets.ConnectTimeout, sockets.AllowAutoRedirect));
+        }
     }
 
     [Theory]

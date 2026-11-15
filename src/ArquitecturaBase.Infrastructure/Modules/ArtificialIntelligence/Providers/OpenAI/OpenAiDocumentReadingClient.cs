@@ -81,9 +81,7 @@ internal sealed class OpenAiDocumentReadingClient(HttpClient client, AiAssistant
             // The engine must have committed BeginProviderStep before entering this call.
             using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, linked.Token);
             // Do not parse or log provider error bodies. No retry after a possible POST.
-            if ((int)response.StatusCode is >= 400 and < 500) return AiAssistantErrors.ProviderRejected;
-            if (!response.IsSuccessStatusCode) return (int)response.StatusCode >= 500
-                ? AiAssistantErrors.ProviderUncertain : AiAssistantErrors.ProviderRejected;
+            if (!response.IsSuccessStatusCode) return LlmProviderFailures.FromStatus(response.StatusCode);
             var responseType = response.Content.Headers.ContentType?.MediaType;
             if (responseType is null || !(responseType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
                 || responseType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)))
@@ -104,9 +102,8 @@ internal sealed class OpenAiDocumentReadingClient(HttpClient client, AiAssistant
                 return AiAssistantErrors.InvalidOutput;
             return Parse(document.RootElement);
         }
-        catch (OperationCanceledException) { return AiAssistantErrors.ProviderUncertain; }
-        catch (HttpRequestException) { return AiAssistantErrors.ProviderUncertain; }
-        catch (IOException) { return AiAssistantErrors.ProviderUncertain; }
+        catch (Exception exception) when (exception is OperationCanceledException or HttpRequestException or IOException)
+        { return LlmProviderFailures.FromTransport(exception, linked.Token); }
         catch (JsonException) { return AiAssistantErrors.InvalidOutput; }
     }
 

@@ -142,11 +142,14 @@
   <data name="Ai.Assistant.ProposalTooLarge" xml:space="preserve"><value>La última propuesta es demasiado grande para seguir ajustándola en esta conversación. Empezá una conversación nueva y pedila con los cambios.</value></data>
   <data name="Ai.Assistant.InvalidOutput" xml:space="preserve"><value>La respuesta no pudo validarse y no se publicó. Podés iniciar otra consulta.</value></data>
   <data name="Ai.Assistant.ToolRejected" xml:space="preserve"><value>La fuente solicitada no está autorizada o sus argumentos no son válidos.</value></data>
-  <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>El proveedor no está disponible. Revisá la operación antes de consultar de nuevo.</value></data>
+  <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>No pudimos conectarnos con el proveedor y no se envió nada. Probá de nuevo; si sigue, revisá la red del servidor hacia el proveedor.</value></data>
   <data name="Ai.Assistant.ProviderUncertain" xml:space="preserve"><value>La consulta pudo enviarse al proveedor, pero no hay un resultado confirmado. Revisá el posible consumo antes de iniciar otra.</value></data>
   <data name="Ai.Assistant.ProviderRejected" xml:space="preserve"><value>El proveedor rechazó la consulta. Revisá la conexión y el modelo configurados.</value></data>
   <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>El proveedor devolvió una respuesta incompleta. No se publicó ni se amplió el límite automáticamente.</value></data>
   <data name="Ai.Assistant.ExecutionFailed" xml:space="preserve"><value>La consulta no se completó por una falla del sistema, no del proveedor. Podés iniciar otra.</value></data>
+  <data name="Ai.Assistant.ProviderCredentialRejected" xml:space="preserve"><value>El proveedor rechazó la clave de la conexión. Revisala o cambiala con «Reemplazar clave» en Inteligencia artificial › Conexión con el proveedor.</value></data>
+  <data name="Ai.Assistant.ProviderLimited" xml:space="preserve"><value>La cuenta del proveedor llegó a su cupo o a su límite de uso. Revisá el crédito y los límites de la cuenta antes de consultar de nuevo.</value></data>
+  <data name="Ai.Assistant.ProviderModelRejected" xml:space="preserve"><value>El proveedor rechazó el modelo configurado para esta tarea, o el archivo o el pedido. Revisá ese modelo; si mandaste un archivo, probá con otro.</value></data>
   <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>Alcanzaste la cuota de consultas aceptadas. Esperá el plazo indicado.</value></data>
   <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>El asistente está ocupado. Esperá el plazo indicado antes de volver a enviar.</value></data>
   <data name="Ai.Assistant.AttachmentForbidden" xml:space="preserve"><value>Para adjuntar planillas, pedile a quien administra la instalación el permiso de administrar catálogos.</value></data>

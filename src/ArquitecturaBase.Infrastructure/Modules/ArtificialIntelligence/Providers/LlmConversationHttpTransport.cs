@@ -35,10 +35,8 @@ internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, Tim
             ContextBytes.Record(requestBody.Length);
             if (requestBody.Length > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;
             using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, linked.Token);
-            // These statuses confirm rejection. A server failure cannot establish that generation never started.
-            if ((int)response.StatusCode is >= 400 and < 500) return AiAssistantErrors.ProviderRejected;
-            if (!response.IsSuccessStatusCode) return (int)response.StatusCode >= 500
-                ? AiAssistantErrors.ProviderUncertain : AiAssistantErrors.ProviderRejected;
+            // A 4xx confirms rejection; a server failure cannot establish that generation never started (I6: by status, never the body).
+            if (!response.IsSuccessStatusCode) return LlmProviderFailures.FromStatus(response.StatusCode);
             var mediaType = response.Content.Headers.ContentType?.MediaType;
             if (mediaType is null || !(mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
                 || mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase))) return AiAssistantErrors.InvalidOutput;
@@ -59,9 +57,8 @@ internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, Tim
                 return AiAssistantErrors.InvalidOutput;
             return parse(document.RootElement);
         }
-        catch (OperationCanceledException) { return AiAssistantErrors.ProviderUncertain; }
-        catch (HttpRequestException) { return AiAssistantErrors.ProviderUncertain; }
-        catch (IOException) { return AiAssistantErrors.ProviderUncertain; }
+        catch (Exception exception) when (exception is OperationCanceledException or HttpRequestException or IOException)
+        { return LlmProviderFailures.FromTransport(exception, linked.Token); }
         catch (JsonException) { return AiAssistantErrors.InvalidOutput; }
     }
 
