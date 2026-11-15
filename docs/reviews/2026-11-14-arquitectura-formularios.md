@@ -321,6 +321,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   activar y el puerto existente ya permite retirar sus Flows, `FormUnusedVersionReader.cs:23-33`); y que el front siga
   consultando, con espera larga, mientras diga «sin confirmar». Mediano.
 - **Arreglado el 2026-11-15** en `fbec87c5` (backend) y `bb99803a` (front).
+- Corregido tras la revisión adversarial el 2026-11-15 en `baa6245e`: otra persona que publica recibe el id de la operación abierta desde el detalle del formulario, ve «Failed» después de descartar y el backend sólo descarta una operación sin confirmar.
 
 #### F4. Quien corrige una respuesta, o la pasa al formulario desde un documento, puede aprobarla
 
@@ -385,6 +386,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   un flujo de objetos hechos de ceros comprimidos, leído midiendo la memoria, también dentro de un contenedor con 1 GB; y un
   corpus de PDF malformados con un vigilante de 20 segundos.
 - **Arreglado el 2026-11-15** en `7a30c616` (tope de 64 MiB al inflar, plazo de 20 s, intentos del worker, Inicio por los bytes y log de falta de memoria). Quedan sin probar el contenedor de 1 GB y el corpus de PDF malformados.
+- Corregido tras la revisión adversarial el 2026-11-15 en `97a6dbe2` (un PDF con `/Encrypt` es protegido sin abrirlo, la cadena ASCII85 o hexadecimal con Flate se mide en lugar de rechazarse, tope de dos hilos abandonados) y `ca730ae4` (la toma del worker de WhatsApp devuelve su cuenta si el host la corta). Queda anotado: el escáner no ve variantes de sintaxis raras de `stream` o de `/Filter` por referencia (F6-4, menor), y los temas sin revisar siguen apareciendo en los grupos de la bandeja de documentos (F7-1: `FormReceivedDocumentReader.GroupsAsync` necesita `&& topic.ReviewedAtUtc != null`).
 
 #### F7. Los temas de «Formularios que faltan» entran en el asistente de todas las personas, aunque nombren a un tercero
 
