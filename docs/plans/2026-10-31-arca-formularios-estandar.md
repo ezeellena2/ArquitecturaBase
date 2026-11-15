@@ -305,7 +305,7 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
   - después de un corte largo, la espera tras un 10016 sigue la espera acumulada, hasta una hora, con la secuencia frenada;
   - un servicio con fecha futura en la misma secuencia que productos puede dejar una venta sin fecha posible hasta que pase el
     tiempo.
-- **Etapas 2 a 8:** no empezaron.
+- **Etapas 2 a 8:** van al pie de cada etapa.
 
 ### Etapa 2: lo trivial y la documentación
 
@@ -321,7 +321,7 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
    y otro, y con una revisión abierta la cola sigue pausando. Chico.
 7. **H23 y H32. La configuración se valida y se documenta.**
    - Al arrancar se validan las reservas contra los plazos, de modo que pasen los valores de fábrica: la del ticket, mayor que el
-     plazo de un pedido (`Arca:RequestTimeout`) con margen; la de la cola, que cubra una vuelta que concilia (hasta tres pedidos
+     plazo de un pedido (`Arca:RequestTimeout`) con margen; la de la cola, que cubra una vuelta que concilia (hasta cuatro pedidos
      a wsfe y la espera del ticket); y la del robot, al menos cuatro `StepTimeout` (los de fábrica, 3 minutos y 45 s, quedan
      justo), sólo con el robot prendido. Si un valor de fábrica no cubre su cuenta, se sube.
    - [Configurar ARCA](../guides/configurar-arca.md) escribe esas cuentas; el paso a paso de la rotación del anillo, con la
@@ -343,6 +343,13 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
      el ADR 0028 cree que ya dice. Corrige también «siete tablas», que son ocho.
 
    Chico.
+
+**Hecha el 2026-11-15:** las seis tareas en ba9dba84.
+- **Cambios:** la reserva de la cola pasa a 3 minutos para cubrir una vuelta que concilia. La revisión adversarial no encontró
+  fallas serias; corrigió que una CUIT vacía o inválida quedara con «Reintentar» y lo que decían las guías.
+- **Pruebas:** el build sin advertencias; Domain, Application y ArchitectureTests enteros; la integración de las opciones, la
+  cola, el emisor, el cliente y el PDF fiscal (63 tests).
+- **Queda para H20:** la reserva del robot cubre cuatro acciones, no un paso largo; eso lo resuelve el latido.
 
 ### Etapa 3: quién pone a emitir y qué se emite
 
