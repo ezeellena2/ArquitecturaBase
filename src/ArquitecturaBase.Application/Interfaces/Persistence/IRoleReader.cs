@@ -18,11 +18,5 @@ public interface IRoleReader
 
     Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Los roles de una cuenta, con sus permisos, en una sola consulta. La regla de no dar lo que no se tiene (N1) compara
-    /// por id lo que una cuenta tenía con lo que le quedó: un rol renombrado entre dos lecturas no cambia de permisos.
-    /// </summary>
-    Task<IReadOnlyCollection<RoleRow>> ListRolesForUserAsync(Guid userId, CancellationToken cancellationToken);
-
     Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken);
 }

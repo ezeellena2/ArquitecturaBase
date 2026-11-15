@@ -207,9 +207,6 @@ public sealed class RoleServiceTests
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyCollection<RoleRow>> ListRolesForUserAsync(Guid userId, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
         public Guid? FoundId { get; private set; }
 
         public Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken)
@@ -233,11 +230,6 @@ public sealed class RoleServiceTests
                 new UpdateRoleRequestValidator(new Application.Channels.PermissionCatalog([])), new ListRolesRequestValidator()),
             new FakeUnitOfWork(),
             new Application.Channels.PermissionCatalog([]),
-            new PermissionDelegationGuard(
-                new TestDoubles.Auth.FakeCurrentUser(),
-                reader,
-                new Application.Channels.PermissionCatalog([]),
-                new TestDoubles.Auth.FakeInitialAdmin()),
             logger);
 
     private sealed class UnusedRoleRepository : IRoleRepository

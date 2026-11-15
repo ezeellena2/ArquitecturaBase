@@ -5,8 +5,6 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
-using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Roles;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
@@ -159,78 +157,6 @@ public sealed class RoleServiceWriteTests
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
-    [Fact]
-    public async Task Create_rejects_permissions_the_actor_does_not_have()
-    {
-        var fixture = new Fixture();
-        fixture.ActAs(RoleManagersRole());
-
-        var result = await fixture.Service.CreateAsync(
-            new CreateRoleRequest("Mesa", null, [Permissions.Roles.Read, Permissions.Users.Manage]), Ct);
-
-        Assert.Equal(RoleErrors.PermissionsNotHeld, result.Error);
-        Assert.Empty(fixture.Events);
-        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
-    }
-
-    [Fact]
-    public async Task Update_rejects_giving_or_taking_away_permissions_the_actor_does_not_have()
-    {
-        var fixture = new Fixture();
-        var own = fixture.ActAs(RoleManagersRole());
-
-        // Darse a sí mismo un permiso que no tiene, en su propio rol.
-        fixture.Reader.Role = own;
-        var given = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(own.Id, own.Name, null, [.. own.Permissions, Permissions.Users.Manage]), Ct);
-
-        // Quitarle a otro rol un permiso que no tiene.
-        fixture.Reader.Role = NewRole("Ventas", false, 0, Permissions.Users.Read);
-        var taken = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, "Ventas", null, []), Ct);
-
-        Assert.Equal(RoleErrors.PermissionsNotHeld, given.Error);
-        Assert.Equal(RoleErrors.PermissionsNotHeld, taken.Error);
-        Assert.Empty(fixture.Events);
-    }
-
-    [Fact]
-    public async Task Update_lets_the_actor_rename_a_role_with_permissions_they_do_not_have()
-    {
-        // Sólo cuenta lo que se da o se quita: el nombre y la descripción no dan nada.
-        var fixture = new Fixture();
-        fixture.ActAs(RoleManagersRole());
-        fixture.Reader.Role = NewRole("Ventas", false, 0, Permissions.Users.Read);
-
-        var result = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, "Comercial", "Otra", [Permissions.Users.Read]), Ct);
-
-        Assert.True(result.IsSuccess);
-    }
-
-    [Fact]
-    public async Task Only_an_administrator_changes_the_permissions_of_user()
-    {
-        var fixture = new Fixture();
-        fixture.ActAs(RoleManagersRole());
-        fixture.Reader.Role = NewRole(SystemRoles.User, isSystem: true);
-
-        var byRoleManager = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, null, [Permissions.Roles.Read]), Ct);
-        var descriptionOnly = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, "Toda cuenta nueva", []), Ct);
-        fixture.ActAsAdmin();
-        var byAdmin = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, null, [Permissions.Roles.Read]), Ct);
-
-        Assert.Equal(RoleErrors.UserRoleAdminOnly, byRoleManager.Error);
-        Assert.True(descriptionOnly.IsSuccess);
-        Assert.True(byAdmin.IsSuccess);
-    }
-
-    private static RoleRow RoleManagersRole() =>
-        NewRole("Roles", false, 1, Permissions.Roles.Read, Permissions.Roles.Manage);
-
     private static RoleRow NewRole(
         string name, bool isSystem = false, int userCount = 0, params string[] permissions) =>
         new(Guid.NewGuid(), name, null, isSystem, userCount, permissions);
@@ -239,10 +165,9 @@ public sealed class RoleServiceWriteTests
     {
         public Fixture()
         {
-            Reader = new FakeReader(Accounts);
+            Reader = new FakeReader();
             Repository = new FakeRepository(this);
             UnitOfWork = new FakeUnitOfWork(Events);
-            ActAsAdmin();
 
             // Como RoleRepository: escribir fuera del límite lanza, aunque los eventos y el commit queden en el mismo orden.
             Repository.InTransaction = () => UnitOfWork.InTransaction;
@@ -253,27 +178,8 @@ public sealed class RoleServiceWriteTests
                 RequestValidators.For(new CreateRoleRequestValidator(new Application.Channels.PermissionCatalog([])),
                     new UpdateRoleRequestValidator(new Application.Channels.PermissionCatalog([]))),
                 UnitOfWork,
-                Catalog,
-                new PermissionDelegationGuard(CurrentUser, Reader, Catalog, new FakeInitialAdmin()),
+                new Application.Channels.PermissionCatalog([]),
                 Logger);
-        }
-
-        public Application.Channels.PermissionCatalog Catalog { get; } = new([]);
-
-        public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
-
-        /// <summary>Los roles de quien pide; no es una cuenta de ningún listado.</summary>
-        public InMemoryUserAccounts Accounts { get; } = new();
-
-        /// <summary>Quien pide pasa a tener sólo el rol Admin, con todo el catálogo.</summary>
-        public void ActAsAdmin() => Accounts.SetRoles(CurrentUser.UserId!.Value, SystemRoles.Admin);
-
-        /// <summary>Quien pide pasa a tener sólo <paramref name="role"/>, que se suma a los que existen.</summary>
-        public RoleRow ActAs(RoleRow role)
-        {
-            Reader.Others.Add(role);
-            Accounts.SetRoles(CurrentUser.UserId!.Value, role.Name);
-            return role;
         }
 
         public FakeUnitOfWork UnitOfWork { get; }
@@ -288,23 +194,11 @@ public sealed class RoleServiceWriteTests
 
         public List<string> Events { get; } = [];
 
-        public sealed class FakeReader(InMemoryUserAccounts accounts) : IRoleReader
+        public sealed class FakeReader : IRoleReader
         {
-            public async Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken) =>
-                (await ListAllRolesAsync(cancellationToken)).FirstOrDefault(role => role.Name == name);
-
-            /// <summary>Los roles de quien pide, por los nombres que guarda el doble de cuentas.</summary>
-            public async Task<IReadOnlyCollection<RoleRow>> ListRolesForUserAsync(Guid userId, CancellationToken cancellationToken)
-            {
-                var names = await accounts.ListRoleNamesForUserAsync(userId, cancellationToken);
-
-                return [.. (await ListAllRolesAsync(cancellationToken)).Where(role => names.Contains(role.Name, StringComparer.Ordinal))];
-            }
+            public Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken) => Task.FromResult(Role);
 
             public RoleRow? Role { get; set; }
-
-            /// <summary>Otros roles que existen, además de Admin (con todo el catálogo) y de <see cref="Role"/>.</summary>
-            public List<RoleRow> Others { get; } = [];
 
             public bool NameExists { get; set; }
 
@@ -325,15 +219,8 @@ public sealed class RoleServiceWriteTests
             public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
                 throw new NotSupportedException();
 
-            public Task<IReadOnlyCollection<RoleRow>> ListAllRolesAsync(CancellationToken cancellationToken)
-            {
-                RoleRow admin = new(
-                    Guid.NewGuid(), SystemRoles.Admin, null, true, 1, [.. new Application.Channels.PermissionCatalog([]).All]);
-                IEnumerable<RoleRow> rows = [admin, .. Others, .. Role is null ? [] : new[] { Role }];
-
-                return Task.FromResult<IReadOnlyCollection<RoleRow>>(
-                    [.. rows.DistinctBy(role => role.Name, StringComparer.Ordinal)]);
-            }
+            public Task<IReadOnlyCollection<RoleRow>> ListAllRolesAsync(CancellationToken cancellationToken) =>
+                throw new NotSupportedException();
 
             public Task<PagedResult<RoleRow>> ListRolesAsync(ListRolesRequest request, CancellationToken cancellationToken) =>
                 throw new NotSupportedException();

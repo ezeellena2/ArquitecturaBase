@@ -180,6 +180,26 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         Assert.Equal(flow.FlowSessionId, Assert.Single(fixture.Rejections.Sessions.Rows).Id);
     }
 
+    // F1: a number that reads two ways in the language of the send («1.500» in es) is an error of its question: the person gets the reason
+    // and the form again, with what they sent and the mark, and nothing is captured.
+    [Fact]
+    public async Task An_ambiguous_number_queues_the_form_again_with_the_reason_without_capturing()
+    {
+        var fixture = new Fixture();
+        var answers = fixture.ValidAnswers("123");
+        answers[fixture.Mapping[2].Key] = "1.500";
+        var rejected = fixture.AddReply("wamid.ambiguous", answers);
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(0, fixture.Sink.CaptureCount);
+        Assert.Equal((WhatsAppFlowCaptureState.Rejected, "WhatsApp.Flow.NumberAmbiguous"), (rejected.FlowCaptureState, rejected.FlowCaptureErrorCode));
+        var flow = Assert.Single(fixture.Rejections.Conversations.Outgoing);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Flow, rejected.Id), (flow.Kind, flow.RequestId));
+        Assert.StartsWith("Ese número se puede leer de dos maneras.", flow.Body);
+        Assert.Equal(flow.FlowSessionId, Assert.Single(fixture.Rejections.Sessions.Rows).Id);
+    }
+
     // Review of task 9c: a reply with files is found again by its receipt (a retry after its own unit of work failed, once BusinessForms
     // kept the rejection), which says the fixed validation again, so the retry still queues the form again, once.
     [Fact]

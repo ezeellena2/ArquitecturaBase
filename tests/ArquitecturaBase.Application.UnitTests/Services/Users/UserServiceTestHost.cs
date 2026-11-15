@@ -4,14 +4,12 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Auth;
-using ArquitecturaBase.Application.Services.Roles;
 using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Channels;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Users;
-using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
@@ -22,9 +20,7 @@ namespace ArquitecturaBase.Application.UnitTests.Services.Users;
 /// Los tres servicios de usuarios armados como en la Api, sin ningún módulo: invitan solo por correo (el canal real del
 /// núcleo), el canal telefónico no pone regla de país y el número tiene un participante que anota en
 /// <see cref="PhoneEvents"/>, en la misma lista que el lock de los enlaces de la cuenta. Un módulo suma sus canales y
-/// participantes reales con el constructor protegido (con WhatsApp, WhatsAppUserServiceTestHost). Quien pide
-/// (<see cref="CurrentUser"/>) tiene el rol Admin, con todos los permisos del núcleo, sin ser una cuenta de
-/// <see cref="Accounts"/>: no cambia los listados ni el conteo de administradores.
+/// participantes reales con el constructor protegido (con WhatsApp, WhatsAppUserServiceTestHost).
 /// </summary>
 internal class UserServiceTestHost
 {
@@ -48,7 +44,6 @@ internal class UserServiceTestHost
     public RecordingPhoneLinkParticipant Participant { get; }
 
     public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
-    public FakeInitialAdmin InitialAdmin { get; } = new();
     public FakeUnitOfWork UnitOfWork { get; }
 
     /// <summary>Cuántos correos había en la cola cuando se confirmó la unidad de trabajo.</summary>
@@ -95,8 +90,7 @@ internal class UserServiceTestHost
         Destinations.InTransaction = () => UnitOfWork.InTransaction;
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
         Links.InTransaction = () => UnitOfWork.InTransaction;
-        RoleReader = new FakeRoleReader(Accounts);
-        Accounts.SetRoles(CurrentUser.UserId!.Value, SystemRoles.Admin);
+        RoleReader = new FakeRoleReader();
         var phoneNumbers = new FakePhoneNumberParser();
         var phoneLinker = new PhoneNumberLinker(
             Accounts,
@@ -105,13 +99,7 @@ internal class UserServiceTestHost
             [Participant, .. moduleParticipants],
             Links,
             Clock);
-        var guard = new UserGuard(
-            CurrentUser,
-            Accounts,
-            Accounts,
-            RoleReader,
-            new PermissionDelegationGuard(CurrentUser, RoleReader, RoleReader.Catalog, InitialAdmin),
-            InitialAdmin);
+        var guard = new UserGuard(CurrentUser, Accounts, Accounts, RoleReader);
         IInvitationChannel[] invitationChannels =
         [
             new EmailInvitationChannel(
@@ -123,7 +111,7 @@ internal class UserServiceTestHost
         ];
 
         var invitationIssuer = new UserInvitationIssuer(Invitations, invitationChannels, CurrentUser, Clock);
-        var contacts = new UserContactLinker(Accounts, Accounts, Destinations, phoneLinker, phoneNumbers, phoneChannel, new AccountCreationPolicy(new FakeSystemSettingsReader(), InitialAdmin));
+        var contacts = new UserContactLinker(Accounts, Accounts, Destinations, phoneLinker, phoneNumbers, phoneChannel, new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin()));
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
 
         Queries = new UserQueryService(
@@ -152,71 +140,20 @@ internal class UserServiceTestHost
     }
 
     /// <summary>
-    /// Los roles que existen, para que el alta y la edición validen los nombres (UserGuard.EnsureRolesExistAsync), y sus
-    /// permisos, para la regla de no dar lo que no se tiene (PermissionDelegationGuard): Admin tiene todo el catálogo del
-    /// núcleo; los demás, lo que diga <see cref="Permissions"/>. Cada nombre tiene un id fijo, y los roles de una cuenta
-    /// salen de los nombres que guarda <paramref name="accounts"/>. Las demás lecturas de roles no se usan acá.
+    /// Los roles que existen, para que el alta y la edición validen los nombres (UserGuard.EnsureRolesExistAsync): las
+    /// demás lecturas de roles no se usan acá.
     /// </summary>
-    internal sealed class FakeRoleReader(InMemoryUserAccounts accounts) : IRoleReader
+    internal sealed class FakeRoleReader : IRoleReader
     {
-        private readonly Dictionary<string, Guid> _ids = new(StringComparer.Ordinal);
-
-        public Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken) =>
-            Task.FromResult(RoleNames.Contains(name, StringComparer.Ordinal) ? Row(name) : null);
-
-        public Application.Channels.PermissionCatalog Catalog { get; } = new([]);
+        public Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public List<string> RoleNames { get; } = ["Admin", "User"];
-
-        /// <summary>Los permisos de cada rol que no es Admin; sin entrada, ninguno.</summary>
-        public Dictionary<string, string[]> Permissions { get; } = new(StringComparer.Ordinal);
 
         public Task<IReadOnlyCollection<string>> ListRoleNamesAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyCollection<string>>(RoleNames);
 
         public Task<IReadOnlyCollection<RoleRow>> ListAllRolesAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyCollection<RoleRow>>([.. RoleNames.Select(Row)]);
-
-        public async Task<IReadOnlyCollection<RoleRow>> ListRolesForUserAsync(Guid userId, CancellationToken cancellationToken) =>
-            [
-                .. (await accounts.ListRoleNamesForUserAsync(userId, cancellationToken))
-                    .Where(name => RoleNames.Contains(name, StringComparer.Ordinal))
-                    .Select(Row),
-            ];
-
-        /// <summary>
-        /// Renombra <paramref name="from"/> a <paramref name="to"/>, como en la base: el nombre nuevo queda con el id y los
-        /// permisos del rol. Las cuentas del doble guardan nombres, así que una a la que se le asigne <paramref name="to"/>
-        /// recibe este rol, como con SetRolesAsync, que busca cada rol por nombre.
-        /// </summary>
-        public void Rename(string from, string to)
-        {
-            _ids[to] = IdOf(from);
-            Permissions[to] = Permissions.GetValueOrDefault(from) ?? [];
-            _ids.Remove(from);
-            Permissions.Remove(from);
-            RoleNames[RoleNames.IndexOf(from)] = to;
-        }
-
-        private RoleRow Row(string name) =>
-            new(
-                IdOf(name),
-                name,
-                null,
-                SystemRoles.All.Contains(name, StringComparer.Ordinal),
-                0,
-                name == SystemRoles.Admin ? [.. Catalog.All] : Permissions.GetValueOrDefault(name) ?? []);
-
-        private Guid IdOf(string name)
-        {
-            if (!_ids.TryGetValue(name, out var id))
-            {
-                id = Guid.CreateVersion7();
-                _ids[name] = id;
-            }
-
-            return id;
-        }
+            throw new NotSupportedException("The user services only validate role names.");
 
         public Task<PagedResult<RoleRow>> ListRolesAsync(ListRolesRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException("The user services only validate role names.");

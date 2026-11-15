@@ -144,7 +144,17 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
 
         // BusinessForms owns its own UoW. If this process dies before the WhatsApp marker below, the same session
         // receipt makes the next attempt return the original record without allocating another number.
-        var decoded = DecodeAnswers(projection, answers, arrayValues, payload.Catalogs ?? []);
+        var decoded = DecodeAnswers(projection, answers, arrayValues, payload.Catalogs ?? [], session.Culture);
+        if (decoded.IsFailure && decoded.Error.Code == FlowErrors.NumberAmbiguous.Code)
+        {
+            // F1: a number that reads two ways is an error of its question, answered as a fixed validation: the reason and the form again,
+            // with what the person sent and the mark. The raw answers go back as sent; the prefill takes what it reads.
+            var fieldId = decoded.Error.Metadata?.GetValueOrDefault("fieldId") as Guid?;
+            var ambiguous = new StructuredRecordCaptureResponse("Rejected", null, null, decoded.Error.Code, fieldId) { FixedValidation = true };
+            await MarkCaptureAsync(message, session, ambiguous, payload.Catalogs, projection, cancellationToken,
+                new WhatsAppFlowRejection(ambiguous, answers, projection, payload, assistant.Value));
+            return;
+        }
         if (decoded.IsFailure)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,
@@ -345,7 +355,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
 
     private static Result<Dictionary<string, string>> DecodeAnswers(WhatsAppFlowProjection projection,
         IReadOnlyDictionary<string, string> answers, IReadOnlyDictionary<string, string> arrays,
-        IReadOnlyList<StructuredFormCatalogOffer> catalogs)
+        IReadOnlyList<StructuredFormCatalogOffer> catalogs, string culture)
     {
         if (arrays.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key
             && field.Type is "photo" or "document" or "multiChoice"))) return FlowErrors.InvalidValue;
@@ -366,12 +376,12 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 && decoded.TryGetValue(controller.Key, out var shownBy) && showWhen.Values.Contains(shownBy, StringComparer.Ordinal))) continue;
             if (field.Type == "multiChoice" && answers.ContainsKey(field.Key)) return FlowErrors.InvalidValue;
             (field.Type == "multiChoice" ? arrays : answers).TryGetValue(field.Key, out var raw);
-            var value = WhatsAppFlowValueCodec.Decode(WhatsAppFlowValueCodec.ForReply(field, catalogs), raw);
+            var value = WhatsAppFlowValueCodec.Decode(WhatsAppFlowValueCodec.ForReply(field, catalogs), raw, culture);
             if (value.IsFailure)
-                return FlowErrors.InvalidValue;
+                return value.Error == FlowErrors.NumberAmbiguous ? ArquitecturaBase.Domain.Files.FileErrors.AtField(value.Error, field.FieldId) : FlowErrors.InvalidValue;
             if (WhatsAppFlowValueCodec.Canonical(value.Value) is { } canonical) decoded[field.Key] = canonical;
         }
-        var rows = WhatsAppFlowRowsCodec.Decode(projection.Mapping, answers, catalogs);
+        var rows = WhatsAppFlowRowsCodec.Decode(projection.Mapping, answers, catalogs, culture);
         if (rows.IsFailure) return rows.Error;
         if (rows.Value is { } items) decoded[projection.Mapping.Single(field => field.Type == "group").Key] = items;
 

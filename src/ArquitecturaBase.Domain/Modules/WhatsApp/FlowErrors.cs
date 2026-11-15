@@ -26,5 +26,6 @@ public static class FlowErrors
     public static readonly Error ComponentBudgetExceeded = Error.Validation("WhatsApp.Flow.ComponentBudgetExceeded", "The screen component budget is exceeded.");
     public static readonly Error ResponseTooLarge = Error.Validation("WhatsApp.Flow.ResponseTooLarge", "The worst-case form response exceeds the WhatsApp response budget. Reduce the maximum length of one or more text fields.");
     public static readonly Error CaptureFailed = Error.Validation("WhatsApp.Flow.CaptureFailed", "The Flow reply could not be saved after bounded retries.");
+    public static readonly Error NumberAmbiguous = Error.Validation("WhatsApp.Flow.NumberAmbiguous", "The number reads two ways in the language of the send; it must be written without a thousands separator.");
     public static readonly Error InvalidValue = Error.Validation("WhatsApp.Flow.InvalidValue", "The value does not match the fixed field codec.");
 }

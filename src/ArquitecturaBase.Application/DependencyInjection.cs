@@ -58,8 +58,6 @@ public static class DependencyInjection
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
         services.AddScoped<ArquitecturaBase.Application.Interfaces.Services.IPrivateFileCleanupService, ArquitecturaBase.Application.Services.Files.PrivateFileCleanupService>();
         services.AddScoped<UserGuard>();
-        services.AddScoped<PermissionDelegationGuard>();
-        services.AddScoped<ProfileEmailLinker>();
         services.AddScoped<IDeliveryQueueService, DeliveryQueueService>();
         services.AddScoped<DestinationCodeIssuer>();
         services.AddScoped<DestinationCodeVerifier>();

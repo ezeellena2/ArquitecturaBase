@@ -32,7 +32,11 @@ internal static partial class WhatsAppFlowValueCodec
             ?? value.ChoiceId?.ToString("D")
             ?? (value.ChoiceIds is { } selected ? JsonSerializer.Serialize(selected) : null);
 
-    public static Result<WhatsAppFlowValueResponse> Decode(WhatsAppFlowFieldMapping mapping, string? value)
+    /// <summary>
+    /// Decodes one answer. A <paramref name="culture"/> reads a decimal with the region of the send's language, as the app and the catalog
+    /// import do (F1); without one the text is canonical (the sealed prefill, the shared content), with either separator as decimal.
+    /// </summary>
+    public static Result<WhatsAppFlowValueResponse> Decode(WhatsAppFlowFieldMapping mapping, string? value, string? culture = null)
     {
         if (mapping.Type == "multiChoice") return DecodeMultiple(mapping, value);
         if (string.IsNullOrEmpty(value)) return mapping.Required ? FlowErrors.InvalidValue : new WhatsAppFlowValueResponse(false);
@@ -44,7 +48,7 @@ internal static partial class WhatsAppFlowValueCodec
                 "false" => new WhatsAppFlowValueResponse(true, Boolean: false),
                 _ => FlowErrors.InvalidValue,
             },
-            "decimal" => DecodeDecimal(value),
+            "decimal" => DecodeDecimal(value, culture),
             "date" => DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
                 ? new WhatsAppFlowValueResponse(true, Date: date) : FlowErrors.InvalidValue,
             "choice" => Guid.TryParseExact(value, "D", out var choice) && mapping.Choices.Contains(choice)
@@ -79,8 +83,14 @@ internal static partial class WhatsAppFlowValueCodec
         catch (JsonException) { return FlowErrors.InvalidValue; }
     }
 
-    private static Result<WhatsAppFlowValueResponse> DecodeDecimal(string value)
+    private static Result<WhatsAppFlowValueResponse> DecodeDecimal(string value, string? culture)
     {
+        if (culture is not null)
+        {
+            var local = Localize(value, culture);
+            if (local.IsFailure) return local.Error;
+            value = local.Value;
+        }
         if (value.Length > DecimalMaxChars || DecimalGrammar().Match(value) is not { Success: true } match || match.Length != value.Length)
             return FlowErrors.InvalidValue;
         var negative = value[0] == '-';
@@ -95,6 +105,23 @@ internal static partial class WhatsAppFlowValueCodec
             unchecked((int)(uint)((coefficient >> 64) & uint.MaxValue)), negative, (byte)scale);
         return new WhatsAppFlowValueResponse(true, Decimal: number == 0 ? "0" : number.ToString("0.############################", CultureInfo.InvariantCulture));
     }
+
+    // F1, the same criterion as the catalog import (FormCatalogValuePolicy.NormalizeImport): a text grouped as the language groups its thousands
+    // loses the groups; one group of exactly three digits without decimals reads another way as is («1.500» in es is 1,5 for the canonical
+    // reading), so it is an error of its question. Anything else keeps the canonical reading, where a single separator is the decimal.
+    private static Result<string> Localize(string value, string culture)
+    {
+        var english = culture == "en";
+        var (group, decimals) = english ? (',', '.') : ('.', ',');
+        if (value.Length > DecimalMaxChars || !(english ? EnglishGrouped() : SpanishGrouped()).IsMatch(value)) return value;
+        if (value.Count(character => character == group) == 1 && !value.Contains(decimals, StringComparison.Ordinal)) return FlowErrors.NumberAmbiguous;
+        return value.Replace(group.ToString(), "", StringComparison.Ordinal).Replace(decimals, '.');
+    }
+
+    [GeneratedRegex("^-?[0-9]{1,3}(?:\\.[0-9]{3})+(?:,[0-9]+)?\\z", RegexOptions.CultureInvariant)]
+    private static partial Regex SpanishGrouped();
+    [GeneratedRegex("^-?[0-9]{1,3}(?:,[0-9]{3})+(?:\\.[0-9]+)?\\z", RegexOptions.CultureInvariant)]
+    private static partial Regex EnglishGrouped();
 
     [GeneratedRegex(DecimalPattern, RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex DecimalGrammar();

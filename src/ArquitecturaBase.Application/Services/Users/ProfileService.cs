@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Exceptions;
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
@@ -5,6 +6,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Services.Auth;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -14,8 +16,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 
 /// <summary>
 /// Los datos del perfil y su correo: editar nombre, idioma y zona horaria, pedir un código para un correo y
-/// confirmarlo. El código lo emite <see cref="DestinationCodeIssuer"/>, y el correo confirmado lo pone
-/// <see cref="ProfileEmailLinker"/>.
+/// confirmarlo. El código lo emite <see cref="DestinationCodeIssuer"/> y lo verifica <see cref="DestinationCodeVerifier"/>.
 /// No cambian la sesión actual. La lectura está en <see cref="ProfileQueryService"/>, y la desvinculación del número propio, en
 /// <see cref="ProfilePhoneService"/>.
 /// </summary>
@@ -24,7 +25,7 @@ internal sealed class ProfileService(
     IUserReader users,
     IUserRepository userRepository,
     DestinationCodeIssuer issuer,
-    ProfileEmailLinker emailLinker,
+    DestinationCodeVerifier verifier,
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
     ILogger<ProfileService> logger) : IProfileService
@@ -132,6 +133,31 @@ internal sealed class ProfileService(
             return emailResult.Error;
         }
 
-        return await emailLinker.LinkAsync(user, emailResult.Value, request.Code!, cancellationToken);
+        var email = emailResult.Value;
+        var verification = await verifier.VerifyAsync(
+            LoginCodeDestination.ForEmail(email), user.Id, request.Code!, cancellationToken);
+        if (verification.IsFailure)
+        {
+            return verification.Error;
+        }
+
+        // El índice único conserva también los correos de cuentas borradas.
+        var owner = await users.FindByEmailAsync(email, cancellationToken);
+        if (owner is null ? await users.ExistsDeletedByEmailAsync(email, cancellationToken) : owner.Id != user.Id)
+        {
+            return UserErrors.AlreadyExists;
+        }
+
+        try
+        {
+            await userRepository.SetEmailAsync(user.Id, email, confirmed: true, cancellationToken);
+        }
+        catch (UniqueConstraintViolationException)
+        {
+            // El savepoint deshizo solo ese guardado: el código sigue gastado y se confirma igual.
+            return UserErrors.AlreadyExists;
+        }
+
+        return Result.Success();
     }
 }

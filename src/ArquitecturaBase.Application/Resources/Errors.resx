@@ -52,9 +52,6 @@
   <data name="Settings.System.NotFound" xml:space="preserve"><value>No encontramos la configuración del sistema.</value></data>
   <data name="Users.User.AlreadyExists" xml:space="preserve"><value>Ya existe una cuenta con ese correo.</value></data>
   <data name="Users.User.LastLoginMethod" xml:space="preserve"><value>Es tu único medio de ingreso: para desvincularlo, primero agregá un correo.</value></data>
-  <data name="Users.User.RolesNotHeld" xml:space="preserve"><value>No podés dar ni quitar un rol con permisos que no tenés.</value></data>
-  <data name="Users.User.HasMorePermissions" xml:space="preserve"><value>Esta cuenta tiene permisos que vos no tenés: no podés cambiarle el correo o el número, desvincularle el número, desactivarla, reactivarla ni borrarla.</value></data>
-  <data name="Users.User.InitialAdmin" xml:space="preserve"><value>Es la cuenta del administrador inicial, que recupera Admin en cada arranque: para quitarle Admin o cambiarle el correo, primero hay que cambiar la clave Seed:AdminEmail de la configuración.</value></data>
   <data name="Users.Identity.Required" xml:space="preserve"><value>Cargá un correo o un número de WhatsApp.</value></data>
   <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirmá que la persona aceptó recibir mensajes por WhatsApp.</value></data>
   <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>Para invitar por WhatsApp, cargá el nombre de la persona.</value></data>
@@ -62,10 +59,8 @@
   <data name="Users.Invitation.UserInactive" xml:space="preserve"><value>La cuenta está desactivada: activala antes de invitarla.</value></data>
   <data name="Roles.Role.NotFound" xml:space="preserve"><value>No encontramos el rol.</value></data>
   <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>Ya existe un rol con ese nombre.</value></data>
-  <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>Los roles del sistema no se pueden renombrar ni borrar, y los permisos de Admin no se cambian.</value></data>
+  <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>Los roles del sistema no se pueden renombrar, borrar ni cambiarles los permisos.</value></data>
   <data name="Roles.Role.HasUsers" xml:space="preserve"><value>El rol tiene usuarios asignados. Reasignalos antes de borrarlo.</value></data>
-  <data name="Roles.Role.PermissionsNotHeld" xml:space="preserve"><value>No podés dar ni quitar permisos que no tenés.</value></data>
-  <data name="Roles.Role.UserRoleAdminOnly" xml:space="preserve"><value>Sólo un administrador puede cambiar los permisos de User, el rol que recibe toda cuenta nueva.</value></data>
   <data name="Auth.Account.NotRegistered" xml:space="preserve"><value>Todavía no tenés una cuenta. Elegí Crear cuenta para registrarte.</value></data>
   <data name="Auth.Account.AlreadyRegistered" xml:space="preserve"><value>Ya tenés una cuenta. Elegí Iniciar sesión para entrar.</value></data>
   <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>La configuración cambió. Revisá los valores actuales antes de guardar.</value></data>
@@ -287,6 +282,7 @@
   <data name="Forms.Draft.ResultTooLarge" xml:space="preserve"><value>El resultado supera el tamaño permitido para un borrador.</value></data>
   <data name="Forms.Draft.TranslationsWouldBeLost" xml:space="preserve"><value>Conservá los textos existentes o indicá explícitamente cuáles querés borrar.</value></data>
   <data name="Title.Gone" xml:space="preserve"><value>Resultado vencido</value></data>
+  <data name="WhatsApp.Flow.NumberAmbiguous" xml:space="preserve"><value>Ese número se puede leer de dos maneras. Escribilo sin separador de miles, como 1500 o 1500,5.</value></data>
   <data name="WhatsApp.Flow.InvalidValue" xml:space="preserve"><value>El valor no corresponde al tipo o a las opciones de la pregunta.</value></data>
   <data name="Forms.Publication.DraftMustBeSaved" xml:space="preserve"><value>Guardá el borrador antes de comprobar la publicación.</value></data>
   <data name="Forms.Publication.ChannelUnavailable" xml:space="preserve"><value>No hay un canal de formularios instalado.</value></data>

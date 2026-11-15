@@ -184,21 +184,6 @@ public sealed class ProfileEmailServiceTests
     }
 
     [Fact]
-    public async Task The_initial_admin_does_not_change_its_email_from_the_profile()
-    {
-        // El arranque busca la cuenta de Seed:AdminEmail por ese correo: cambiarlo hace que la pierda (N25).
-        var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser(FakeInitialAdmin.DefaultEmail);
-        var issued = fixture.Issue(Email, LoginCodePurpose.VerifyDestination, user.Id);
-
-        var result = await fixture.Service(user.Id).ConfirmEmailAsync(new ConfirmEmailRequest(Email, Code), Ct);
-
-        Assert.Equal(UserErrors.InitialAdmin, result.Error);
-        Assert.Null(issued.ConsumedAtUtc);
-        Assert.Equal(FakeInitialAdmin.DefaultEmail, (await fixture.Accounts.FindByIdAsync(user.Id, Ct))!.Email);
-    }
-
-    [Fact]
     public async Task Unique_index_race_returns_conflict_and_still_saves_the_consumed_code()
     {
         var fixture = new Fixture();
@@ -274,10 +259,8 @@ public sealed class ProfileEmailServiceTests
             var issuer = new DestinationCodeIssuer(
                 new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options, Clock), Renderer, Queue);
 
-            var emailLinker = new ProfileEmailLinker(
-                Accounts, repository ?? Accounts, new DestinationCodeVerifier(Codes, hasher, Clock), new FakeInitialAdmin());
-
-            return new ProfileService(currentUser, Accounts, repository ?? Accounts, issuer, emailLinker,
+            return new ProfileService(currentUser, Accounts, repository ?? Accounts, issuer,
+                new DestinationCodeVerifier(Codes, hasher, Clock),
                 RequestValidators.For(
                     new UpdateProfileRequestValidator(),
                     new RequestEmailCodeRequestValidator(),

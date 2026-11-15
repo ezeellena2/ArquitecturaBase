@@ -52,9 +52,6 @@
   <data name="Settings.System.NotFound" xml:space="preserve"><value>We couldn't find the system settings.</value></data>
   <data name="Users.User.AlreadyExists" xml:space="preserve"><value>An account with that email already exists.</value></data>
   <data name="Users.User.LastLoginMethod" xml:space="preserve"><value>It's your only way to sign in: add an email before unlinking it.</value></data>
-  <data name="Users.User.RolesNotHeld" xml:space="preserve"><value>You can't give or take away a role with permissions you don't have.</value></data>
-  <data name="Users.User.HasMorePermissions" xml:space="preserve"><value>This account has permissions you don't have: you can't change its email or number, unlink its number, deactivate it, reactivate it or delete it.</value></data>
-  <data name="Users.User.InitialAdmin" xml:space="preserve"><value>This is the initial administrator's account, which gets Admin back on every startup: to take Admin away from it or change its email, the Seed:AdminEmail key in the configuration has to change first.</value></data>
   <data name="Users.Identity.Required" xml:space="preserve"><value>Enter an email or a WhatsApp number.</value></data>
   <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirm that the person agreed to receive WhatsApp messages.</value></data>
   <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>To invite by WhatsApp, enter the name of the person.</value></data>
@@ -62,10 +59,8 @@
   <data name="Users.Invitation.UserInactive" xml:space="preserve"><value>The account is deactivated: activate it before inviting it.</value></data>
   <data name="Roles.Role.NotFound" xml:space="preserve"><value>We couldn't find the role.</value></data>
   <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>A role with that name already exists.</value></data>
-  <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>System roles can't be renamed or deleted, and Admin's permissions don't change.</value></data>
+  <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>System roles can't be renamed, deleted or have their permissions changed.</value></data>
   <data name="Roles.Role.HasUsers" xml:space="preserve"><value>The role still has users assigned. Reassign them before deleting it.</value></data>
-  <data name="Roles.Role.PermissionsNotHeld" xml:space="preserve"><value>You can't give or take away permissions you don't have.</value></data>
-  <data name="Roles.Role.UserRoleAdminOnly" xml:space="preserve"><value>Only an administrator can change the permissions of User, the role every new account gets.</value></data>
   <data name="Auth.Account.NotRegistered" xml:space="preserve"><value>You do not have an account yet. Choose Create account to register.</value></data>
   <data name="Auth.Account.AlreadyRegistered" xml:space="preserve"><value>You already have an account. Choose Sign in to continue.</value></data>
   <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>The settings have changed. Review the current values before saving.</value></data>
@@ -287,6 +282,7 @@
   <data name="Forms.Draft.ResultTooLarge" xml:space="preserve"><value>The result exceeds the permitted size for a draft.</value></data>
   <data name="Forms.Draft.TranslationsWouldBeLost" xml:space="preserve"><value>Preserve existing text or explicitly indicate which text you want to clear.</value></data>
   <data name="Title.Gone" xml:space="preserve"><value>Result expired</value></data>
+  <data name="WhatsApp.Flow.NumberAmbiguous" xml:space="preserve"><value>That number can be read two ways. Write it without a thousands separator, like 1500 or 1500.5.</value></data>
   <data name="WhatsApp.Flow.InvalidValue" xml:space="preserve"><value>The value does not match the question type or options.</value></data>
   <data name="Forms.Publication.DraftMustBeSaved" xml:space="preserve"><value>Save the draft before checking publication.</value></data>
   <data name="Forms.Publication.ChannelUnavailable" xml:space="preserve"><value>No structured form channel is installed.</value></data>

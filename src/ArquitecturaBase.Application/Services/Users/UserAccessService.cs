@@ -51,18 +51,18 @@ internal sealed class UserAccessService(
             await loginLinks.LockAccountAsync(userId, cancellationToken);
         }
 
-        if (await users.FindByIdAsync(userId, cancellationToken) is not { } user)
+        if (await users.FindByIdAsync(userId, cancellationToken) is null)
         {
             return UserErrors.NotFound;
         }
 
-        // Reactivar también pide tener todos sus permisos: quien sólo administra cuentas no devuelve a un administrador.
-        var allowed = isActive
-            ? await guard.EnsureCanBeActivatedAsync(user, cancellationToken)
-            : await guard.EnsureCanBeRemovedAsync(user, cancellationToken);
-        if (allowed.IsFailure)
+        if (!isActive)
         {
-            return allowed.Error;
+            var allowed = await guard.EnsureCanBeRemovedAsync(userId, cancellationToken);
+            if (allowed.IsFailure)
+            {
+                return allowed.Error;
+            }
         }
 
         await repository.SetActiveAsync(userId, isActive, cancellationToken);
@@ -81,12 +81,12 @@ internal sealed class UserAccessService(
         // Pone en fila la revocación con la emisión y el canje de enlaces de la cuenta.
         await loginLinks.LockAccountAsync(userId, cancellationToken);
 
-        if (await users.FindByIdAsync(userId, cancellationToken) is not { } user)
+        if (await users.FindByIdAsync(userId, cancellationToken) is null)
         {
             return UserErrors.NotFound;
         }
 
-        var allowed = await guard.EnsureCanBeRemovedAsync(user, cancellationToken);
+        var allowed = await guard.EnsureCanBeRemovedAsync(userId, cancellationToken);
         if (allowed.IsFailure)
         {
             return allowed.Error;

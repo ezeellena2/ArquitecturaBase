@@ -13,9 +13,6 @@ public static class UserErrors
     public const string AlreadyExistsCode = "Users.User.AlreadyExists";
     public const string LastLoginMethodCode = "Users.User.LastLoginMethod";
     public const string IdentityRequiredCode = "Users.Identity.Required";
-    public const string RolesNotHeldCode = "Users.User.RolesNotHeld";
-    public const string HasMorePermissionsCode = "Users.User.HasMorePermissions";
-    public const string InitialAdminCode = "Users.User.InitialAdmin";
 
     public static readonly Error EmailInvalid = Error.Validation(EmailInvalidCode, "The email address is not valid.");
 
@@ -57,26 +54,4 @@ public static class UserErrors
     /// </summary>
     public static readonly Error LastLoginMethod = Error.Conflict(
         LastLoginMethodCode, "The account has no other way to sign in.");
-
-    /// <summary>
-    /// Dar o quitar un rol con permisos que quien pide no tiene, en el alta o en la edición. Darle a una cuenta el correo
-    /// de <c>Seed:AdminEmail</c> cuenta como darle Admin: el arranque se lo da.
-    /// </summary>
-    public static readonly Error RolesNotHeld = Error.Forbidden(
-        RolesNotHeldCode, "You can't give or take away a role with permissions you don't have.");
-
-    /// <summary>
-    /// Cambiarle el correo o el número, desvincularle el número, desactivar, reactivar o borrar una cuenta con permisos
-    /// que quien pide no tiene.
-    /// </summary>
-    public static readonly Error HasMorePermissions = Error.Forbidden(
-        HasMorePermissionsCode, "The account has permissions you don't have.");
-
-    /// <summary>
-    /// Quitarle Admin o cambiarle el correo a la cuenta de <c>Seed:AdminEmail</c>, desde la administración o desde su
-    /// propio perfil: el arranque la busca por ese correo y le devuelve Admin, así que primero hay que cambiar esa clave
-    /// de la configuración.
-    /// </summary>
-    public static readonly Error InitialAdmin = Error.Conflict(
-        InitialAdminCode, "This is the initial administrator's account: Seed:AdminEmail has to change in the configuration first.");
 }

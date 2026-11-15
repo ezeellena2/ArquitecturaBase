@@ -42,7 +42,7 @@ internal static class WhatsAppFlowRowsCodec
     /// arrives from items after a «No» (back with the arrow, then «No») is ignored.
     /// </summary>
     public static Result<string?> Decode(IReadOnlyList<WhatsAppFlowProjectionField> mapping, IReadOnlyDictionary<string, string> answers,
-        IReadOnlyList<StructuredFormCatalogOffer> catalogs)
+        IReadOnlyList<StructuredFormCatalogOffer> catalogs, string? culture = null)
     {
         var at = Enumerable.Range(0, mapping.Count).FirstOrDefault(index => mapping[index].Type == "group", -1);
         if (at < 0) return Result.Success<string?>(null);
@@ -78,8 +78,8 @@ internal static class WhatsAppFlowRowsCodec
                     continue;
                 }
                 answers.TryGetValue(field.Key + "_r" + row.ToString(CultureInfo.InvariantCulture), out var raw);
-                var value = WhatsAppFlowValueCodec.Decode(WhatsAppFlowValueCodec.ForReply(field, catalogs), raw);
-                if (value.IsFailure) return FlowErrors.InvalidValue;
+                var value = WhatsAppFlowValueCodec.Decode(WhatsAppFlowValueCodec.ForReply(field, catalogs), raw, culture);
+                if (value.IsFailure) return value.Error == FlowErrors.NumberAmbiguous ? ArquitecturaBase.Domain.Files.FileErrors.AtField(value.Error, field.FieldId) : FlowErrors.InvalidValue;
                 if (WhatsAppFlowValueCodec.Canonical(value.Value) is { } canonical) item[field.Key] = canonical;
             }
             items.Add(item);

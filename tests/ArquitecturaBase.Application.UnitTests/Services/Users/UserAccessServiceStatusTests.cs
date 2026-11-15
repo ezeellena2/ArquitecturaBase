@@ -28,24 +28,6 @@ public sealed class UserAccessServiceStatusTests
     }
 
     [Fact]
-    public async Task Activate_rejects_an_account_with_permissions_the_actor_does_not_have()
-    {
-        // Quien sólo administra cuentas no reactiva a un administrador desactivado a propósito (N1).
-        var host = new UserServiceTestHost();
-        host.RoleReader.RoleNames.Add("Mesa");
-        host.RoleReader.Permissions["Mesa"] = [Permissions.Users.Read, Permissions.Users.Manage];
-        host.Accounts.SetRoles(host.CurrentUser.UserId!.Value, "Mesa");
-        var admin = host.Accounts.AddUser("otro-admin@example.com", isActive: false);
-        host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
-
-        var result = await host.Access.SetUserActiveAsync(admin.Id, isActive: true, Ct);
-
-        Assert.Equal(UserErrors.HasMorePermissions, result.Error);
-        Assert.False((await host.Accounts.FindByIdAsync(admin.Id, Ct))!.IsActive);
-        Assert.Equal(0, host.UnitOfWork.Commits);
-    }
-
-    [Fact]
     public async Task Activate_does_not_revoke_sessions_or_lock_links()
     {
         var host = new UserServiceTestHost();
