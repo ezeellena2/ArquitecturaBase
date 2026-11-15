@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 public sealed class FormPreviewsController(IFormPreviewService service) : ControllerBase
 {
     [HttpGet]
-    [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.MetaReadPolicy)]
     [ProducesResponseType<StructuredFormPreviewResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]

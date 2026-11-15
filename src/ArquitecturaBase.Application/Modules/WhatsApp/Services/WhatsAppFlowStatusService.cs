@@ -16,8 +16,20 @@ internal sealed class WhatsAppFlowStatusService(IWhatsAppFlowReader reader, IWha
     private static readonly TimeSpan PreviewDeadline = TimeSpan.FromSeconds(30);
 
     public Task<Result<StructuredFormPublicationResponse>> GetAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<StructuredFormPublicationResponse>>(logger, "GetWhatsAppFlowPublicationStatus",
-            () => GetCoreAsync(query, cancellationToken));
+        OperationLog.RunAsync<Result<StructuredFormPublicationResponse>>(logger, "GetWhatsAppFlowPublicationStatus", async () =>
+    {
+        // The status verifies the account and each Flow in Meta: if Meta stops answering, the consultation answers «unavailable» in 30 s (F17).
+        using var deadline = new CancellationTokenSource(PreviewDeadline, timeProvider);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        try
+        {
+            return await GetCoreAsync(query, linked.Token);
+        }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return FlowErrors.AccountUnavailable;
+        }
+    });
 
     private async Task<Result<StructuredFormPublicationResponse>> GetCoreAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken)
     {
