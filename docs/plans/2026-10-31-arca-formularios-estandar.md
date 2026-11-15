@@ -483,6 +483,15 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     de 200 por inicial. La otra salida de la revisión, escribir la CUIT por WhatsApp, pediría un mecanismo nuevo en los Flows.
     Mediano.
 
+**Hecha el 2026-11-15:** B3 en e283a29f, H13 y H14 en 66ee7c63, H25 y H31 en fc24b0d3, y B5 en 936b3b0c.
+- **Cambios:** en H14 el «no existe» se reconoce por el texto de la falla, que es lo que el padrón manda. En B5 también
+  «Completar con ARCA» escribe la inicial, no sólo el emisor, y la inicial va sin tilde salvo la Ñ, una letra propia: así
+  «Álvarez» queda con la A. Un «Clientes» creado por la versión 1 no tiene «Inicial» y frena «Agregar», como se decidió; el
+  emisor y el front ignoran la inicial en un catálogo sin ese campo, así que una copia vieja sigue andando.
+- **Pruebas:** el build sin advertencias; Domain (1164), Application (6042) y ArchitectureTests (226) enteros; la integración
+  del padrón (19), del emisor y «Completar con ARCA» (16) y de la biblioteca de formularios (6).
+- **Revisión:** propia, porque el cupo ya pasaba el 85 %.
+
 ### Etapa 7: el robot
 
 25. **H5. La clave rechazada de la plataforma no se vuelve a probar sola.** Un lado de la plataforma frenado por ingreso
