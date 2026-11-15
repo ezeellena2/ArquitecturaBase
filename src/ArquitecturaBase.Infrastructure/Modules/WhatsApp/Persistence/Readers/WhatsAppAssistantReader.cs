@@ -292,7 +292,11 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     }
     public async Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId,CancellationToken ct)
     {
-        var latest=CurrentSourceMessages(ConversationInbound().Where(message=>message.ContactId==contactId)).Select(message=>message.Id);
+        // H5: a message that is never a source (a sticker or a video, a place, a contact, a reaction or a notice of WhatsApp) is no turn,
+        // so it neither replaces the request in course nor keeps it from handing off.
+        var latest=CurrentSourceMessages(ConversationInbound().Where(message=>message.ContactId==contactId && message.Kind!=WhatsAppMessageKind.Media
+            && message.Kind!=WhatsAppMessageKind.Location && message.Kind!=WhatsAppMessageKind.Contact && message.Kind!=WhatsAppMessageKind.Other
+            && message.Kind!=WhatsAppMessageKind.System)).Select(message=>message.Id);
         return await ResolveAsync(await SourceRows(Sources().Where(message=>message.ContactId==contactId && latest.Contains(message.Id))).SingleOrDefaultAsync(ct),ct);
     }
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
@@ -306,7 +310,9 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     {
         var pending=PendingReferences(nowUtc).Select(row=>row.ContactId);
         // Closing task 9: the latest message of the conversation, as FindLatestSourceAsync takes it: a tap on a document question that was only
-        // answered is no turn, so a text sent before it (whose burst still waited when the tap was answered) is found again.
+        // answered is no turn, so a text sent before it (whose burst still waited when the tap was answered) is found again. Unlike it, a
+        // message that is never a source still ends the turn here: a text with a sticker after it is not listed as new work, so it is
+        // interpreted in the round of the sticker, or not at all while the agent's burst still waits, as before.
         var automatic=from contact in db.Set<WhatsAppContact>().AsNoTracking()
             let latest=ConversationInbound().Where(message=>message.ContactId==contact.Id).OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
             where contact.Mode==WhatsAppConversationMode.Assistant && latest!=null

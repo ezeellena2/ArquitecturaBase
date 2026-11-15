@@ -489,6 +489,24 @@ public sealed class WhatsAppAssistantReplyTests
         Assert.Empty(arranged.Host.Conversation.Outgoing);
     }
 
+    // H5 (left for the final report): a continuation the engine cannot continue (NotFound: the operation it continues is gone or of
+    // another conversation) would get the same answer in every round, so a person answers instead.
+    [Fact]
+    public async Task A_continuation_the_engine_cannot_continue_hands_off()
+    {
+        var arranged = await PendingAsync();
+        var row = Assert.Single(arranged.Host.Requests.Rows);
+        Assert.True(row.ContinueFrom(Guid.NewGuid()));
+        arranged.Host.Reader.Reference = WhatsAppAssistantSuggestionPolicy.Reference(row);
+
+        await arranged.Dispatch.CompleteAsync(arranged.Host.Context.Contact.Id, arranged.RequestId,
+            Result.Failure<AssistantOperationResponse>(Error.NotFound("Ai.Assistant.NotFound", "Fictitious operation that cannot be continued.")), Ct);
+
+        Assert.Equal((WhatsAppConversationMode.Manual, "assistantFailed"), (arranged.Host.Context.Contact.Mode, arranged.Host.Context.Contact.HandoffReasonCode));
+        Assert.True(Assert.Single(arranged.Host.Conversation.Outgoing).IsAssistantHandoff);
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, row.State);
+    }
+
     [Theory]
     [InlineData("person")]
     [InlineData("relinked")]

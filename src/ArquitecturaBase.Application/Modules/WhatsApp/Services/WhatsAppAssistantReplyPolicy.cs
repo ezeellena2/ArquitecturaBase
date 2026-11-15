@@ -106,12 +106,15 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
 
     /// <summary>
     /// H5: whether a person answers because the engine did not: it failed, could not tell or expired, or it refused the request for
-    /// good. What is pending or can be retried does not, nor a suggestion after a capture, which nobody asked. A request that stops
-    /// being valid while it waits (the 24-hour window closed) hands off when the processor finds it (<see cref="WaitedInVain"/>).
+    /// good. What is pending or can be retried does not, nor a suggestion after a capture, which nobody asked. A NotFound hands off
+    /// only in a continuation: the engine cannot continue the operation it continues (gone, or of another conversation), and every
+    /// round would get the same answer. A request that stops being valid while it waits (the 24-hour window closed) hands off when the
+    /// processor finds it (<see cref="WaitedInVain"/>).
     /// </summary>
     public static bool EngineFailed(WhatsAppAssistantReferenceRow reference, Result<AssistantOperationResponse> outcome) =>
         reference is { Kind: WhatsAppAssistantRequestKind.Automatic, SourceRecordId: null }
-        && (outcome.IsFailure && outcome.Error.Type != ErrorType.NotFound && !WhatsAppReceivedDocumentReadingPolicy.IsRetryable(outcome.Error)
+        && (outcome.IsFailure && (outcome.Error.Type != ErrorType.NotFound || reference.PreviousRequestId is not null)
+                && !WhatsAppReceivedDocumentReadingPolicy.IsRetryable(outcome.Error)
             || outcome.IsSuccess && outcome.Value.State is "failed" or "expired" or "uncertain");
 
     /// <summary>

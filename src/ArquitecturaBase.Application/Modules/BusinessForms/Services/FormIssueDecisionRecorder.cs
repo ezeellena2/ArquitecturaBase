@@ -20,7 +20,7 @@ internal sealed class FormIssueDecisionRecorder(FormRecordAmendmentGuard access,
 {
     /// <summary>After «No emitir», the prefix and number of the voided response; nothing after «Emitir» or «Volver a probar».</summary>
     public async Task<Result<(string Prefix, long Number)?>> DecideAsync(Guid? recordId, Guid runId, Guid actor, bool issue, bool retry,
-        CancellationToken cancellationToken, Guid? tapId = null)
+        CancellationToken cancellationToken, Guid? tapId = null, Guid? messageId = null)
     {
         await drafts.LockDefinitionsAsync(cancellationToken);
         if (await access.FindAsync(actor, cancellationToken) is not { } current) return FormDefinitionErrors.Forbidden;
@@ -29,6 +29,8 @@ internal sealed class FormIssueDecisionRecorder(FormRecordAmendmentGuard access,
         var record = await runs.GetRecordAsync(run.RecordId, cancellationToken) ?? throw new InvalidOperationException("The action response is missing.");
         if (record.ActorUserId != actor) return current.CanRead ? FormDefinitionErrors.Forbidden : FormRecordErrors.NotFound;
         if (tapId is { } tap && run.DecisionTapId == tap) return issue ? Result.Success<(string Prefix, long Number)?>(null) : await VoidedAsync(record, cancellationToken);
+        // H21: a button of a message the run no longer waits on (the one before «Volver a probar») decides nothing, even with the same meaning.
+        if (messageId is { } message && message != FormIssueConfirmationPolicy.CurrentMessageId(run)) return FormActionErrors.StateConflict;
         if (!record.CanBeAmended || run.State != FormActionRunState.Uncertain || run.FailureCode != FormActionErrors.AwaitingConfirmation.Code)
             return FormActionErrors.StateConflict;
         var now = timeProvider.GetUtcNow().UtcDateTime;

@@ -218,6 +218,37 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
         Assert.Equal(paired?("Armame un catálogo de clientes",WhatsAppAssistantSourceState.Ready):("",WhatsAppAssistantSourceState.Alone),(source!.Body,source.State));
     }
 
+    // H5 (left for the final report): a message that is never a source (a sticker, a place, a contact) is no turn of the conversation,
+    // so the text before it is still the latest source: the request it made goes on, and hands off when the engine does not answer.
+    [Theory]
+    [InlineData(WhatsAppMessageKind.Media)]
+    [InlineData(WhatsAppMessageKind.Location)]
+    [InlineData(WhatsAppMessageKind.Contact)]
+    public async Task A_message_that_is_never_a_source_does_not_take_the_place_of_the_text_before_it(WhatsAppMessageKind kind)
+    {
+        await using var host=await WhatsAppAssistantScenario.CreateAsync(factory,Ct);
+        var person=await host.ContactAsync(Ct,automatic:true);
+        var now=host.Clock.GetUtcNow().UtcDateTime;
+        var text=Guid.Empty;
+        await host.InTransactionAsync(async services=>
+        {
+            var db=services.GetRequiredService<ApplicationDbContext>();
+            var contact=await db.Set<WhatsAppContact>().SingleAsync(row=>row.Id==person.ContactId,Ct);
+            var message=WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Text,"Quiero un turno para mañana",null,now.AddMinutes(-2));
+            Add(db,contact,message,now);
+            text=message.Id;
+            var after=WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),kind,null,null,now.AddMinutes(-1));
+            if(kind==WhatsAppMessageKind.Location)after.RecordLocation(-32.947102m,-60.639317m);
+            if(kind==WhatsAppMessageKind.Contact)after.RecordContact("Ana Gómez",["+54 9 341 365-4813"]);
+            Add(db,contact,after,now);
+            return true;
+        },Ct);
+
+        var source=await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestSourceAsync(person.ContactId,Ct));
+
+        Assert.Equal(text,source?.Id);
+    }
+
     // H16 (ADR 0030): a prepared sheet the key ring no longer opens reads as null, while SQL still sees it there; it comes back empty, so
     // the engine takes it as a damaged one instead of failing on a null.
     [Fact]

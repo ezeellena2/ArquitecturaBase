@@ -140,12 +140,29 @@ public sealed class FormIssueConfirmationReplyTests
     public async Task A_button_of_a_message_after_trying_again_reaches_the_run_it_names()
     {
         var host = new Host("en", new StructuredIssuePreview(null, null, null, "Arca.Connection.Unavailable"));
+        await host.TryAgainAsync();
         var skip = FormIssueConfirmationPolicy.Choices(true, "en", host.Run.Id)[1].Id;
 
-        var reply = await host.Sink.ReplyAsync(FormIssueConfirmationPolicy.MessageId(host.Run.Id, 1), host.Record.ActorUserId, skip, Guid.NewGuid(), CancellationToken.None);
+        var reply = await host.Sink.ReplyAsync(FormIssueConfirmationPolicy.MessageId(host.Run.Id, host.Run.DeliveryReviewExpectedRevision), host.Record.ActorUserId, skip,
+            Guid.NewGuid(), CancellationToken.None);
 
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, "We did not issue it. VISIT-000001 was voided."), reply);
         Assert.Equal((FormRecordState.Voided, FormActionErrors.NotIssued.Code, (string?)null), (host.Record.State, host.Record.VoidReasonCode, host.Record.VoidReason));
+    }
+
+    // H21 (left for the final report): after «Volver a probar» the run waits on the new message only; a button of the one before, even
+    // with the same meaning, decides nothing.
+    [Fact]
+    public async Task A_button_of_the_question_before_trying_again_decides_nothing()
+    {
+        var host = new Host("es", new StructuredIssuePreview(null, null, null, "Arca.Connection.Unavailable"));
+        await host.TryAgainAsync();
+
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, Guid.NewGuid(), CancellationToken.None));
+
+        Assert.Equal(FormRecordState.Received, host.Record.State);
+        Assert.Equal((FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code), (host.Run.State, host.Run.FailureCode));
     }
 
     // The author decides with the permissions they have now: without «Completar formularios» (nor «Corregir y anular respuestas»
@@ -205,6 +222,20 @@ public sealed class FormIssueConfirmationReplyTests
             Sink = new(new(rules.User, rules.Permissions, accounts), decisions,
                 new(Fixture.Runs, new(rules.User, rules.Permissions, new FakeFormResponseReader()), rules.Permissions, [], []),
                 Fixture.Recipients, rules.UnitOfWork, NullLogger<FormIssueConfirmationService>.Instance);
+            Preview = preview;
+        }
+
+        private StructuredIssuePreview? Preview { get; }
+
+        // «Volver a probar» on the first message, and the run asks for the summary again, which fails again: it waits on a new message.
+        public async Task TryAgainAsync()
+        {
+            Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied),
+                await Sink.ReplyAsync(Run.Id, Record.ActorUserId, FormIssueConfirmationPolicy.Retry, Guid.NewGuid(), CancellationToken.None));
+            var now = Fixture.Clock.GetUtcNow().UtcDateTime;
+            Assert.True(Run.RecordOutcome(Run.Reserve(now, TimeSpan.FromMinutes(2)).Value.Fence, now, FormActionRunState.Uncertain,
+                FormActionErrors.AwaitingConfirmation.Code, false,
+                FormDraftPolicy.Serialize(new FormActionOutcomeResponse(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: Preview))).IsSuccess);
         }
     }
 }

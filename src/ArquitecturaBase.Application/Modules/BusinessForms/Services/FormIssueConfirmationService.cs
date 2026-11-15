@@ -38,8 +38,9 @@ internal sealed class FormIssueConfirmationService(FormRecordAmendmentGuard acce
         if (!FormIssueConfirmationPolicy.TryReadChoice(runId, choiceId, out var run, out var choice)) return Ignored;
         var replied = await OperationLog.RunAsync<Result<string?>>(logger, "ReplyFormIssue", async () =>
         {
+            // The channel hands back the id of the message the button came from: only the one the run waits on decides (H21).
             var decided = await unitOfWork.ExecuteInTransactionAsync(ct => decisions.DecideAsync(null, run, recipientUserId,
-                choice != FormIssueConfirmationPolicy.Skip, choice == FormIssueConfirmationPolicy.Retry, ct, tapId), CommitPolicy.OnSuccess, cancellationToken);
+                choice != FormIssueConfirmationPolicy.Skip, choice == FormIssueConfirmationPolicy.Retry, ct, tapId, runId), CommitPolicy.OnSuccess, cancellationToken);
             if (decided.IsFailure) return decided.Error;
             if (decided.Value is not { } voided) return Result.Success<string?>(null);
             var culture = (await recipients.FindAsync(recipientUserId, cancellationToken))?.Culture is "en" ? "en" : "es";

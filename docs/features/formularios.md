@@ -1215,7 +1215,9 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   `{"issue": true, "retry": true}` es «Volver a probar»: el run vuelve a pedir la vista previa y sigue como siempre, con el
   «¿La emito?» si sale o el mismo aviso si vuelve a fallar. «No emitir» anula igual. La decisión tiene que ser sobre lo que el
   run está mostrando: `issue` sin `retry` después de una vista previa que falló, o `retry` después de una que salió, da 409
-  (y el botón viejo del canal se ignora). El canal guarda un mensaje por id y persona: el primero va con el run como id y el
+  (y el botón viejo del canal se ignora). Del canal decide sólo el botón del mensaje que el run espera ahora: el primero hasta
+  que su autor decide seguir y después el de esa decisión (`FormIssueConfirmationPolicy.CurrentMessageId`); un botón de un
+  mensaje anterior no decide nada aunque diga lo mismo (H21, 2026-11-15). El canal guarda un mensaje por id y persona: el primero va con el run como id y el
   de cada «Volver a probar», con un id que sale del run y de la revisión de esa decisión (`FormIssueConfirmationPolicy.MessageId`),
   así un run que perdió su reserva y vuelve a preguntar repite el mismo en lugar de mandar otro; como el canal devuelve el id
   del mensaje, los botones de esos mensajes nombran el run (`retry.`, `issue.` o `skip.` y el run en Base64URL, 28 caracteres

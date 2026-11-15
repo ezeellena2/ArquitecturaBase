@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 using ArquitecturaBase.Application.Resources;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
@@ -62,6 +63,16 @@ internal static class FormIssueConfirmationPolicy
     /// </summary>
     public static Guid MessageId(Guid runId, long? decisionRevision) => decisionRevision is not { } revision ? runId
         : new(SHA256.HashData(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"issue-confirmation:{runId:N}:{revision}"))).AsSpan(0, 16));
+
+    /// <summary>
+    /// The «¿La emito?» message the run waits on now (H21): its own id until its author decides to go on, and after that the one of
+    /// that decision (the message after «Volver a probar», or after a summary that failed).
+    /// </summary>
+    public static Guid CurrentMessageId(BusinessFormActionRun run)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        return MessageId(run.Id, run.DeliveryReviewWasSent == true ? run.DeliveryReviewExpectedRevision : null);
+    }
 
     /// <summary>
     /// The id of the notice that the issuance waits for its provider («ARCA no responde»), one per run: its own, because the run

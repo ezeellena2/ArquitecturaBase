@@ -438,7 +438,12 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored), await ReplyAsync(host, skippedRun, authorId, "issue"));
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied), await ReplyAsync(host, skippedRun, authorId, "retry"));
         await worker.ProcessNextAsync(skippedRun, Ct);
-        Assert.Equal(StructuredRecordActionReplyState.Applied, (await ReplyAsync(host, skippedRun, authorId, "skip")).State);
+        // After «Volver a probar» the run waits on a message of its own (H21): a button of the first one decides nothing, and the one of
+        // that message, which names the run, voids.
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored), await ReplyAsync(host, skippedRun, authorId, "skip"));
+        var asking = FormIssueConfirmationPolicy.MessageId(skippedRun, (await RunAsync(skippedRun)).DeliveryReviewExpectedRevision);
+        Assert.Equal(StructuredRecordActionReplyState.Applied,
+            (await ReplyAsync(host, asking, authorId, FormIssueConfirmationPolicy.Choices(true, "es", skippedRun)[1].Id)).State);
         await worker.ProcessNextAsync(skippedRun, Ct);
         var voided = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().AsNoTracking().SingleAsync(item => item.Id == skippedId, Ct));
         Assert.Equal((FormRecordState.Voided, FormActionErrors.NotIssued.Code, FormActionRunState.NotApplicable), (voided.State, voided.VoidReasonCode, (await RunAsync(skippedRun)).State));
