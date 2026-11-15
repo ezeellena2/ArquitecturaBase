@@ -64,7 +64,7 @@ internal sealed class FormDocumentProposalFixture : IFormDocumentProposalReposit
             new FormDocumentRowPolicy(Inbox, new FormDocumentProposalPolicy(Inbox, Inbox, []))), Inbox.Recorder(), UnitOfWork, Inbox.Clock);
     // The owner of creating from a proposal is the real one, over the given draft save and authoring reads; DOC6 never looks a proposal up.
     public FormDocumentDraftService Drafts(IFormDraftService drafts, IFormAuthoringReader authoring) =>
-        new(Policy(), this, Engine, new FormDraftProposalService(new StubAssistantProposalLookup(), authoring, drafts, new FormDraftAccessGuard(Current, Permissions)),
+        new(Policy(), this, Engine, new FormDraftProposalService(new StubAssistantProposalLookup(), authoring, drafts, new FormDraftAccessGuard(Current, Permissions, Users)),
             new FormDocumentProposalRecorder(this));
 
     /// <summary>

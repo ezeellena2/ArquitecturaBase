@@ -9,6 +9,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.DependencyInjection;
@@ -432,7 +433,7 @@ public sealed class BusinessFormAttachmentReaderTests
     {
         permissions ??= new FakePermissionService();
         current ??= new FakeCurrentUser();
-        return new BusinessFormAttachmentReader(new FormCatalogAccessGuard(current, permissions), new FormDraftAccessGuard(current, permissions),
+        return new BusinessFormAttachmentReader(new FormCatalogAccessGuard(current, permissions), new FormDraftAccessGuard(current, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }),
             spreadsheets, documents);
     }
 

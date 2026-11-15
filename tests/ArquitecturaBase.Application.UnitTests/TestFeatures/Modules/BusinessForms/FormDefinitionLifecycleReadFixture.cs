@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.Extensions.Time.Testing;
 
@@ -33,7 +34,7 @@ internal sealed class FormDefinitionLifecycleReadFixture : IFormDefinitionReader
     {
         Permissions.Permissions[User.UserId!.Value] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage,
             BusinessFormsPermissions.Publish, BusinessFormsPermissions.RecordsRead];
-        Policy = new(this, this, new(User, Permissions), this, Clock);
+        Policy = new(this, this, new(User, Permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), this, Clock);
     }
     public Task<FormDefinitionStoredRow?> FindAsync(Guid id, CancellationToken ct) => Task.FromResult<FormDefinitionStoredRow?>(id == Id
         ? new(Id, "{\"es\":\"Visita\"}", "VIS", true, 4, "es", "{\"es\":\"Enviar\"}", "{\"format\":1,\"fields\":[]}",

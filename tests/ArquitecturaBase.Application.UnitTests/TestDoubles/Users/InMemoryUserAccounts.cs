@@ -114,8 +114,12 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         });
     }
 
+    /// <summary>Una cuenta que no se agregó se lee como activa: para quien sólo necesita que la persona exista.</summary>
+    public bool UnknownAccountsAreActive { get; init; }
+
     public Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
-        Task.FromResult(_users.SingleOrDefault(user => user.Id == userId));
+        Task.FromResult(_users.SingleOrDefault(user => user.Id == userId)
+            ?? (UnknownAccountsAreActive ? new UserAccount(userId, null, false, null, false, null, "es", DefaultTimeZoneId, true) : null));
 
     public Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken) =>
         Task.FromResult(_users.SingleOrDefault(user => user.Email == email.Value));

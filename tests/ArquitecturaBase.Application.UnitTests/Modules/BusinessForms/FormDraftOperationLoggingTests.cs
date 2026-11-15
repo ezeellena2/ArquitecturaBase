@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Testing;
@@ -53,7 +54,7 @@ public sealed class FormDraftOperationLoggingTests
 
     private static FormDraftService Service(FakeLogger<FormDraftService> logger, IRequestValidator validator,
         FakeCurrentUser user, IPermissionService permissions, IFormDefinitionReader? reader = null) => new(
-        null!, new FormDefinitionReadPolicy(reader!, null!, new FormDraftAccessGuard(user, permissions), null!, TimeProvider.System), null!, validator, new FormDraftAccessGuard(user, permissions), null!, TimeProvider.System, logger);
+        null!, new FormDefinitionReadPolicy(reader!, null!, new FormDraftAccessGuard(user, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), null!, TimeProvider.System), null!, validator, new FormDraftAccessGuard(user, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), null!, TimeProvider.System, logger);
 
     private sealed class ThrowingValidator : IRequestValidator
     {

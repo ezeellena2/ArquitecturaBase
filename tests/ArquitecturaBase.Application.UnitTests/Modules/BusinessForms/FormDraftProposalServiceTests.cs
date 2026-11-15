@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -256,7 +257,7 @@ public sealed class FormDraftProposalServiceTests
             Lookup.Response = new AssistantProposalLookupResponse(Authoring.Context,
                 new(Authoring.TurnId, ProposalId, new(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, 1), Proposal),
                 new("fictitious-profile", 3, "home-system", 2, new DateTime(2026, 11, 4, 15, 0, 0, DateTimeKind.Utc), "home"), true);
-            Service = new(Lookup, Authoring.Reader, Drafts, new FormDraftAccessGuard(Current, Authoring.Permissions));
+            Service = new(Lookup, Authoring.Reader, Drafts, new FormDraftAccessGuard(Current, Authoring.Permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }));
         }
 
         public CreateFromAssistantProposalRequest Request => new(Lookup.RequestId, ProposalId);

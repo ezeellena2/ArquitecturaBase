@@ -30,10 +30,12 @@ internal sealed partial class FormApprovalReader
             _ => throw new InvalidOperationException("The approval continuation direction is invalid.")
         };
         using var scope = Authorized(actor).Where(task => task.DefinitionId == request.DefinitionId && task.AuthorUserId != actor
+                && !(dbContext.Set<BusinessFormRecord>().Any(record => record.Id == task.RecordId && record.CorrectedByUserId == actor)
+                    || dbContext.Set<ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == actor))
                 && dbContext.Set<BusinessFormDefinition>().Any(definition => definition.Id == task.DefinitionId))
             .Select(task => new { task.Id, task.RequestedAtUtc, task.State }).CreateDbCommand();
         var batchIds = dbContext.Database.SqlQueryRaw<Guid>("SELECT \"Id\" AS \"Value\" FROM continuation_batch");
-        using var metadata = Project(dbContext.Set<BusinessFormTask>().AsNoTracking().Where(task => batchIds.Contains(task.Id))).CreateDbCommand();
+        using var metadata = Project(dbContext.Set<BusinessFormTask>().AsNoTracking().Where(task => batchIds.Contains(task.Id)), actor).CreateDbCommand();
         var parameters = scope.Parameters.Cast<NpgsqlParameter>().Concat(metadata.Parameters.Cast<NpgsqlParameter>())
             .Select(parameter => (object)parameter.Clone()).Concat([
                 new NpgsqlParameter("continuation_anchor_id", NpgsqlDbType.Uuid) { Value = id },

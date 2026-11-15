@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -142,6 +143,52 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.Forbidden, decision.StatusCode);
         Assert.Equal(FormApprovalErrors.RoleChanged.Code, (await decision.ReadJsonAsync()).GetProperty("code").GetString());
         Assert.Equal(FormTaskState.Open, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormTask>().Where(task => task.Id == seeded.TaskId).Select(task => task.State).SingleAsync(Ct)));
+    }
+
+    [Theory]
+    [InlineData("corrected")]
+    [InlineData("document")]
+    public async Task Whoever_set_the_values_of_a_response_neither_sees_it_as_decidable_nor_decides_it(string how)
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        using var decider = await OperatorAsync([BusinessFormsPermissions.ApprovalsDecide]);
+        var seeded = await SeedApprovalAsync(author, decider, 12);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var record = await db.Set<BusinessFormRecord>().SingleAsync(value => value.Id == seeded.RecordId, Ct);
+            if (how == "corrected")
+            {
+                var original = BusinessFormRecord.Create(record.DefinitionId, record.VersionId, record.Number + 1000, record.ActorUserId, Guid.NewGuid(), record.SubmittedAtUtc, "[]", record.RuleSetId);
+                db.Set<BusinessFormRecord>().Add(original);
+                await db.SaveChangesAsync(Ct);
+                db.Entry(record).Property("ReplacesRecordId").CurrentValue = original.Id;
+                db.Entry(record).Property("OriginalReceiptId").CurrentValue = record.SourceReceiptId;
+                db.Entry(record).Property("CorrectionReason").CurrentValue = "Corrección";
+                db.Entry(record).Property("CorrectedByUserId").CurrentValue = seeded.DeciderId;
+            }
+            else
+            {
+                var document = FormReceivedDocument.Receive(Guid.NewGuid(), "test-channel", Guid.NewGuid().ToString("N"), record.ActorUserId, record.SubmittedAtUtc,
+                    "inbox/" + Guid.NewGuid().ToString("N"), "document.pdf", "application/pdf", 10, new string('a', 64), 1, null).Value;
+                db.Set<FormReceivedDocument>().Add(document);
+                db.Entry(document).Property("RecordId").CurrentValue = seeded.RecordId;
+                db.Entry(document).Property("State").CurrentValue = FormReceivedDocumentState.Confirmed;
+                db.Entry(document).Property("ReviewedByUserId").CurrentValue = seeded.DeciderId;
+                db.Entry(document).Property("ReviewedAtUtc").CurrentValue = record.SubmittedAtUtc;
+            }
+            await db.SaveChangesAsync(Ct);
+        });
+        using var inbox = await decider.GetAsync("/api/forms/approvals", Ct);
+        Assert.Equal(0, (await inbox.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
+        using var count = await decider.GetAsync("/api/forms/approvals/count?definitionId=" + seeded.DefinitionId, Ct);
+        Assert.Equal(0, (await count.ReadJsonAsync()).GetProperty("count").GetInt32());
+        using var all = await decider.GetAsync("/api/forms/approvals?onlyMine=false", Ct);
+        var item = Assert.Single((await all.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.False(item.GetProperty("canDecide").GetBoolean());
+        Assert.Equal("OwnResponse", item.GetProperty("cannotDecideReason").GetString());
+        using var decision = await decider.PostAsJsonAsync("/api/forms/approvals/" + seeded.TaskId + "/decisions", new { expectedRevision = 1, decision = "Approved" }, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, decision.StatusCode);
+        Assert.Equal(FormApprovalErrors.OwnResponse.Code, (await decision.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     private async Task<(Guid TaskId, Guid RecordId, Guid DefinitionId, Guid RuleSetId, Guid DeciderId)> SeedApprovalAsync(HttpClient author, HttpClient decider, int hour, TimeSpan? approvalDelay = null, string? originalCulture = null, bool secondaryButtonMissing = false)

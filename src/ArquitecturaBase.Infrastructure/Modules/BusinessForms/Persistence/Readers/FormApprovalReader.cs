@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,16 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
 {
     public Task<FormApprovalActorRow?> FindActorAsync(Guid userId, Guid? roleId, CancellationToken cancellationToken) => dbContext.Users.AsNoTracking().Where(user => user.Id == userId)
         .Select(user => new FormApprovalActorRow(user.Id, user.DisplayName, user.IsActive, roleId == null || dbContext.UserRoles.Any(link => link.UserId == userId && link.RoleId == roleId))).SingleOrDefaultAsync(cancellationToken);
+    public Task<bool> ExistsValuesSetByAsync(Guid recordId, Guid userId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormTask>().AsNoTracking().Where(task => task.RecordId == recordId).Where(SetValuesBy(userId)).AnyAsync(cancellationToken);
+    // Who corrected a response or passed it from a received document set its values, so they do not approve it, like its author.
+    private Expression<Func<BusinessFormTask, bool>> SetValuesBy(Guid userId) => task =>
+        dbContext.Set<BusinessFormRecord>().Any(record => record.Id == task.RecordId && record.CorrectedByUserId == userId)
+        || dbContext.Set<FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == userId);
     public async Task<PagedResult<FormApprovalTaskResponse>> ListAsync(Guid actor, ListFormApprovalsRequest request, string culture, CancellationToken cancellationToken)
     {
         var sortable = new Dictionary<string, Expression<Func<ApprovalRow, object?>>>(StringComparer.OrdinalIgnoreCase) { ["requestedAtUtc"] = task => task.RequestedAtUtc };
-        var tasks = Project(Open(actor, new(request.DefinitionId, request.OnlyMine)))
+        var tasks = Project(Open(actor, new(request.DefinitionId, request.OnlyMine)), actor)
             .ApplySort(SortDescriptor.Parse(null), sortable, new("requestedAtUtc", false), task => task.Id);
         var page = await tasks.ToPagedResultAsync(request, cancellationToken);
         var versions = await records.ListVersionsAsync(page.Items.Select(row => row.VersionId).Distinct().ToArray(), cancellationToken);
@@ -26,7 +33,7 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
     public Task<int> CountAsync(Guid actor, FormApprovalFilterRequest request, CancellationToken cancellationToken) => Open(actor, request).CountAsync(cancellationToken);
     public async Task<FormApprovalTaskResponse?> FindAsync(Guid id, Guid actor, string culture, CancellationToken cancellationToken)
     {
-        var row = await Project(Authorized(actor).Where(task => task.Id == id)).SingleOrDefaultAsync(cancellationToken);
+        var row = await Project(Authorized(actor).Where(task => task.Id == id), actor).SingleOrDefaultAsync(cancellationToken);
         if (row is null) return null;
         var versions = await records.ListVersionsAsync([row.VersionId], cancellationToken);
         return Map(row, actor, culture, versions[row.VersionId]);
@@ -43,10 +50,12 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
     {
         var query = Authorized(actor).Where(task => task.State == FormTaskState.Open);
         if (filter.DefinitionId is { } id) query = query.Where(task => task.DefinitionId == id);
-        if (filter.OnlyMine) query = query.Where(task => task.AuthorUserId != actor);
+        if (filter.OnlyMine) query = query.Where(task => task.AuthorUserId != actor).Where(Not(SetValuesBy(actor)));
         return query;
     }
-    private IQueryable<ApprovalRow> Project(IQueryable<BusinessFormTask> tasks) => from task in tasks
+    private static Expression<Func<BusinessFormTask, bool>> Not(Expression<Func<BusinessFormTask, bool>> predicate) =>
+        Expression.Lambda<Func<BusinessFormTask, bool>>(Expression.Not(predicate.Body), predicate.Parameters);
+    private IQueryable<ApprovalRow> Project(IQueryable<BusinessFormTask> tasks, Guid actor) => from task in tasks
                                                                                    join record in dbContext.Set<BusinessFormRecord>().AsNoTracking() on task.RecordId equals record.Id
                                                                                    join definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking() on task.DefinitionId equals definition.Id
                                                                                    join version in dbContext.Set<BusinessFormVersion>().AsNoTracking() on record.VersionId equals version.Id
@@ -68,11 +77,13 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
                                                                                        DecidedAtUtc = task.DecidedAtUtc,
                                                                                        DecidedByUserId = task.DecidedByUserId,
                                                                                        DecidedByName = dbContext.Users.Where(user => user.Id == task.DecidedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
-                                                                                       Reason = task.Reason
+                                                                                       Reason = task.Reason,
+                                                                                       SetValuesByActor = dbContext.Set<BusinessFormRecord>().Any(value => value.Id == task.RecordId && value.CorrectedByUserId == actor)
+                                                                                           || dbContext.Set<FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == actor)
                                                                                    };
     private static FormApprovalTaskResponse Map(ApprovalRow row, Guid actor, string culture, FormResponseVersionRow version) => new(row.Id, row.DefinitionId, row.RecordId, row.Prefix + "-" + row.Number.ToString("D6", CultureInfo.InvariantCulture), Name(version, culture),
-        new(row.AuthorUserId, row.AuthorName), new(row.RoleId, row.RoleName ?? ""), row.RequestedAtUtc, row.Revision, row.State.ToString(), row.State == FormTaskState.Open && row.AuthorUserId != actor,
-        row.State != FormTaskState.Open ? "AlreadyDecided" : row.AuthorUserId == actor ? "OwnResponse" : null, row.DecidedAtUtc, row.DecidedByUserId is { } decider ? new(decider, row.DecidedByName) : null, row.Reason);
+        new(row.AuthorUserId, row.AuthorName), new(row.RoleId, row.RoleName ?? ""), row.RequestedAtUtc, row.Revision, row.State.ToString(), row.State == FormTaskState.Open && row.AuthorUserId != actor && !row.SetValuesByActor,
+        row.State != FormTaskState.Open ? "AlreadyDecided" : row.AuthorUserId == actor || row.SetValuesByActor ? "OwnResponse" : null, row.DecidedAtUtc, row.DecidedByUserId is { } decider ? new(decider, row.DecidedByName) : null, row.Reason);
     private static string Name(FormResponseVersionRow version, string culture) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(version.NameJson)![version.DisplayCulture(culture)];
     private sealed class ApprovalRow
@@ -94,5 +105,6 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
         public Guid? DecidedByUserId { get; init; }
         public string? DecidedByName { get; init; }
         public string? Reason { get; init; }
+        public bool SetValuesByActor { get; init; }
     }
 }

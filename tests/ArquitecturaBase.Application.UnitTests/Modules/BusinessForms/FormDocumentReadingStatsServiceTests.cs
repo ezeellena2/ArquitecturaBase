@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -69,7 +70,7 @@ public sealed class FormDocumentReadingStatsServiceTests
         var granted = new FakePermissionService();
         granted.Permissions[actor] = permissions;
         var reader = new Reader();
-        var service = new FormDocumentReadingStatsService(reader, new FormDraftAccessGuard(new FakeCurrentUser { UserId = actor }, granted),
+        var service = new FormDocumentReadingStatsService(reader, new FormDraftAccessGuard(new FakeCurrentUser { UserId = actor }, granted, new InMemoryUserAccounts { UnknownAccountsAreActive = true }),
             [new BusinessFormStandardSource()], new FakeTimeProvider(Now), NullLogger<FormDocumentReadingStatsService>.Instance);
         return (service, reader, granted, actor);
     }

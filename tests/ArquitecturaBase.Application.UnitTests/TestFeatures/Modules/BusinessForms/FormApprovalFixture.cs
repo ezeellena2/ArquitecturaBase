@@ -40,6 +40,7 @@ internal sealed class FormApprovalFixture : IFormApprovalRepository, IFormApprov
     return System.Threading.Tasks.Task.CompletedTask; }
     public Task<BusinessFormTask?> GetAsync(Guid id, CancellationToken ct) => System.Threading.Tasks.Task.FromResult<BusinessFormTask?>(id == Task.Id ? Task : null);
     public Task<BusinessFormRecord?> GetRecordAsync(Guid id, CancellationToken ct) => System.Threading.Tasks.Task.FromResult<BusinessFormRecord?>(id == Record.Id ? Record : null);
+    public Task<bool> ExistsValuesSetByAsync(Guid recordId, Guid userId, CancellationToken ct) => System.Threading.Tasks.Task.FromResult(false);
     public Task<FormApprovalActorRow?> FindActorAsync(Guid actor, Guid? role, CancellationToken ct) => System.Threading.Tasks.Task.FromResult<FormApprovalActorRow?>(new(actor, "Approver", true, role is null || IsInRole));
     public Task<PagedResult<FormApprovalTaskResponse>> ListAsync(Guid actor, ListFormApprovalsRequest request, string culture, CancellationToken ct)
     { BeforeReadReturn?.Invoke();
