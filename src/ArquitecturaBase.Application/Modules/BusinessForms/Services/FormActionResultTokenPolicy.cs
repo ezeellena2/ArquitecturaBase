@@ -62,6 +62,7 @@ internal static class FormActionResultTokenPolicy
         StructuredRecordResultField.Date => DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture)
             .ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture),
         StructuredRecordResultField.Number => DisplayNumbers.Number(decimal.Parse(raw, CultureInfo.InvariantCulture), culture),
+        StructuredRecordResultField.Amount => DisplayNumbers.Number(decimal.Parse(raw, CultureInfo.InvariantCulture), culture, 2, 2),
         _ => raw,
     };
 }

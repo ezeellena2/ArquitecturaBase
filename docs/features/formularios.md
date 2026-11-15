@@ -1105,7 +1105,8 @@ Lo que devuelve una acción externa, como el comprobante que autoriza ARCA, se g
 trae es de la etapa 3 (`IssueDocument`, [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)).
 
 - **Qué se guarda.** Una fila por run en `BusinessFormRecordResults` (única por run y del run de esa respuesta): la fuente
-  (`arca.invoice`), su nombre por idioma y los datos, cada uno con clave, nombre por idioma, tipo (`text`, `date` o `number`) y
+  (`arca.invoice`), su nombre por idioma y los datos, cada uno con clave, nombre por idioma, tipo (`text`, `date`, `number` o
+  `amount`, un importe que se escribe con dos decimales fijos en la región de cada idioma, H29 de ARCA) y
   valor canónico, sellados al confirmar, así se leen igual aunque se quite el módulo. Los trae el DTO neutral
   `StructuredRecordResult`; los guarda `FormRecordResultRecorder` en la transacción que confirma el run, bajo el fence vigente.
   Un resultado mal armado es un error del módulo que lo produjo: lanza y no se guarda nada.

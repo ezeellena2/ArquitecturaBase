@@ -230,7 +230,7 @@ public sealed class ArcaInvoiceIssuePolicyTests
             [
                 StructuredRecordResultField.Text, StructuredRecordResultField.Text, StructuredRecordResultField.Date, StructuredRecordResultField.Text,
                 StructuredRecordResultField.Date, StructuredRecordResultField.Text, StructuredRecordResultField.Text, StructuredRecordResultField.Text,
-                StructuredRecordResultField.Number,
+                StructuredRecordResultField.Amount,
             ],
             ArcaInvoiceIssuePolicy.ResultFields.Select(field => field.Kind));
         Assert.Equal(

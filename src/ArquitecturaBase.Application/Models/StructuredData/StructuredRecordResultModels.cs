@@ -5,7 +5,8 @@ namespace ArquitecturaBase.Application.Models.StructuredData;
 // The forms module keeps it sealed in the response and shows it in the detail, the sheet, the Excel, the PDF and the messages.
 public sealed record StructuredRecordResultField(string Key, IReadOnlyDictionary<string, string> Label, string Kind)
 {
-    public const string Text = "text", Date = "date", Number = "number";
+    // H29: an amount of money is written with two fixed decimals, in the region of each language.
+    public const string Text = "text", Date = "date", Number = "number", Amount = "amount";
     public override string ToString() => "StructuredRecordResultField { Content = [REDACTED] }";
 }
 public sealed record StructuredRecordResultValue(string Key, IReadOnlyDictionary<string, string> Label, string Kind, string? Value)

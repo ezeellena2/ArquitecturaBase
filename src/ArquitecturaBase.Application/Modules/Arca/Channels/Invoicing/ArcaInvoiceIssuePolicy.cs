@@ -29,7 +29,7 @@ internal static class ArcaInvoiceIssuePolicy
         Localized("Result." + key), key switch
         {
             "issuedOn" or "caeDueOn" => StructuredRecordResultField.Date,
-            "total" => StructuredRecordResultField.Number,
+            "total" => StructuredRecordResultField.Amount,
             _ => StructuredRecordResultField.Text,
         })).ToArray();
 

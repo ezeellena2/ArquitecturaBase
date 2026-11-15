@@ -123,6 +123,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         return value.Value is not { } raw ? FormPdfTexts.Get("NoAnswer", culture) : value.Kind switch
         {
             "number" => DisplayNumbers.Number(decimal.Parse(raw, CultureInfo.InvariantCulture), culture),
+            "amount" => DisplayNumbers.Number(decimal.Parse(raw, CultureInfo.InvariantCulture), culture, 2, 2),
             "date" => FormPdfDates.Day(DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture), culture),
             _ => raw,
         };

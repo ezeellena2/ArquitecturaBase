@@ -17,7 +17,7 @@ internal static class FormExportPolicy
     public static FormWorkbookCell ResultCell(string kind, string? value) => value is null ? new("text", null) : kind switch
     {
         StructuredRecordResultField.Date => new("date", DateOnly.ParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToDateTime(TimeOnly.MinValue)),
-        StructuredRecordResultField.Number => new("decimal", decimal.Parse(value, CultureInfo.InvariantCulture)),
+        StructuredRecordResultField.Number or StructuredRecordResultField.Amount => new("decimal", decimal.Parse(value, CultureInfo.InvariantCulture)),
         _ => new("text", value),
     };
 

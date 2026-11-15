@@ -47,7 +47,7 @@ internal sealed partial class FormRecordResultRecorder(IFormRecordResultReposito
     {
         StructuredRecordResultField.Text => value is null || (value.Length <= MaxTextLength && StorableText.IsStorable(value.AsSpan())),
         StructuredRecordResultField.Date => value is null || DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
-        StructuredRecordResultField.Number => value is null || (decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+        StructuredRecordResultField.Number or StructuredRecordResultField.Amount => value is null || (decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
             CultureInfo.InvariantCulture, out var number) && number.ToString("0.############################", CultureInfo.InvariantCulture) == value),
         _ => false,
     };

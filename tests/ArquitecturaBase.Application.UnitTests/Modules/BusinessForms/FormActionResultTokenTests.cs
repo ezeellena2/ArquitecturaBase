@@ -48,6 +48,17 @@ public sealed class FormActionResultTokenTests
         Assert.Equal("Emitimos la Factura C 0004-00000012, vence el 11/19/2026 por 15,300.5.", FormActionResultTokenPolicy.Resolve(body, results, "en"));
     }
 
+    // H29: an amount is written with two fixed decimals, in the region of each language.
+    [Theory]
+    [InlineData("es", "por 15.300,50.")]
+    [InlineData("en", "por 15,300.50.")]
+    public void An_amount_datum_always_has_two_decimals(string culture, string expected)
+    {
+        var body = "por " + FormActionResultTokenPolicy.Mark("result:arca.invoice.total") + ".";
+
+        Assert.Equal(expected, FormActionResultTokenPolicy.Resolve(body, [Row(Value("total", "amount", "15300.5"))], culture));
+    }
+
     [Theory]
     [InlineData("es", "vence el 03/11/2026.")]
     [InlineData("en", "vence el 11/03/2026.")]

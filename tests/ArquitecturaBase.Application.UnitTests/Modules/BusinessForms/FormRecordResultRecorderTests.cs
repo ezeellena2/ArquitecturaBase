@@ -23,7 +23,7 @@ public sealed class FormRecordResultRecorderTests
 
     private static StructuredRecordResult Invoice(params StructuredRecordResultValue[] values) =>
         new("arca.invoice", Name, values.Length == 0
-            ? [Value("voucher","text","Factura C 0004-00000012"), Value("authorization","text","74512345678901"), Value("expiresOn","date","2026-11-19"), Value("total","number","15300.5")]
+            ? [Value("voucher","text","Factura C 0004-00000012"), Value("authorization","text","74512345678901"), Value("expiresOn","date","2026-11-19"), Value("total","amount","15300.5")]
             : values);
 
     private static (FormRecordResultRecorder Recorder, Results Results, FakeTimeProvider Time) Create()
@@ -54,6 +54,7 @@ public sealed class FormRecordResultRecorderTests
     [InlineData("expiresOn","date","19/11/2026")]
     [InlineData("total","number","15.300,50")]
     [InlineData("total","number","1e3")]
+    [InlineData("total","amount","15.300,50")]
     [InlineData("total","money","1")]
     [InlineData("Total con espacios","text","x")]
     public void A_value_out_of_its_kind_or_key_throws(string key, string kind, string value)
