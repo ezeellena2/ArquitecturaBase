@@ -376,6 +376,18 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     que no están rechazadas ni canceladas (H27) y un índice parcial sobre los autorizados sin PDF, que conviene crear ahora,
     con la tabla vacía (H34). Test de persistencia: dos notas activas para la misma factura no se guardan. Chico.
 
+**Hecha el 2026-11-15:** H9, H27 y H34 en 960d1c48; H6 en 78dc2114 (front 018caf37), y H2 en e6974cf3.
+- **Cambios:** el permiso del emisor que falta da 403 con un código propio (`Forms.Rule.IssuerPermissionRequired`) y no el de la
+  anulación: la revisión adversarial mostró que el editor de reglas toma todo 403 como el permiso de reglas perdido y se cierra
+  sin lo editado. Un emisor que no está da `Forms.Action.IssuerUnavailable`, como en la anulación, y sacar la regla que emite no
+  pide el permiso. En H2 la huella se compara antes de reenviar, después de consultar a ARCA, que concilia por el total fijado; si
+  no coincide, va a revisión con su motivo (`DataChanged`) y conserva el número, porque ARCA puede tenerlo.
+- **Pruebas:** el build sin advertencias; Domain, Application y ArchitectureTests enteros; la integración de la biblioteca y las
+  reglas de formularios (21 tests) y la de facturación de ARCA entera (92); en el front, la sección de reglas (49), tipos y oxlint.
+- **Revisión:** la de H6, con un agente; la de H2, propia, porque el cupo ya pasaba el 85 %.
+- **Queda para H7:** lo que espera por una versión que no conoce también dice «ARCA no responde»; H7 separa ese motivo.
+- **Bases de desarrollo:** lo encolado antes de H2 no tiene versión y espera como si fuera de otra; sin número, se puede cancelar.
+
 ### Etapa 4: restauraciones, esperas y PDF
 
 13. **H3. Lo que ARCA tiene y la base no conoce va a revisión** (decisión 4). Al numerar, si ARCA tiene un último autorizado mayor
