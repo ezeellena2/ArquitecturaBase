@@ -27,6 +27,12 @@ public interface IArcaVoucherRepository
     /// </summary>
     Task<DateOnly?> FindLastIssuedOnAsync(ArcaVoucherSequenceRow sequence, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// El último número que la base conoce de la secuencia, de sus comprobantes con número (autorizados o pendientes), o null si
+    /// no conoce ninguno. Si ARCA tiene uno mayor, hay comprobantes que la base no conoce (H3).
+    /// </summary>
+    Task<long?> FindLastNumberAsync(ArcaVoucherSequenceRow sequence, CancellationToken cancellationToken);
+
     void Add(ArcaVoucher voucher);
 
     void Add(ArcaVoucherSequence sequence);

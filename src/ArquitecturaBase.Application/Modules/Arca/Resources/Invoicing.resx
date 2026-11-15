@@ -46,6 +46,8 @@
   <data name="Review.DateBeforeLastVoucher.Detail" xml:space="preserve"><value>Sale con la fecha de hoy, o con la del último comprobante si es posterior, y un vencimiento del pago anterior se corre a esa fecha.</value></data>
   <data name="Review.DataChanged.Title" xml:space="preserve"><value>El comprobante ya no coincide con lo que se guardó al darle el número</value></data>
   <data name="Review.DataChanged.Detail" xml:space="preserve"><value>Puede pasar mientras se actualiza la app. No se volvió a mandar.</value></data>
+  <data name="Review.ArcaAhead.Title" xml:space="preserve"><value>ARCA tiene comprobantes que la app no conoce</value></data>
+  <data name="Review.ArcaAhead.Detail" xml:space="preserve"><value>Puede pasar después de restaurar la base o si otro sistema usa el mismo punto de venta: esta venta puede estar facturada.</value></data>
   <data name="Review.IssueNext" xml:space="preserve"><value>Emitir con el número siguiente</value></data>
   <data name="Review.IssueToday" xml:space="preserve"><value>Emitir con la fecha de hoy</value></data>
   <data name="Review.CheckVouchers" xml:space="preserve"><value>Antes de decidir, mirá «Mis comprobantes» en ARCA.</value></data>

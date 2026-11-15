@@ -39,6 +39,12 @@ internal sealed class ArcaVoucherRepository(ApplicationDbContext dbContext) : IA
                 && x.VoucherType == sequence.VoucherType && x.State == ArcaVoucherState.Authorized)
             .MaxAsync(x => x.IssuedOn, cancellationToken);
 
+    public Task<long?> FindLastNumberAsync(ArcaVoucherSequenceRow sequence, CancellationToken cancellationToken) =>
+        dbContext.Set<ArcaVoucher>()
+            .Where(x => x.Environment == sequence.Environment && x.Cuit == sequence.Cuit && x.PointOfSale == sequence.PointOfSale
+                && x.VoucherType == sequence.VoucherType && x.Number != null)
+            .MaxAsync(x => x.Number, cancellationToken);
+
     public void Add(ArcaVoucher voucher) { dbContext.RequireTransaction(); dbContext.Set<ArcaVoucher>().Add(voucher); }
 
     public void Add(ArcaVoucherSequence sequence) { dbContext.RequireTransaction(); dbContext.Set<ArcaVoucherSequence>().Add(sequence); }

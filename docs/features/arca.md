@@ -237,7 +237,12 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   resolver; nadie toma otro número mientras haya un pendiente. El número (último autorizado más 1) y la huella SHA-256 se
   guardan antes de `FECAESolicitar`. Antes de mandar otra vez el mismo número, la huella de lo que saldría se compara con la
   guardada: si no coincide, no se manda y va a revisión con su número, que frena la secuencia, con «El comprobante ya no
-  coincide con lo que se guardó al darle el número»: «Emitir con el número siguiente» o «No emitir» (H2).
+  coincide con lo que se guardó al darle el número»: «Emitir con el número siguiente» o «No emitir» (H2). Al numerar, si ARCA
+  tiene un último autorizado mayor que el último número que la base conoce de la secuencia (una restauración u otro sistema
+  en el punto de venta), no numera: va a revisión sin número y sin frenar la secuencia, con «ARCA tiene comprobantes que la
+  app no conoce», salvo que la base no conozca ningún número de la secuencia. «Emitir con el número siguiente» vale para el
+  último que vio la revisión: si ARCA siguió avanzando, vuelve a preguntar. Lo mismo vale después de un número tomado o que
+  falta (H3, [ADR 0031](../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md)).
 - **Reconciliación:** ante un 10016, una respuesta que no llega, un 500, un 501, un 502 o una falla SOAP, el comprobante
   queda incierto y el próximo intento consulta `FECompConsultar`: si ARCA lo tiene con el mismo documento, fecha, concepto
   y total, queda autorizado con ese CAE; si no lo tiene y el número sigue siendo el siguiente, se manda otra vez con el

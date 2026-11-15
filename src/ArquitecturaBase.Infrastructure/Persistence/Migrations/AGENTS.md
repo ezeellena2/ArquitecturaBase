@@ -36,6 +36,8 @@ AddWhatsAppPendingTapsIndex agrega sólo el índice filtrado `IX_WhatsAppMessage
 
 AddArcaVoucherLiveCreditNoteAndPdfDueIndexes agrega sólo dos índices filtrados a `ArcaVouchers`: el único de una nota de crédito viva por factura (H27) y el de los autorizados sin PDF por `NextAttemptAtUtc` (H34); no toca filas y su Down sólo los quita.
 
+AddArcaVoucherReviewedLastAuthorized agrega sólo la columna nula `ReviewedLastAuthorized` a `ArcaVouchers`: el último autorizado de ARCA que vio la revisión de un número, para que emitir valga para ése (H3, ADR 0031). Sin datos que mover.
+
 AddFormRecordVoidReasonCode agrega `VoidReasonCode` (nullable, hasta 128) a las respuestas, para el código del motivo de una anulación que decide el sistema («No se emitió»), y cambia `CK_BusinessFormRecords_Void`: una respuesta anulada lleva un texto o un código, uno de los dos. No reescribe las anulaciones existentes; la imagen anterior siempre escribe el texto. Down bloquea la tabla y rechaza, antes del DDL, una anulación con sólo el código; no inventa un texto. FormRecordVoidReasonCodeMigrationTests prueba Up/Down/Up y ese rechazo.
 
 AddFormDocumentReading agrega `DocumentReadingJson` (jsonb, nullable) a `FormDefinitions` y a `BusinessFormVersions`: la lectura de documentos del borrador y la que se sella al publicar (DOC1). No reescribe filas. Down bloquea las dos tablas y rechaza, antes del DDL, un borrador o una versión con lectura; FormDocumentReadingMigrationTests prueba Up/Down/Up y ese rechazo.

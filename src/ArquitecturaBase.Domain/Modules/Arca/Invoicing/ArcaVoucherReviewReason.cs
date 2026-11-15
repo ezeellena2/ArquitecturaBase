@@ -23,4 +23,10 @@ public enum ArcaVoucherReviewReason
     /// ARCA puede tenerlo, y sigue con el siguiente.
     /// </summary>
     DataChanged,
+
+    /// <summary>
+    /// Al numerar, ARCA tiene un último autorizado mayor que el último número que la base conoce de la secuencia (H3): una
+    /// restauración de la base u otro sistema en el punto de venta. Sin número; emitir vale para el último que vio la revisión.
+    /// </summary>
+    ArcaAhead,
 }

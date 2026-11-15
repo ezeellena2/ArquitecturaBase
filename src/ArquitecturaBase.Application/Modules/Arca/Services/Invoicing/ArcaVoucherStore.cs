@@ -114,6 +114,16 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
             return Result.Success<ArcaVoucherWorkResponse?>(null);
         }
 
+        // H3: ARCA has vouchers the base does not know (a restore, or another system on the point of sale): a person decides,
+        // unless the base knows no number of the sequence or a person already went on from this same last one.
+        if (await vouchers.FindLastNumberAsync(work.Sequence, cancellationToken) is { } known && lastAuthorized > known
+            && voucher.ReviewedLastAuthorized != lastAuthorized)
+        {
+            voucher.RequireReview(ArcaVoucherReviewReason.ArcaAhead, nowUtc, lastAuthorized);
+            sequence.Release(work.Owner, work.Fence);
+            return Result.Success<ArcaVoucherWorkResponse?>(null);
+        }
+
         var request = work.Request with { Number = lastAuthorized + 1 };
         voucher.AssignNumber(request.Number, ArcaVoucherRequestPolicy.Fingerprint(request), sequence.LeaseUntilUtc ?? nowUtc);
         sequence.Hold(voucher.Id);
@@ -129,7 +139,7 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         {
             case ArcaReconciliation.NotIssued when ArcaVoucherRequestPolicy.Fingerprint(work.Request) != voucher.DataHash:
                 // H2: what would go out again is not what was saved with the number; a person decides, with the number held.
-                voucher.RequireReview(ArcaVoucherReviewReason.DataChanged, nowUtc);
+                voucher.RequireReview(ArcaVoucherReviewReason.DataChanged, nowUtc, lastAuthorized);
                 break;
             case ArcaReconciliation.NotIssued:
                 voucher.Resend(sequence.LeaseUntilUtc ?? nowUtc);
@@ -148,10 +158,11 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
                 voucher.MarkUncertain(ArcaInvoicingErrors.AnswerIncomplete.Code, nowUtc);
                 break;
             case ArcaReconciliation.Taken:
-                voucher.RequireReview(ArcaVoucherReviewReason.NumberTaken, nowUtc);
+                // H3: what the review saw: ARCA has at least this number (the last one is only asked when it does not have it).
+                voucher.RequireReview(ArcaVoucherReviewReason.NumberTaken, nowUtc, Math.Max(lastAuthorized, work.Request.Number));
                 break;
             default:
-                voucher.RequireReview(ArcaVoucherReviewReason.NumberMissing, nowUtc);
+                voucher.RequireReview(ArcaVoucherReviewReason.NumberMissing, nowUtc, lastAuthorized);
                 break;
         }
 

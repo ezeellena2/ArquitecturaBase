@@ -120,7 +120,8 @@ Con `arca.manage`, en Administración → Configuración → ARCA:
    ambiente de la conexión y que no esté vencido; si pasa, prueba sola cada servicio elegido.
 5. **Punto de venta**, si se eligió Facturación: la lista trae los puntos de venta de web service de la CUIT. Si no hay,
    se crea uno de web service en ARCA («Administración de puntos de venta y domicilios») y se vuelve a buscar. Conviene
-   uno que no use otro sistema. «Activar la conexión» lo guarda y activa la conexión.
+   uno propio, que no use otro sistema: si lo comparte, ARCA tiene comprobantes que la app no conoce y cada factura pide una
+   decisión antes de numerarse. «Activar la conexión» lo guarda y activa la conexión.
 
 Se puede salir y volver en cualquier paso: lo hecho queda guardado. Una conexión es de un solo ambiente: pasar a
 producción es desconectar y empezar de nuevo, con otro certificado y otro punto de venta.

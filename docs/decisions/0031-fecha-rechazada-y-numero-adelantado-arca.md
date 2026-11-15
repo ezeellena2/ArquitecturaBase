@@ -44,6 +44,8 @@ base, o con otro sistema en el mismo punto de venta, puede facturar dos veces un
   `FECompConsultar`. Sólo pasa después de un incierto.
 - **Sin columnas nuevas:** el aviso antes de encolar y «Emitir con la fecha de hoy» usan la fecha del último comprobante
   autorizado que tiene la base. Si lo emitió otro sistema, la base no lo conoce: no hay aviso, y lo resuelve la revisión.
+- **Una columna para la decisión 2:** el comprobante guarda el último autorizado de ARCA que vio su revisión
+  (`ReviewedLastAuthorized`).
 - **Otro sistema en el mismo punto de venta:** con la decisión 2, cada factura pide una decisión. Por eso el robot da de alta un
   punto de venta propio, y las guías de la conexión piden uno propio en los modos 1 y 2.
 - **Las pruebas:** el ARCA simulado rechaza con 10016 una fecha anterior a la del último comprobante.

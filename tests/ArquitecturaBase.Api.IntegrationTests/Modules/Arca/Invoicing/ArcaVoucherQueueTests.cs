@@ -694,6 +694,86 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
         }
     }
 
+    // H3: ARCA has vouchers the base does not know (a restore, or another system on the point of sale): a person decides before a
+    // number is taken. Issuing goes out once, without asking again while ARCA stays where the review saw it, and asks again if
+    // ARCA went on.
+    [Fact]
+    public async Task A_sale_numbered_when_arca_is_ahead_of_the_base_waits_for_a_person_and_goes_out_once()
+    {
+        var arca = Arca();
+        arca.Vouchers.SetLast(4, 11, 11);
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            await EnqueueAsync(ArcaVoucherScenario.Order(Today));
+            await ProcessAsync();
+            arca.Vouchers.SetLast(4, 11, 20);
+
+            var ahead = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(ahead);
+            Assert.False(await ProcessAsync());
+            var review = await VoucherAsync(ahead.RequestKey);
+            Assert.Equal((ArcaVoucherState.NeedsReview, (ArcaVoucherReviewReason?)ArcaVoucherReviewReason.ArcaAhead, (long?)null),
+                (review.State, review.ReviewReason, review.Number));
+
+            await ReviewAsync(ahead.RequestKey, ArcaVoucherReviewDecision.IssueWithNextNumber, review.Revision);
+            await ProcessAsync();
+            var issued = await VoucherAsync(ahead.RequestKey);
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)21), (issued.State, issued.Number));
+
+            var later = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(later);
+            arca.Vouchers.SetLast(4, 11, 25);
+            await ProcessAsync();
+            await ReviewAsync(later.RequestKey, ArcaVoucherReviewDecision.IssueWithNextNumber, (await VoucherAsync(later.RequestKey)).Revision);
+            arca.Vouchers.SetLast(4, 11, 26);
+            await ProcessAsync();
+
+            var again = await VoucherAsync(later.RequestKey);
+            Assert.Equal((ArcaVoucherState.NeedsReview, (ArcaVoucherReviewReason?)ArcaVoucherReviewReason.ArcaAhead), (again.State, again.ReviewReason));
+            Assert.Equal(2, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // H3: going on with the next number after one someone else used does not ask again, although ARCA is ahead of the base.
+    [Fact]
+    public async Task Going_on_after_a_number_someone_else_used_does_not_ask_again()
+    {
+        var arca = Arca();
+        arca.Vouchers.SetLast(4, 11, 11);
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            await EnqueueAsync(ArcaVoucherScenario.Order(Today));
+            await ProcessAsync();
+            var taken = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(taken);
+            arca.Vouchers.Enqueue(FakeArcaVoucherFault.LoseRequest);
+            await ProcessAsync();
+            arca.Vouchers.IssueElsewhere(4, 11, 13, 20111111112, 1000m, Today.ToString("yyyyMMdd", CultureInfo.InvariantCulture));
+
+            factory.Clock.Advance(TimeSpan.FromSeconds(30));
+            await ProcessAsync();
+            var review = await VoucherAsync(taken.RequestKey);
+            Assert.Equal((ArcaVoucherReviewReason?)ArcaVoucherReviewReason.NumberTaken, review.ReviewReason);
+
+            await ReviewAsync(taken.RequestKey, ArcaVoucherReviewDecision.IssueWithNextNumber, review.Revision);
+            await ProcessAsync();
+
+            var issued = await VoucherAsync(taken.RequestKey);
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)14), (issued.State, issued.Number));
+            Assert.Equal(3, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
     [Fact]
     public async Task A_credit_note_cancels_an_authorized_invoice_by_its_total_once()
     {
@@ -845,6 +925,13 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
 
     private Task<Domain.Results.Result<ArcaVoucherResponse>> CreditNoteAsync(Guid requestKey, Guid invoiceKey, CancellationToken ct) =>
         factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherService>().EnqueueCreditNoteAsync(requestKey, invoiceKey, ct));
+
+    private async Task ReviewAsync(Guid requestKey, ArcaVoucherReviewDecision decision, int revision)
+    {
+        var reviewed = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>()
+            .ReviewAsync(requestKey, decision, revision, TestContext.Current.CancellationToken));
+        Assert.True(reviewed.IsSuccess, reviewed.IsFailure ? reviewed.Error.Code : null);
+    }
 
     private async Task<ArcaVoucherResponse> VoucherAsync(Guid requestKey) =>
         Assert.Single(await factory.ExecuteScopeAsync(services =>

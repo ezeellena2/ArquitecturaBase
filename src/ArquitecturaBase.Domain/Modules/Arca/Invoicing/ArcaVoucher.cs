@@ -44,6 +44,12 @@ public sealed class ArcaVoucher : Entity
     public DateOnly? IssuedOn { get; private set; }
     public string? FailureCode { get; private set; }
 
+    /// <summary>
+    /// El último autorizado de ARCA que vio la revisión de un número (H3). «Emitir con el número siguiente» vale para ése: la cola
+    /// numera sin volver a preguntar mientras ARCA siga ahí.
+    /// </summary>
+    public long? ReviewedLastAuthorized { get; private set; }
+
     /// <summary>Los códigos y textos de ARCA del último intento (errores u observaciones), en JSON.</summary>
     public string? MessagesJson { get; private set; }
 
@@ -148,16 +154,22 @@ public sealed class ArcaVoucher : Entity
     }
 
     /// <summary>
-    /// Una persona decide. Un número tomado o que falta, o una huella que ya no coincide (H2), lo frena con su número. Una fecha que ARCA no acepta lo frena sin número:
-    /// en cola, antes de darle uno, o con el que la reconciliación dijo que ARCA no emitió, que queda libre (ADR 0031).
+    /// Una persona decide. Un número tomado o que falta, o una huella que ya no coincide (H2), lo frena con su número. Una fecha
+    /// que ARCA no acepta lo frena sin número: en cola, antes de darle uno, o con el que la reconciliación dijo que ARCA no emitió,
+    /// que queda libre (ADR 0031). ARCA adelantado respecto de la base lo frena en cola, antes de darle uno (H3).
+    /// <paramref name="lastAuthorized"/> es el último autorizado de ARCA que vio la revisión de un número; sin él, queda el que ya
+    /// había decidido una persona.
     /// </summary>
-    public void RequireReview(ArcaVoucherReviewReason reason, DateTime nowUtc)
+    public void RequireReview(ArcaVoucherReviewReason reason, DateTime nowUtc, long? lastAuthorized = null)
     {
         var date = reason is ArcaVoucherReviewReason.DateOutOfRange or ArcaVoucherReviewReason.DateBeforeLastVoucher;
-        Require(date && State == ArcaVoucherState.Queued && Number is null
-            || State is ArcaVoucherState.Sending or ArcaVoucherState.Uncertain && Number is not null, "require a review");
+        var queued = date || reason == ArcaVoucherReviewReason.ArcaAhead;
+        Require(queued && State == ArcaVoucherState.Queued && Number is null
+            || reason != ArcaVoucherReviewReason.ArcaAhead && State is ArcaVoucherState.Sending or ArcaVoucherState.Uncertain && Number is not null,
+            "require a review");
         if (date) (Number, DataHash) = (null, null);
         (State, ReviewReason, NextAttemptAtUtc) = (ArcaVoucherState.NeedsReview, reason, nowUtc);
+        ReviewedLastAuthorized = lastAuthorized ?? ReviewedLastAuthorized;
         Revision++;
     }
 
@@ -177,7 +189,7 @@ public sealed class ArcaVoucher : Entity
                 Complete(ArcaVoucherState.Cancelled, nowUtc);
                 return Result.Success();
             case ArcaVoucherReviewDecision.IssueWithNextNumber when ReviewReason is ArcaVoucherReviewReason.NumberTaken or ArcaVoucherReviewReason.NumberMissing
-                or ArcaVoucherReviewReason.DataChanged:
+                or ArcaVoucherReviewReason.DataChanged or ArcaVoucherReviewReason.ArcaAhead:
                 (Number, DataHash) = (null, null);
                 Requeue(nowUtc);
                 return Result.Success();

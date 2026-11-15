@@ -144,6 +144,27 @@ public sealed class ArcaVoucherTests
         Assert.Equal((ArcaVoucherState.Queued, (long?)null, (string?)null), (voucher.State, voucher.Number, voucher.DataHash));
     }
 
+    // H3: ARCA has vouchers the base does not know: before taking a number, a person decides, and issuing is valid for the last
+    // one the review saw. A number taken remembers it too, and a date review keeps what a person already decided.
+    [Fact]
+    public void A_voucher_numbered_when_arca_is_ahead_goes_to_review_and_remembers_the_last_one_it_saw()
+    {
+        var voucher = New();
+        voucher.RequireReview(ArcaVoucherReviewReason.ArcaAhead, Now, 20);
+        Assert.Equal((ArcaVoucherState.NeedsReview, (long?)null, (long?)20, false),
+            (voucher.State, voucher.Number, voucher.ReviewedLastAuthorized, voucher.HoldsNumber));
+
+        Assert.True(voucher.Review(ArcaVoucherReviewDecision.IssueWithNextNumber, voucher.Revision, RequestedOn, Now).IsSuccess);
+        Assert.Equal((ArcaVoucherState.Queued, (long?)20), (voucher.State, voucher.ReviewedLastAuthorized));
+        voucher.RequireReview(ArcaVoucherReviewReason.DateOutOfRange, Now);
+        Assert.Equal((long?)20, voucher.ReviewedLastAuthorized);
+
+        Assert.Throws<InvalidOperationException>(() => Sending().RequireReview(ArcaVoucherReviewReason.ArcaAhead, Now, 20));
+        var taken = Sending();
+        taken.RequireReview(ArcaVoucherReviewReason.NumberTaken, Now, 13);
+        Assert.Equal((long?)13, taken.ReviewedLastAuthorized);
+    }
+
     [Fact]
     public void A_date_out_of_range_is_issued_today_after_review()
     {
