@@ -167,9 +167,7 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(attachment.StorageKey, stream, attachment.ContentType, ct);
         await using var stored = await files.OpenReadAsync(attachment.StorageKey, ct);
         if (stored is null) return notStored;
-        using var copy = new MemoryStream();
-        await stored.CopyToAsync(copy, ct);
-        return copy.Length == attachment.Size && Sha256(copy.GetBuffer().AsSpan(0, (int)copy.Length)) == attachment.Sha256
+        return await AiAssistantStoredCopyPolicy.MatchesAsync(stored, attachment.Size, attachment.Sha256, ct)
             ? Result.Success() : AiAssistantErrors.RequestReused;
     }
 

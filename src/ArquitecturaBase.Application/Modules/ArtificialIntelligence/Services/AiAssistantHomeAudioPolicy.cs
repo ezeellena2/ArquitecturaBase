@@ -45,9 +45,7 @@ internal sealed class AiAssistantHomeAudioPolicy(IPrivateFileStore files, IAiAss
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(key, stream, mediaType, ct);
         await using var stored = await files.OpenReadAsync(key, ct);
         if (stored is null) return FileErrors.Unavailable;
-        using var copy = new MemoryStream();
-        await stored.CopyToAsync(copy, ct);
-        if (copy.Length != content.Length || Convert.ToHexStringLower(SHA256.HashData(copy.ToArray())) != sha256) return AiAssistantErrors.RequestReused;
+        if (!await AiAssistantStoredCopyPolicy.MatchesAsync(stored, content.LongLength, sha256, ct)) return AiAssistantErrors.RequestReused;
         return new AssistantAudioInput(key, $"audio_{requestId:N}{AiAssistantAudioPolicy.Extension(mediaType)}", mediaType, content.Length, sha256, expiresAtUtc);
     }
 

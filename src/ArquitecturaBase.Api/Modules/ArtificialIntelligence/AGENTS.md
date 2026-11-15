@@ -10,6 +10,8 @@ Planillas de Inicio (Etapa 2): POST /api/ai/assistant/file-turns recibe un multi
 
 Documentos de Inicio (Etapa 3): file-turns acepta también un Word; POST /api/ai/assistant/documents recibe una foto o un PDF (`requestId` y `file`, 10 MiB más 64 KiB, cupo de envío) y responde 202 con el estado; GET documents/{requestId} da el estado y, al completarse, el documento y su legibilidad. El turno JSON suma `documentRequestId`: la lectura la toma el servidor.
 
+Subidas (I9): file-turns, audio y documents toman además un lugar del limitador global de la copia (`UploadConcurrencyLimit` a la vez y `UploadQueueLimit` en cola; lleno, 429 con retryAfter) antes de leer el cuerpo. Lo reconoce la política de envío con multipart, y se encadena en PostConfigure al global que ponga otro módulo, sin reemplazarlo. El archivo se lee una vez, a un arreglo de su largo.
+
 El PUT de negocio admite details opcional con contratos HTTP anidados propios; máximo 256 KiB.
 No aceptar un enlace arbitrario. El enlace se deriva de PlaceId o coordenadas históricas.
 POST /business-information/places/search exige ambos permisos del negocio, cuerpo 4 KiB,

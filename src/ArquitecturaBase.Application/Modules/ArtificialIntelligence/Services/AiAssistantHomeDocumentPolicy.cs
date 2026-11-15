@@ -66,9 +66,7 @@ internal sealed class AiAssistantHomeDocumentPolicy(IPrivateFileStore files, ISt
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(descriptor.StorageKey, stream, descriptor.ContentType, ct);
         await using var stored = await files.OpenReadAsync(descriptor.StorageKey, ct);
         if (stored is null) return FieldErrors.On(AiAssistantErrors.AttachmentDocumentNotStored, "file");
-        using var copy = new MemoryStream();
-        await stored.CopyToAsync(copy, ct);
-        return copy.Length == descriptor.Size && Sha256(copy.GetBuffer().AsSpan(0, (int)copy.Length)) == descriptor.Sha256
+        return await AiAssistantStoredCopyPolicy.MatchesAsync(stored, descriptor.Size, descriptor.Sha256, ct)
             ? Result.Success() : AiAssistantErrors.RequestReused;
     }
 

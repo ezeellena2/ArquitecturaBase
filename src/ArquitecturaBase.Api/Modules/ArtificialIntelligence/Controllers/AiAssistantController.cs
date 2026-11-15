@@ -80,12 +80,11 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SubmitFile([FromForm] SubmitAiAssistantFileTurnHttpRequest request, CancellationToken cancellationToken)
     {
-        await using var content = new MemoryStream();
-        await request.File.CopyToAsync(content, cancellationToken);
+        var content = await ReadAsync(request.File, cancellationToken);
         var turn = new SubmitAiAssistantTurnRequest(request.RequestId, request.ConversationId, request.ExpectedRevision,
             request.ExpectedConnectionRevision, request.Question ?? "", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
             { AudioRequestId = request.AudioRequestId };
-        return (await files.SubmitAsync(new(turn, content.ToArray(), request.File.FileName), cancellationToken)).ToAcceptedResult(this);
+        return (await files.SubmitAsync(new(turn, content, request.File.FileName), cancellationToken)).ToAcceptedResult(this);
     }
 
     [HttpPost("audio")]
@@ -98,9 +97,8 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SubmitAudio([FromForm] SubmitAiAssistantAudioHttpRequest request, CancellationToken cancellationToken)
     {
-        await using var content = new MemoryStream();
-        await request.File.CopyToAsync(content, cancellationToken);
-        return (await audio.SubmitAsync(new(request.RequestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, content.ToArray()),
+        var content = await ReadAsync(request.File, cancellationToken);
+        return (await audio.SubmitAsync(new(request.RequestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, content),
             cancellationToken)).ToAcceptedResult(this);
     }
 
@@ -128,9 +126,8 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SubmitDocument([FromForm] SubmitAiAssistantDocumentHttpRequest request, CancellationToken cancellationToken)
     {
-        await using var content = new MemoryStream();
-        await request.File.CopyToAsync(content, cancellationToken);
-        return (await documents.SubmitAsync(new(request.RequestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, content.ToArray(),
+        var content = await ReadAsync(request.File, cancellationToken);
+        return (await documents.SubmitAsync(new(request.RequestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, content,
             request.File.FileName), cancellationToken)).ToAcceptedResult(this);
     }
 
@@ -155,4 +152,13 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveConversation([FromRoute] Guid conversationId, CancellationToken cancellationToken) =>
         (await service.RemoveConversationAsync(conversationId, cancellationToken)).ToActionResult(this);
+
+    // I9: the file once, into an array of its length (the route's limit already bounded it), with no copy that grows or is copied again.
+    private static async Task<byte[]> ReadAsync(IFormFile file, CancellationToken cancellationToken)
+    {
+        var content = new byte[file.Length];
+        await using var stream = file.OpenReadStream();
+        await stream.ReadExactlyAsync(content, cancellationToken);
+        return content;
+    }
 }
