@@ -148,7 +148,7 @@ public sealed class ArcaVoucher : Entity
     }
 
     /// <summary>
-    /// Una persona decide. Un número tomado o que falta lo frena con su número. Una fecha que ARCA no acepta lo frena sin número:
+    /// Una persona decide. Un número tomado o que falta, o una huella que ya no coincide (H2), lo frena con su número. Una fecha que ARCA no acepta lo frena sin número:
     /// en cola, antes de darle uno, o con el que la reconciliación dijo que ARCA no emitió, que queda libre (ADR 0031).
     /// </summary>
     public void RequireReview(ArcaVoucherReviewReason reason, DateTime nowUtc)
@@ -176,7 +176,8 @@ public sealed class ArcaVoucher : Entity
                 (Number, DataHash) = (null, null);
                 Complete(ArcaVoucherState.Cancelled, nowUtc);
                 return Result.Success();
-            case ArcaVoucherReviewDecision.IssueWithNextNumber when ReviewReason is ArcaVoucherReviewReason.NumberTaken or ArcaVoucherReviewReason.NumberMissing:
+            case ArcaVoucherReviewDecision.IssueWithNextNumber when ReviewReason is ArcaVoucherReviewReason.NumberTaken or ArcaVoucherReviewReason.NumberMissing
+                or ArcaVoucherReviewReason.DataChanged:
                 (Number, DataHash) = (null, null);
                 Requeue(nowUtc);
                 return Result.Success();

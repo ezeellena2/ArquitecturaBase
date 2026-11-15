@@ -64,6 +64,15 @@ public sealed class ArcaInvoiceIssuePolicyTests
         Assert.Equal((StructuredIssueState.Pending, Next), (pending.State, pending.NextCheckAtUtc));
     }
 
+    // H2: a version that does not know how the voucher was fixed answers without its receiver, so the result waits for one that does.
+    [Fact]
+    public void An_issued_voucher_without_the_receiver_this_version_reads_is_pending()
+    {
+        var issued = Issued(ArcaVoucherKind.Invoice, new ArcaVoucherParty(99, 0, "Consumidor final", 5, null)) with { Receiver = null };
+
+        Assert.Equal((StructuredIssueState.Pending, null), (ArcaInvoiceIssuePolicy.Response(issued).State, ArcaInvoiceIssuePolicy.Response(issued).Result));
+    }
+
     [Fact]
     public void A_voucher_waiting_for_arca_is_pending_and_says_so()
     {

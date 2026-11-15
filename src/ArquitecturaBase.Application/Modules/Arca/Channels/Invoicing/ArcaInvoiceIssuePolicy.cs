@@ -33,7 +33,8 @@ internal static class ArcaInvoiceIssuePolicy
 
     public static StructuredIssueResponse Response(ArcaVoucherResponse voucher) => voucher.State switch
     {
-        ArcaVoucherState.Authorized when voucher.PdfStorageKey is { } storageKey => new(StructuredIssueState.Issued, Revision: voucher.Revision,
+        // H2: without the receiver (fixed by a version this one does not know) the result waits for the version that reads it.
+        ArcaVoucherState.Authorized when voucher.PdfStorageKey is { } storageKey && voucher.Receiver is not null => new(StructuredIssueState.Issued, Revision: voucher.Revision,
             Result: Result(voucher), Document: new StructuredRecordActionDocument(storageKey,
                 $"{ArcaFiscalDocumentPolicy.Name(voucher.Class, voucher.Kind)} {Number(voucher)}.pdf", "application/pdf", voucher.PdfSize!.Value, voucher.PdfSha256!)),
         ArcaVoucherState.Rejected => new(StructuredIssueState.Rejected, voucher.FailureCode, Revision: voucher.Revision)

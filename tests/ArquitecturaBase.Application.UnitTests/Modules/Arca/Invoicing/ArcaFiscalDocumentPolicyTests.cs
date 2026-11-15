@@ -111,6 +111,19 @@ public sealed class ArcaFiscalDocumentPolicyTests
         Assert.Equal(((decimal?)null, (string?)null), (document.VatContained, document.Legend));
     }
 
+    // H2: the subtotals are the amounts fixed when queued, not calculated again.
+    [Fact]
+    public void The_subtotals_are_the_amounts_fixed_when_queued()
+    {
+        var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice(ArcaVoucherClass.A, pricesIncludeVat: false);
+        var amounts = payload.Amounts with { Net = 520000.18m, VatRates = [new(4, 0.18m, 0.03m), new(5, 520000m, 109200m)] };
+
+        var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload with { Amounts = amounts });
+
+        Assert.Equal([new ArcaFiscalAmount("Importe neto gravado", 520000.18m), new ArcaFiscalAmount("IVA 10,5%", 0.03m), new ArcaFiscalAmount("IVA 21%", 109200m)],
+            document.Subtotals);
+    }
+
     [Fact]
     public void A_class_a_invoice_with_prices_with_vat_shows_them_without_it()
     {
@@ -129,15 +142,14 @@ public sealed class ArcaFiscalDocumentPolicyTests
     public void A_class_a_invoice_shows_exempt_and_not_taxed_lines_and_their_subtotals()
     {
         var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice(ArcaVoucherClass.A, pricesIncludeVat: false);
-        payload = payload with
-        {
-            Lines =
-            [
-                payload.Lines[0],
-                new ArcaVoucherLine("Libro", 1m, 15000m, 15000m, new(ArcaVatTreatmentKind.Exempt)),
-                new ArcaVoucherLine("Sellado", 1m, 500m, 500m, new(ArcaVatTreatmentKind.NotTaxed)),
-            ],
-        };
+        ArcaVoucherLine[] lines =
+        [
+            payload.Lines[0],
+            new ArcaVoucherLine("Libro", 1m, 15000m, 15000m, new(ArcaVatTreatmentKind.Exempt)),
+            new ArcaVoucherLine("Sellado", 1m, 500m, 500m, new(ArcaVatTreatmentKind.NotTaxed)),
+        ];
+        // The amounts are fixed with the lines when queued (H2).
+        payload = payload with { Lines = lines, Amounts = ArcaVoucherRequestPolicy.Amounts(ArcaVoucherClass.A, lines, false) };
 
         var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
 

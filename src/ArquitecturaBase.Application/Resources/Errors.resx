@@ -218,6 +218,7 @@
   <data name="Arca.Invoicing.ServicePeriodInvalid" xml:space="preserve"><value>Con servicios, completá el período y el vencimiento del pago, en orden.</value></data>
   <data name="Arca.Invoicing.IssueDateOutOfRange" xml:space="preserve"><value>ARCA no acepta esa fecha: con productos, hasta 5 días antes o después de hoy; con servicios, hasta 10.</value></data>
   <data name="Arca.Invoicing.AmountTooLarge" xml:space="preserve"><value>Un importe supera lo que acepta ARCA, que llega hasta 9.999.999.999.999,99. Revisá la cantidad y el precio.</value></data>
+  <data name="Arca.Invoicing.VersionUnknown" xml:space="preserve"><value>Lo encoló una versión de la app que ésta no conoce. Probá de nuevo en unos minutos.</value></data>
   <data name="Arca.Invoicing.IssueDateBeforeLast" xml:space="preserve"><value>ARCA no acepta una fecha anterior a la del último comprobante de ese tipo que ya salió. Usá una fecha más nueva, como la de hoy.</value></data>
   <data name="Arca.Invoicing.ItemsInvalid" xml:space="preserve"><value>Revisá los ítems: cada uno con descripción, cantidad y precio, y un total mayor que cero.</value></data>
   <data name="Arca.Invoicing.ArcaNoAnswer" xml:space="preserve"><value>ARCA no respondió: volvemos a probar solos.</value></data>

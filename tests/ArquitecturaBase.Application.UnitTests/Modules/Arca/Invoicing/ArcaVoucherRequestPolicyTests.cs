@@ -62,7 +62,7 @@ public sealed class ArcaVoucherRequestPolicyTests
     {
         var (_, payload) = Invoice(ArcaVoucherClass.B, pricesIncludeVat: true);
 
-        var read = ArcaVoucherRequestPolicy.FromJson(ArcaVoucherRequestPolicy.ToJson(payload));
+        var read = ArcaVoucherRequestPolicy.Read(ArcaVoucherRequestPolicy.ToJson(payload))!;
 
         Assert.Equal(payload.Lines, read.Lines);
         Assert.True(read.PricesIncludeVat);
@@ -73,11 +73,39 @@ public sealed class ArcaVoucherRequestPolicyTests
     {
         var (_, payload) = Invoice();
 
-        var read = ArcaVoucherRequestPolicy.FromJson(ArcaVoucherRequestPolicy.ToJson(payload));
+        var read = ArcaVoucherRequestPolicy.Read(ArcaVoucherRequestPolicy.ToJson(payload))!;
 
         Assert.Equal(payload.Receiver, read.Receiver);
         Assert.Equal(payload.Lines, read.Lines);
         Assert.Equal(payload.Issuer, read.Issuer);
+    }
+
+    // H2: the request takes the amounts fixed when queued and only adds the number; a version that calculates otherwise does not
+    // change what goes out.
+    [Fact]
+    public void The_request_takes_the_amounts_fixed_when_queued()
+    {
+        var (voucher, payload) = Invoice(ArcaVoucherClass.A, pricesIncludeVat: false);
+        var amounts = new ArcaVoucherAmounts(1m, 0m, 1m, 0m, 0m, 0m, []);
+
+        Assert.Same(amounts, ArcaVoucherRequestPolicy.Build(voucher, payload with { Amounts = amounts }, 7).Amounts);
+    }
+
+    // H2: what another version wrote is not read, so nothing builds it again by guessing: another version, none, a field or a
+    // value this one does not know.
+    [Theory]
+    [InlineData("\"version\":1", "\"version\":2")]
+    [InlineData("\"version\":1,", "")]
+    [InlineData("\"version\":1,", "\"version\":1,\"discount\":10,")]
+    [InlineData("\"description\":\"Flete\"", "\"description\":\"Flete\",\"unit\":\"kg\"")]
+    [InlineData("\"kind\":\"Taxed\"", "\"kind\":\"Reduced\"")]
+    public void What_another_version_wrote_is_not_read(string written, string instead)
+    {
+        var json = ArcaVoucherRequestPolicy.ToJson(Invoice(ArcaVoucherClass.B, pricesIncludeVat: true).Payload);
+        Assert.Contains(written, json);
+
+        Assert.NotNull(ArcaVoucherRequestPolicy.Read(json));
+        Assert.Null(ArcaVoucherRequestPolicy.Read(json.Replace(written, instead, StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -94,9 +122,10 @@ public sealed class ArcaVoucherRequestPolicyTests
 
     internal static (ArcaVoucher Voucher, ArcaVoucherPayload Payload) Invoice()
     {
-        var payload = new ArcaVoucherPayload(new ArcaVoucherParty(80, 30712345671, "Agro del Sur S.A.", 1, "Ruta 8 km 225"), null, null, null,
-            [new ArcaVoucherLine("Semilla de soja", 10m, 52000m, 520000m), new ArcaVoucherLine("Flete", 1m, 85500m, 85500m)],
-            new ArcaVoucherIssuer("Lucía Fernández", "Av. San Martín 1250, Pergamino", ArcaTaxStatus.Monotax, "27-28765433-8", new DateOnly(2019, 3, 1)), null);
+        ArcaVoucherLine[] lines = [new ArcaVoucherLine("Semilla de soja", 10m, 52000m, 520000m), new ArcaVoucherLine("Flete", 1m, 85500m, 85500m)];
+        var payload = new ArcaVoucherPayload(ArcaVoucherPayload.CurrentVersion, new ArcaVoucherParty(80, 30712345671, "Agro del Sur S.A.", 1, "Ruta 8 km 225"),
+            null, null, null, lines, ArcaVoucherRequestPolicy.Amounts(ArcaVoucherClass.C, lines, false),
+            new ArcaVoucherIssuer("Lucía Fernández", "Av. San Martín 1250, Pergamino", ArcaTaxStatus.Monotax, "27-28765433-8", new DateOnly(2019, 3, 1)), null, false);
         var voucher = ArcaVoucher.Create(Guid.CreateVersion7(), ArcaEnvironment.Testing, Guid.CreateVersion7(), ArcaVoucherClass.C, ArcaVoucherKind.Invoice,
             "27287654338", 4, 1, 80, 30712345671, new DateOnly(2026, 11, 9), 605500m, ArcaVoucherRequestPolicy.ToJson(payload), null, Now);
         return (voucher, payload);
@@ -106,14 +135,15 @@ public sealed class ArcaVoucherRequestPolicyTests
     {
         var receiver = voucherClass == ArcaVoucherClass.A ? new ArcaVoucherParty(80, 30712345671, "Agro del Sur S.A.", 1, "Ruta 8 km 225")
             : new ArcaVoucherParty(99, 0, "Consumidor final", 5, null);
-        var payload = new ArcaVoucherPayload(receiver, null, null, null,
-            [
-                new ArcaVoucherLine("Semilla de soja", 10m, 52000m, 520000m, new(ArcaVatTreatmentKind.Taxed, 5)),
-                new ArcaVoucherLine("Flete", 1.5m, 0.125m, 0.19m, new(ArcaVatTreatmentKind.Taxed, 4)),
-            ],
+        ArcaVoucherLine[] lines =
+        [
+            new ArcaVoucherLine("Semilla de soja", 10m, 52000m, 520000m, new(ArcaVatTreatmentKind.Taxed, 5)),
+            new ArcaVoucherLine("Flete", 1.5m, 0.125m, 0.19m, new(ArcaVatTreatmentKind.Taxed, 4)),
+        ];
+        var amounts = ArcaVoucherRequestPolicy.Amounts(voucherClass, lines, pricesIncludeVat);
+        var payload = new ArcaVoucherPayload(ArcaVoucherPayload.CurrentVersion, receiver, null, null, null, lines, amounts,
             new ArcaVoucherIssuer("Lucía Fernández", "Av. San Martín 1250, Pergamino", ArcaTaxStatus.RegisteredTaxpayer, "27-28765433-8", new DateOnly(2019, 3, 1)),
             null, pricesIncludeVat);
-        var amounts = ArcaVoucherRequestPolicy.Amounts(voucherClass, payload.Lines, pricesIncludeVat);
         var voucher = ArcaVoucher.Create(Guid.CreateVersion7(), ArcaEnvironment.Testing, Guid.CreateVersion7(), voucherClass, ArcaVoucherKind.Invoice,
             "27287654338", 4, 1, receiver.DocumentType, receiver.DocumentNumber, new DateOnly(2026, 11, 9), amounts.Total, ArcaVoucherRequestPolicy.ToJson(payload),
             null, Now);

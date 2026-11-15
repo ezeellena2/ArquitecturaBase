@@ -11,18 +11,39 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 /// <summary>
 /// El pedido a <c>FECAESolicitar</c> sale de la emisión y de lo que fijó al encolarse, en pesos. En la clase C sólo hay neto
 /// (el subtotal) y total; en la A y la B, el desglose del IVA por alícuota (<see cref="ArcaVatBreakdown"/>), con exento y no
-/// gravado aparte. La huella (SHA-256) cubre todo lo que se manda, con el número: se guarda antes de llamar (ADR 0028).
+/// gravado aparte. La huella (SHA-256) cubre todo lo que se manda, con el número: se guarda antes de llamar (ADR 0028). Los
+/// importes son los que se fijaron al encolar (H2): el pedido sólo suma el número, y nada se calcula de nuevo en cada intento.
 /// </summary>
 internal static class ArcaVoucherRequestPolicy
 {
     public const string Pesos = "PES";
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
+    // Strict: a field, a value or a missing part this version does not know is not read (H2).
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter(allowIntegerValues: false) },
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
+    };
 
     public static string ToJson(ArcaVoucherPayload payload) => JsonSerializer.Serialize(payload, Json);
 
-    public static ArcaVoucherPayload FromJson(string json) =>
-        JsonSerializer.Deserialize<ArcaVoucherPayload>(json, Json) ?? throw new InvalidOperationException("An ARCA voucher has an empty payload.");
+    /// <summary>
+    /// Lo que se fijó al encolar, o null si lo escribió una versión con otra forma (H2): otra versión, un dato o un valor que ésta
+    /// no conoce. Nadie lo arma de nuevo adivinando: el worker lo deja esperando y la respuesta va sin el receptor.
+    /// </summary>
+    public static ArcaVoucherPayload? Read(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ArcaVoucherPayload>(json, Json) is { Version: ArcaVoucherPayload.CurrentVersion } payload ? payload : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     public static ArcaVoucherRequest Build(ArcaVoucher voucher, ArcaVoucherPayload payload, long number) => new(
         voucher.PointOfSale,
@@ -32,7 +53,7 @@ internal static class ArcaVoucherRequestPolicy
         payload.Receiver.DocumentType,
         payload.Receiver.DocumentNumber,
         voucher.RequestedOn,
-        Amounts(voucher.Class, payload.Lines, payload.PricesIncludeVat),
+        payload.Amounts,
         payload.ServiceFrom,
         payload.ServiceTo,
         payload.PaymentDueOn,
@@ -62,7 +83,7 @@ internal static class ArcaVoucherRequestPolicy
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
     }
 
-    /// <summary>Los importes de una clase con sus renglones fijados. En la A y la B cada renglón trae su IVA.</summary>
+    /// <summary>Los importes de una clase con sus renglones, al encolar. En la A y la B cada renglón trae su IVA.</summary>
     public static ArcaVoucherAmounts Amounts(ArcaVoucherClass voucherClass, IReadOnlyList<ArcaVoucherLine> lines, bool pricesIncludeVat)
     {
         if (voucherClass == ArcaVoucherClass.C)

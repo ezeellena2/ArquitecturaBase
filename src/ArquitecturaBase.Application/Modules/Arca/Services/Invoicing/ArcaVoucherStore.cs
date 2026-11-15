@@ -39,10 +39,11 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         (await unitOfWork.ExecuteInTransactionAsync(token => ChangeCoreAsync(work, (voucher, _, nowUtc) => Wait(voucher, failureCode, nowUtc), token),
             CommitPolicy.OnSuccess, cancellationToken)).Value;
 
+    // H2: the PDF of a voucher fixed by a version this one does not know waits for the one that knows it.
     public async Task<ArcaFiscalPdfWorkResponse?> FindPdfAsync(Guid voucherId, CancellationToken cancellationToken) =>
         await vouchers.GetVoucherAsync(voucherId, cancellationToken) is { State: ArcaVoucherState.Authorized, PdfStorageKey: null } voucher
-            ? new ArcaFiscalPdfWorkResponse(voucher.Id, ArcaFiscalDocumentPolicy.StorageKey(voucher.Id),
-                ArcaFiscalDocumentPolicy.Build(voucher, ArcaVoucherRequestPolicy.FromJson(voucher.PayloadJson)))
+            && ArcaVoucherRequestPolicy.Read(voucher.PayloadJson) is { } payload
+            ? new ArcaFiscalPdfWorkResponse(voucher.Id, ArcaFiscalDocumentPolicy.StorageKey(voucher.Id), ArcaFiscalDocumentPolicy.Build(voucher, payload))
             : null;
 
     public async Task<bool> AttachPdfAsync(Guid voucherId, string storageKey, string sha256, long size, CancellationToken cancellationToken) =>
@@ -78,6 +79,13 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         if (voucher is null || voucher.State == ArcaVoucherState.NeedsReview || (voucher.State != ArcaVoucherState.Sending && !voucher.IsDue(nowUtc)))
             return Nothing(sequence, owner, fence);
 
+        // H2: fixed by a version this one does not know: it waits for the one that knows it, without being built again.
+        if (ArcaVoucherRequestPolicy.Read(voucher.PayloadJson) is not { } payload)
+        {
+            Wait(voucher, ArcaInvoicingErrors.VersionUnknown.Code, nowUtc);
+            return Nothing(sequence, owner, fence);
+        }
+
         var certificate = await connectionReader.FindSigningCertificateAsync(ArcaCertificateRole.Active, cancellationToken);
         if (certificate is null || certificate.Environment != voucher.Environment || certificate.Cuit != voucher.Cuit)
         {
@@ -91,7 +99,7 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
             return Nothing(sequence, owner, fence);
         }
 
-        var request = ArcaVoucherRequestPolicy.Build(voucher, ArcaVoucherRequestPolicy.FromJson(voucher.PayloadJson), voucher.Number ?? 0);
+        var request = ArcaVoucherRequestPolicy.Build(voucher, payload, voucher.Number ?? 0);
         return Result.Success<ArcaVoucherWorkResponse?>(new ArcaVoucherWorkResponse(voucher.Id, owner, fence, key,
             certificate.ToRef(new HashSet<string>(StringComparer.Ordinal) { Wsfe }), request, voucher.Number is not null));
     }
@@ -119,6 +127,10 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         var today = ArcaIssueDateWindow.Today(nowUtc);
         switch (ArcaReconciliationPolicy.Decide(work.Request, found, lastAuthorized, lastIssuedOn, today))
         {
+            case ArcaReconciliation.NotIssued when ArcaVoucherRequestPolicy.Fingerprint(work.Request) != voucher.DataHash:
+                // H2: what would go out again is not what was saved with the number; a person decides, with the number held.
+                voucher.RequireReview(ArcaVoucherReviewReason.DataChanged, nowUtc);
+                break;
             case ArcaReconciliation.NotIssued:
                 voucher.Resend(sequence.LeaseUntilUtc ?? nowUtc);
                 return Result.Success<ArcaVoucherWorkResponse?>(work);

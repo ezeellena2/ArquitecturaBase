@@ -267,7 +267,7 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
 
             var payload = await factory.ExecuteDbContextAsync(db =>
                 db.Set<ArcaVoucher>().Where(row => row.RequestKey == request.RunId).Select(row => row.PayloadJson).SingleAsync(ct));
-            Assert.Equal(legalName, ArcaVoucherRequestPolicy.FromJson(payload).Receiver.Name);
+            Assert.Equal(legalName, ArcaVoucherRequestPolicy.Read(payload)!.Receiver.Name);
             var voucher = Assert.Single(await factory.ExecuteScopeAsync(services =>
                 services.GetRequiredService<IArcaVoucherReviewService>().ListAsync([request.RunId], ct)));
             Assert.Equal(ArcaVoucherState.Authorized, voucher.State);

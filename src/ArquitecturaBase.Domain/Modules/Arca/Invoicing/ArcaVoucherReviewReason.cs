@@ -17,4 +17,10 @@ public enum ArcaVoucherReviewReason
     /// punto de venta. El número quedó libre.
     /// </summary>
     DateBeforeLastVoucher,
+
+    /// <summary>
+    /// Lo que se mandaría de nuevo ya no es lo que se guardó con el número: la huella no coincide (H2). Conserva el número, porque
+    /// ARCA puede tenerlo, y sigue con el siguiente.
+    /// </summary>
+    DataChanged,
 }

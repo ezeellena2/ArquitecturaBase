@@ -58,7 +58,8 @@ internal static class ArcaFiscalDocumentPolicy
         if (voucher is not { State: ArcaVoucherState.Authorized, Number: { } number, Cae: { } cae, CaeDueOn: { } due, IssuedOn: { } issuedOn })
             throw new InvalidOperationException("Only an authorized ARCA voucher has a fiscal PDF.");
         var receiver = payload.Receiver;
-        var amounts = ArcaVoucherRequestPolicy.Amounts(voucher.Class, payload.Lines, payload.PricesIncludeVat);
+        // H2: the subtotals are the amounts fixed when queued, as ARCA got them.
+        var amounts = payload.Amounts;
         return new ArcaFiscalDocument(
             payload.Issuer.LegalName,
             payload.Issuer.FiscalAddress,

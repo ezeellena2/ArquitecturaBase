@@ -127,6 +127,23 @@ public sealed class ArcaVoucherTests
         Assert.True(voucher.IsDue(Now));
     }
 
+    // H2: what would go out no longer matches the hash saved with the number: a person decides, with the number held as with a
+    // number taken, and it goes on with the next one.
+    [Fact]
+    public void A_voucher_whose_hash_no_longer_matches_goes_to_review_with_its_number_and_is_issued_with_the_next_one()
+    {
+        var voucher = Sending();
+        voucher.RequireReview(ArcaVoucherReviewReason.DataChanged, Now);
+        Assert.Equal((ArcaVoucherState.NeedsReview, ArcaVoucherReviewReason.DataChanged, (long?)12, true),
+            (voucher.State, voucher.ReviewReason, voucher.Number, voucher.HoldsNumber));
+
+        Assert.Equal(ArcaInvoicingErrors.ReviewDecisionInvalid, voucher.Review(ArcaVoucherReviewDecision.IssueToday, voucher.Revision, RequestedOn, Now).Error);
+        var reviewed = voucher.Review(ArcaVoucherReviewDecision.IssueWithNextNumber, voucher.Revision, RequestedOn, Now);
+
+        Assert.True(reviewed.IsSuccess);
+        Assert.Equal((ArcaVoucherState.Queued, (long?)null, (string?)null), (voucher.State, voucher.Number, voucher.DataHash));
+    }
+
     [Fact]
     public void A_date_out_of_range_is_issued_today_after_review()
     {

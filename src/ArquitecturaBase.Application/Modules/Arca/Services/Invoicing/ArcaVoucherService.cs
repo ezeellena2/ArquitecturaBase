@@ -16,7 +16,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 
 /// <summary>
 /// Encolar valida y recalcula antes de la transacción y, adentro, con el lock de la conexión, decide la clase con los datos
-/// del padrón, calcula los importes de esa clase (el IVA en la A y la B), fija lo que va a emitir y guarda (ADR 0028). La
+/// del padrón, calcula los importes de esa clase (el IVA en la A y la B), fija lo que va a emitir, ya armado y con su versión, y
+/// guarda (ADR 0028, H2). La
 /// misma clave de pedido devuelve la emisión que ya estaba. Nada llama a ARCA: lo hace el worker. La vista previa decide la
 /// clase, el total y el IVA sin guardar nada.
 /// </summary>
@@ -68,8 +69,9 @@ internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, 
         if (await DateBeforeLastAsync(connection, pointOfSale, decided.Value, order.IssueOn, cancellationToken)) return ArcaInvoicingErrors.IssueDateBeforeLast;
 
         var receiver = order.Receiver with { Name = order.Receiver.Name.Trim(), Address = Trimmed(order.Receiver.Address) };
-        var payload = new ArcaVoucherPayload(receiver, order.ServiceFrom, order.ServiceTo, order.PaymentDueOn, priced.Value.Lines,
-            Issuer(profile, configuration.GrossIncomeNumber, configuration.ActivityStartOn), null,
+        // H2: the amounts are fixed now, with the version of their form; each attempt only adds the number.
+        var payload = new ArcaVoucherPayload(ArcaVoucherPayload.CurrentVersion, receiver, order.ServiceFrom, order.ServiceTo, order.PaymentDueOn,
+            priced.Value.Lines, priced.Value.Amounts, Issuer(profile, configuration.GrossIncomeNumber, configuration.ActivityStartOn), null,
             decided.Value != ArcaVoucherClass.C && order.PricesIncludeVat);
         var voucher = ArcaVoucher.Create(connection.Id, connection.Environment, order.RequestKey, decided.Value, ArcaVoucherKind.Invoice, connection.Cuit,
             pointOfSale, order.Concept, receiver.DocumentType, receiver.DocumentNumber, order.IssueOn, priced.Value.Amounts.Total,
@@ -86,9 +88,10 @@ internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, 
         if (invoice is not { Kind: ArcaVoucherKind.Invoice, State: ArcaVoucherState.Authorized, Number: { } number }) return ArcaInvoicingErrors.InvoiceNotAuthorized;
         if (await vouchers.ExistsCreditNoteAsync(invoice.Id, cancellationToken)) return ArcaInvoicingErrors.InvoiceAlreadyCancelled;
 
+        // H2: the note fixes the invoice's own, so a version that does not know how the invoice was fixed does not write it again.
+        if (ArcaVoucherRequestPolicy.Read(invoice.PayloadJson) is not { } original) return ArcaInvoicingErrors.VersionUnknown;
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var today = ArcaIssueDateWindow.Today(nowUtc);
-        var original = ArcaVoucherRequestPolicy.FromJson(invoice.PayloadJson);
         // El vencimiento del pago de un servicio no puede ser anterior a la fecha de la nota.
         var payload = original with
         {

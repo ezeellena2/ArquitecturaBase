@@ -20,6 +20,7 @@ public static class ArcaInvoicingErrors
     public static readonly Error IssueDateBeforeLast = Error.Validation("Arca.Invoicing.IssueDateBeforeLast", "The date is before the last voucher of its type that ARCA authorized.");
     public static readonly Error ItemsInvalid = Error.Validation("Arca.Invoicing.ItemsInvalid", "Each item needs a description, a quantity and a price, and the total must be above zero.");
     public static readonly Error TotalMismatch = Error.Validation("Arca.Invoicing.TotalMismatch", "The total does not match the items.");
+    public static readonly Error VersionUnknown = Error.Conflict("Arca.Invoicing.VersionUnknown", "The voucher was queued by a version of the app that this one does not know.");
     public static readonly Error AmountTooLarge = Error.Validation("Arca.Invoicing.AmountTooLarge", "An amount is above what ARCA takes.");
     public static readonly Error InvoiceNotAuthorized = Error.Conflict("Arca.Invoicing.InvoiceNotAuthorized", "The invoice has not been issued.");
     public static readonly Error InvoiceAlreadyCancelled = Error.Conflict("Arca.Invoicing.InvoiceAlreadyCancelled", "The invoice already has a credit note.");

@@ -8,6 +8,8 @@ using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca.Registry;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
+using ArquitecturaBase.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Invoicing;
@@ -584,6 +586,114 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
         }
     }
 
+    // H2: what a version this one does not know queued waits for the one that knows it, without being built again or showing a
+    // receiver it cannot read.
+    [Fact]
+    public async Task A_voucher_queued_by_a_version_this_one_does_not_know_waits()
+    {
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var order = ArcaVoucherScenario.Order(Today);
+            var queued = await EnqueueAsync(order);
+            await NewerVersionAsync(queued.Id);
+
+            Assert.False(await ProcessAsync());
+
+            var waiting = await VoucherAsync(order.RequestKey);
+            Assert.Equal((ArcaVoucherState.Queued, "Arca.Invoicing.VersionUnknown", (long?)null, (ArcaVoucherParty?)null),
+                (waiting.State, waiting.FailureCode, waiting.Number, waiting.Receiver));
+            Assert.True(waiting.NextAttemptAtUtc > factory.Clock.GetUtcNow().UtcDateTime);
+            Assert.Equal(0, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // H2: neither a review nor a credit note decides over what this version does not understand, since both write it again.
+    [Fact]
+    public async Task A_version_this_one_does_not_know_is_neither_reviewed_nor_cancelled_with_a_credit_note()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var invoice = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(invoice);
+            await ProcessAsync();
+            var issued = await VoucherAsync(invoice.RequestKey);
+            Assert.Equal(ArcaVoucherState.Authorized, issued.State);
+            await NewerVersionAsync(issued.Id);
+            Assert.Equal("Arca.Invoicing.VersionUnknown", (await CreditNoteAsync(Guid.CreateVersion7(), invoice.RequestKey, ct)).Error.Code);
+
+            var late = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(late);
+            factory.Clock.Advance(TimeSpan.FromDays(6));
+            await ProcessAsync();
+            var review = await VoucherAsync(late.RequestKey);
+            Assert.Equal(ArcaVoucherState.NeedsReview, review.State);
+            await NewerVersionAsync(review.Id);
+
+            var reviewed = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>()
+                .ReviewAsync(late.RequestKey, ArcaVoucherReviewDecision.IssueToday, review.Revision, ct));
+            Assert.Equal("Arca.Invoicing.VersionUnknown", reviewed.Error.Code);
+            Assert.Equal(ArcaVoucherState.NeedsReview, (await VoucherAsync(late.RequestKey)).State);
+            Assert.Equal(1, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // H2: before sending again, what would go out is checked against the hash saved with the number. If it does not match, a
+    // person decides, with the number held, and the next number goes out with what was fixed when queued.
+    [Fact]
+    public async Task A_voucher_whose_hash_does_not_match_goes_to_review_instead_of_being_sent_again()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var order = ArcaVoucherScenario.Order(Today);
+            var queued = await EnqueueAsync(order);
+            await factory.ExecuteScopeAsync(async services =>
+            {
+                var store = services.GetRequiredService<IArcaVoucherStore>();
+                var work = await store.ReserveAsync(ArcaVoucherScenario.Sequence(), Guid.NewGuid(), TimeSpan.FromMinutes(2), ct);
+                Assert.NotNull(await store.AssignNumberAsync(work!, 0, ct));
+            });
+            await factory.ExecuteScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<ArcaVoucher>()
+                .Where(voucher => voucher.Id == queued.Id).ExecuteUpdateAsync(set => set.SetProperty(voucher => voucher.DataHash, new string('0', 64)), ct));
+
+            factory.Clock.Advance(TimeSpan.FromMinutes(2));
+            Assert.False(await ProcessAsync());
+
+            var review = await VoucherAsync(order.RequestKey);
+            Assert.Equal((ArcaVoucherState.NeedsReview, (ArcaVoucherReviewReason?)ArcaVoucherReviewReason.DataChanged, (long?)1),
+                (review.State, review.ReviewReason, review.Number));
+            Assert.Equal((1, 0), (arca.Calls("FECompConsultar", FakeArca.InvoicingService), arca.Calls("FECAESolicitar", FakeArca.InvoicingService)));
+
+            var reviewed = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>()
+                .ReviewAsync(order.RequestKey, ArcaVoucherReviewDecision.IssueWithNextNumber, review.Revision, ct));
+            Assert.True(reviewed.IsSuccess, reviewed.IsFailure ? reviewed.Error.Code : null);
+            await ProcessAsync();
+
+            var issued = await VoucherAsync(order.RequestKey);
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)1, 605500m), (issued.State, issued.Number, issued.Total));
+            Assert.Equal(1, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
     [Fact]
     public async Task A_credit_note_cancels_an_authorized_invoice_by_its_total_once()
     {
@@ -739,6 +849,16 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
     private async Task<ArcaVoucherResponse> VoucherAsync(Guid requestKey) =>
         Assert.Single(await factory.ExecuteScopeAsync(services =>
             services.GetRequiredService<IArcaVoucherReviewService>().ListAsync([requestKey], TestContext.Current.CancellationToken)));
+
+    // As a later version of the app would leave it: the same voucher, fixed with a form this one does not know.
+    private Task NewerVersionAsync(Guid voucherId) => factory.ExecuteScopeAsync(async services =>
+    {
+        var vouchers = services.GetRequiredService<ApplicationDbContext>().Set<ArcaVoucher>();
+        var payload = await vouchers.Where(voucher => voucher.Id == voucherId).Select(voucher => voucher.PayloadJson).SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("\"version\": 1", payload, StringComparison.Ordinal);
+        await vouchers.Where(voucher => voucher.Id == voucherId).ExecuteUpdateAsync(set => set.SetProperty(voucher => voucher.PayloadJson,
+            payload.Replace("\"version\": 1", "\"version\": 2", StringComparison.Ordinal)), TestContext.Current.CancellationToken);
+    });
 
     private static string Value(XElement request, string name) => request.Descendants(Fev1 + name).Single().Value;
 

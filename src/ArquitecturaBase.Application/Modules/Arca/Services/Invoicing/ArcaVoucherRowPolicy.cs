@@ -36,5 +36,6 @@ internal static class ArcaVoucherRowPolicy
     public static string FailureCode(ArcaAuthorization authorization, string fallback) =>
         authorization.Errors.Concat(authorization.Observations).FirstOrDefault() is { } first ? $"wsfe.{first.Code}" : fallback;
 
-    private static ArcaVoucherParty? Receiver(string payloadJson) => ArcaVoucherRequestPolicy.FromJson(payloadJson).Receiver;
+    // H2: without the receiver when a version this one does not know fixed it.
+    private static ArcaVoucherParty? Receiver(string payloadJson) => ArcaVoucherRequestPolicy.Read(payloadJson)?.Receiver;
 }

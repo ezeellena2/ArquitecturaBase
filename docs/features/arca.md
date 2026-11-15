@@ -217,9 +217,15 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   ([ADR 0031](../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md)). La clase la decide el sistema con la
   condición frente al IVA de la empresa (`IArcaCompanyProfileSource`, del padrón) y la del receptor: monotributo o exento,
   C; responsable inscripto, A al responsable inscripto y a los monotributistas (1, 6, 13 y 16) y B a los demás. Fija lo que
-  va a emitir, con los datos del emisor de ese momento, y la clave del pedido la hace idempotente. La nota de crédito anula
-  por el total una factura autorizada, una sola vez, de su misma clase, con los mismos renglones, la factura en
-  `CbtesAsoc` y la fecha de hoy.
+  va a emitir ya armado para su clase, con la versión de su forma (H2): los renglones, los importes (con el IVA de cada
+  alícuota en la A y la B), las fechas, los códigos y los datos del emisor de ese momento. El worker sólo le pone el número,
+  y la reconciliación y el PDF usan esos importes. La clave del pedido la hace idempotente. La nota de crédito anula por el
+  total una factura autorizada, una sola vez, de su misma clase, con los renglones y los importes que fijó la factura, la
+  factura en `CbtesAsoc` y la fecha de hoy.
+- **Versiones (H2):** cada versión de la app lee sólo la forma de lo fijado que conoce, y de forma estricta: una versión, un
+  dato o un valor que no conoce no se lee ni se arma de nuevo. Lo que encoló otra versión espera
+  (`Arca.Invoicing.VersionUnknown`) hasta que lo tome una que lo entienda; mientras tanto la respuesta va sin el receptor, el
+  PDF fiscal espera, y revisarlo o anularlo con una nota de crédito da 409 con ese código.
 - **A y B (etapa 4):** cada renglón trae su IVA: una alícuota de ARCA por su código (3, 4, 5, 6, 8 y 9; el porcentaje lo
   pone el servidor), «Exento» o «No gravado». El pedido dice si los precios incluyen el IVA. El IVA se calcula por alícuota
   sobre la suma de sus renglones, con half-even; con precios con IVA, la base es la suma dividida por (1 + alícuota) y el
@@ -229,7 +235,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
 - **Numeración:** `ArcaVoucherSequences` tiene una fila por ambiente, CUIT, punto de venta y tipo, con una reserva corta y
   el comprobante pendiente. El worker (`Arca:Invoicing:Worker`) toma una secuencia por vez y su comprobante más viejo sin
   resolver; nadie toma otro número mientras haya un pendiente. El número (último autorizado más 1) y la huella SHA-256 se
-  guardan antes de `FECAESolicitar`.
+  guardan antes de `FECAESolicitar`. Antes de mandar otra vez el mismo número, la huella de lo que saldría se compara con la
+  guardada: si no coincide, no se manda y va a revisión con su número, que frena la secuencia, con «El comprobante ya no
+  coincide con lo que se guardó al darle el número»: «Emitir con el número siguiente» o «No emitir» (H2).
 - **Reconciliación:** ante un 10016, una respuesta que no llega, un 500, un 501, un 502 o una falla SOAP, el comprobante
   queda incierto y el próximo intento consulta `FECompConsultar`: si ARCA lo tiene con el mismo documento, fecha, concepto
   y total, queda autorizado con ese CAE; si no lo tiene y el número sigue siendo el siguiente, se manda otra vez con el

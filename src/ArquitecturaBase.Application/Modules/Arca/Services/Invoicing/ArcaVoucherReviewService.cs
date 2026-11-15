@@ -13,7 +13,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 
 /// <summary>
 /// Lo que una persona hace con una emisión ya encolada (ADR 0028): leerla, decidir sobre una en revisión con la revisión
-/// esperada, o cancelarla mientras no tiene número. Si deja de tener número, su secuencia deja de esperarla.
+/// esperada, o cancelarla mientras no tiene número. Si deja de tener número, su secuencia deja de esperarla. No decide sobre una
+/// que fijó una versión que ésta no conoce (H2).
 /// </summary>
 internal sealed class ArcaVoucherReviewService(IArcaConnectionRepository connections, IArcaVoucherRepository vouchers, IArcaVoucherReader reader,
     IUnitOfWork unitOfWork, TimeProvider timeProvider, ILogger<ArcaVoucherReviewService> logger) : IArcaVoucherReviewService
@@ -38,11 +39,13 @@ internal sealed class ArcaVoucherReviewService(IArcaConnectionRepository connect
     {
         await connections.LockConnectionAsync(cancellationToken);
         if (await vouchers.GetVoucherByRequestAsync(requestKey, cancellationToken) is not { } voucher) return ArcaInvoicingErrors.VoucherNotFound;
+        // H2: fixed by a version this one does not know; deciding could write it again without what this one does not read.
+        if (ArcaVoucherRequestPolicy.Read(voucher.PayloadJson) is not { } payload) return ArcaInvoicingErrors.VersionUnknown;
         var heldNumber = voucher.HoldsNumber;
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var sequenceRow = new ArcaVoucherSequenceRow(voucher.Environment, voucher.Cuit, voucher.PointOfSale, voucher.VoucherType);
         var (issueOn, payloadJson) = decision == ArcaVoucherReviewDecision.IssueToday
-            ? await IssueTodayAsync(voucher, sequenceRow, ArcaIssueDateWindow.Today(nowUtc), cancellationToken)
+            ? await IssueTodayAsync(payload, sequenceRow, ArcaIssueDateWindow.Today(nowUtc), cancellationToken)
             : (ArcaIssueDateWindow.Today(nowUtc), null);
         var reviewed = voucher.Review(decision, expectedRevision, issueOn, nowUtc, payloadJson);
         if (reviewed.IsFailure) return reviewed.Error;
@@ -58,11 +61,10 @@ internal sealed class ArcaVoucherReviewService(IArcaConnectionRepository connect
     /// posterior, la suya, porque ARCA no acepta una anterior; y un vencimiento del pago ya pasado se corre a esa fecha, como en
     /// la nota de crédito (B2). El pedido guardado se reescribe sólo si cambia.
     /// </summary>
-    private async Task<(DateOnly IssueOn, string? PayloadJson)> IssueTodayAsync(ArcaVoucher voucher, ArcaVoucherSequenceRow sequence, DateOnly today,
+    private async Task<(DateOnly IssueOn, string? PayloadJson)> IssueTodayAsync(ArcaVoucherPayload payload, ArcaVoucherSequenceRow sequence, DateOnly today,
         CancellationToken cancellationToken)
     {
         var issueOn = await vouchers.FindLastIssuedOnAsync(sequence, cancellationToken) is { } last && last > today ? last : today;
-        var payload = ArcaVoucherRequestPolicy.FromJson(voucher.PayloadJson);
         return payload.PaymentDueOn is { } due && due < issueOn
             ? (issueOn, ArcaVoucherRequestPolicy.ToJson(payload with { PaymentDueOn = issueOn }))
             : (issueOn, null);
