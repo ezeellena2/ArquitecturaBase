@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]
-    public async Task Reload_recovers_publication_state_but_discloses_the_request_only_to_its_currently_authorized_owner()
+    public async Task Reload_recovers_publication_state_and_discloses_an_open_request_only_to_whoever_can_publish()
     {
         using var actor = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
         var saved = await CreateAsync(actor, Payload("Reload publication"));
@@ -36,15 +36,22 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(receipt.GetProperty("recoveryPath").GetString(), publication.GetProperty("currentOperation").GetProperty("recoveryPath").GetString());
         Assert.True(detail.GetProperty("capabilities").GetProperty("canPublish").GetBoolean());
         Assert.False(detail.GetProperty("capabilities").GetProperty("canPreview").GetBoolean());
-        foreach (var permissions in new[] { new[] { BusinessFormsPermissions.Read }, new[] { BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish } })
+        using (var reader = await OperatorAsync([BusinessFormsPermissions.Read]))
         {
-            using var reader = await OperatorAsync(permissions);
             using var other = await reader.GetAsync($"/api/forms/definitions/{id}", Ct);
             var visible = (await other.ReadJsonAsync()).GetProperty("publication");
             Assert.Equal("Accepted", visible.GetProperty("displayState").GetString());
             Assert.Equal(JsonValueKind.Null, visible.GetProperty("currentOperation").GetProperty("requestId").ValueKind);
             Assert.Equal(JsonValueKind.Null, visible.GetProperty("currentOperation").GetProperty("recoveryPath").ValueKind);
             Assert.DoesNotContain(receipt.GetProperty("requestId").GetGuid().ToString(), visible.GetRawText(), StringComparison.Ordinal);
+        }
+        // F3: whoever can publish learns the open operation, so someone else can discard a stuck publication.
+        using (var publisher = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish]))
+        {
+            using var other = await publisher.GetAsync($"/api/forms/definitions/{id}", Ct);
+            var visible = (await other.ReadJsonAsync()).GetProperty("publication");
+            Assert.Equal("Accepted", visible.GetProperty("displayState").GetString());
+            Assert.Equal(receipt.GetProperty("requestId").GetGuid(), visible.GetProperty("currentOperation").GetProperty("requestId").GetGuid());
         }
         using var listed = await client.GetAsync("/api/forms/definitions?search=" + saved.GetProperty("definition").GetProperty("prefix").GetString(), Ct);
         Assert.Equal("Accepted", (await listed.ReadJsonAsync()).GetProperty("items")[0].GetProperty("displayState").GetString());

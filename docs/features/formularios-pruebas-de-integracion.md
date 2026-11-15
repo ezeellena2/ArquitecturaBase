@@ -22,7 +22,7 @@ Sólo en la app (SA1-A a SA5): FormAppOnlyPublicationTests publica sin consultar
 
 2b prueba activación preservando borrador, CAS/fences/replay, otro host y ambos workers reales con proveedor de TestFeatures: es/en, upload con errores, caída después de Create y revocación. URLs de preview/estado sin secretos; inventario/OpenAPI diez rutas. Sin red Meta; workers automáticos apagados y ejecución controlada por operación.
 
-Mínimo2: recarga propia/ajena y revocación Publish; última operación sin borrar activa anterior/listado/facetas. Preview es/en independiente de Accept-Language, cultura ausente/ajena400, expiración sin URL en canal real y guard neutral, renovación sólo por GET nuevo. La consulta al canal lleva las primeras 20 opciones de cada lista en la cultura pedida (VO1-A).
+Mínimo2: recarga propia/ajena (la operación abierta la ve quien puede publicar, no quien sólo lee) y revocación Publish; última operación sin borrar activa anterior/listado/facetas. Preview es/en independiente de Accept-Language, cultura ausente/ajena400, expiración sin URL en canal real y guard neutral, renovación sólo por GET nuevo. La consulta al canal lleva las primeras 20 opciones de cada lista en la cultura pedida (VO1-A).
 
 FormPublicationLanguageTests verifica tres versiones con original solo, secundaria completa y secundaria retirada para originales es/en. Afirma culturas del chequeo, manifiesto, activa y status; captura dieciocho cuerpos HTTP íntegros sin ticket para el exportador existente. El cierre de backend ejecutó los casos con PostgreSQL y exportó esos cuerpos sin reconstruirlos.
 

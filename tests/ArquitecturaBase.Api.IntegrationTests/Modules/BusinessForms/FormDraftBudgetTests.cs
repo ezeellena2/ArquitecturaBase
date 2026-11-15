@@ -58,7 +58,8 @@ public sealed partial class FormDraftEndpointsTests
         // of documents (DOC1) one, «Cómo viene leyendo». The inbox «Documentos recibidos» (DOC5-A) adds ten: the search, its counts,
         // the detail, the file, discarding, reopening, changing the form and its extraction, passing it to the form and the options
         // of a long list. «Armar formulario con la IA» (DOC6) adds three: asking for a proposal, reading it and creating its draft.
-        Assert.Equal(122,paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+        // Discarding a stuck publication (F3) adds one, and reviewing a topic of «Formularios que faltan» (F7) another.
+        Assert.Equal(123,paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
             .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put" or "delete")));
         // Creating from a Home proposal (IA2): 201 with what it created, problems for invalid, unavailable and replaced, and the status.
         foreach (var (path, schema) in new[] { ("/api/forms/definitions/assistant-proposals", "FormDraftAssistantProposalResponse"),
