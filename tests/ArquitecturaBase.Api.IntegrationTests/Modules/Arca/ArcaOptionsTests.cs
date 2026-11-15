@@ -1,5 +1,8 @@
+using ArquitecturaBase.Application.Modules.Arca.Configuration;
 using ArquitecturaBase.Infrastructure.Modules.Arca;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Robot;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Security;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.Arca;
 
@@ -36,6 +39,25 @@ public sealed class ArcaOptionsTests
         Assert.False((Options() with { MaxResponseBytes = 0 }).IsValid());
         Assert.False((Options() with { TicketMargin = TimeSpan.Zero }).IsValid());
         Assert.False((Options() with { TicketLease = TimeSpan.Zero }).IsValid());
+    }
+
+    // H23: each lease covers what it guards, also with the default values.
+    [Fact]
+    public void The_default_leases_cover_what_they_guard()
+    {
+        Assert.True(Options().IsValid());
+        Assert.True(new ArcaVoucherWorkerOptions().CoversARound(Options()));
+        Assert.True(new ArcaRobotBrowserOptions { Enabled = true }.LeaseCovers(new ArcaRobotOptions().Lease));
+    }
+
+    [Fact]
+    public void A_lease_shorter_than_what_it_guards_makes_the_options_invalid()
+    {
+        Assert.False((Options() with { TicketLease = TimeSpan.FromSeconds(40) }).IsValid());
+        Assert.False(new ArcaVoucherWorkerOptions { Lease = TimeSpan.FromMinutes(2) }.CoversARound(Options()));
+        Assert.False(new ArcaVoucherWorkerOptions().CoversARound(Options() with { RequestTimeout = TimeSpan.FromSeconds(90), TicketLease = TimeSpan.FromMinutes(4) }));
+        Assert.False(new ArcaRobotBrowserOptions { Enabled = true }.LeaseCovers(TimeSpan.FromMinutes(2)));
+        Assert.True(new ArcaRobotBrowserOptions { Enabled = false }.LeaseCovers(TimeSpan.FromMinutes(2)));
     }
 
     [Fact]

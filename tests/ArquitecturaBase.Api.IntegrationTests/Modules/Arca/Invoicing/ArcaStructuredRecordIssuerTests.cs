@@ -149,6 +149,37 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
         }
     }
 
+    // H10: with the registry not answering at «Emitir», nothing was queued, so the action can be retried.
+    [Fact]
+    public async Task A_registry_that_does_not_answer_at_issuing_leaves_a_rejection_that_can_be_retried()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = factory.Services.GetRequiredService<FakeArca>();
+        arca.Reset();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            arca.Fail(FakeArca.RegistryService, FakeArcaFailure.ServiceUnavailable);
+            var request = Request(Guid.CreateVersion7());
+            StructuredIssueDatum[] data = [new("customer", "other", "Otro: escribir la CUIT"), new("customerTaxId", "20-12345678-6"), .. request.Data.Skip(1)];
+
+            var refused = await IssuerAsync(factory, issuer => issuer.EnqueueAsync(request with { Data = data }, ct));
+
+            Assert.Equal((StructuredIssueState.Rejected, true), (refused.State, refused.CanRetry));
+            Assert.StartsWith("Arca.", refused.FailureCode, StringComparison.Ordinal);
+            Assert.Equal(StructuredIssueState.NotFound, (await IssuerAsync(factory, issuer => issuer.GetAsync(request.RunId, ct))).State);
+
+            // A CUIT that is missing is a malformed order: retrying it gives the same.
+            StructuredIssueDatum[] withoutCuit = [new("customer", "other", "Otro: escribir la CUIT"), .. request.Data.Skip(1)];
+            var malformed = await IssuerAsync(factory, issuer => issuer.EnqueueAsync(new StructuredIssueRequest(Guid.CreateVersion7(), Guid.CreateVersion7(), withoutCuit), ct));
+            Assert.Equal(("Arca.Invoicing.ReceiverInvalid", false), (malformed.FailureCode, malformed.CanRetry));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
     [Fact]
     public async Task A_request_without_a_customer_is_rejected_and_nothing_is_queued()
     {

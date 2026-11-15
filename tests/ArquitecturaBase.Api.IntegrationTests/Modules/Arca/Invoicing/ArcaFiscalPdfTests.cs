@@ -50,10 +50,12 @@ public sealed class ArcaFiscalPdfTests(ApiFactory factory) : IDisposable
 
             await using var scope = withFiles.Services.CreateAsyncScope();
             var retention = scope.ServiceProvider.GetServices<IPrivateFileRetentionSource>();
+            // H3: every fiscal PDF is kept, also one whose voucher the base does not have (after a restore).
+            var orphan = $"arca-vouchers/{Guid.CreateVersion7():N}.pdf";
             var referenced = new List<string>();
             foreach (var source in retention)
-                referenced.AddRange(await source.ListReferencedKeysAsync([row.PdfStorageKey!, $"arca-vouchers/{Guid.CreateVersion7():N}.pdf", "otro/archivo.pdf"], ct));
-            Assert.Equal([row.PdfStorageKey!], referenced);
+                referenced.AddRange(await source.ListReferencedKeysAsync([row.PdfStorageKey!, orphan, "otro/archivo.pdf"], ct));
+            Assert.Equal([row.PdfStorageKey!, orphan], referenced);
         }
         finally
         {

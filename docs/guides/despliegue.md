@@ -97,6 +97,12 @@ de la base/imagen, y conservá claves históricas con backups. La [guía de IA](
 fija variables, rotación y restauración. La migración AiConnection es aditiva; el workflow
 conserva secretos del host y no provisiona este anillo. Azure real sigue sin verificar.
 
+Con el módulo ARCA presente, el startup exige además `Arca:SecretProtection`, con el mismo diseño: InstallationId,
+ActiveKeyId y claves externas de 32 bytes base64 (`Arca__SecretProtection__InstallationId`,
+`Arca__SecretProtection__ActiveKeyId` y `Arca__SecretProtection__Keys__<keyId>`). Lo exige aunque todavía no haya una
+conexión. [Configurar ARCA](configurar-arca.md) fija las variables y la rotación; si cambian el ID o la clave, la clave
+privada guardada queda ilegible y hay que repetir el alta en ARCA.
+
 Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se escribe `__` (`ConnectionStrings__appdb`). Lo que es secreto va como secreto del orquestador (en Container Apps, con `secretref:`), nunca en el repo. Cómo cargarlas en Azure: [azure-setup.md, paso 6](../deploy/azure-setup.md#6-configuración-de-la-aplicación). Rutas desde `src/`:
 
 | Clave | Qué pide | Dónde lo exige el código | Si falta |

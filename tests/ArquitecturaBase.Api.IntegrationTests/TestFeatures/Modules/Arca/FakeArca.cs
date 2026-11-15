@@ -14,6 +14,9 @@ internal enum FakeArcaFailure
     NotAuthorized,
     ServiceUnavailable,
     Hang,
+
+    /// <summary>Manda los encabezados y el comienzo del sobre, y corta la conexión a mitad del cuerpo.</summary>
+    CutMidBody,
 }
 
 /// <summary>Un punto de venta como lo devuelve <c>FEParamGetPtosVenta</c>: los textos tal cual, «S»/«N» y «NULL» o una fecha.</summary>
@@ -197,10 +200,39 @@ internal sealed class FakeArca(TimeProvider time)
                 return Fault("ns1:coe.notAuthorized", "Computador no autorizado a acceder al servicio");
             case FakeArcaFailure.ServiceUnavailable:
                 return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            case FakeArcaFailure.CutMidBody:
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new CutBody()) };
             default:
                 await Task.Delay(Timeout.Infinite, cancellationToken);
                 throw new InvalidOperationException("A held ARCA call can only end by cancellation.");
         }
+    }
+
+    // El comienzo de un sobre y después la conexión cortada, como la ve quien lee el cuerpo: una IOException.
+    private sealed class CutBody : Stream
+    {
+        private readonly byte[] start = Encoding.UTF8.GetBytes("<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"><soapenv:Body>");
+        private int sent;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => sent; set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (sent >= start.Length) throw new IOException("The ARCA test double cut the connection in the middle of the body.");
+            var length = Math.Min(count, start.Length - sent);
+            Array.Copy(start, sent, buffer, offset, length);
+            sent += length;
+            return length;
+        }
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     // Sin respuesta es una conexión cortada: el cliente la ve como un pedido que no llegó.

@@ -40,6 +40,12 @@ internal sealed class ArcaRobotBrowserOptions
 
     public ArcaRobotPlatformCredentials Platform { get; init; } = new();
 
+    /// <summary>
+    /// H23: con el robot prendido, la reserva de un lado (<c>Arca:Robot:Lease</c>) dura al menos cuatro acciones. Los valores de
+    /// fábrica, 3 minutos y 45 segundos, quedan justo.
+    /// </summary>
+    public bool LeaseCovers(TimeSpan lease) => !Enabled || lease >= StepTimeout * 4;
+
     public bool IsValid() => !Enabled || (LoginUrl.Scheme == Uri.UriSchemeHttps || LoginUrl.IsLoopback)
         && StepTimeout > TimeSpan.Zero && RunTimeout > StepTimeout && PollInterval > TimeSpan.Zero && QueueCapacity is > 0 and <= 50
         && Platform.IsValid();

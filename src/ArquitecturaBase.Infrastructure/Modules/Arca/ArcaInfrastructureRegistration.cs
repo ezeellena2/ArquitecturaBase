@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Modules.Arca.Configuration;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Registry;
@@ -21,6 +22,7 @@ using ArquitecturaBase.Infrastructure.Modules.Arca.Registry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.Modules.Arca;
 
 /// Una línea por familia de servicios (ADR 0025): quitar una familia es borrar sus carpetas y su línea.
@@ -44,7 +46,7 @@ public static class ArcaInfrastructureRegistration
         services.AddOptions<ArcaSecretProtectionOptions>().Bind(configuration.GetSection("Arca:SecretProtection"))
             .Validate(x => x.IsValid(), "Configure Arca:SecretProtection with an installation ID, active key ID and external 256-bit keys.").ValidateOnStart();
         services.AddOptions<ArcaOptions>().Bind(configuration.GetSection("Arca"))
-            .Validate(x => x.IsValid(), "Configure Arca with HTTPS addresses, the certificate issuer and the ticket retry window of each environment.").ValidateOnStart();
+            .Validate(x => x.IsValid(), "Configure Arca with HTTPS addresses, the certificate issuer and the ticket retry window of each environment, and a ticket lease longer than two request timeouts.").ValidateOnStart();
         services.AddSingleton<ArcaKeyRing>();
         services.AddSingleton<IArcaCredentialService, ArcaCredentialService>();
         services.AddSingleton<ArcaAuthClient>();
@@ -60,6 +62,8 @@ public static class ArcaInfrastructureRegistration
     {
         services.AddOptions<ArcaRobotBrowserOptions>().Bind(configuration.GetSection("Arca:Robot"))
             .Validate(x => x.IsValid(), "With Arca:Robot:Enabled, configure an HTTPS login page, positive timeouts, a queue of 1 to 50 and the platform login CUIT and tax key.")
+            .Validate<IOptions<ArcaRobotOptions>>((browser, robot) => browser.LeaseCovers(robot.Value.Lease),
+                "With Arca:Robot:Enabled, Arca:Robot:Lease has to last at least four Arca:Robot:StepTimeout.")
             .ValidateOnStart();
         services.AddScoped<IArcaRobotRunRepository, ArcaRobotRunRepository>();
         services.AddScoped<IArcaRobotRunReader, ArcaRobotRunReader>();
@@ -86,7 +90,10 @@ public static class ArcaInfrastructureRegistration
     private static void AddInvoicing(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<ArcaVoucherWorkerOptions>().Bind(configuration.GetSection("Arca:Invoicing:Worker"))
-            .Validate(x => x.IsValid(), "Configure Arca:Invoicing:Worker with a positive interval and lease and a batch of 1 to 500.").ValidateOnStart();
+            .Validate(x => x.IsValid(), "Configure Arca:Invoicing:Worker with a positive interval and lease and a batch of 1 to 500.")
+            .Validate<IOptions<ArcaOptions>>((worker, arca) => worker.CoversARound(arca.Value),
+                "Arca:Invoicing:Worker:Lease has to cover a reconciling round: Arca:TicketLease plus five Arca:RequestTimeout.")
+            .ValidateOnStart();
         services.AddScoped<IArcaInvoicingRepository, ArcaInvoicingRepository>();
         services.AddScoped<IArcaInvoicingReader, ArcaInvoicingReader>();
         services.AddScoped<IArcaVoucherRepository, ArcaVoucherRepository>();

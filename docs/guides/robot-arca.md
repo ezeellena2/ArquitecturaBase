@@ -26,7 +26,7 @@ variables protegidas al desplegar. Nunca en `appsettings` ni en el repo.
 | `LoginUrl` | La página de ingreso con clave fiscal | la de ARCA |
 | `ServiceLabels:<código WSN>` | El nombre del servicio en el Administrador de Relaciones, si ARCA lo cambia | `wsfe`: «Facturación Electrónica»; constancia: «Consulta de Constancia de Inscripción» |
 | `StepTimeout`, `RunTimeout` | Lo que espera cada acción y una pasada entera | 45 s y 10 min |
-| `Lease`, `RetryDelay`, `MaxAttempts` | La reserva de un lado y los reintentos del lado de la plataforma | 3 min, 2 min y 5 |
+| `Lease`, `RetryDelay`, `MaxAttempts` | La reserva de un lado, que dura al menos cuatro `StepTimeout` o la Api no arranca, y los reintentos del lado de la plataforma | 3 min, 2 min y 5 |
 | `PollInterval`, `QueueCapacity` | Cada cuánto mira el worker de la plataforma y cuántas corridas del cliente espera un host | 30 s y 4 |
 
 En desarrollo:

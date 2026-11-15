@@ -154,6 +154,17 @@ public sealed class ArcaVoucherClientTests(ApiFactory factory)
         Assert.Single(arca.Vouchers.Issued);
     }
 
+    // H12: a cut while the body is read is ARCA not answering, not an unexpected error: the clients of ARCA never throw.
+    [Fact]
+    public async Task A_cut_in_the_middle_of_the_answer_is_unavailable()
+    {
+        Arca().Fail(FakeArca.InvoicingService, FakeArcaFailure.CutMidBody);
+
+        var reply = await Client().GetLastAuthorizedAsync(Certificate, Ticket, 4, 11, Ct);
+
+        Assert.Equal(ArcaServiceCheckStatus.Unavailable, reply.Status);
+    }
+
     [Fact]
     public async Task An_issued_voucher_is_found_with_what_was_sent_and_its_authorization()
     {

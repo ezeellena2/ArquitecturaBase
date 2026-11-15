@@ -240,7 +240,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   anterior. Revisar exige la revisión esperada; cancelar, que no tenga número.
 - **PDF fiscal:** al autorizarse, el worker lo dibuja con diseño fijo y el QR de ARCA, lo escribe una vez en el almacén
   privado (`arca-vouchers/{id}.pdf`) y confirma su SHA-256. Si el almacén falla, el comprobante sigue autorizado y el PDF
-  espera. Esos PDF no se limpian mientras exista su comprobante. El nombre y el domicilio del receptor son datos fiscales y
+  espera. Mientras el módulo esté instalado, esos PDF no se limpian, aunque la base no tenga su comprobante, como después de
+  restaurarla. El nombre y el
+  domicilio del receptor son datos fiscales y
   no se recortan: se parten por palabras en los renglones que hagan falta y el recuadro del receptor crece con ellos, con el
   período debajo.
 - **PDF de la A y la B:** la A muestra precios sin IVA con su alícuota y, arriba del pie, el neto gravado, el IVA de cada

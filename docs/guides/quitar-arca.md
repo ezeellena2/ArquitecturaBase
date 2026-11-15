@@ -4,9 +4,10 @@ Para un derivado que no usa ARCA, o que no usa una de sus familias de servicios.
 retirada: quitá código, configuración y rutas, y generá la migración del modelo nuevo. La regla del área está en
 [ARCA](../features/arca.md) y las familias, en el [ADR 0025](../decisions/0025-familias-de-servicios-arca.md).
 
-Quitar el módulo borra sus siete tablas, con la clave privada, los tickets y la cola de emisión: respaldá la base y guardá
+Quitar el módulo borra sus ocho tablas, con la clave privada, los tickets y la cola de emisión: respaldá la base y guardá
 aparte el anillo `Arca:SecretProtection` si querés poder leer un backup viejo. Los comprobantes ya emitidos siguen en ARCA
-y sus PDF fiscales, en el almacén privado (`arca-vouchers/`); sin el módulo, la limpieza de archivos deja de retenerlos. El certificado sigue existiendo en ARCA hasta que se lo
+y sus PDF fiscales, en el almacén privado (`arca-vouchers/`). **Antes de desplegar, copiá `arca-vouchers/` fuera del
+almacén privado:** sin el módulo nadie los retiene, y la limpieza de archivos los borra una hora después de arrancar. El certificado sigue existiendo en ARCA hasta que se lo
 revoque allá. Sus catálogos de formularios (carpeta «ARCA») quedan como `External` sin origen: dejan de actualizarse y siguen sirviendo a lo ya capturado. El núcleo no nombra el módulo: WhatsApp, formularios e IA siguen igual.
 
 ## El módulo entero
@@ -164,6 +165,9 @@ El modo 3 se puede quitar sin tocar la delegación guiada ni las familias ([ADR 
 El ejemplo es `Invoicing` (facturación electrónica, `wsfe`). Otra familia se quita igual, con su nombre. `Connection` no
 se quita sola: es la base de las demás; para quitarla, se quita el módulo entero. `Registry` trae la constancia de
 inscripción, que es obligatoria: quitarla deja la conexión sin datos de la empresa.
+
+Quitar `Invoicing` después de haber emitido también deja los PDF fiscales sin quien los retenga. **Antes de desplegar, copiá
+`arca-vouchers/` fuera del almacén privado:** la limpieza de archivos los borra una hora después de arrancar.
 
 ### Backend
 

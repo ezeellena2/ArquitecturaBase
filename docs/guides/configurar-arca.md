@@ -35,6 +35,25 @@ Remove-Variable arcaBytes
 - **Respaldo:** se respalda junto con la base, aparte de ella. Rotar agrega una clave nueva y cambia `ActiveKeyId`; las
   claves anteriores se conservan mientras haya datos o backups cifrados con ellas.
 
+### Rotar el anillo
+
+1. Generá otra clave con **otro keyId**; nunca cambies los bytes de un keyId que ya existe.
+2. Sumala al anillo de todas las copias, con la anterior todavía activa, y reinicialas: el anillo se valida y se carga al
+   arrancar, sin recargarse en caliente.
+3. Cambiá `ActiveKeyId` en todas y reinicialas. Lo que se cifra desde ahí usa la clave nueva: la clave privada de un pedido
+   de certificado nuevo y los tickets, que duran 12 horas.
+4. Rotar no recifra ([ADR 0023](../decisions/0023-arca-como-modulo-opcional.md)). La clave privada del certificado vigente sigue
+   con la clave que estaba activa cuando se generó su pedido, hasta el próximo certificado, que puede tardar años. Antes de
+   retirar una clave, mirá cuál usa cada certificado. El id va en claro, en el segundo campo del valor cifrado:
+
+   ```sql
+   SELECT "Role", split_part("ProtectedPrivateKey", '.', 2) AS key_id FROM "ArcaCertificates";
+   ```
+
+   Si retirás una clave que todavía usa un certificado, la emisión se frena hasta subir otro y repetir el alta en ARCA.
+5. Conservá las claves anteriores mientras las use un certificado o un backup retenido, y al menos 12 horas después de
+   cambiar `ActiveKeyId`: sin ellas, los tickets guardados no se leen y la cola espera como si ARCA no respondiera.
+
 ## Direcciones y plazos
 
 La sección `Arca` de `appsettings.json` trae las direcciones de cada ambiente, el emisor de sus certificados y la ventana
@@ -48,10 +67,26 @@ por su código del WSAA (`wsfe`, `ws_sr_constancia_inscripcion`), y cada familia
 «Completar con ARCA» y el cliente escrito por su CUIT en la «Factura», que se piden desde formularios. Repetir una CUIT no
 cuenta y la emisión de fondo no tiene cupo. Lo que respondió el padrón queda diez minutos en Redis.
 
+Los límites de pedidos y el cupo del padrón son de cada copia, en memoria. Con tres copias detrás del balanceador, un operador puede hacer el
+triple de pedidos y consultar el triple de CUIT por minuto, y cada despliegue los vuelve a cero. Son lecturas, sin efecto
+legal ni costo: se dimensionan por copia, dividiendo el total que se quiere por la cantidad de copias, como en la
+[guía de IA](configurar-ia.md).
+
 `Arca:Invoicing:Worker` gobierna la cola de emisión ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)):
-`ProcessInBackground` (prendido), `PollInterval` (2 s), `Lease` (2 minutos, la reserva de una secuencia: tiene que durar más
-que dos pedidos a ARCA seguidos con `RequestTimeout`) y `BatchSize` (20 secuencias por vuelta). En los tests de integración
-va apagado y cada prueba procesa la cola a mano.
+`ProcessInBackground` (prendido), `PollInterval` (2 s), `Lease` (3 minutos, la reserva de una secuencia) y `BatchSize` (20
+secuencias por vuelta). Después de una vuelta que pidió un CAE o guardó un PDF, la siguiente sale sin esperar `PollInterval`.
+En los tests de integración va apagado y cada prueba procesa la cola a mano.
+
+Cada reserva tiene que cubrir lo que cuida, y la Api no arranca si no lo cubre:
+
+| Reserva | Tiene que cubrir | De fábrica |
+| --- | --- | --- |
+| `Arca:TicketLease` | más que dos `Arca:RequestTimeout`: el pedido al WSAA con margen | 60 s contra 2 × 20 s |
+| `Arca:Invoicing:Worker:Lease` | una vuelta que concilia: `Arca:TicketLease` más cinco `Arca:RequestTimeout` (el ticket, dos consultas, el último autorizado y el CAE) | 3 minutos contra 2 minutos y 40 segundos |
+| `Arca:Robot:Lease`, con el robot prendido | al menos cuatro `Arca:Robot:StepTimeout`; un paso más largo necesita que la reserva se renueve mientras corre (H20, pendiente) | 3 minutos contra 4 × 45 s, justo |
+
+Si la reserva de la cola vence antes, no se emite dos veces, porque cada paso exige la suya, pero lo que respondió ARCA no se
+guarda y se recupera conciliando. Si se sube un plazo, se sube también la reserva.
 
 Los emisores (`IssuerCommonName`: «Computadores Test» en homologación y «Computadores» en producción) sirven para saber
 de qué ambiente es un certificado. Falta confirmarlos con certificados reales en la homologación.

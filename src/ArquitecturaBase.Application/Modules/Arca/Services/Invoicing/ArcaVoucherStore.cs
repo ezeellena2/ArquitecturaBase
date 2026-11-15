@@ -175,9 +175,13 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         }
     }
 
-    /// <summary>Con número, no se sabe si ARCA lo usó: queda incierto. Sin número, sólo espera.</summary>
+    /// <summary>
+    /// Con número, no se sabe si ARCA lo usó: queda incierto. Sin número, sólo espera. Si una persona lo canceló mientras la cola
+    /// esperaba a ARCA, ya no espera nada: el paso sólo suelta la reserva (H16).
+    /// </summary>
     private static void Wait(ArcaVoucher voucher, string failureCode, DateTime nowUtc)
     {
+        if (voucher.State is not (ArcaVoucherState.Queued or ArcaVoucherState.Uncertain or ArcaVoucherState.Sending)) return;
         if (voucher.Number is not null) voucher.MarkUncertain(failureCode, nowUtc);
         else voucher.Postpone(failureCode, nowUtc);
     }

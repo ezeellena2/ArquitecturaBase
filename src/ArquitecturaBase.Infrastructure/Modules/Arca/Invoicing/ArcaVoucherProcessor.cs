@@ -26,8 +26,11 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
 {
     private static readonly ArcaServiceCode Wsfe = ArcaServiceCode.Create("wsfe")!.Value;
 
-    /// <summary>Las secuencias con trabajo vencido, de a una; una falla de una no frena a las demás.</summary>
-    public async Task ProcessDueAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Las secuencias con trabajo vencido, de a una; una falla de una no frena a las demás. Dice si alguna pidió un CAE: una
+    /// secuencia frenada, una espera o una falla no cuentan (H33).
+    /// </summary>
+    public async Task<bool> ProcessDueAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<ArcaVoucherSequenceRow> due;
         await using (var scope = scopes.CreateAsyncScope())
@@ -36,21 +39,24 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
                 .ListDueSequencesAsync(timeProvider.GetUtcNow().UtcDateTime, options.Value.BatchSize, cancellationToken);
         }
 
+        var askedForCae = false;
         foreach (var sequence in due)
         {
             try
             {
-                await ProcessAsync(sequence, cancellationToken);
+                askedForCae |= await ProcessAsync(sequence, cancellationToken);
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
                 LogFailed(exception.GetType().Name, sequence.PointOfSale, sequence.VoucherType);
             }
         }
+
+        return askedForCae;
     }
 
-    /// <summary>Los PDF fiscales que faltan, de a uno.</summary>
-    public async Task ProcessDuePdfsAsync(CancellationToken cancellationToken)
+    /// <summary>Los PDF fiscales que faltan, de a uno. Dice si guardó alguno (H33).</summary>
+    public async Task<bool> ProcessDuePdfsAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<Guid> due;
         await using (var scope = scopes.CreateAsyncScope())
@@ -59,17 +65,19 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
                 .ListDuePdfsAsync(timeProvider.GetUtcNow().UtcDateTime, options.Value.BatchSize, cancellationToken);
         }
 
-        foreach (var voucherId in due) await ProcessPdfAsync(voucherId, cancellationToken);
+        var stored = false;
+        foreach (var voucherId in due) stored |= await ProcessPdfAsync(voucherId, cancellationToken);
+        return stored;
     }
 
     /// <summary>
     /// Dibuja el PDF fiscal, lo escribe una sola vez (si otro host lo escribió antes, queda el suyo), lo relee para confirmar
-    /// su SHA-256 y guarda la referencia. Si el almacén falla, el comprobante sigue autorizado y el PDF espera.
+    /// su SHA-256 y guarda la referencia. Si el almacén falla, el comprobante sigue autorizado y el PDF espera. Dice si lo guardó.
     /// </summary>
-    public async Task ProcessPdfAsync(Guid voucherId, CancellationToken cancellationToken)
+    public async Task<bool> ProcessPdfAsync(Guid voucherId, CancellationToken cancellationToken)
     {
         var work = await StepAsync(store => store.FindPdfAsync(voucherId, cancellationToken));
-        if (work is null) return;
+        if (work is null) return false;
         try
         {
             if (!files.IsAvailable) throw new InvalidOperationException("The private file store is not configured.");
@@ -83,29 +91,31 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
             using var buffer = new MemoryStream();
             await stored.CopyToAsync(buffer, cancellationToken);
             var sha = Convert.ToHexStringLower(SHA256.HashData(buffer.ToArray()));
-            await StepAsync(store => store.AttachPdfAsync(voucherId, work.StorageKey, sha, buffer.Length, cancellationToken));
+            return await StepAsync(store => store.AttachPdfAsync(voucherId, work.StorageKey, sha, buffer.Length, cancellationToken));
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             LogPdfFailed(exception.GetType().Name);
             await StepAsync(store => store.PostponePdfAsync(voucherId, "Files.Unavailable", cancellationToken));
+            return false;
         }
     }
 
-    public async Task ProcessAsync(ArcaVoucherSequenceRow sequence, CancellationToken cancellationToken)
+    /// <summary>Una vuelta de la secuencia; dice si pidió un CAE (H33).</summary>
+    public async Task<bool> ProcessAsync(ArcaVoucherSequenceRow sequence, CancellationToken cancellationToken)
     {
         var work = await StepAsync(store => store.ReserveAsync(sequence, Guid.NewGuid(), options.Value.Lease, cancellationToken));
-        if (work is null) return;
+        if (work is null) return false;
 
         var ticket = await tickets.GetAsync(work.Certificate, Wsfe, cancellationToken);
         if (ticket is not ArcaTicketOutcome.Ready ready)
         {
             await StepAsync(store => store.PostponeAsync(work, TicketFailure(ticket), cancellationToken));
-            return;
+            return false;
         }
 
         var toSend = work.HasNumber ? await ReconcileAsync(work, ready, cancellationToken) : await NumberAsync(work, ready, cancellationToken);
-        if (toSend is null) return;
+        if (toSend is null) return false;
 
         var reply = await client.RequestAuthorizationAsync(toSend.Certificate, ready, toSend.Request, cancellationToken);
         if (reply is { Status: ArcaServiceCheckStatus.Ready, Value: { } authorization })
@@ -118,6 +128,8 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
             await StepAsync(store => store.PostponeAsync(toSend, ArcaInvoicingErrors.ArcaNoAnswer.Code, cancellationToken));
             LogUnanswered(toSend.Request.PointOfSale, toSend.Request.VoucherType, toSend.Request.Number);
         }
+
+        return true;
     }
 
     /// <summary>El último autorizado más 1, guardado con su huella antes de pedir; sin respuesta, espera sin número.</summary>

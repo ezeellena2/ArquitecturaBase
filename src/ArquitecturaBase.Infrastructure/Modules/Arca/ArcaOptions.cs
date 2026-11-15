@@ -11,8 +11,9 @@ public sealed record ArcaOptions
     public TimeSpan TicketMargin { get; init; } = TimeSpan.FromMinutes(10);
     public TimeSpan TicketLease { get; init; } = TimeSpan.FromSeconds(60);
 
+    /// <summary>La reserva del ticket cubre el pedido al WSAA con margen: más que dos plazos de pedido (H23).</summary>
     public bool IsValid() => Testing.IsValid() && Production.IsValid() && RequestTimeout > TimeSpan.Zero && MaxResponseBytes > 0
-        && TicketMargin > TimeSpan.Zero && TicketLease > TimeSpan.Zero;
+        && TicketMargin > TimeSpan.Zero && TicketLease > RequestTimeout * 2;
 }
 
 public sealed record ArcaEnvironmentOptions

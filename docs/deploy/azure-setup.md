@@ -115,6 +115,16 @@ de ingreso, invitaciones y orientación) no lo tienen: lo que quedó pendiente e
 sólo se frena levantando la copia sin `WhatsApp:PhoneNumberId`, con el módulo apagado. El ensayo de una restauración
 sigue pendiente en [verificación y producción](../plans/verificacion-y-produccion.md).
 
+**Con ARCA,** la copia puede no conocer comprobantes que ARCA autorizó después de la hora restaurada:
+1. Levantala con la cola (`Arca__Invoicing__Worker__ProcessInBackground=false`) y las acciones de formularios
+   (`BusinessForms__ActionWorker__ProcessInBackground=false`) apagadas.
+2. Los PDF fiscales (`arca-vouchers/`) no se borran aunque la copia no tenga su comprobante. La limpieza de archivos sí sigue
+   corriendo, y borra a las 24 horas los demás archivos privados sin fila.
+3. Compará, para cada punto de venta y tipo, el último autorizado de ARCA («Mis comprobantes» o `FECompUltimoAutorizado`)
+   con el último que tiene la copia en `ArcaVouchers`.
+4. Si ARCA va adelante, recuperá del servidor original lo que falte antes de prender la cola y las acciones: si no, una venta
+   que en la copia quedó sin número se puede facturar dos veces.
+
 ## 5. Container Apps environment y aplicación
 
 ```bash

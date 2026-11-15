@@ -37,7 +37,11 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
     public async Task<StructuredIssueResponse> EnqueueAsync(StructuredIssueRequest request, CancellationToken cancellationToken)
     {
         var completed = await CustomerAsync(request.Data, cancellationToken);
-        if (completed.IsFailure) return new(StructuredIssueState.Rejected, completed.Error);
+        // H10: nothing was queued, so a failure of the registry can be retried (it may answer later); a CUIT that is missing or
+        // not valid, like a malformed order below, cannot.
+        if (completed.IsFailure)
+            return new(StructuredIssueState.Rejected, completed.Error,
+                CanRetry: completed.Error != ArcaInvoicingErrors.ReceiverInvalid.Code && completed.Error != ArcaRegistryErrors.CuitInvalid.Code);
         var order = ArcaInvoiceOrderPolicy.Order(request with { Data = completed.Value }, ArcaIssueDateWindow.Today(timeProvider.GetUtcNow().UtcDateTime));
         if (order.IsFailure) return new(StructuredIssueState.Rejected, order.Error.Code);
         var queued = await vouchers.EnqueueAsync(order.Value, cancellationToken);

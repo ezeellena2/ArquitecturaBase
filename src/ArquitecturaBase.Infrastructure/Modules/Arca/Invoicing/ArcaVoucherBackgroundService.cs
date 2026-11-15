@@ -4,7 +4,10 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
 
-/// <summary>Recorre la cola de emisión cada <c>PollInterval</c>; lo que hace con cada secuencia es de <see cref="ArcaVoucherProcessor"/>.</summary>
+/// <summary>
+/// Recorre la cola de emisión; lo que hace con cada secuencia es de <see cref="ArcaVoucherProcessor"/>. Espera
+/// <c>PollInterval</c> entre vueltas, salvo después de una que pidió un CAE o guardó un PDF, porque puede haber más en cola (H33).
+/// </summary>
 internal sealed partial class ArcaVoucherBackgroundService(ArcaVoucherProcessor processor, IOptions<ArcaVoucherWorkerOptions> options,
     TimeProvider timeProvider, ILogger<ArcaVoucherBackgroundService> logger) : BackgroundService
 {
@@ -13,17 +16,18 @@ internal sealed partial class ArcaVoucherBackgroundService(ArcaVoucherProcessor 
         if (!options.Value.ProcessInBackground) return;
         while (!stoppingToken.IsCancellationRequested)
         {
+            var worked = false;
             try
             {
-                await processor.ProcessDueAsync(stoppingToken);
-                await processor.ProcessDuePdfsAsync(stoppingToken);
+                worked = await processor.ProcessDueAsync(stoppingToken);
+                worked |= await processor.ProcessDuePdfsAsync(stoppingToken);
             }
             catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
             {
                 LogFailed(exception.GetType().Name);
             }
 
-            await Task.Delay(options.Value.PollInterval, timeProvider, stoppingToken);
+            if (!worked) await Task.Delay(options.Value.PollInterval, timeProvider, stoppingToken);
         }
     }
 

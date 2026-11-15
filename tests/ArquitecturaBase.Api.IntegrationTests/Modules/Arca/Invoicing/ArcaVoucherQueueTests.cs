@@ -430,6 +430,94 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
         }
     }
 
+    // H16: a person cancels while the queue waits for ARCA; when ARCA fails, the queue only lets go of the sequence, which takes
+    // the next voucher right away instead of two minutes later.
+    [Fact]
+    public async Task Cancelling_while_the_queue_waits_for_arca_does_not_hold_its_sequence()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var order = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(order);
+            arca.Hold();
+            var processing = ProcessAsync();
+            await WaitUntilAsync(() => arca.Calls("loginCms", FakeArca.InvoicingService) > 0, ct);
+            Assert.True((await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>().CancelAsync(order.RequestKey, ct))).IsSuccess);
+            arca.Fail(FakeArca.InvoicingService, FakeArcaFailure.ServiceUnavailable);
+            arca.Release();
+            await processing;
+
+            var next = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(next);
+            await ProcessAsync();
+            Assert.Equal((ArcaVoucherState.Cancelled, ArcaVoucherState.Authorized), ((await VoucherAsync(order.RequestKey)).State, (await VoucherAsync(next.RequestKey)).State));
+        }
+        finally
+        {
+            arca.Release();
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // H33: a round that asked for a CAE says so; a sequence frozen by a review is due but does not count as work.
+    [Fact]
+    public async Task A_round_counts_as_work_only_when_it_asked_for_a_cae()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var processor = factory.Services.GetRequiredService<ArcaVoucherProcessor>();
+            var first = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(first);
+            arca.Vouchers.Enqueue(FakeArcaVoucherFault.LoseRequest);
+            Assert.True(await processor.ProcessDueAsync(ct));
+
+            // Someone else used number 1: the voucher waits for a person with its number, and the next one waits behind it.
+            arca.Vouchers.IssueElsewhere(4, 11, 1, 20111111112, 1000m, Today.ToString("yyyyMMdd", CultureInfo.InvariantCulture));
+            await EnqueueAsync(ArcaVoucherScenario.Order(Today));
+            factory.Clock.Advance(TimeSpan.FromSeconds(30));
+            await processor.ProcessDueAsync(ct);
+            Assert.Equal(ArcaVoucherState.NeedsReview, (await VoucherAsync(first.RequestKey)).State);
+
+            Assert.False(await processor.ProcessDueAsync(ct));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // H33: the worker goes on without its pause while it asks for CAEs: three vouchers go out without the clock moving.
+    [Fact]
+    public async Task The_worker_does_not_pause_between_vouchers_it_issues()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        var worker = new ArcaVoucherBackgroundService(factory.Services.GetRequiredService<ArcaVoucherProcessor>(),
+            Microsoft.Extensions.Options.Options.Create(new ArcaVoucherWorkerOptions()), factory.Clock,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ArcaVoucherBackgroundService>.Instance);
+        try
+        {
+            ArcaVoucherOrder[] orders = [ArcaVoucherScenario.Order(Today), ArcaVoucherScenario.Order(Today), ArcaVoucherScenario.Order(Today)];
+            foreach (var order in orders) await EnqueueAsync(order);
+
+            await worker.StartAsync(ct);
+            await WaitUntilAsync(() => orders.All(order => VoucherAsync(order.RequestKey).GetAwaiter().GetResult().State == ArcaVoucherState.Authorized), ct);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+            worker.Dispose();
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
     [Fact]
     public async Task Two_hosts_never_work_the_same_sequence_at_once()
     {
@@ -657,7 +745,7 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
     private static string[] VatRates(XElement request) => [.. request.Descendants(Fev1 + "AlicIva").Select(rate =>
         $"{rate.Element(Fev1 + "Id")!.Value}|{rate.Element(Fev1 + "BaseImp")!.Value}|{rate.Element(Fev1 + "Importe")!.Value}")];
 
-    private Task ProcessAsync(int voucherType = 11) =>
+    private Task<bool> ProcessAsync(int voucherType = 11) =>
         factory.Services.GetRequiredService<ArcaVoucherProcessor>().ProcessAsync(ArcaVoucherScenario.Sequence(voucherType), TestContext.Current.CancellationToken);
 
     private static async Task WaitUntilAsync(Func<bool> condition, CancellationToken ct)

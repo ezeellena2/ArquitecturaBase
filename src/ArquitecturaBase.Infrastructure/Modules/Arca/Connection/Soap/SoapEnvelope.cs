@@ -58,6 +58,11 @@ internal static class SoapEnvelope
         {
             return new SoapResult.Unavailable();
         }
+        catch (IOException)
+        {
+            // H12: a cut while the body is read (ARCA or a proxy in between) is an answer that did not arrive.
+            return new SoapResult.Unavailable();
+        }
     }
 
     /// <summary>Parsea XML de ARCA, también el que llega escapado adentro de un campo; null si no es XML válido.</summary>
