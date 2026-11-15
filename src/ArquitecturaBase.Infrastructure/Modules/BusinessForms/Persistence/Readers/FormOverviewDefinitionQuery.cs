@@ -1,4 +1,5 @@
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +31,8 @@ internal static class FormOverviewDefinitionQuery
         if (!canReadRecords && !canCreate)
             definitions = definitions.Where(definition => dbContext.Set<BusinessFormTask>().Any(task =>
                 task.DefinitionId == definition.Id && task.State == FormTaskState.Open && task.AuthorUserId != actorUserId
+                && !dbContext.Set<BusinessFormRecord>().Any(record => record.Id == task.RecordId && record.CorrectedByUserId == actorUserId)
+                && !dbContext.Set<FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == actorUserId)
                 && dbContext.Users.Any(user => user.Id == actorUserId && user.IsActive)
                 && dbContext.UserRoles.Any(link => link.UserId == actorUserId && link.RoleId == task.RoleId)));
         return definitions.Select(definition => definition.Id);

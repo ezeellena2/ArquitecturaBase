@@ -2,6 +2,7 @@ using System.Globalization;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +55,8 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
                         DeactivatedAtUtc = definition.DeactivatedAtUtc,
                         PendingApprovalCount = canDecide ? db.Set<BusinessFormTask>().Count(task =>
                             task.DefinitionId == definition.Id && task.State == FormTaskState.Open && task.AuthorUserId != actorUserId
+                            && !db.Set<BusinessFormRecord>().Any(record => record.Id == task.RecordId && record.CorrectedByUserId == actorUserId)
+                            && !db.Set<FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == actorUserId)
                             && db.Users.Any(user => user.Id == actorUserId && user.IsActive)
                             && db.UserRoles.Any(link => link.UserId == actorUserId && link.RoleId == task.RoleId)) : null,
                         ResponseCount = canReadRecords ? counted.LongCount(record => record.DefinitionId == definition.Id)

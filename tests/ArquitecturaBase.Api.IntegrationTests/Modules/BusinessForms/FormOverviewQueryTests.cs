@@ -35,7 +35,10 @@ public sealed class FormOverviewQueryTests
         Assert.Contains("\"AuthorUserId\" <>", sql, StringComparison.Ordinal);
         Assert.Contains("'Open'", sql, StringComparison.Ordinal);
         Assert.Contains("ORDER BY", sql, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"BusinessFormRecords\"", sql, StringComparison.Ordinal);
+        // Who corrected the response or passed it from a document does not decide it (F4): only that is read of the responses.
+        Assert.Contains("\"CorrectedByUserId\"", sql, StringComparison.Ordinal);
+        Assert.Contains("\"ReviewedByUserId\"", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"ValuesJson\"", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"LastRecordNumber\"", sql, StringComparison.Ordinal);
     }
 
