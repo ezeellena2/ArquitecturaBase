@@ -18,11 +18,11 @@ internal sealed partial class FormDraftRetentionBackgroundService(IServiceScopeF
                     await using var scope = scopeFactory.CreateAsyncScope();
                     await scope.ServiceProvider.GetRequiredService<IFormDraftRetentionService>().PurgeExpiredResultsAsync(stoppingToken);
                 }
-                catch (Exception exception) when (!stoppingToken.IsCancellationRequested) { RetentionFailed(logger, exception); }
+                catch (Exception exception) when (!stoppingToken.IsCancellationRequested) { RetentionFailed(logger, exception.GetType().Name); }
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
     }
-    [LoggerMessage(Level = LogLevel.Error, Message = "Form draft result retention failed.")]
-    private static partial void RetentionFailed(ILogger logger, Exception exception);
+    [LoggerMessage(Level = LogLevel.Error, Message = "Form draft result retention failed after {ExceptionType}.")]
+    private static partial void RetentionFailed(ILogger logger, string exceptionType);
 }

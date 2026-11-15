@@ -35,7 +35,7 @@ internal sealed partial class FormCatalogFeedBackgroundService(IServiceScopeFact
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
-                LogFailed(logger, exception.GetType().Name);
+                LogFailed(logger, key, exception.GetType().Name);
             }
         }
     }
@@ -51,12 +51,14 @@ internal sealed partial class FormCatalogFeedBackgroundService(IServiceScopeFact
             }
             catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
             {
-                LogFailed(logger, exception.GetType().Name);
+                LogCycleFailed(logger, exception.GetType().Name);
             }
             await Task.Delay(options.Value.PollInterval, timeProvider, stoppingToken);
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "A fed catalog could not be refreshed after {ExceptionType}; it is tried again later.")]
-    private static partial void LogFailed(ILogger logger, string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The round of fed catalogs failed after {ExceptionType}; the next one tries again.")]
+    private static partial void LogCycleFailed(ILogger logger, string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The fed catalog {CatalogKey} could not be refreshed after {ExceptionType}; it is tried again later.")]
+    private static partial void LogFailed(ILogger logger, string catalogKey, string exceptionType);
 }

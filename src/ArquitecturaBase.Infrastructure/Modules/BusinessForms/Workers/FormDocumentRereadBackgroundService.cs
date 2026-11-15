@@ -45,7 +45,7 @@ internal sealed partial class FormDocumentRereadBackgroundService(IServiceScopeF
                 var reserved = await services.GetRequiredService<IFormDocumentRereadService>().ReserveAsync(proposalId, cancellationToken);
                 work = reserved.IsSuccess ? reserved.Value : null;
                 return reserved;
-            }, cancellationToken);
+            }, cancellationToken, proposalId);
             if (work is null) continue;
             foreach (var documentId in work.DocumentIds)
             {
@@ -54,7 +54,7 @@ internal sealed partial class FormDocumentRereadBackgroundService(IServiceScopeF
                 if (throws.GetValueOrDefault(key) < MaxThrows)
                 {
                     await StepAsync(async services => read = await services.GetRequiredService<IFormReceivedDocumentExtractionService>()
-                        .RereadAsync(new(documentId, work.DefinitionId, work.ActorUserId, work.Culture, work.TimeZoneId), cancellationToken), cancellationToken);
+                        .RereadAsync(new(documentId, work.DefinitionId, work.ActorUserId, work.Culture, work.TimeZoneId), cancellationToken), cancellationToken, work.ProposalId);
                     // A step that threw left the document pending: once the round's hold passes, a later one tries it again.
                     if (read is null && Threw(key) < MaxThrows) continue;
                 }
@@ -74,7 +74,7 @@ internal sealed partial class FormDocumentRereadBackgroundService(IServiceScopeF
                     recorded = true;
                     goOn = outcome.IsFailure || outcome.Value;
                     return outcome;
-                }, cancellationToken);
+                }, cancellationToken, work.ProposalId);
                 // A record that threw leaves it pending too, one more in a row; one that ended clears them.
                 if (recorded) throws.TryRemove(key, out _);
                 else Threw(key);
@@ -94,14 +94,14 @@ internal sealed partial class FormDocumentRereadBackgroundService(IServiceScopeF
             }
             catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
             {
-                LogFailed(logger, exception.GetType().Name);
+                LogCycleFailed(logger, exception.GetType().Name);
             }
             await Task.Delay(options.Value.PollInterval, timeProvider, stoppingToken);
         }
     }
 
     // One step in a scope of its own: its failure, an error or an exception, never stops the next one.
-    private async Task StepAsync<T>(Func<IServiceProvider, Task<T>> step, CancellationToken cancellationToken)
+    private async Task StepAsync<T>(Func<IServiceProvider, Task<T>> step, CancellationToken cancellationToken, Guid? proposalId = null)
     {
         try
         {
@@ -110,14 +110,16 @@ internal sealed partial class FormDocumentRereadBackgroundService(IServiceScopeF
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
-            LogFailed(logger, exception.GetType().Name);
+            LogFailed(logger, proposalId, exception.GetType().Name);
         }
     }
 
     private int Threw((Guid ProposalId, Guid DocumentId) key) => throws.AddOrUpdate(key, 1, (_, count) => count + 1);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "A step of reading again the documents of a form built from documents failed with {ExceptionType}; a later round tries again.")]
-    private static partial void LogFailed(ILogger logger, string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A step of reading again the documents of proposal {ProposalId} failed with {ExceptionType}; a later round tries again.")]
+    private static partial void LogFailed(ILogger logger, Guid? proposalId, string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A round of reading again documents failed with {ExceptionType}; the next one tries again.")]
+    private static partial void LogCycleFailed(ILogger logger, string exceptionType);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "A document of a form built from documents was not read again: {ErrorCode}.")]
     private static partial void LogNotRead(ILogger logger, string errorCode);

@@ -28,7 +28,7 @@ internal sealed partial class FormActionBackgroundService(IServiceScopeFactory s
                 await using var completion=scopes.CreateAsyncScope();
                 await completion.ServiceProvider.GetRequiredService<IFormActionDispatchService>().CompleteAsync(work,outcome,cancellationToken);
             }
-            catch(Exception exception)when(!cancellationToken.IsCancellationRequested){LogUnknown(logger,exception.GetType().Name);}
+            catch(Exception exception)when(!cancellationToken.IsCancellationRequested){LogUnknown(logger,candidate,exception.GetType().Name);}
         }
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -37,10 +37,12 @@ internal sealed partial class FormActionBackgroundService(IServiceScopeFactory s
         while(!stoppingToken.IsCancellationRequested)
         {
             try{await ProcessNextAsync(null,stoppingToken);}
-            catch(Exception exception)when(!stoppingToken.IsCancellationRequested){LogUnknown(logger,exception.GetType().Name);}
+            catch(Exception exception)when(!stoppingToken.IsCancellationRequested){LogCycleFailed(logger,exception.GetType().Name);}
             await Task.Delay(TimeSpan.FromSeconds(2),timeProvider,stoppingToken);
         }
     }
-    [LoggerMessage(Level=LogLevel.Warning,Message="The form action outcome could not be confirmed after {ExceptionType}; durable recovery will inspect it.")]
-    private static partial void LogUnknown(ILogger logger,string exceptionType);
+    [LoggerMessage(Level=LogLevel.Warning,Message="The outcome of form action run {RunId} could not be confirmed after {ExceptionType}; durable recovery will inspect it.")]
+    private static partial void LogUnknown(ILogger logger,Guid runId,string exceptionType);
+    [LoggerMessage(Level=LogLevel.Warning,Message="A round of form actions failed after {ExceptionType}; the next one tries again.")]
+    private static partial void LogCycleFailed(ILogger logger,string exceptionType);
 }

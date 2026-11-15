@@ -30,16 +30,25 @@ internal sealed partial class FormPublicationBackgroundService(IServiceScopeFact
             break;
         }
         if (work is null) return;
-        IReadOnlyList<FormPublicationChannelProgress> progress;
-        await using (var dispatch = scopes.CreateAsyncScope())
+        try
         {
-            var dispatched = await dispatch.ServiceProvider.GetRequiredService<IFormPublicationChannelDispatchService>()
-                .DispatchAsync(work, cancellationToken);
-            if (dispatched.IsFailure) return;
-            progress = dispatched.Value.Progress;
+            IReadOnlyList<FormPublicationChannelProgress> progress;
+            await using (var dispatch = scopes.CreateAsyncScope())
+            {
+                var dispatched = await dispatch.ServiceProvider.GetRequiredService<IFormPublicationChannelDispatchService>()
+                    .DispatchAsync(work, cancellationToken);
+                if (dispatched.IsFailure) return;
+                progress = dispatched.Value.Progress;
+            }
+            await using var completion = scopes.CreateAsyncScope();
+            await completion.ServiceProvider.GetRequiredService<IFormPublicationDispatchService>().CompleteAsync(work, progress, cancellationToken);
         }
-        await using var completion = scopes.CreateAsyncScope();
-        await completion.ServiceProvider.GetRequiredService<IFormPublicationDispatchService>().CompleteAsync(work, progress, cancellationToken);
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // F18: the log names the operation; the round that called this one logs the cycle.
+            LogUnknown(logger, work.OperationId, exception.GetType().Name);
+            throw;
+        }
     }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -47,10 +56,12 @@ internal sealed partial class FormPublicationBackgroundService(IServiceScopeFact
         while (!stoppingToken.IsCancellationRequested)
         {
             try { await ProcessNextAsync(null, stoppingToken); }
-            catch (Exception exception) when (!stoppingToken.IsCancellationRequested) { LogUnknown(logger, exception.GetType().Name); }
+            catch (Exception exception) when (!stoppingToken.IsCancellationRequested) { LogCycleFailed(logger, exception.GetType().Name); }
             await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, stoppingToken);
         }
     }
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The form publication outcome could not be confirmed after {ExceptionType}; durable recovery will inspect it.")]
-    private static partial void LogUnknown(ILogger logger, string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The outcome of form publication operation {OperationId} could not be confirmed after {ExceptionType}; durable recovery will inspect it.")]
+    private static partial void LogUnknown(ILogger logger, Guid operationId, string exceptionType);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A round of form publications failed after {ExceptionType}; the next one tries again.")]
+    private static partial void LogCycleFailed(ILogger logger, string exceptionType);
 }
