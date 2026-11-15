@@ -50,15 +50,30 @@ internal sealed partial class ArcaAccessTicketProvider(IServiceScopeFactory scop
                 continue;
             }
 
-            var outcome = await auth.LoginAsync(certificate, service, cancellationToken);
-            await InScopeAsync(store => outcome switch
+            var settled = false;
+            try
             {
-                ArcaTicketOutcome.Ready ready => store.StoreAsync(certificate.Id, service, owner,
-                    credentials.ProtectTicket(certificate.ConnectionId, certificate.Id, service, ready.Token, ready.Sign), ready.ExpiresAtUtc, cancellationToken),
-                ArcaTicketOutcome.Blocked blocked => store.BlockAsync(certificate.Id, service, owner, blocked.UntilUtc, cancellationToken),
-                _ => store.ReleaseAsync(certificate.Id, service, owner, cancellationToken),
-            });
-            return outcome is ArcaTicketOutcome.Ready fresh && !Represents(fresh, required, service) ? new ArcaTicketOutcome.NotDelegated() : outcome;
+                // H8: the request to the WSAA keeps its own deadline (Arca:RequestTimeout), not the caller's nor the shutdown's:
+                // cutting it would lose a ticket ARCA may have issued. Saving is not cancelled either.
+                var outcome = await auth.LoginAsync(certificate, service, CancellationToken.None);
+                await InScopeAsync(store => outcome switch
+                {
+                    ArcaTicketOutcome.Ready ready => store.StoreAsync(certificate.Id, service, owner,
+                        credentials.ProtectTicket(certificate.ConnectionId, certificate.Id, service, ready.Token, ready.Sign), ready.ExpiresAtUtc,
+                        CancellationToken.None),
+                    ArcaTicketOutcome.Blocked blocked => store.BlockAsync(certificate.Id, service, owner, blocked.UntilUtc, CancellationToken.None),
+                    _ => store.ReleaseAsync(certificate.Id, service, owner, CancellationToken.None),
+                });
+                settled = true;
+                if (outcome is ArcaTicketOutcome.Ready fresh) return Represents(fresh, required, service) ? fresh : new ArcaTicketOutcome.NotDelegated();
+                // H8: a renewal that did not come keeps handing out the stored ticket while it has not expired.
+                return Usable(lease, stale) && Stored(certificate, service, lease) is ArcaTicketOutcome.Ready kept && Represents(kept, required, service)
+                    ? kept : outcome;
+            }
+            finally
+            {
+                if (!settled) await InScopeAsync(store => store.ReleaseAsync(certificate.Id, service, owner, CancellationToken.None));
+            }
         }
     }
 
@@ -76,6 +91,9 @@ internal sealed partial class ArcaAccessTicketProvider(IServiceScopeFactory scop
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The ARCA ticket for {Service} has no readable relations; ARCA decides whether the company delegated it.")]
     private partial void LogUnreadableRelations(string service);
+
+    private bool Usable(ArcaTicketLeaseResponse lease, DateTime? stale) =>
+        lease.ProtectedCredentials is not null && lease.ExpiresAtUtc is { } expires && expires > timeProvider.GetUtcNow().UtcDateTime && expires != stale;
 
     private ArcaTicketOutcome Stored(ArcaCertificateRef certificate, ArcaServiceCode service, ArcaTicketLeaseResponse lease) =>
         lease.ProtectedCredentials is { } stored

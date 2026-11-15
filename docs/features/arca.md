@@ -98,9 +98,12 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
   (`TicketMargin`).
 - **Renovar, un host por vez:** una transacción corta toma la reserva de la fila con dueño y vencimiento
   (`TicketLease`); el pedido al WSAA va fuera de la transacción, y otra transacción guarda el ticket sólo si la reserva
-  sigue siendo propia. Quien encuentra la reserva de otro espera de a medio segundo y vuelve a leer.
+  sigue siendo propia. Quien encuentra la reserva de otro espera de a medio segundo y vuelve a leer. El pedido al WSAA
+  tiene su propio plazo (`RequestTimeout`), sin el token de quien pidió ni el del apagado, y guardar no se cancela: quien
+  abandona (una vista previa cerrada) no pierde el ticket que ARCA pudo dar; la reserva se suelta igual si algo falla (H8).
 - **«Ya posee un TA válido»:** la fila guarda hasta cuándo no se puede pedir otro (la ventana del ambiente:
-  `TicketRetryWindow`) y la prueba lo informa con ese plazo. Ningún pedido HTTP espera minutos.
+  `TicketRetryWindow`) y la prueba lo informa con ese plazo. Ningún pedido HTTP espera minutos. El ticket guardado se sigue
+  entregando mientras no venza, también con la renovación bloqueada o sin respuesta (H8).
 - Las fallas del WSAA se traducen a un motivo estable: servicio sin autorizar, reloj desfasado, bloqueado o sin respuesta.
 - **En delegación,** el ticket de un servicio que la empresa delega tiene que incluirla en sus `relations` (abajo).
 

@@ -69,6 +69,18 @@ public sealed class ArcaAccessTicketTests
         Assert.Equal(ArcaTicketLease.Acquired, ticket.TryLease(Other, Now.AddMinutes(2), Margin, Lease));
     }
 
+    // H8: a renewal ARCA blocks keeps the ticket that was stored, and it is handed out while it has not expired.
+    [Fact]
+    public void A_blocked_renewal_keeps_handing_out_the_stored_ticket_until_it_expires()
+    {
+        var ticket = Stored(expiresAtUtc: Now.AddMinutes(5));
+        Assert.Equal(ArcaTicketLease.Acquired, ticket.TryLease(Me, Now, Margin, Lease));
+        Assert.True(ticket.Block(Me, Now.AddMinutes(30)));
+
+        Assert.Equal((ArcaTicketLease.AlreadyValid, "CREDENTIALS"), (ticket.TryLease(Other, Now.AddMinutes(4), Margin, Lease), ticket.ProtectedCredentials));
+        Assert.Equal(ArcaTicketLease.Blocked, ticket.TryLease(Other, Now.AddMinutes(5), Margin, Lease));
+    }
+
     [Fact]
     public void Only_the_owner_of_the_lease_stores_blocks_or_releases()
     {

@@ -45,6 +45,33 @@ public sealed class ArcaAccessTicketProviderTests(ApiFactory factory) : IDisposa
         }
     }
 
+    // H8: whoever asked giving up (a preview cancelled while the ticket is asked for) does not lose the ticket: the request to the
+    // WSAA keeps its own deadline, the ticket is saved, and the next one takes it without logging in again.
+    [Fact]
+    public async Task Giving_up_while_the_ticket_is_asked_for_does_not_lose_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        var certificate = await ArcaPersistenceScenario.AddActiveCertificateAsync(factory, authority);
+        try
+        {
+            arca.Hold();
+            using var preview = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var asking = Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, preview.Token);
+            await WaitUntilAsync(() => arca.Calls("loginCms", Wsfe) == 1);
+            await preview.CancelAsync();
+            arca.Release();
+
+            Assert.IsType<ArcaTicketOutcome.Ready>(await asking);
+            Assert.IsType<ArcaTicketOutcome.Ready>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            Assert.Equal(1, arca.Calls("loginCms", Wsfe));
+        }
+        finally
+        {
+            await ArcaPersistenceScenario.RemoveConnectionAsync(factory);
+        }
+    }
+
     [Fact]
     public async Task Two_hosts_asking_at_once_log_in_once_and_share_the_token()
     {

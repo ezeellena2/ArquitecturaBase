@@ -29,8 +29,10 @@ public sealed class ArcaAccessTicket : Entity
     /// </summary>
     public ArcaTicketLease TryLease(Guid owner, DateTime nowUtc, TimeSpan margin, TimeSpan leaseDuration, DateTime? staleExpiresAtUtc = null)
     {
-        if (ExpiresAtUtc is { } expires && expires - nowUtc > margin && expires != staleExpiresAtUtc) return ArcaTicketLease.AlreadyValid;
-        if (BlockedUntilUtc is { } blocked && blocked > nowUtc) return ArcaTicketLease.Blocked;
+        var usable = ExpiresAtUtc is { } expires && expires > nowUtc && expires != staleExpiresAtUtc;
+        if (usable && ExpiresAtUtc!.Value - nowUtc > margin) return ArcaTicketLease.AlreadyValid;
+        // H8: while ARCA blocks a renewal, the stored ticket is still handed out until it expires.
+        if (BlockedUntilUtc is { } blocked && blocked > nowUtc) return usable ? ArcaTicketLease.AlreadyValid : ArcaTicketLease.Blocked;
         if (LeaseOwner is { } current && current != owner && LeaseUntilUtc > nowUtc) return ArcaTicketLease.Busy;
         LeaseOwner = owner;
         LeaseUntilUtc = nowUtc + leaseDuration;
@@ -45,10 +47,11 @@ public sealed class ArcaAccessTicket : Entity
         return true;
     }
 
+    /// <summary>ARCA no da otro ticket hasta <paramref name="untilUtc"/>; el guardado sigue, porque vale hasta que vence (H8).</summary>
     public bool Block(Guid owner, DateTime untilUtc)
     {
         if (LeaseOwner != owner) return false;
-        (ProtectedCredentials, ExpiresAtUtc, BlockedUntilUtc) = (null, null, untilUtc);
+        BlockedUntilUtc = untilUtc;
         EndLease();
         return true;
     }
