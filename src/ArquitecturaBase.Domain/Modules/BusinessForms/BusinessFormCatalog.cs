@@ -25,6 +25,10 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
+    // F24: the id of the request that created it, so a repeated creation finds it again (unique with its creator).
+    public Guid? CreationRequestId { get; private set; }
+
+    public void AssignCreationRequest(Guid requestId) => CreationRequestId = requestId;
 
     // BI1-A: a catalog a library standard brings takes the standard's stable key («arca.customers»), once, before it is saved.
     public void AssignStandardKey(string key)

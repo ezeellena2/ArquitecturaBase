@@ -72,6 +72,14 @@ internal sealed class FormCatalogFiltersService(
         var created = await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>
         {
             var catalog = BusinessFormCatalog.CreateFilters(Culture(), FormCatalogProposalPolicy.Texts(request.Name), FormCatalogProposalPolicy.Texts(request.Description), filtersJson);
+            // F24: a repeated request answers with the catalog it created before.
+            if (request.RequestId is { } requestId)
+            {
+                await repository.LockKeyAsync("request:" + requestId.ToString("N"), ct);
+                if (await repository.GetByCreationRequestAsync(access.Value, requestId, ct) is { } existing)
+                    return Result<FormCatalogSaveResponse>.Success(new FormCatalogSaveResponse(Map(existing, request.Filters!, canReadForms ? 0 : null), EmptyIdentityMap()));
+                catalog.AssignCreationRequest(requestId);
+            }
             await repository.LockAsync(catalog.Id, ct);
             repository.Add(catalog);
             return Result<FormCatalogSaveResponse>.Success(

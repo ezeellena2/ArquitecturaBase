@@ -67,7 +67,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
     public async Task<IActionResult> CreateFilters([FromBody] CreateFiltersCatalogHttpRequest request, CancellationToken cancellationToken)
     {
         var result = await filtersService.CreateAsync(new CreateFiltersCatalogRequest(
-            request.Name, request.Description, Map(request.Filters)), cancellationToken);
+            request.Name, request.Description, Map(request.Filters), request.RequestId), cancellationToken);
         return result.ToCreatedResult(this, nameof(Get), value => new { id = value.Catalog.Id });
     }
 
@@ -117,7 +117,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
         (await proposals.DiscardAsync(id, new(request.ExpectedRevision), cancellationToken)).ToActionResult(this);
 
     private static CreateManualCatalogRequest Map(CreateManualCatalogHttpRequest request) => new(request.Name, request.Description,
-        request.Items?.Select(Map).ToArray(), request.ValueType, request.Fields?.Select(Map).ToArray(), Map(request.Presentation));
+        request.Items?.Select(Map).ToArray(), request.ValueType, request.Fields?.Select(Map).ToArray(), Map(request.Presentation), request.RequestId);
 
     private static ListFormCatalogsRequest Map(FormCatalogsQuery query) => new()
         { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, State = query.State,

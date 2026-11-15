@@ -1620,6 +1620,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CreationRequestId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("DescriptionJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -1741,6 +1744,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProposalId")
                         .IsUnique();
+
+                    b.HasIndex("CreatedBy", "CreationRequestId")
+                        .IsUnique()
+                        .HasFilter("\"CreationRequestId\" IS NOT NULL");
 
                     b.ToTable("BusinessFormCatalogs", null, t =>
                         {

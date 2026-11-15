@@ -184,6 +184,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
         return Task.CompletedTask;
     }
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult(Exists && Catalog.Id == id ? Catalog : null);
+    public Task<BusinessFormCatalog?> GetByCreationRequestAsync(Guid actorId, Guid requestId, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken ct)
     {

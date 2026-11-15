@@ -8,6 +8,7 @@ internal sealed class FormCatalogActivationRepository(BusinessFormCatalog catalo
     public Task LockKeyAsync(string key, CancellationToken cancellationToken) => Task.CompletedTask;
     public Task<Guid?> FindIdByKeyAsync(string key, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
     public Task LockAsync(Guid id, CancellationToken ct) => Task.CompletedTask;
+    public Task<BusinessFormCatalog?> GetByCreationRequestAsync(Guid actorId, Guid requestId, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid id, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(id == catalog.Id ? catalog : null);
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken ct) => Task.FromResult(new List<BusinessFormCatalogItem>());

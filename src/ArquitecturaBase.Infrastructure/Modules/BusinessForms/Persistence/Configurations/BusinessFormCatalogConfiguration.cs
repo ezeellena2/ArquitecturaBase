@@ -38,6 +38,7 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
         builder.Property(value => value.ProposalEvidenceJson).HasColumnType("jsonb");
         builder.Property(value => value.ProposalState).HasConversion<string>().HasMaxLength(16);
         builder.HasIndex(value => value.ProposalId).IsUnique();
+        builder.HasIndex(value => new { value.CreatedBy, value.CreationRequestId }).IsUnique().HasFilter("\"CreationRequestId\" IS NOT NULL");
         builder.Property<string>("DisplayNameEs").HasMaxLength(120)
             .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), NULLIF(\"NameJson\" ->> 'en', ''), '')", stored: true);
         builder.Property<string>("DisplayNameEn").HasMaxLength(120)

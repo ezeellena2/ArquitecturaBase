@@ -59,6 +59,7 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
         return Task.CompletedTask;
     }
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult(Catalogs.SingleOrDefault(catalog => catalog.Id == id));
+    public Task<BusinessFormCatalog?> GetByCreationRequestAsync(Guid actorId, Guid requestId, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid id, CancellationToken ct) => Task.FromResult(Catalogs.SingleOrDefault(catalog => catalog.ProposalId == id));
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public void Add(BusinessFormCatalog catalog) { TransactionGuard.Require(() => Uow.InTransaction); Catalogs.Add(catalog); }

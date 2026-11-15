@@ -40,7 +40,8 @@ public sealed record CreateManualCatalogRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
     IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items, string? ValueType = null,
-    IReadOnlyList<FormCatalogFieldSaveRequest?>? Fields = null, FormCatalogPresentation? Presentation = null);
+    IReadOnlyList<FormCatalogFieldSaveRequest?>? Fields = null, FormCatalogPresentation? Presentation = null,
+    Guid? RequestId = null);
 
 public sealed record UpdateManualCatalogRequest(
     long? ExpectedRevision,

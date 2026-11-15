@@ -128,6 +128,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     Task<Guid?> IFormCatalogRepository.FindIdByKeyAsync(string key, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
     Task IFormCatalogRepository.LockAsync(Guid id, CancellationToken cancellationToken) => Lock("catalog:" + id.ToString("N"));
     Task<BusinessFormCatalog?> IFormCatalogRepository.GetAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(Source(id));
+    public Task<BusinessFormCatalog?> GetByCreationRequestAsync(Guid actorId, Guid requestId, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(id == Catalog.Id ? new List<BusinessFormCatalogItem> { ActiveItem, InactiveItem } : []);

@@ -20,6 +20,9 @@ internal sealed class FormCatalogRepository(ApplicationDbContext dbContext) : IF
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormCatalog>().SingleOrDefaultAsync(value => value.Id == id, cancellationToken);
 
+    public Task<BusinessFormCatalog?> GetByCreationRequestAsync(Guid actorId, Guid requestId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormCatalog>().SingleOrDefaultAsync(value => value.CreatedBy == actorId && value.CreationRequestId == requestId, cancellationToken);
+
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid proposalId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormCatalog>().SingleOrDefaultAsync(value => value.ProposalId == proposalId, cancellationToken);
 

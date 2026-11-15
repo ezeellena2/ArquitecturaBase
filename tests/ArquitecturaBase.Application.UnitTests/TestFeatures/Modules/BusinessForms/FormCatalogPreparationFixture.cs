@@ -105,6 +105,7 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken ct) => throw new NotSupportedException();
 
     public Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken ct) => Task.FromResult(id == Version.Id ? Version : null);
+    public Task<BusinessFormCatalog?> GetByCreationRequestAsync(Guid actorId, Guid requestId, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid id, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult(CatalogMissing ? null : Catalog);
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken ct) => Task.FromResult(Items);

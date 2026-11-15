@@ -22,6 +22,8 @@ internal sealed class FormCatalogCapacityRepository(BusinessFormCatalog? catalog
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<BusinessFormCatalog?>(Catalog?.Id == id ? Catalog : null);
 
+    public Task<BusinessFormCatalog?> GetByCreationRequestAsync(Guid actorId, Guid requestId, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
+
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid proposalId, CancellationToken cancellationToken) =>
         Task.FromResult<BusinessFormCatalog?>(null);
 

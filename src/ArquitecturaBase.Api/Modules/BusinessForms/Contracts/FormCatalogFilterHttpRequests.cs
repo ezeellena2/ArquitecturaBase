@@ -26,7 +26,7 @@ public sealed record FormCatalogFilterPreviewHttpRequest(Guid SampleUserId, Form
 public sealed record CreateFiltersCatalogHttpRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
-    FormCatalogFilterDefinitionHttpRequest? Filters)
+    FormCatalogFilterDefinitionHttpRequest? Filters, Guid? RequestId = null)
 {
     public override string ToString() => "CreateFiltersCatalogHttpRequest { Content = [REDACTED] }";
 }

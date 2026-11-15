@@ -97,9 +97,14 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var description = FormCatalogProposalPolicy.Texts(request.Description);
         var catalog = BusinessFormCatalog.CreateManual(Culture(), name, description,
             Enum.Parse<BusinessFormCatalogValueType>(request.ValueType ?? "Text"));
+        // F24: the key lock of the request goes first; a repeated request finds the catalog it created and answers with it.
+        if (request.RequestId is { } requestId) await repository.LockKeyAsync("request:" + requestId.ToString("N"), ct);
         await LockCatalogsAsync(catalog.Id, request.Fields, ct);
         var access = await accessGuard.CheckAsync(true, ct);
         if (access.IsFailure) return access.Error;
+        if (request.RequestId is { } repeated && await repository.GetByCreationRequestAsync(access.Value, repeated, ct) is { } existing)
+            return await ReplayAsync(existing, request, ct);
+        if (request.RequestId is { } created) catalog.AssignCreationRequest(created);
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, ct);
         var fields = await fieldRecorder.PrepareAsync(catalog, [], request.Fields, request.Presentation, [], canReadForms, ct);
         if (fields.IsFailure) return fields.Error;
@@ -109,6 +114,21 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var detail = await FormCatalogFieldPresentation.DescribeAsync(Map(catalog, recorded.Value.Items.Count), catalog.FieldsJson,
             catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, canReadForms, ct, fields.Value.Context.Sources);
         return new FormCatalogSaveResponse(detail, recorded.Value.IdentityMap, fields.Value.IdentityMap);
+    }
+
+    // F24: the catalog a repeated creation made before, with the identities its items and fields took, matched to the request by order.
+    private async Task<Result<FormCatalogSaveResponse>> ReplayAsync(BusinessFormCatalog existing, CreateManualCatalogRequest request, CancellationToken ct)
+    {
+        var detail = await GetAsync(existing.Id, ct);
+        if (detail.IsFailure) return detail.Error;
+        var items = (await repository.ListItemsAsync(existing.Id, ct)).OrderBy(item => item.Position).ToArray();
+        var fields = FormCatalogFieldPolicy.ReadFields(existing.FieldsJson).ToArray();
+        var sentItems = request.Items ?? [];
+        var sentFields = request.Fields ?? [];
+        if (items.Length != sentItems.Count || fields.Length != sentFields.Count) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "requestId");
+        return new FormCatalogSaveResponse(detail.Value,
+            sentItems.Zip(items, (sent, item) => (sent!.LocalId!, item.Id)).ToDictionary(pair => pair.Item1, pair => pair.Id),
+            sentFields.Zip(fields, (sent, field) => (sent!.LocalId!, field.Id)).ToDictionary(pair => pair.Item1, pair => pair.Id));
     }
 
     private async Task<Result<FormCatalogSaveResponse>> UpdateCoreAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken ct)

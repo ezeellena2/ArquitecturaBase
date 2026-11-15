@@ -53,7 +53,7 @@ public sealed record FormCatalogFilterPreviewResponse(
 public sealed record CreateFiltersCatalogRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
-    FormCatalogFilterDefinition? Filters);
+    FormCatalogFilterDefinition? Filters, Guid? RequestId = null);
 
 public sealed record UpdateFiltersCatalogRequest(
     long? ExpectedRevision,
