@@ -205,7 +205,7 @@ public sealed class ExternalLoginServiceTests
     }
 
     [Fact]
-    public async Task Disabled_or_locked_account_cannot_sign_in()
+    public async Task Disabled_account_cannot_sign_in()
     {
         var user = _accounts.AddUser(UserEmail, isActive: false);
         _accounts.LinkExternalLogin(user.Id, "Google", "google-123");
@@ -213,18 +213,32 @@ public sealed class ExternalLoginServiceTests
         _signIn.PendingExternalLogin = GoogleLogin();
 
         var disabled = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
+
         Assert.Equal(AccountErrors.DisabledCode, disabled.Error.Code);
-
-        await _accounts.ArrangeAsync(accounts => accounts.SetActiveAsync(user.Id, true, Ct));
-        _signIn.LockedOutUsers.Add(user.Id);
-        var locked = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
-
-        Assert.Equal(AccountErrors.LockedOutCode, locked.Error.Code);
-        Assert.Equal(["commit", "commit"], _events);
+        Assert.Equal(["commit"], _events);
         Assert.Empty(_signIn.SignedInUsers);
-        Assert.Equal(2, _unitOfWork.Commits);
-        Assert.Equal(2, _audits.Audits.Count);
+        Assert.Equal(1, _unitOfWork.Commits);
+        Assert.Single(_audits.Audits);
         Assert.Equal(3, _signIn.FailedAttempts[user.Id]);
+    }
+
+    /// <summary>
+    /// N3: el bloqueo es de los códigos y protege contra quien los prueba; Google no lo mira, así nadie le cierra a otro
+    /// la entrada con Google mandando códigos equivocados a su correo.
+    /// </summary>
+    [Fact]
+    public async Task An_account_locked_by_failed_codes_still_signs_in_with_google()
+    {
+        var user = _accounts.AddUser(UserEmail);
+        _accounts.LinkExternalLogin(user.Id, "Google", "google-123");
+        _signIn.LockedOutUsers.Add(user.Id);
+        _signIn.PendingExternalLogin = GoogleLogin();
+
+        var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([user.Id], _signIn.SignedInUsers);
+        Assert.True(Assert.Single(_audits.Audits).Succeeded);
     }
 
     [Fact]

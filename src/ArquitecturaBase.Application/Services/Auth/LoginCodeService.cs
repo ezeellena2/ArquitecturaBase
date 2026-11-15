@@ -59,8 +59,8 @@ internal sealed class LoginCodeService(
 
             var result = await unitOfWork.ExecuteInTransactionAsync(
                 ct => verifier.VerifyAsync(request, ct),
-                // Un código equivocado cuenta el intento, un bloqueo deja su auditoría y un NotInvited o un Disabled gastan
-                // el código: el error también se confirma. Una excepción igual deshace todo.
+                // Un código equivocado cuenta el intento, y un LockedOut, un NotInvited o un Disabled gastan el código correcto y
+                // dejan su auditoría: el error también se confirma. Una excepción igual deshace todo.
                 CommitPolicy.OnAnyResult,
                 cancellationToken);
 

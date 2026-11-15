@@ -107,19 +107,103 @@ public sealed class LoginCodeVerifierParityTests
         Assert.Single(_audits.Audits);
     }
 
+    /// <summary>
+    /// N3: el bloqueo se informa recién después de un código correcto, como la cuenta desactivada: quien lo dice ya probó
+    /// que el correo es suyo. El código queda gastado y los intentos fallidos no vuelven a cero.
+    /// </summary>
     [Fact]
-    public async Task Locked_out_user_is_rejected_before_checking_the_code()
+    public async Task Locked_out_account_is_reported_only_after_the_right_code()
     {
         var user = _accounts.AddUser(UserEmail);
         _signIn.LockedOutUsers.Add(user.Id);
+        _signIn.FailedAttempts[user.Id] = 3;
         IssueCode();
 
         var result = await _verifier.VerifyAsync(Command(RightCode), Ct);
 
         Assert.Equal(AccountErrors.LockedOutCode, result.Error.Code);
-        Assert.Null(_loginCodes.Codes[0].ConsumedAtUtc);
-        Assert.Equal(0, _loginCodes.Codes[0].FailedAttempts);
+        Assert.NotNull(_loginCodes.Codes[0].ConsumedAtUtc);
+        Assert.Equal(3, _signIn.FailedAttempts[user.Id]);
         Assert.Equal(AccountErrors.LockedOutCode, Assert.Single(_audits.Audits).FailureReason);
+    }
+
+    /// <summary>
+    /// N3: contra una cuenta bloqueada, un código equivocado responde lo mismo que contra un correo sin cuenta: la
+    /// respuesta no dice si la cuenta existe ni si está bloqueada. El fallo cuenta igual, así el bloqueo sigue frenando
+    /// a quien prueba códigos.
+    /// </summary>
+    [Fact]
+    public async Task A_wrong_code_answers_the_same_for_a_locked_out_account_and_for_an_email_without_one()
+    {
+        const string Stranger = "nadie@example.com";
+        var user = _accounts.AddUser(UserEmail);
+        _signIn.LockedOutUsers.Add(user.Id);
+        IssueCode();
+        IssueCode(Stranger);
+
+        var locked = await _verifier.VerifyAsync(Command("000000"), Ct);
+        var withoutAccount = await _verifier.VerifyAsync(Command("000000", Stranger), Ct);
+
+        Assert.Equal(LoginCodeErrors.InvalidCode, locked.Error.Code);
+        Assert.Equal(withoutAccount.Error.Code, locked.Error.Code);
+        Assert.Equal(withoutAccount.Error.Metadata, locked.Error.Metadata);
+        Assert.Equal(1, _signIn.FailedAttempts[user.Id]);
+    }
+
+    /// <summary>
+    /// N3: sólo suma a la cuenta un código equivocado contra uno activo. Sin código, o contra uno usado, vencido o que
+    /// ya agotó sus intentos, nadie le gasta intentos a la cuenta de otro sin haber pedido un código.
+    /// </summary>
+    [Fact]
+    public async Task Only_a_wrong_code_against_an_active_one_counts_a_failed_attempt_on_the_account()
+    {
+        var user = _accounts.AddUser(UserEmail);
+
+        await _verifier.VerifyAsync(Command("000000"), Ct);
+        Assert.False(_signIn.FailedAttempts.ContainsKey(user.Id));
+
+        IssueCode();
+        for (var attempt = 0; attempt < 7; attempt++)
+        {
+            await _verifier.VerifyAsync(Command("000000"), Ct);
+        }
+
+        Assert.Equal(5, _signIn.FailedAttempts[user.Id]);
+
+        // Cada código nuevo sale un segundo después: el último es el más reciente.
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        IssueCode();
+        Assert.True((await _verifier.VerifyAsync(Command(RightCode), Ct)).IsSuccess);
+        await _verifier.VerifyAsync(Command("000000"), Ct);
+
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        IssueCode();
+        _clock.Advance(TimeSpan.FromMinutes(10));
+        await _verifier.VerifyAsync(Command("000000"), Ct);
+
+        Assert.Equal(0, _signIn.FailedAttempts[user.Id]);
+    }
+
+    /// <summary>N3: con un código cualquiera, uno usado o vencido responde lo mismo que no tener código.</summary>
+    [Fact]
+    public async Task A_wrong_code_against_a_used_or_expired_one_answers_like_no_code()
+    {
+        _accounts.AddUser(UserEmail);
+        IssueCode();
+        Assert.True((await _verifier.VerifyAsync(Command(RightCode), Ct)).IsSuccess);
+        var withoutCode = await _verifier.VerifyAsync(Command("000000", "nadie@example.com"), Ct);
+
+        var used = await _verifier.VerifyAsync(Command("000000"), Ct);
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        IssueCode();
+        _clock.Advance(TimeSpan.FromMinutes(10));
+        var expired = await _verifier.VerifyAsync(Command("000000"), Ct);
+
+        Assert.All([used, expired], result =>
+        {
+            Assert.Equal(withoutCode.Error.Code, result.Error.Code);
+            Assert.Null(result.Error.Metadata);
+        });
     }
 
     [Fact]

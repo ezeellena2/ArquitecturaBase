@@ -95,8 +95,12 @@ public sealed class VerifyLoginCodeServiceTests
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
     }
 
+    /// <summary>
+    /// N3: con el código correcto, una cuenta bloqueada responde LockedOut sin abrir la sesión, y el código gastado y la
+    /// auditoría se confirman igual.
+    /// </summary>
     [Fact]
-    public async Task Locked_out_account_is_audited_without_touching_the_code()
+    public async Task Locked_out_account_spends_the_right_code_and_is_audited_without_a_session()
     {
         var fixture = new Fixture();
         var user = fixture.Accounts.AddUser(UserEmail);
@@ -106,13 +110,13 @@ public sealed class VerifyLoginCodeServiceTests
         var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
 
         Assert.Equal(AccountErrors.LockedOutCode, result.Error.Code);
-        Assert.Null(Assert.Single(fixture.Codes.Codes).ConsumedAtUtc);
-        Assert.Equal(0, fixture.Codes.Codes[0].FailedAttempts);
+        Assert.NotNull(Assert.Single(fixture.Codes.Codes).ConsumedAtUtc);
         Assert.Equal(AccountErrors.LockedOutCode, Assert.Single(fixture.Audits.Audits).FailureReason);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(1, fixture.AuditsAtCommit);
-        Assert.False(fixture.CodeConsumedAtCommit);
+        Assert.True(fixture.CodeConsumedAtCommit);
+        Assert.Empty(fixture.SignIn.SignedInUsers);
     }
 
     [Fact]

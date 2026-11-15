@@ -1,6 +1,6 @@
 # Common: mecanismos compartidos de Application
 
-`Pagination` define el pedido y resultado paginado; `Validation`, el puente a FluentValidation y errores por campo; `Logging`, operaciones; `Exceptions`, fallas técnicas que cruzan puertos; `Formatting`, el único formato de números para una persona (`DisplayNumbers`).
+`Pagination` define el pedido y resultado paginado; `Validation`, el puente a FluentValidation y errores por campo; `Logging`, operaciones; `Exceptions`, fallas técnicas que cruzan puertos; `Formatting`, el único formato de números para una persona (`DisplayNumbers`); `RateLimiting`, la partición de una dirección para los límites por dirección (`AddressPartition`: una IPv6, por su /64).
 
 ## Al modificar
 

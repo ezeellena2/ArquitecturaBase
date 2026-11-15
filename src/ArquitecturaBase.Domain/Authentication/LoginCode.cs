@@ -151,11 +151,19 @@ public sealed class LoginCode : Entity
             : LoginCodeErrors.Invalid(attemptsLeft: null);
     }
 
+    /// <remarks>
+    /// Usado y vencido se dicen sólo al código que coincide (N3): con uno cualquiera, la respuesta es la de no tener
+    /// código, así no se sabe si alguien ya entró con ese destino. Ninguno de los dos gasta intentos, y un código muerto
+    /// no deja entrar aunque se adivine.
+    /// </remarks>
     private Result Check(string codeHash, DateTime nowUtc)
     {
+        // Comparación en tiempo constante: no revela cuántos caracteres coinciden.
+        var matches = CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(CodeHash), Encoding.UTF8.GetBytes(codeHash));
+
         if (ConsumedAtUtc is not null)
         {
-            return LoginCodeErrors.AlreadyUsed;
+            return matches ? LoginCodeErrors.AlreadyUsed : LoginCodeErrors.Invalid(attemptsLeft: null);
         }
 
         if (InvalidatedAtUtc is not null)
@@ -165,7 +173,7 @@ public sealed class LoginCode : Entity
 
         if (nowUtc >= ExpiresAtUtc)
         {
-            return LoginCodeErrors.Expired;
+            return matches ? LoginCodeErrors.Expired : LoginCodeErrors.Invalid(attemptsLeft: null);
         }
 
         if (FailedAttempts >= MaxAttempts)
@@ -173,8 +181,7 @@ public sealed class LoginCode : Entity
             return LoginCodeErrors.TooManyAttempts;
         }
 
-        // Comparación en tiempo constante: no revela cuántos caracteres coinciden.
-        if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(CodeHash), Encoding.UTF8.GetBytes(codeHash)))
+        if (!matches)
         {
             FailedAttempts++;
 

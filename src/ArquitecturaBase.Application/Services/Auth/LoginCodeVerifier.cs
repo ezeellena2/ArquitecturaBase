@@ -41,22 +41,21 @@ internal sealed class LoginCodeVerifier(
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var user = await identifier.FindAccountAsync(cancellationToken);
 
-        if (user is not null && await signIn.IsLockedOutAsync(user.Id, cancellationToken))
-        {
-            return Fail(identifier, user, AccountErrors.LockedOut);
-        }
-
         // Sin un código de ingreso para ese destino, el error es el mismo que el de un código incorrecto. Uno pedido
         // desde el perfil para vincular el correo o el número no sirve para entrar.
         var loginCode = await loginCodes.GetLatestAsync(
             identifier.Destination, LoginCodePurpose.SignIn, requestedByUserId: null, cancellationToken);
+        var codeWasActive = loginCode?.IsActive(nowUtc) == true;
         var verification = loginCode?.Verify(
                 codeHasher.Hash(identifier.Destination, LoginCodePurpose.SignIn, request.Code!), nowUtc)
             ?? Result.Failure(LoginCodeErrors.Invalid(attemptsLeft: null));
 
         if (verification.IsFailure)
         {
-            if (user is not null)
+            // Sólo suma al bloqueo un código equivocado contra uno activo (N3): sin código, o contra uno usado, vencido o
+            // agotado, nadie gasta intentos de la cuenta de otro sin haber pedido un código. También suma con la cuenta
+            // ya bloqueada, así quien sigue probando la mantiene bloqueada.
+            if (user is not null && codeWasActive)
             {
                 await signIn.RegisterFailedAttemptAsync(user.Id, cancellationToken);
             }
@@ -64,7 +63,15 @@ internal sealed class LoginCodeVerifier(
             return Fail(identifier, user, verification.Error);
         }
 
-        // Account existence is disclosed only after proof of ownership, never by the code request.
+        // El bloqueo se dice recién ahora, con el código correcto, como la cuenta desactivada (N3): antes, la respuesta
+        // revelaría que la cuenta existe. Un código correcto no la desbloquea: queda gastado y no abre la sesión.
+        if (user is not null && await signIn.IsLockedOutAsync(user.Id, cancellationToken))
+        {
+            return Fail(identifier, user, AccountErrors.LockedOut);
+        }
+
+        // De acá en adelante un rechazo puede decir si la cuenta existe: la persona ya probó con el código que el destino
+        // es suyo. Un código equivocado no lo dice; el pedido de código, sólo para una cuenta desactivada (O11).
         if (request.Register == false && user is null && !accountCreation.IsInitialAdmin(identifier.Email))
         {
             return Fail(identifier, user, AccountErrors.NotRegistered);

@@ -228,16 +228,14 @@ public sealed class ExternalLoginTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// Una cuenta que existe por el correo pero está inactiva o bloqueada no entra con Google, y aun así queda vinculada a
-    /// Google, con el correo confirmado y la auditoría del rechazo: el error también se confirma, y el rechazo deja su
-    /// rastro. La sesión no se abre: la cookie sale solo con un ingreso exitoso.
+    /// Una cuenta que existe por el correo pero está inactiva no entra con Google, y aun así queda vinculada a Google, con
+    /// el correo confirmado y la auditoría del rechazo: el error también se confirma, y el rechazo deja su rastro. La
+    /// sesión no se abre: la cookie sale solo con un ingreso exitoso.
     /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Google_links_an_existing_inactive_or_locked_account_and_confirms_its_email_even_if_it_cannot_enter(bool locked)
+    [Fact]
+    public async Task Google_links_an_existing_inactive_account_and_confirms_its_email_even_if_it_cannot_enter()
     {
-        var email = TestEmails.Unique(locked ? "google-locked" : "google-inactive");
+        var email = TestEmails.Unique("google-inactive");
         var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         var account = await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
             .CreateUnverifiedAsync(Email.Create(email).Value, phone: null, "Ana", "es", Ct));
@@ -245,14 +243,7 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         await factory.ExecuteDbContextAsync(async db =>
         {
             var user = await db.Users.SingleAsync(candidate => candidate.Id == account.Id, Ct);
-            if (locked)
-            {
-                user.LockoutEnd = factory.Clock.GetUtcNow().AddHours(1);
-            }
-            else
-            {
-                user.SetActive(false);
-            }
+            user.SetActive(false);
 
             return await db.SaveChangesAsync(Ct);
         });
@@ -264,7 +255,7 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         using var callback = await client.SendAsync(
             HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(ReturnUrl));
 
-        var expected = locked ? AccountErrors.LockedOutCode : AccountErrors.DisabledCode;
+        const string expected = AccountErrors.DisabledCode;
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
         Assert.Equal("/login?error=" + expected, callback.Headers.Location!.OriginalString);
         Assert.False(callback.Headers.TryGetValues("Set-Cookie", out var cookies)
@@ -277,6 +268,50 @@ public sealed class ExternalLoginTests(ApiFactory factory)
         Assert.True(persisted.EmailConfirmed);
         Assert.True(persisted.Linked);
         Assert.Equal(expected, persisted.Audit);
+    }
+
+    /// <summary>
+    /// N3: diez códigos equivocados bloquean el ingreso por código, pero no el de Google: el bloqueo frena a quien prueba
+    /// códigos, y si frenara a Google cualquiera le cerraría la entrada a otro mandando códigos a su correo.
+    /// </summary>
+    [Fact]
+    public async Task An_account_locked_by_wrong_codes_still_signs_in_with_google()
+    {
+        var email = TestEmails.Unique("google-codelocked");
+        var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        using var attacker = factory.CreateClient();
+        await attacker.SignInWithCodeAsync(factory, email);
+        for (var round = 0; round < 2; round++)
+        {
+            // El reloj del arnés no avanza solo: sin moverlo, los códigos quedarían con el mismo CreatedAtUtc y cuál se
+            // verifica lo decidiría el plan de Postgres. Sólo suma al bloqueo un fallo contra el código activo.
+            factory.Clock.Advance(TimeSpan.FromSeconds(1));
+            var code = await attacker.RequestCodeAsync(factory, email);
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                using var failed = await attacker.PostJsonAsync("/account/login-code/verify",
+                    new { email, code = code == "000000" ? "111111" : "000000", returnUrl = AuthFlow.AuthorizeReturnUrl });
+                Assert.Equal(HttpStatusCode.BadRequest, failed.StatusCode);
+            }
+        }
+
+        var lockedUntil = await factory.ExecuteDbContextAsync(db =>
+            db.Users.Where(user => user.Email == email).Select(user => user.LockoutEnd).SingleAsync(Ct));
+        Assert.NotNull(lockedUntil);
+
+        using var client = factory.CreateClient();
+        using var external = await client.PostJsonAsync(
+            "/test/external-login", new { providerKey, email, name = "Ana Pérez", emailVerified = true });
+        Assert.True(external.IsSuccessStatusCode);
+        using var callback = await client.SendAsync(
+            HttpMethod.Get, "/account/external/callback?returnUrl=" + Uri.EscapeDataString(ReturnUrl));
+
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        Assert.Equal(ReturnUrl, callback.Headers.Location!.OriginalString);
+        Assert.True(callback.Headers.TryGetValues("Set-Cookie", out var cookies)
+            && cookies.Any(cookie => cookie.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal)));
+        Assert.True(await factory.ExecuteDbContextAsync(db => db.LoginAudits
+            .AnyAsync(audit => audit.Identifier == email && audit.Method == LoginMethod.Google && audit.Succeeded, Ct)));
     }
 
     [Fact]

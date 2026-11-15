@@ -26,8 +26,8 @@ namespace ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 /// lanzan <see cref="InvalidOperationException"/>, porque quien llama ya la buscó. Si la cuenta ya está seguida en el
 /// scope, usan esa misma instancia sin refrescarla: quien escribe después de un lock tiene que haberla leído después del
 /// lock.</para>
-/// <para>El bot de WhatsApp usa solo <see cref="IsLockedOutAsync"/>: un mensaje nunca abre una sesión. Lo fijan
-/// IdentityBoundaryTests y la guarda de <see cref="SignInAsync"/>.</para>
+/// <para>Un módulo nunca abre una sesión: un mensaje de WhatsApp no es un ingreso. Lo fijan IdentityBoundaryTests y la
+/// guarda de <see cref="SignInAsync"/>.</para>
 /// </remarks>
 public interface ISignInService
 {
@@ -36,8 +36,9 @@ public interface ISignInService
 
     /// <summary>
     /// Suma un intento fallido; al llegar al máximo (Authentication:LoginCode:LockoutMaxFailedAttempts), Identity bloquea
-    /// la cuenta un tiempo. Solo lo suma el ingreso por código: confirmar un destino desde el perfil no es un ingreso.
-    /// Exige la transacción, que el ingreso confirma con <see cref="CommitPolicy.OnAnyResult"/> aunque falle.
+    /// la cuenta un tiempo. Solo lo suma el ingreso por código, y solo con un código equivocado contra uno activo:
+    /// confirmar un destino desde el perfil no es un ingreso. El bloqueo frena sólo el ingreso por código (y el enlace),
+    /// no Google. Exige la transacción, que el ingreso confirma con <see cref="CommitPolicy.OnAnyResult"/> aunque falle.
     /// </summary>
     Task RegisterFailedAttemptAsync(Guid userId, CancellationToken cancellationToken);
 

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
 using ArquitecturaBase.Api.ErrorHandling;
+using ArquitecturaBase.Application.Common.RateLimiting;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Results;
@@ -46,10 +47,13 @@ internal static class RateLimitingExtensions
     private static RateLimitingOptions SettingsOf(HttpContext context) =>
         context.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
 
-    /// <summary>Una ventana fija por IP: la de /account y la de un módulo (el webhook de WhatsApp) salen de acá.</summary>
+    /// <summary>
+    /// Una ventana fija por IP, con una IPv6 agrupada por su /64 (<see cref="AddressPartition"/>, N20): la de /account y
+    /// la de un módulo (el webhook de WhatsApp) salen de acá.
+    /// </summary>
     internal static RateLimitPartition<string> FixedWindowByIp(HttpContext context, int permitLimit, int windowMinutes) =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            AddressPartition.Of(context.Connection.RemoteIpAddress),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = permitLimit,

@@ -38,7 +38,7 @@ internal sealed class ExternalLoginService(
 
             var result = await unitOfWork.ExecuteInTransactionAsync(
                 ct => SignInCoreAsync(request.Register, ct),
-                // Cada error de negocio deja su auditoría, y con una cuenta inactiva o bloqueada también el vínculo nuevo
+                // Cada error de negocio deja su auditoría, y con una cuenta inactiva también el vínculo nuevo
                 // y el correo confirmado: el error se confirma. Una excepción igual deshace todo.
                 CommitPolicy.OnAnyResult,
                 cancellationToken);
@@ -139,10 +139,8 @@ internal sealed class ExternalLoginService(
             return Fail(auditIdentifier, user, AccountErrors.Disabled);
         }
 
-        if (await signIn.IsLockedOutAsync(user.Id, cancellationToken))
-        {
-            return Fail(auditIdentifier, user, AccountErrors.LockedOut);
-        }
+        // El bloqueo por intentos fallidos no se mira acá (N3): es de los códigos y frena a quien los prueba, y si frenara
+        // a Google cualquiera le cerraría la entrada a otro mandando códigos equivocados a su correo.
 
         // Como el código y el enlace: entrar bien pone en cero los intentos fallidos.
         await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);

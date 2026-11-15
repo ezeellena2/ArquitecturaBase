@@ -128,15 +128,37 @@ public sealed class LoginCodeTests
         Assert.Equal(LoginCodeErrors.AlreadyUsedCode, result.Error.Code);
     }
 
+    /// <summary>
+    /// N3: «ya usado» sale sólo para el código que coincide. Con uno cualquiera, la respuesta es la de no tener código, sin
+    /// intentos restantes: si no, cualquiera sabría que alguien ya entró con ese destino.
+    /// </summary>
     [Fact]
-    public void Expired_code_is_rejected_without_counting_an_attempt()
+    public void A_wrong_code_against_a_used_one_answers_like_no_code_and_spends_no_attempt()
+    {
+        var code = Issue();
+        code.Verify(Hash, Now);
+
+        var result = code.Verify("HASH-WRONG", Now.AddMinutes(1));
+
+        Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
+        Assert.Null(result.Error.Metadata);
+        Assert.Equal(0, code.FailedAttempts);
+    }
+
+    /// <summary>N3: «vencido» sale sólo para el código que coincide; con otro, la respuesta es la de no tener código.</summary>
+    [Fact]
+    public void Expired_code_answers_expired_only_to_the_right_code_without_counting_an_attempt()
     {
         var code = Issue();
 
-        var result = code.Verify("HASH-WRONG", Now + Lifetime);
+        var right = code.Verify(Hash, Now + Lifetime);
+        var wrong = code.Verify("HASH-WRONG", Now + Lifetime);
 
-        Assert.Equal(LoginCodeErrors.ExpiredCode, result.Error.Code);
+        Assert.Equal(LoginCodeErrors.ExpiredCode, right.Error.Code);
+        Assert.Equal(LoginCodeErrors.InvalidCode, wrong.Error.Code);
+        Assert.Null(wrong.Error.Metadata);
         Assert.Equal(0, code.FailedAttempts);
+        Assert.Null(code.ConsumedAtUtc);
     }
 
     [Fact]
@@ -224,7 +246,9 @@ public sealed class LoginCodeTests
         Assert.Equal(4, wrong.Error.Metadata![LoginCodeErrors.AttemptsLeftKey]);
         Assert.True(right.IsSuccess);
         Assert.Equal(LoginCodeErrors.AlreadyUsedCode, again.Error.Code);
+        Assert.Null(code.VerifyFor(Owner, "HASH-WRONG", Now).Error.Metadata);
         Assert.Equal(LoginCodeErrors.ExpiredCode, IssueToVerifyDestination().VerifyFor(Owner, Hash, Now + Lifetime).Error.Code);
+        Assert.Equal(LoginCodeErrors.InvalidCode, IssueToVerifyDestination().VerifyFor(Owner, "HASH-WRONG", Now + Lifetime).Error.Code);
     }
 
     [Fact]

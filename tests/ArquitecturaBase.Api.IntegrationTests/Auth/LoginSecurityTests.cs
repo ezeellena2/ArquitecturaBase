@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -60,9 +61,12 @@ public sealed class LoginSecurityTests(ApiFactory factory)
         var email = TestEmails.Unique("lockout");
         await client.SignInWithCodeAsync(factory, email);
 
-        // Cada código admite 5 intentos: hacen falta dos códigos para llegar a 10 fallos seguidos.
+        // Cada código admite 5 intentos: hacen falta dos códigos para llegar a 10 fallos seguidos. Sólo suma un fallo
+        // contra el código activo (N3), y el reloj del arnés no avanza solo: se mueve para que cada código sea el más
+        // nuevo sin empatar con el anterior.
         for (var round = 0; round < 2; round++)
         {
+            factory.Clock.Advance(TimeSpan.FromSeconds(1));
             var code = await client.RequestCodeAsync(factory, email);
 
             for (var attempt = 0; attempt < 5; attempt++)
@@ -73,12 +77,84 @@ public sealed class LoginSecurityTests(ApiFactory factory)
             }
         }
 
+        factory.Clock.Advance(TimeSpan.FromSeconds(1));
         var lastCode = await client.RequestCodeAsync(factory, email);
         using var locked = await client.PostJsonAsync("/account/login-code/verify", new { email, code = lastCode, returnUrl = ReturnUrl }, language: "es");
         var problem = await locked.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.TooManyRequests, locked.StatusCode);
         Assert.Equal(AccountErrors.LockedOutCode, problem.GetProperty("code").GetString());
+    }
+
+    /// <summary>
+    /// N3: quien conoce el correo de otro y manda verificaciones con un código cualquiera, sin haber pedido ninguno, no le
+    /// bloquea la cuenta: sólo suma un código equivocado contra uno activo. Su dueño entra después con su código.
+    /// </summary>
+    [Fact]
+    public async Task Verifications_without_a_code_do_not_lock_the_account()
+    {
+        var email = TestEmails.Unique("nolock");
+        using (var owner = factory.CreateClient())
+        {
+            await owner.SignInWithCodeAsync(factory, email);
+        }
+
+        using var attacker = factory.CreateClient();
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            using var failed = await attacker.PostJsonAsync(
+                "/account/login-code/verify", new { email, code = (100000 + attempt).ToString(CultureInfo.InvariantCulture), returnUrl = ReturnUrl });
+            Assert.Equal(HttpStatusCode.BadRequest, failed.StatusCode);
+        }
+
+        using var client = factory.CreateClient();
+        var code = await client.RequestCodeAsync(factory, email);
+        using var right = await client.PostJsonAsync("/account/login-code/verify", new { email, code, returnUrl = ReturnUrl });
+
+        Assert.Equal(HttpStatusCode.OK, right.StatusCode);
+    }
+
+    /// <summary>
+    /// N3: un código cualquiera responde lo mismo para un correo sin cuenta, para una cuenta bloqueada y para una cuyo
+    /// último código ya se usó o venció: la respuesta no dice si la cuenta existe. Usado, vencido y bloqueado se dicen
+    /// sólo a quien manda el código correcto.
+    /// </summary>
+    [Fact]
+    public async Task A_random_code_does_not_reveal_whether_the_account_exists()
+    {
+        using var client = factory.CreateClient();
+        var withoutAccount = TestEmails.Unique("random-none");
+        var locked = TestEmails.Unique("random-locked");
+        var used = TestEmails.Unique("random-used");
+        var expired = TestEmails.Unique("random-expired");
+
+        string[] realCodes =
+        [
+            await SignInReturningTheCodeAsync(client, locked),
+            await SignInReturningTheCodeAsync(client, used),
+            await SignInReturningTheCodeAsync(client, expired),
+            await client.RequestCodeAsync(factory, expired),
+        ];
+        await LockAsync(locked);
+        factory.Clock.Advance(TimeSpan.FromMinutes(10));
+        // Uno cualquiera, que no sea ninguno de los que salieron.
+        var randomCode = Enumerable.Range(1, realCodes.Length + 1)
+            .Select(candidate => candidate.ToString("D6", CultureInfo.InvariantCulture))
+            .First(candidate => !realCodes.Contains(candidate));
+
+        List<(HttpStatusCode Status, string? Code, string? Detail, bool HasAttemptsLeft)> answers = [];
+        foreach (var email in new[] { withoutAccount, locked, used, expired })
+        {
+            using var response = await client.PostJsonAsync(
+                "/account/login-code/verify", new { email, code = randomCode, returnUrl = ReturnUrl }, language: "es");
+            var problem = await response.ReadJsonAsync();
+            answers.Add((response.StatusCode, problem.GetProperty("code").GetString(),
+                problem.GetProperty("detail").GetString(), problem.TryGetProperty(LoginCodeErrors.AttemptsLeftKey, out _)));
+        }
+
+        Assert.All(answers, answer => Assert.Equal(answers[0], answer));
+        Assert.Equal((HttpStatusCode.BadRequest, LoginCodeErrors.InvalidCode), (answers[0].Status, answers[0].Code));
+        Assert.False(answers[0].HasAttemptsLeft);
     }
 
     [Fact]
@@ -150,6 +226,23 @@ public sealed class LoginSecurityTests(ApiFactory factory)
     }
 
     private static string WrongCode(string code) => code == "000000" ? "111111" : "000000";
+
+    private async Task<string> SignInReturningTheCodeAsync(HttpClient client, string email)
+    {
+        var code = await client.RequestCodeAsync(factory, email);
+        using var response = await client.PostJsonAsync("/account/login-code/verify", new { email, code, returnUrl = ReturnUrl });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return code;
+    }
+
+    private Task<int> LockAsync(string email) =>
+        factory.ExecuteDbContextAsync(async db =>
+        {
+            var user = await db.Users.SingleAsync(u => u.Email == email, Ct);
+            user.LockoutEnd = factory.Clock.GetUtcNow().AddHours(1);
+            return await db.SaveChangesAsync(Ct);
+        });
 
     // Con el change tracker (no ExecuteUpdate): así pasa por el interceptor de auditoría, como en producción.
     private Task<int> DisableAsync(string email) =>
