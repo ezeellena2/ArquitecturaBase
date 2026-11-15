@@ -41,6 +41,24 @@ public sealed class BusinessFormActionRunTests
         Assert.Equal(FormActionRunState.Completed,run.State);
         Assert.True(run.Reserve(Now.AddHours(1),TimeSpan.FromMinutes(2)).IsFailure);
     }
+    // F19: who asked to retry or consult, and when, stays in the run after the worker takes it and after its result.
+    [Fact]
+    public void Who_asked_to_retry_a_person_or_consult_stays_after_the_result()
+    {
+        var by = Guid.NewGuid();var other = Guid.NewGuid();
+        var run = Create();
+        var lease = run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence,Now,FormActionRunState.Uncertain,"unknown",false).IsSuccess);
+        Assert.True(run.RequestConsult(Now.AddMinutes(1),by).IsSuccess);
+        Assert.Equal(("Consult",by,Now.AddMinutes(1)),(run.LastRequestKind,run.LastRequestedByUserId,run.LastRequestedAtUtc));
+        var consult = run.Reserve(Now.AddMinutes(2),TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(consult.Fence,Now.AddMinutes(2),FormActionRunState.Failed,"failed",true).IsSuccess);
+        Assert.Equal(("Consult",by),(run.LastRequestKind,run.LastRequestedByUserId));
+        Assert.True(run.RequestRetry(Now.AddMinutes(3),other).IsSuccess);
+        Assert.Equal(("Retry",other,Now.AddMinutes(3)),(run.LastRequestKind,run.LastRequestedByUserId,run.LastRequestedAtUtc));
+        Assert.True(run.RequestRetry(Now.AddMinutes(4),by).IsSuccess);
+        Assert.Equal(other,run.LastRequestedByUserId);
+    }
     [Fact]
     public void Uncertain_actions_must_be_reconciled_and_known_failed_actions_can_resume()
     {

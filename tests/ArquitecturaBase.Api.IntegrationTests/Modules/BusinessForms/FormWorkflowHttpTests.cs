@@ -79,7 +79,13 @@ public sealed partial class FormDraftEndpointsTests
         using var retry = await manager.PostAsync($"/api/forms/records/{seeded.RecordId}/actions/{seeded.RunId}/retry", null, Ct);
         Assert.Equal(HttpStatusCode.Accepted, retry.StatusCode);
         Assert.Equal(route, retry.Headers.Location!.ToString());
-        Assert.Equal("Waiting", (await retry.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("state").GetString());
+        var retried = await retry.ReadJsonAsync();
+        Assert.Equal("Waiting", retried.GetProperty("actions")[0].GetProperty("state").GetString());
+        // F19: the detail says who asked, what and when.
+        var asked = retried.GetProperty("actions")[0].GetProperty("lastRequest");
+        Assert.Equal("Retry", asked.GetProperty("kind").GetString());
+        Assert.NotEqual(Guid.Empty, asked.GetProperty("by").GetProperty("userId").GetGuid());
+        Assert.True(asked.TryGetProperty("atUtc", out _));
         await FormWorkflowContractCapture.WriteAsync(retry, "retry-en", Ct);
         var completed = await SeedWorkflowRunAsync(reader, FormActionRunState.Completed);
         using var repeat = await manager.PostAsync($"/api/forms/records/{completed.RecordId}/actions/{completed.RunId}/retry", null, Ct);

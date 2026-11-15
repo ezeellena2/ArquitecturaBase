@@ -34,10 +34,15 @@ public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionar
 }
 public sealed record FormWorkflowTaskResponse(Guid Id,Guid RoleId,long Revision,string State,string? RoleName,DateTime? DecidedAtUtc,FormAuthorResponse? DecidedBy,string? Reason,DateTime RequestedAtUtc)
 { public override string ToString()=>"FormWorkflowTaskResponse { Content = [REDACTED] }"; }
+/// <summary>F19: what a person last asked of an action («Retry», «RecipientRetry» or «Consult»), who and when; it stays after the result.</summary>
+public sealed record FormActionRequestResponse(string Kind,FormAuthorResponse? By,DateTime AtUtc);
 public sealed record FormActionRunResponse(Guid Id,Guid RuleId,string Kind,string Event,int Order,string State,string? ReasonCode,string? Reason,
     bool CanConsult,bool CanRetry,DateTime CreatedAtUtc,DateTime UpdatedAtUtc,DateTime? CompletedAtUtc,
     long Revision,IReadOnlyList<FormActionRecipientResponse> Recipients)
 {
+    /// <summary>F19: who asked last to retry or consult this action, and when; absent when nobody did.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormActionRequestResponse? LastRequest { get; init; }
     /// <summary>An issuance in review that this person may decide; written only when true.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool CanReview { get; init; }

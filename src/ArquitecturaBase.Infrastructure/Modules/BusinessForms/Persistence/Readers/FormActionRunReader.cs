@@ -46,10 +46,11 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
                 run.State==FormActionRunState.Uncertain||run.State==FormActionRunState.Running&&run.LeaseExpiresAtUtc<=now,
                 run.State==FormActionRunState.Failed&&run.CanRetry,run.AcceptedAtUtc,run.UpdatedAtUtc,run.CompletedAtUtc,
                 run.Fence,Array.Empty<FormActionRecipientResponse>()),run.OutcomeJson,run.DeliveryReviewRecipientUserId,run.DeliveryReviewWasSent,
-                run.DeliveryReviewedAtUtc,run.DeliveryReviewedByUserId }).ToArrayAsync(cancellationToken);
+                run.DeliveryReviewedAtUtc,run.DeliveryReviewedByUserId,run.LastRequestKind,run.LastRequestedByUserId,run.LastRequestedAtUtc }).ToArrayAsync(cancellationToken);
         var outcomes=rows.Select(row=>row.OutcomeJson is null?null:JsonSerializer.Deserialize<FormActionOutcomeResponse>(row.OutcomeJson,JsonSerializerOptions.Web)).ToArray();
         var reviewers=outcomes.SelectMany(outcome=>outcome?.Recipients??[]).Where(recipient=>recipient.Status.Review is not null)
-            .Select(recipient=>recipient.Status.Review!.ReviewedByUserId).Concat(rows.Where(row=>row.DeliveryReviewedByUserId!=null).Select(row=>row.DeliveryReviewedByUserId!.Value)).Distinct().ToArray();
+            .Select(recipient=>recipient.Status.Review!.ReviewedByUserId).Concat(rows.Where(row=>row.DeliveryReviewedByUserId!=null).Select(row=>row.DeliveryReviewedByUserId!.Value))
+            .Concat(rows.Where(row=>row.LastRequestedByUserId!=null).Select(row=>row.LastRequestedByUserId!.Value)).Distinct().ToArray();
         var names=await db.Users.AsNoTracking().Where(user=>reviewers.Contains(user.Id)).Select(user=>new{user.Id,user.DisplayName}).ToDictionaryAsync(user=>user.Id,user=>user.DisplayName,cancellationToken);
         // An issuance as its issuer last said it: failed, what the provider said; running while it waits for the provider, why,
         // when it tries again and how many times it tried.
@@ -62,6 +63,7 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
             CanReview=row.Response.Kind=="IssueDocument"&&row.Response.State=="Uncertain"&&outcomes[index]?.Issue?.State==StructuredIssueState.NeedsReview,
             // In review, the texts its issuer gave for it, so the core never names the issuer nor its reasons.
             Review=row.Response.State=="Uncertain"?outcomes[index]?.Issue?.ReviewText:null,
+            LastRequest=row.LastRequestKind is null||row.LastRequestedAtUtc is null?null:new(row.LastRequestKind,row.LastRequestedByUserId is {} requester?new(requester,names.GetValueOrDefault(requester)):null,row.LastRequestedAtUtc.Value),
             NextAttemptAtUtc=waiting[index]?.NextCheckAtUtc,Attempts=waiting[index]?.Attempts,Recipients=(outcomes[index]?.Recipients??[]).Select(recipient=>
         {
             var review=recipient.Status.Review;
