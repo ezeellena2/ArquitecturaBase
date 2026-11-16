@@ -98,6 +98,10 @@ public sealed class AiKeyRingHealthCheckTests(ApiFactory factory)
         var entry = await CheckAsync(copy);
         Assert.Equal(HealthStatus.Unhealthy, entry.Status);
         Assert.Contains("'" + KeyId + "'", entry.Description, StringComparison.Ordinal);
+        // I17, review: the first copy that wrote the control may be the wrong one: the description sends to the guide that says which
+        // ring is right, not to align with the other copies.
+        Assert.Contains("docs/guides/configurar-ia.md", entry.Description, StringComparison.Ordinal);
+        Assert.DoesNotContain("as the other copies", entry.Description, StringComparison.Ordinal);
         Assert.DoesNotContain(value, entry.Description, StringComparison.Ordinal);
         Assert.DoesNotContain(written, entry.Description, StringComparison.Ordinal);
         // Restarting does not fix a wrong ring: liveness stays up.

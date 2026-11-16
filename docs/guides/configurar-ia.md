@@ -19,9 +19,10 @@ seguí [su configuración](configurar-google-places.md). No usa la clave ni el p
    La readiness lo comprueba (I17): la primera copia guarda en `AiKeyRingControls` un valor de control por clave, y una
    copia con otro InstallationId u otros bytes para el mismo keyId, o cuya clave activa no tiene control cuando ya hay otros
    (un anillo de otras claves), deja `/health` en Unhealthy (chequeo `ai-key-ring`, con un log de error que nombra el keyId)
-   y no recibe tráfico. Cargale el mismo anillo que a las demás y reiniciala: lee el
-   anillo al arrancar. Sólo si el control lo escribió una copia con el anillo equivocado (por ejemplo, la primera de una
-   base nueva), corregila, borrá esa fila (`DELETE FROM "AiKeyRingControls" WHERE "KeyId" = '<keyId>'`) y reiniciá las
+   y no recibe tráfico. El anillo bueno es el que guardaste fuera de la base para esta instalación: el de las copias que
+   ya andaban y leen la clave del proveedor guardada (la pantalla de IA no pide reemplazarla). Cargalo en la copia que no
+   está lista y reiniciala: lee el anillo al arrancar. Sólo si el control lo escribió una copia con el anillo equivocado
+   (por ejemplo, la primera de una base nueva), corregila, borrá esa fila (`DELETE FROM "AiKeyRingControls" WHERE "KeyId" = '<keyId>'`) y reiniciá las
    copias; lo que aquella cifró se lee sólo con su anillo. Nunca la borres para que pase una copia con otro anillo.
 3. Ingresá con `ai.read` + `ai.manage` (Admin los recibe mediante el catálogo compuesto).
 4. Elegí OpenAI o Anthropic/Claude, ingresá un modelo de texto de tu cuenta y la clave de API.

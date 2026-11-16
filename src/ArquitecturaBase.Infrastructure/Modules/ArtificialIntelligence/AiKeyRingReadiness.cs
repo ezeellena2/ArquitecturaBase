@@ -38,8 +38,10 @@ internal sealed partial class AiKeyRingReadiness(IServiceScopeFactory scopes, IL
 
     public static string Keys(IReadOnlyList<string> keyIds) => string.Join(", ", keyIds.Select(keyId => "'" + keyId + "'"));
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "The AI key ring of this copy does not match the one the other copies use for the key {KeyIds}: "
-        + "this copy stays out of readiness. Load the same ArtificialIntelligence:SecretProtection (InstallationId and keys) as the other copies and restart it.")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "The AI key ring of this copy does not match the control values in the database for the key {KeyIds}: "
+        + "its control differs from the one the first copy with that key wrote, or it is the active key and no copy wrote its control yet. "
+        + "This copy stays out of readiness and takes no assistant work. That first copy may be the wrong one: decide which ring is right "
+        + "as docs/guides/configurar-ia.md says and restart the copies with it.")]
     private static partial void LogRingMismatch(ILogger logger, string keyIds);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The AI key ring could not be checked against the database yet ({ExceptionType}); "

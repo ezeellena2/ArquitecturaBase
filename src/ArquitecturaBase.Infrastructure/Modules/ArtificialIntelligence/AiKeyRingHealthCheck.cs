@@ -24,8 +24,9 @@ internal sealed class AiKeyRingHealthCheck(AiKeyRingReadiness readiness) : IHeal
         }
         return mismatched.Count == 0
             ? HealthCheckResult.Healthy()
-            : HealthCheckResult.Unhealthy("The AI key ring of this copy does not match the one the other copies use for the key "
-                + AiKeyRingReadiness.Keys(mismatched) + ". Load the same ArtificialIntelligence:SecretProtection (InstallationId and keys) as the other copies "
-                + "and restart the Api, which reads it at startup.");
+            : HealthCheckResult.Unhealthy("The AI key ring of this copy does not match the control values in the database for the key "
+                + AiKeyRingReadiness.Keys(mismatched) + ": its control differs from the one the first copy with that key wrote, or it is the "
+                + "active key and no copy wrote its control yet. That first copy may be the wrong one: decide which ring is right as "
+                + "docs/guides/configurar-ia.md says, load it in every copy and restart them (the ring is read at startup).");
     }
 }
