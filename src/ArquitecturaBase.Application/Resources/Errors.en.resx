@@ -61,6 +61,7 @@
   <data name="Users.User.PhoneAlreadySet" xml:space="preserve"><value>Your account already has a verified WhatsApp number, and it can't be replaced from your profile. To change it, unlink it and link the new one; if it's your only way to sign in, ask an administrator.</value></data>
   <data name="Users.User.NoPhone" xml:space="preserve"><value>Your account has no WhatsApp number to unlink.</value></data>
   <data name="Users.User.NoVerifiedPhone" xml:space="preserve"><value>Your account has no verified WhatsApp number to send you the code.</value></data>
+  <data name="Users.User.RevisionConflict" xml:space="preserve"><value>The account changed while you were editing it. Reload it and review your changes before saving.</value></data>
   <data name="Users.Identity.Required" xml:space="preserve"><value>Enter an email or a WhatsApp number.</value></data>
   <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirm that the person agreed to receive WhatsApp messages.</value></data>
   <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>To invite by WhatsApp, enter the name of the person.</value></data>
@@ -72,6 +73,7 @@
   <data name="Roles.Role.HasUsers" xml:space="preserve"><value>The role still has users assigned. Reassign them before deleting it.</value></data>
   <data name="Roles.Role.PermissionsNotHeld" xml:space="preserve"><value>You can't give or take away permissions you don't have.</value></data>
   <data name="Roles.Role.UserRoleAdminOnly" xml:space="preserve"><value>Only an administrator can change the permissions of User, the role every new account gets.</value></data>
+  <data name="Roles.Role.RevisionConflict" xml:space="preserve"><value>The role changed while you were editing it. Reload it and review your changes before saving.</value></data>
   <data name="Auth.Account.NotRegistered" xml:space="preserve"><value>You do not have an account yet. Choose Create account to register.</value></data>
   <data name="Auth.Account.AlreadyRegistered" xml:space="preserve"><value>You already have an account. Choose Sign in to continue.</value></data>
   <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>The settings have changed. Review the current values before saving.</value></data>

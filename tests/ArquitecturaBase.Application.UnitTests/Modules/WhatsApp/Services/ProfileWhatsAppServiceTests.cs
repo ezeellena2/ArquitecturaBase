@@ -554,6 +554,8 @@ public sealed class ProfileWhatsAppServiceTests
 
         public Task LockAdminsAsync(CancellationToken cancellationToken) => inner.LockAdminsAsync(cancellationToken);
 
+        public Task LockAsync(Guid userId, CancellationToken cancellationToken) => inner.LockAsync(userId, cancellationToken);
+
         public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed,
             string? displayName, string culture, CancellationToken cancellationToken, string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId) =>
             inner.CreateAsync(email, phone, phoneConfirmed, displayName, culture, cancellationToken, timeZoneId);

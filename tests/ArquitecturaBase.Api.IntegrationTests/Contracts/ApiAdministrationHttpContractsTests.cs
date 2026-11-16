@@ -38,7 +38,6 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
 
     [Theory]
     [InlineData("GET", "/api/settings")]
-    [InlineData("PUT", "/api/settings")]
     [InlineData("GET", "/api/users")]
     [InlineData("POST", "/api/users")]
     [InlineData("GET", "/api/users/filter-counts")]
@@ -77,7 +76,6 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     }
 
     [Theory]
-    [InlineData("PUT", "/api/settings")]
     [InlineData("GET", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("PUT", "/api/roles/00000000-0000-0000-0000-000000000001")]
     [InlineData("DELETE", "/api/roles/00000000-0000-0000-0000-000000000001")]
@@ -107,7 +105,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
-        Assert.Equal(["GET", "PATCH", "PUT"], response.Content.Headers.Allow.Order(StringComparer.Ordinal));
+        Assert.Equal(["GET", "PATCH"], response.Content.Headers.Allow.Order(StringComparer.Ordinal));
         Assert.Equal("Http.MethodNotAllowed", problem.GetProperty("code").GetString());
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
@@ -199,7 +197,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     {
         using var client = factory.CreateClient();
         var tokens = await LoginAdministratorAsync(client);
-        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri("/api/settings", UriKind.Relative))
+        using var request = new HttpRequestMessage(HttpMethod.Patch, new Uri("/api/settings", UriKind.Relative))
         {
             Content = new StringContent("{\"registrationMode\":\"Open\"}", Encoding.UTF8, "text/plain"),
         };
@@ -219,8 +217,8 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await LoginAdministratorAsync(client);
 
-        using var missing = await client.SendWithTokenAsync(HttpMethod.Put, "/api/settings", tokens.AccessToken);
-        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri("/api/settings", UriKind.Relative))
+        using var missing = await client.SendWithTokenAsync(HttpMethod.Patch, "/api/settings", tokens.AccessToken);
+        using var request = new HttpRequestMessage(HttpMethod.Patch, new Uri("/api/settings", UriKind.Relative))
         {
             Content = new StringContent("{", Encoding.UTF8, "application/json"),
         };
@@ -302,8 +300,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
 
         try
         {
-            using var updated = await client.SendWithTokenAsync(
-                HttpMethod.Put,
+            using var updated = await client.PutWithRevisionAsync(
                 $"/api/roles/{roleId}",
                 tokens.AccessToken,
                 new { name });
@@ -369,7 +366,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
         const string phone = "+5493415550199";
         var number = new PhoneNumberHttpRequest("AR", phone);
         var create = new CreateUserHttpRequest(email, "Persona", null, number);
-        var update = new UpdateUserHttpRequest("Persona", [SystemRoles.User], email, number);
+        var update = new UpdateUserHttpRequest("Persona", [SystemRoles.User], 1, email, number);
         var invitation = new SendInvitationHttpRequest(null, false);
 
         Assert.Equal(nameof(CreateUserHttpRequest), create.ToString());

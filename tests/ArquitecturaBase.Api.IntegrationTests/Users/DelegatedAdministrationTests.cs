@@ -32,10 +32,8 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         using var helpDesk = await SignInWithRoleAsync(admin, "mesa", [Permissions.Users.Read, Permissions.Users.Manage]);
         var otherId = await admin.CreateOkAsync(new { email = TestEmails.Unique("otro"), roles = new[] { SystemRoles.User } });
 
-        using var self = await helpDesk.SendAsync(
-            HttpMethod.Put, $"/api/users/{helpDesk.UserId}", new { roles = new[] { helpDesk.Role, SystemRoles.Admin } });
-        using var other = await helpDesk.SendAsync(
-            HttpMethod.Put, $"/api/users/{otherId}", new { roles = new[] { SystemRoles.Admin } });
+        using var self = await helpDesk.PutAsync($"/api/users/{helpDesk.UserId}", new { roles = new[] { helpDesk.Role, SystemRoles.Admin } });
+        using var other = await helpDesk.PutAsync($"/api/users/{otherId}", new { roles = new[] { SystemRoles.Admin } });
         using var created = await helpDesk.SendAsync(
             HttpMethod.Post, "/api/users", new { email = TestEmails.Unique("nuevo"), roles = new[] { SystemRoles.Admin } });
 
@@ -56,10 +54,8 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         var otherAdminId = await admin.CreateOkAsync(new { email = adminEmail, roles = new[] { SystemRoles.Admin } });
         string[] roles = [SystemRoles.Admin];
 
-        using var email = await helpDesk.SendAsync(
-            HttpMethod.Put, $"/api/users/{otherAdminId}", new { roles, email = TestEmails.Unique("lucia") });
-        using var phone = await helpDesk.SendAsync(
-            HttpMethod.Put, $"/api/users/{otherAdminId}", new { roles, phone = AdminUsersApi.PhoneField(TestPhones.Unique()) });
+        using var email = await helpDesk.PutAsync($"/api/users/{otherAdminId}", new { roles, email = TestEmails.Unique("lucia") });
+        using var phone = await helpDesk.PutAsync($"/api/users/{otherAdminId}", new { roles, phone = AdminUsersApi.PhoneField(TestPhones.Unique()) });
         using var deactivate = await helpDesk.SendAsync(HttpMethod.Post, $"/api/users/{otherAdminId}/deactivate");
         using var delete = await helpDesk.SendAsync(HttpMethod.Delete, $"/api/users/{otherAdminId}");
 
@@ -112,18 +108,14 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
 
         // Por roles: sumarse un permiso, crear un rol con uno que no tiene o cambiar User.
         string[] withSettings = [.. held, Permissions.Settings.Manage];
-        using var own = await both.SendAsync(
-            HttpMethod.Put, $"/api/roles/{both.RoleId}", new { name = both.Role, permissions = withSettings });
+        using var own = await both.PutAsync($"/api/roles/{both.RoleId}", new { name = both.Role, permissions = withSettings });
         using var createdRole = await both.SendAsync(
             HttpMethod.Post, "/api/roles", new { name = UniqueName("ajustes"), permissions = new[] { Permissions.Settings.Manage } });
-        using var toUser = await both.SendAsync(
-            HttpMethod.Put, $"/api/roles/{userRoleId}", new { name = SystemRoles.User, permissions = held });
+        using var toUser = await both.PutAsync($"/api/roles/{userRoleId}", new { name = SystemRoles.User, permissions = held });
 
         // Por cuentas: darse Admin o tomar la cuenta de un administrador.
-        using var self = await both.SendAsync(
-            HttpMethod.Put, $"/api/users/{both.UserId}", new { roles = new[] { both.Role, SystemRoles.Admin } });
-        using var takeOver = await both.SendAsync(
-            HttpMethod.Put, $"/api/users/{otherAdminId}",
+        using var self = await both.PutAsync($"/api/users/{both.UserId}", new { roles = new[] { both.Role, SystemRoles.Admin } });
+        using var takeOver = await both.PutAsync($"/api/users/{otherAdminId}",
             new { roles = new[] { SystemRoles.Admin }, email = TestEmails.Unique("toma") });
 
         // Lo suyo sí lo delega: un rol con permisos que tiene, dado a una cuenta nueva.
@@ -176,8 +168,7 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         Assert.Equal(JsonValueKind.Null, detail.GetProperty("email").ValueKind);
         Assert.Equal([SystemRoles.User], Strings(detail, "roles"));
 
-        using var seedAgain = await helpDesk.SendAsync(
-            HttpMethod.Put, $"/api/users/{initialId}", new { roles = new[] { SystemRoles.User }, email = seedEmail });
+        using var seedAgain = await helpDesk.PutAsync($"/api/users/{initialId}", new { roles = new[] { SystemRoles.User }, email = seedEmail });
 
         await AssertProblemAsync(seedAgain, HttpStatusCode.Forbidden, UserErrors.RolesNotHeldCode);
         Assert.Equal(JsonValueKind.Null, (await DetailAsync(admin, initialId)).GetProperty("email").ValueKind);
@@ -196,8 +187,7 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
 
         try
         {
-            using var changed = await admin.Client.SendWithTokenAsync(
-                HttpMethod.Put, $"/api/roles/{userRoleId}", admin.AccessToken,
+            using var changed = await admin.Client.PutWithRevisionAsync($"/api/roles/{userRoleId}", admin.AccessToken,
                 new { name = SystemRoles.User, permissions = new[] { Permissions.Settings.Manage } });
             Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
 
@@ -205,16 +195,14 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
                 HttpMethod.Post, "/api/users", new { email = TestEmails.Unique("con-user"), roles = new[] { SystemRoles.User } });
             Assert.Equal(HttpStatusCode.Created, created.StatusCode);
             var createdId = (await created.ReadJsonAsync()).GetProperty("id").GetGuid();
-            using var edited = await helpDesk.SendAsync(
-                HttpMethod.Put, $"/api/users/{createdId}",
+            using var edited = await helpDesk.PutAsync($"/api/users/{createdId}",
                 new { roles = new[] { SystemRoles.User }, email = TestEmails.Unique("con-user-2") });
 
             Assert.Equal(HttpStatusCode.NoContent, edited.StatusCode);
         }
         finally
         {
-            using var restored = await admin.Client.SendWithTokenAsync(
-                HttpMethod.Put, $"/api/roles/{userRoleId}", admin.AccessToken,
+            using var restored = await admin.Client.PutWithRevisionAsync($"/api/roles/{userRoleId}", admin.AccessToken,
                 new { name = SystemRoles.User, permissions = original });
             Assert.Equal(HttpStatusCode.NoContent, restored.StatusCode);
         }
@@ -231,8 +219,7 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         using var created = await helpDesk.SendAsync(
             HttpMethod.Post, "/api/users", new { email = TestEmails.Unique("alta"), roles = new[] { SystemRoles.User } });
         var userId = (await created.ReadJsonAsync()).GetProperty("id").GetGuid();
-        using var edited = await helpDesk.SendAsync(
-            HttpMethod.Put, $"/api/users/{userId}", new { roles = new[] { SystemRoles.User }, email = newEmail });
+        using var edited = await helpDesk.PutAsync($"/api/users/{userId}", new { roles = new[] { SystemRoles.User }, email = newEmail });
         using var deactivated = await helpDesk.SendAsync(HttpMethod.Post, $"/api/users/{userId}/deactivate");
 
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -252,11 +239,8 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         var userPermissions = Strings(user, "permissions");
 
         string[] withUsers = [.. held, Permissions.Users.Manage];
-        using var own = await roleManager.SendAsync(
-            HttpMethod.Put, $"/api/roles/{roleManager.RoleId}", new { name = roleManager.Role, permissions = withUsers });
-        using var toUser = await roleManager.SendAsync(
-            HttpMethod.Put,
-            $"/api/roles/{user.GetProperty("id").GetGuid()}",
+        using var own = await roleManager.PutAsync($"/api/roles/{roleManager.RoleId}", new { name = roleManager.Role, permissions = withUsers });
+        using var toUser = await roleManager.PutAsync($"/api/roles/{user.GetProperty("id").GetGuid()}",
             new { name = SystemRoles.User, permissions = held });
         using var created = await roleManager.SendAsync(
             HttpMethod.Post, "/api/roles", new { name = UniqueName("todo"), permissions = new[] { Permissions.Users.Manage } });
@@ -282,8 +266,7 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
 
         try
         {
-            using var changed = await admin.Client.SendWithTokenAsync(
-                HttpMethod.Put, $"/api/roles/{userId}", admin.AccessToken,
+            using var changed = await admin.Client.PutWithRevisionAsync($"/api/roles/{userId}", admin.AccessToken,
                 new { name = SystemRoles.User, permissions = new[] { Permissions.Users.Read } });
 
             Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
@@ -292,8 +275,7 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         finally
         {
             // User lo recibe toda cuenta nueva: los demás tests lo esperan como estaba.
-            using var restored = await admin.Client.SendWithTokenAsync(
-                HttpMethod.Put, $"/api/roles/{userId}", admin.AccessToken,
+            using var restored = await admin.Client.PutWithRevisionAsync($"/api/roles/{userId}", admin.AccessToken,
                 new { name = SystemRoles.User, permissions = original });
             Assert.Equal(HttpStatusCode.NoContent, restored.StatusCode);
         }
@@ -313,10 +295,8 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         using var otherClient = factory.CreateClient();
         var otherTokens = await otherClient.LoginAsync(factory, otherAdminEmail);
 
-        using var takeAdmin = await otherClient.SendWithTokenAsync(
-            HttpMethod.Put, $"/api/users/{admin.AdminId}", otherTokens.AccessToken, new { roles = new[] { SystemRoles.User } });
-        using var changeEmail = await otherClient.SendWithTokenAsync(
-            HttpMethod.Put, $"/api/users/{admin.AdminId}", otherTokens.AccessToken,
+        using var takeAdmin = await otherClient.PutWithRevisionAsync($"/api/users/{admin.AdminId}", otherTokens.AccessToken, new { roles = new[] { SystemRoles.User } });
+        using var changeEmail = await otherClient.PutWithRevisionAsync($"/api/users/{admin.AdminId}", otherTokens.AccessToken,
             new { roles = new[] { SystemRoles.Admin }, email = TestEmails.Unique("reemplazo") });
 
         var problem = await AssertProblemAsync(takeAdmin, HttpStatusCode.Conflict, UserErrors.InitialAdminCode);
@@ -418,6 +398,10 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
     {
         public Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body = null) =>
             Client.SendWithTokenAsync(method, path, AccessToken, body);
+
+        /// <summary>La edición, con la revisión que el recurso tiene ahora (<see cref="RevisionedEdits"/>).</summary>
+        public Task<HttpResponseMessage> PutAsync(string path, object? body = null) =>
+            Client.PutWithRevisionAsync(path, AccessToken, body);
 
         public void Dispose() => Client.Dispose();
     }

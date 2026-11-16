@@ -373,6 +373,7 @@ public sealed class UserGuardTests
             _accounts,
             _accounts,
             _roles,
+            _roles,
             new PermissionDelegationGuard(currentUser, _roles, _roles.Catalog, _initialAdmin),
             _initialAdmin);
     }
@@ -396,7 +397,8 @@ public sealed class UserGuardTests
             DisplayName: null,
             "es",
             InMemoryUserAccounts.DefaultTimeZoneId,
-            IsActive: true);
+            IsActive: true,
+            Revision: 1);
 
     private UserAccount AddAdmin(string email) => AddWithRole(email, SystemRoles.Admin);
 

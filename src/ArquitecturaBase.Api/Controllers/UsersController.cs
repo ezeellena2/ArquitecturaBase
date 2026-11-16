@@ -85,7 +85,8 @@ public sealed class UsersController(
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    // El correo o el número de otra cuenta, quitarse a uno mismo el rol Admin o quitárselo al último administrador.
+    // El correo o el número de otra cuenta, quitarse a uno mismo el rol Admin o quitárselo al último administrador, o una
+    // revisión vieja (N2).
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id,
@@ -95,6 +96,7 @@ public sealed class UsersController(
             id,
             request.DisplayName,
             request.Roles,
+            request.ExpectedRevision,
             request.Email,
             request.Phone is null ? null : new PhoneNumberInput(request.Phone.Country, request.Phone.Number)),
             cancellationToken)).ToActionResult(this);

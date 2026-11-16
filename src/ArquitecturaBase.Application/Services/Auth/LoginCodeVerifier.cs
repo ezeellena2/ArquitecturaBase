@@ -41,6 +41,15 @@ internal sealed class LoginCodeVerifier(
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
         var user = await identifier.FindAccountAsync(cancellationToken);
 
+        // La fila de la cuenta, después del login-code: (el orden de backend.md) y antes de escribirla: los intentos, la
+        // confirmación del destino. Una edición de la administración o del perfil en curso termina antes, y este guardado
+        // no choca con su ConcurrencyStamp (un 500). Se vuelve a leer con la fila tomada: la edición pudo cambiarla (N2).
+        if (user is not null)
+        {
+            await userRepository.LockAsync(user.Id, cancellationToken);
+            user = await identifier.FindAccountAsync(cancellationToken);
+        }
+
         // Sin un código de ingreso para ese destino, el error es el mismo que el de un código incorrecto. Uno pedido
         // desde el perfil para vincular el correo o el número no sirve para entrar.
         var loginCode = await loginCodes.GetLatestAsync(

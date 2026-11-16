@@ -123,6 +123,23 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 
    Un control de arquitectura: los contratos de escritura de usuarios, roles y configuración llevan `ExpectedRevision`.
    Tests: dos ediciones del mismo usuario y del mismo rol, y borrar un rol mientras se asigna. Mediano.
+
+   Backend hecho y revisado el 2026-11-16; el front va en un commit propio. Contra lo de arriba:
+   la revisión nace en 1, no en 0, como la de la configuración, así un pedido sin ella choca (también en las filas que ya
+   existen). La avanza el repositorio con cada cambio del nombre, el correo, el número, los roles, el estado o el borrado,
+   venga de donde venga, y no al guardar lo mismo. Activar, desactivar y borrar bloquean la fila y la avanzan, pero no la
+   piden (el estado va en la ruta); la verificación de un correo o un número desde el perfil la avanza y no la pide, porque
+   la confirma un código. La asignación de un rol lo bloquea con `FOR KEY SHARE` antes de comprobar que exista, así choca con
+   su borrado: `HasUsers` o `NotFound`. Las reglas quedaron en [administración](../features/administracion.md).
+
+   La revisión adversarial sumó: la fila de la cuenta va con `FOR UPDATE` y no `FOR NO KEY UPDATE`, porque cambiar el
+   correo o el número choca con el `FOR KEY SHARE` de un ingreso y se trababan; el ingreso con un código toma la misma
+   fila antes de escribir la cuenta; el alta toma los roles después de los destinos y de la restauración, y
+   `user-invitation:` al final queda como excepción escrita en [backend](../architecture/backend.md); el seed avanza la
+   revisión de Admin cuando le agrega permisos y la de la cuenta de `Seed:AdminEmail` cuando le devuelve Admin; y los
+   controles de rutas y contratos dejaron de esperar el PUT de ajustes. El idioma y la zona no avanzan la revisión, a
+   propósito. Con `Users`, `Roles` y `Settings` juntos, la integración da 429 al pedir el código del administrador
+   también sin este cambio: es del arnés (el límite de códigos del `ApiFactory`), y cada clase sola pasa.
 10. **B3. Admin se puede editar después de quitar un módulo.** `RoleService` compara sólo los códigos del catálogo. Trivial.
 11. **N13. Queda la historia de los cambios administrativos.** Una tabla de cambios (quién, sobre qué, permisos o roles
     agregados y quitados, estado antes y después), escrita en el mismo límite, para los roles (el borrado, con la lista de

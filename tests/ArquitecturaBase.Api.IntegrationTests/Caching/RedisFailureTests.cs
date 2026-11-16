@@ -75,12 +75,14 @@ public sealed class RedisFailureTests(ApiFactory factory)
         var adminId = await factory.ExecuteDbContextAsync(db => db.Users.Where(user => user.Email == ApiFactory.AdminEmail)
             .Select(user => user.Id).SingleAsync(Ct));
         await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
+        var revision = await factory.ExecuteDbContextAsync(db => db.SystemSettings.AsNoTracking()
+            .Select(settings => settings.Revision).SingleAsync(Ct));
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             services.Replace(ServiceDescriptor.Singleton<ISystemSettingsCache, FailingSystemSettingsCache>())));
         using var client = api.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri("/api/settings", UriKind.Relative))
+        using var request = new HttpRequestMessage(HttpMethod.Patch, new Uri("/api/settings", UriKind.Relative))
         {
-            Content = JsonContent.Create(new { registrationMode = "Open" }),
+            Content = JsonContent.Create(new { expectedRevision = revision, registrationMode = "Open" }),
         };
         // Separate test hosts use ephemeral token-protection keys. This test exercises the real permission service.
         request.Headers.Add(TestAuthHandler.UserIdHeader, adminId.ToString("D", System.Globalization.CultureInfo.InvariantCulture));

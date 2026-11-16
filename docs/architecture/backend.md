@@ -89,7 +89,7 @@ Rige para las rutas de negocio. Un controller con protocolo propio (OpenIddict, 
 
 1. **Antes:** `ThrowIfNull`, el log de inicio y el validador.
 2. **Un solo límite:** `OnSuccess`, u `OnAnyResult` si también hay que guardar al devolver error, con un comentario que diga qué queda registrado.
-3. **Adentro, en orden:** locks, lecturas de lo que se modifica, reglas, escrituras y los efectos marcados en la fila (encolar, `MarkSent`). Los locks: `login-code:` del correo y del número (dos llamadas) → participantes del número → `login-link:` o `user-invitation:` → `users:admins`, solo si se va un administrador activo.
+3. **Adentro, en orden:** locks, lecturas de lo que se modifica, reglas, escrituras y los efectos marcados en la fila (encolar, `MarkSent`). Los locks: `login-code:` del correo y del número (dos llamadas) → participantes del número → `login-link:` o `user-invitation:` → la fila de la cuenta (`IUserRepository.LockAsync`) → los roles que se asignan (`FOR KEY SHARE`) → `users:admins`, solo si se va un administrador activo. Una excepción: el alta de una cuenta toma `user-invitation:` al final, al encolar la invitación, después de la fila de la cuenta que restaura y de los roles. No se traba porque la cuenta es nueva, o está borrada hasta que el alta confirme, y quien más toma ese lock (el reenvío y el aviso de entrega) no espera la fila: el reenvío de una cuenta borrada responde `NotFound` sin escribir.
 4. **Después y solo si se confirmó:** invalidar caché, la cookie (`ISignInService.SignInAsync` lanza dentro de un límite), `Notify` y el log de resultado. Quien abre el límite no lo envuelve en try/catch. Solo lo atrapan quienes corren el límite de otro como unidad: el reintento único ante un 23505, en un scope nuevo, y los hosts en segundo plano.
 5. **Helpers** ([sufijos](#convención-de-sufijos-de-los-helpers)): nunca reciben `IUnitOfWork` ni guardan. Un servicio no llama al método de escritura de otro: anidar lanza.
 
@@ -99,7 +99,7 @@ La única excepción, que no se copia, es un servicio sin límite que llama al p
 
 ### Locks
 
-- Un repositorio pone en fila las operaciones sobre un recurso con `pg_advisory_xact_lock` (clave de `AdvisoryLockKeys`) o `FOR NO KEY UPDATE`, dentro de la transacción; sin ella lanza `InvalidOperationException`, también con cero claves.
+- Un repositorio pone en fila las operaciones sobre un recurso con `pg_advisory_xact_lock` (clave de `AdvisoryLockKeys`) o con el lock de la fila, dentro de la transacción; sin ella lanza `InvalidOperationException`, también con cero claves. La fila va con `FOR UPDATE` si quien la toma puede cambiar una columna con índice único (el correo o el número de una cuenta): ese `UPDATE` choca con el `FOR KEY SHARE` de quien inserta una fila que la referencia, y con `FOR NO KEY UPDATE` de entrada los dos se trababan. Si no, alcanza `FOR NO KEY UPDATE`.
 - Solo `ExecuteInTransactionAsync` abre la transacción, en READ COMMITTED y sin subir el aislamiento. No hay `EnableRetryOnFailure` (si se activa, por ejemplo con `AddNpgsqlDbContext` de Aspire, `BeginTransactionAsync` lanza) ni estrategia de ejecución, porque el trabajo encola mensajes y no se puede repetir.
 - Las claves del núcleo están solo en `AdvisoryLockKeys` (`login-code:`, `login-link:`, `user-invitation:`, `external-login:`, `users:admins`, `seed:database`); las de un módulo, en las suyas. El texto es el lock: cambiarlo deja de poner en fila a quien use el viejo. Un prefijo nuevo va también en `LockKeyPrefixes` de `TransactionBoundaryTests` (el de un módulo, en `IModuleArchitectureContribution.LockPrefixes`).
 - En una llamada, las claves se toman ordenadas y sin repetir (`AdvisoryLockExtensions`); entre llamadas rige el orden de la regla 3: `users:admins` último ([administracion.md](../features/administracion.md)) y los participantes antes que la cuenta ([whatsapp.md](../features/whatsapp.md)). Cada módulo documenta sus locks.
@@ -116,7 +116,7 @@ La única excepción, que no se copia, es un servicio sin límite que llama al p
 
 ### Robustez proporcional al efecto
 
-La regla está en AGENTS.md ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): la configuración interna (borradores, catálogos, reglas, diseños, ajustes) usa este patrón con revisión y 409; lo durable se reserva para efectos externos, mensajes a personas y efectos que dispara una regla. Si un plan pide más para algo interno, prevalece esta regla salvo que el cambio justifique el riesgo.
+La regla está en AGENTS.md ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): la configuración interna (borradores, catálogos, reglas, diseños, ajustes, y también las cuentas, los roles y el perfil, N2) usa este patrón con revisión y 409; lo durable se reserva para efectos externos, mensajes a personas y efectos que dispara una regla. Si un plan pide más para algo interno, prevalece esta regla salvo que el cambio justifique el riesgo.
 
 ## Caché compartido en Redis
 

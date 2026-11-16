@@ -118,5 +118,6 @@ public sealed class EmailInvitationChannelTests
         "Ana",
         culture,
         "UTC",
-        IsActive: true);
+        IsActive: true,
+        Revision: 1);
 }

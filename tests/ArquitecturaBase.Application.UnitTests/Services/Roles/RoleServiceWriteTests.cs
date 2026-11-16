@@ -78,14 +78,14 @@ public sealed class RoleServiceWriteTests
         fixture.Reader.Role = NewRole(SystemRoles.User, isSystem: true);
 
         var renamed = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, "Renamed", null, []), Ct);
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Renamed", null, [], 1), Ct);
 
         Assert.Equal(RoleErrors.SystemRoleCannotChange, renamed.Error);
         Assert.Empty(fixture.Events);
 
         fixture.Reader.Role = NewRole(SystemRoles.Admin, true, 0, Permissions.Users.Read, Permissions.Roles.Read);
         var changedPermissions = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.Admin, null, [Permissions.Users.Read]), Ct);
+            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.Admin, null, [Permissions.Users.Read], 1), Ct);
 
         Assert.Equal(RoleErrors.SystemRoleCannotChange, changedPermissions.Error);
         Assert.Empty(fixture.Events);
@@ -101,7 +101,7 @@ public sealed class RoleServiceWriteTests
         fixture.Reader.Role = NewRole(SystemRoles.Admin, true, 1, [.. catalogPermissions, "removedmodule.manage"]);
 
         var result = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.Admin, "Otra descripción", catalogPermissions), Ct);
+            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.Admin, "Otra descripción", catalogPermissions, 1), Ct);
 
         Assert.True(result.IsSuccess);
     }
@@ -117,7 +117,7 @@ public sealed class RoleServiceWriteTests
                 fixture.Reader.Role.Id,
                 "  Editors  ",
                 "Can edit",
-                [Permissions.Users.Read, Permissions.Roles.Read, Permissions.Users.Read]), Ct);
+                [Permissions.Users.Read, Permissions.Roles.Read, Permissions.Users.Read], 1), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(fixture.Reader.Role.Id, fixture.Reader.ExcludedRoleId);
@@ -136,7 +136,7 @@ public sealed class RoleServiceWriteTests
         fixture.Repository.UpdateFailure = new InvalidOperationException("save failed");
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, "Reviewers", null, []), Ct));
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Reviewers", null, [], 1), Ct));
 
         Assert.Equal("save failed", error.Message);
         Assert.Equal(["update"], fixture.Events);
@@ -196,12 +196,12 @@ public sealed class RoleServiceWriteTests
         // Darse a sí mismo un permiso que no tiene, en su propio rol.
         fixture.Reader.Role = own;
         var given = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(own.Id, own.Name, null, [.. own.Permissions, Permissions.Users.Manage]), Ct);
+            new UpdateRoleRequest(own.Id, own.Name, null, [.. own.Permissions, Permissions.Users.Manage], 1), Ct);
 
         // Quitarle a otro rol un permiso que no tiene.
         fixture.Reader.Role = NewRole("Ventas", false, 0, Permissions.Users.Read);
         var taken = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, "Ventas", null, []), Ct);
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Ventas", null, [], 1), Ct);
 
         Assert.Equal(RoleErrors.PermissionsNotHeld, given.Error);
         Assert.Equal(RoleErrors.PermissionsNotHeld, taken.Error);
@@ -217,7 +217,7 @@ public sealed class RoleServiceWriteTests
         fixture.Reader.Role = NewRole("Ventas", false, 0, Permissions.Users.Read);
 
         var result = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, "Comercial", "Otra", [Permissions.Users.Read]), Ct);
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Comercial", "Otra", [Permissions.Users.Read], 1), Ct);
 
         Assert.True(result.IsSuccess);
     }
@@ -230,16 +230,47 @@ public sealed class RoleServiceWriteTests
         fixture.Reader.Role = NewRole(SystemRoles.User, isSystem: true);
 
         var byRoleManager = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, null, [Permissions.Roles.Read]), Ct);
+            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, null, [Permissions.Roles.Read], 1), Ct);
         var descriptionOnly = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, "Toda cuenta nueva", []), Ct);
+            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, "Toda cuenta nueva", [], 1), Ct);
         fixture.ActAsAdmin();
         var byAdmin = await fixture.Service.UpdateAsync(
-            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, null, [Permissions.Roles.Read]), Ct);
+            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.User, null, [Permissions.Roles.Read], 1), Ct);
 
         Assert.Equal(RoleErrors.UserRoleAdminOnly, byRoleManager.Error);
         Assert.True(descriptionOnly.IsSuccess);
         Assert.True(byAdmin.IsSuccess);
+    }
+
+    [Fact]
+    public async Task Update_with_a_stale_revision_conflicts_after_locking_and_without_writing()
+    {
+        var fixture = new Fixture();
+        fixture.Reader.Role = NewRole("Ventas", permissions: Permissions.Users.Read) with { Revision = 4 };
+
+        var result = await fixture.Service.UpdateAsync(
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Ventas", "Otra", [Permissions.Users.Read], 3), Ct);
+
+        Assert.Equal(RoleErrors.RevisionConflict, result.Error);
+        Assert.Equal([(fixture.Reader.Role.Id, 0)], fixture.Repository.Locked);
+        Assert.Null(fixture.Repository.WrittenName);
+        Assert.Empty(fixture.Events);
+        Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Update_and_delete_lock_the_role_row_before_reading_it()
+    {
+        var fixture = new Fixture();
+        fixture.Reader.Role = NewRole("Ventas", permissions: Permissions.Users.Read);
+
+        var updated = await fixture.Service.UpdateAsync(
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Ventas", "Otra", [Permissions.Users.Read], 1), Ct);
+        var deleted = await fixture.Service.DeleteAsync(new DeleteRoleRequest(fixture.Reader.Role.Id), Ct);
+
+        Assert.True(updated.IsSuccess);
+        Assert.True(deleted.IsSuccess);
+        Assert.Equal([(fixture.Reader.Role.Id, 0), (fixture.Reader.Role.Id, 1)], fixture.Repository.Locked);
     }
 
     private static RoleRow RoleManagersRole() =>
@@ -247,7 +278,7 @@ public sealed class RoleServiceWriteTests
 
     private static RoleRow NewRole(
         string name, bool isSystem = false, int userCount = 0, params string[] permissions) =>
-        new(Guid.NewGuid(), name, null, isSystem, userCount, permissions);
+        new(Guid.NewGuid(), name, null, isSystem, userCount, permissions, Revision: 1);
 
     private sealed class Fixture
     {
@@ -326,8 +357,13 @@ public sealed class RoleServiceWriteTests
 
             public Guid? ExcludedRoleId { get; private set; }
 
-            public Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken) =>
-                Task.FromResult(Role);
+            public int FindByIdCalls { get; private set; }
+
+            public Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken)
+            {
+                FindByIdCalls++;
+                return Task.FromResult(Role);
+            }
 
             public Task<bool> ExistsByNameAsync(string name, Guid? excludedRoleId, CancellationToken cancellationToken)
             {
@@ -342,7 +378,7 @@ public sealed class RoleServiceWriteTests
             public Task<IReadOnlyCollection<RoleRow>> ListAllRolesAsync(CancellationToken cancellationToken)
             {
                 RoleRow admin = new(
-                    Guid.NewGuid(), SystemRoles.Admin, null, true, 1, [.. new Application.Channels.PermissionCatalog([]).All]);
+                    Guid.NewGuid(), SystemRoles.Admin, null, true, 1, [.. new Application.Channels.PermissionCatalog([]).All], 1);
                 IEnumerable<RoleRow> rows = [admin, .. Others, .. Role is null ? [] : new[] { Role }];
 
                 return Task.FromResult<IReadOnlyCollection<RoleRow>>(
@@ -397,6 +433,19 @@ public sealed class RoleServiceWriteTests
                 fixture.Events.Add("delete");
                 return Task.CompletedTask;
             }
+
+            /// <summary>Los roles cuya fila se bloqueó, en orden, y cuántas lecturas del lector había hecho antes.</summary>
+            public List<(Guid RoleId, int ReadsBefore)> Locked { get; } = [];
+
+            public Task LockAsync(Guid roleId, CancellationToken cancellationToken)
+            {
+                TransactionGuard.Require(InTransaction);
+                Locked.Add((roleId, fixture.Reader.FindByIdCalls));
+                return Task.CompletedTask;
+            }
+
+            public Task LockForAssignmentAsync(IReadOnlyCollection<string> names, CancellationToken cancellationToken) =>
+                throw new NotSupportedException();
         }
 
         private sealed class FakePermissionCacheInvalidator(Fixture fixture) : IPermissionCacheInvalidator

@@ -18,5 +18,6 @@ internal static class ApplicationUserMapper
             user.DisplayName,
             user.Culture,
             user.TimeZoneId,
-            user.IsActive);
+            user.IsActive,
+            user.Revision);
 }

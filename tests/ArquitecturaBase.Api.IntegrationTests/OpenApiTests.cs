@@ -43,7 +43,8 @@ public sealed class OpenApiTests(ApiFactory factory)
         Assert.Contains("swagger-ui", html, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(HttpStatusCode.OK, document.StatusCode);
 
-        var paths = (await document.ReadJsonAsync()).GetProperty("paths");
+        var openApi = await document.ReadJsonAsync();
+        var paths = openApi.GetProperty("paths");
         var settings = paths.GetProperty("/api/settings");
         Assert.Equal("Users", paths.GetProperty("/api/users").GetProperty("get").GetProperty("tags")[0].GetString());
         Assert.Equal("Users", paths.GetProperty("/api/users/filter-counts").GetProperty("get").GetProperty("tags")[0].GetString());
@@ -77,9 +78,27 @@ public sealed class OpenApiTests(ApiFactory factory)
             Assert.True(status.GetProperty("responses").TryGetProperty("204", out _));
         }
         Assert.Equal("Settings", settings.GetProperty("get").GetProperty("tags")[0].GetString());
-        Assert.Equal("Settings", settings.GetProperty("put").GetProperty("tags")[0].GetString());
-        Assert.True(settings.GetProperty("put").GetProperty("requestBody").GetProperty("content")
+        Assert.Equal("Settings", settings.GetProperty("patch").GetProperty("tags")[0].GetString());
+        Assert.True(settings.GetProperty("patch").GetProperty("requestBody").GetProperty("content")
             .TryGetProperty("application/json", out _));
+
+        // El PUT de un solo ajuste se retiró (N2): la configuración se guarda con PATCH y su revisión.
+        Assert.False(settings.TryGetProperty("put", out _));
+
+        // Las ediciones llevan la revisión que se leyó y responden 409 si cambió (N2).
+        Assert.True(me.GetProperty("put").GetProperty("responses").TryGetProperty("409", out _));
+        var schemas = openApi.GetProperty("components").GetProperty("schemas");
+        foreach (var (schema, property) in new[]
+        {
+            ("UpdateUserHttpRequest", "expectedRevision"), ("UpdateRoleHttpRequest", "expectedRevision"),
+            ("UpdateProfileHttpRequest", "expectedRevision"), ("UserDetailResponse", "revision"),
+            ("RoleResponse", "revision"), ("CurrentUserResponse", "revision"),
+        })
+        {
+            Assert.True(
+                schemas.GetProperty(schema).GetProperty("properties").TryGetProperty(property, out _),
+                $"{schema} has no {property}.");
+        }
 
         var loginCode = paths.GetProperty("/account/login-code").GetProperty("post");
         Assert.Equal("Account", loginCode.GetProperty("tags")[0].GetString());

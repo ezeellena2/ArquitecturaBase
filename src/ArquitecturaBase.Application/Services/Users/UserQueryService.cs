@@ -81,7 +81,8 @@ internal sealed class UserQueryService(
                 detail.DisplayName,
                 detail.IsActive,
                 detail.CreatedAtUtc,
-                detail.Roles)
+                detail.Roles,
+                detail.Revision)
             {
                 FormattedPhoneNumber = phone.IsSuccess ? phoneNumbers.FormatInternational(phone.Value) : null,
                 LastInvitation = await invitationReader.FindLatestAsync(detail.Id, cancellationToken) is { } invitation

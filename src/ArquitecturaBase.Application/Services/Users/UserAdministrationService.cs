@@ -81,8 +81,8 @@ internal sealed class UserAdministrationService(
         });
     }
 
-    // El alta, ya validada: correo, teléfono, que haya al menos uno, las reglas de la invitación y los roles, todo antes
-    // de los locks; después, el alta o la restauración, los roles y el envío.
+    // El alta, ya validada: correo, teléfono, que haya al menos uno, las reglas de la invitación y los permisos de los
+    // roles, todo antes de los locks; después, el alta o la restauración, que los roles existan, los roles y el envío.
     private async Task<Result<CreateUserResponse>> CreateCoreAsync(
         CreateUserRequest request, CancellationToken cancellationToken)
     {
@@ -118,13 +118,8 @@ internal sealed class UserAdministrationService(
         IReadOnlyCollection<string> requestedRoles = request.Roles is { Count: > 0 }
             ? [.. request.Roles.Distinct(StringComparer.Ordinal)]
             : [SystemRoles.User];
-        var rolesExist = await guard.EnsureRolesExistAsync(requestedRoles, cancellationToken);
-        if (rolesExist.IsFailure)
-        {
-            return rolesExist.Error;
-        }
-
-        // Con los permisos de quien pide, leídos de la base adentro del límite: nadie da lo que no tiene.
+        // Con los permisos de quien pide, leídos de la base adentro del límite: nadie da lo que no tiene. Un rol que no
+        // existe no tiene permisos que dar; lo rechaza EnsureRolesExistAsync, después de los locks.
         var rolesGiven = await guard.EnsureRolesCanBeGivenAsync(requestedRoles, email, cancellationToken);
         if (rolesGiven.IsFailure)
         {
@@ -136,6 +131,15 @@ internal sealed class UserAdministrationService(
         if (created.IsFailure)
         {
             return created.Error;
+        }
+
+        // Los roles pedidos (FOR KEY SHARE) recién ahora, después de los destinos y de la fila de la cuenta que se
+        // restaura, en el orden de backend.md: tomados antes, el alta podía esperar un destino teniendo el rol mientras una
+        // edición con ese destino esperaba el rol detrás de su borrado. Un rol borrado en el medio da NotFound (N2).
+        var rolesExist = await guard.EnsureRolesExistAsync(requestedRoles, cancellationToken);
+        if (rolesExist.IsFailure)
+        {
+            return rolesExist.Error;
         }
 
         var account = created.Value.Account;
@@ -180,10 +184,18 @@ internal sealed class UserAdministrationService(
         var (email, phone) = (emailResult.Value, phoneResult.Value);
         await contacts.LockAsync(request.UserId, email, phone, cancellationToken);
 
+        // La fila de la cuenta, después de los locks de los destinos y del número: dos ediciones, el perfil, la
+        // activación o el borrado pasan de a uno, y la revisión se compara con lo que confirmó el anterior (N2).
+        await userRepository.LockAsync(request.UserId, cancellationToken);
         var user = await users.FindByIdAsync(request.UserId, cancellationToken);
         if (user is null)
         {
             return UserErrors.NotFound;
+        }
+
+        if (user.Revision != request.ExpectedRevision)
+        {
+            return UserErrors.RevisionConflict;
         }
 
         var newEmail = email is not null && !string.Equals(email.Value, user.Email, StringComparison.OrdinalIgnoreCase)

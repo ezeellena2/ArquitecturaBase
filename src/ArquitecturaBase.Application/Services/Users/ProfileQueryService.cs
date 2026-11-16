@@ -57,6 +57,7 @@ internal sealed class ProfileQueryService(
                 user.TimeZoneId,
                 [.. roles.Order(StringComparer.Ordinal)],
                 [.. permissions.Order(StringComparer.Ordinal)],
-                await loginAudits.FindLastSuccessAtUtcAsync(user.Id, cancellationToken));
+                await loginAudits.FindLastSuccessAtUtcAsync(user.Id, cancellationToken),
+                user.Revision);
         });
 }

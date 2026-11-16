@@ -29,7 +29,7 @@ public sealed class UserAdministrationWriteIntegrationTests(ApiFactory factory)
         Assert.Equal(created.Value.Id, byEmail?.Id);
 
         var updated = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
-            .UpdateUserAsync(new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User]), Ct));
+            .UpdateUserAsync(new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User], 1), Ct));
         Assert.True(updated.IsSuccess);
 
         var detail = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserQueryService>()
@@ -52,7 +52,7 @@ public sealed class UserAdministrationWriteIntegrationTests(ApiFactory factory)
         Assert.True(created.IsSuccess);
 
         var updated = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserAdministrationService>()
-            .UpdateUserAsync(new UpdateUserRequest(created.Value.Id, "No guardar", Roles: null), Ct));
+            .UpdateUserAsync(new UpdateUserRequest(created.Value.Id, "No guardar", Roles: null, ExpectedRevision: 1), Ct));
         Assert.IsType<ValidationError>(updated.Error);
 
         var detail = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IUserQueryService>()

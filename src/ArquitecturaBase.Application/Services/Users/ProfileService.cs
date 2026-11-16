@@ -107,10 +107,22 @@ internal sealed class ProfileService(
 
     private async Task<Result> UpdateCoreAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
     {
-        if (currentUser.UserId is not { } userId
-            || await users.FindByIdAsync(userId, cancellationToken) is null)
+        if (currentUser.UserId is not { } userId)
         {
             return UserErrors.NotFound;
+        }
+
+        // El mismo control que la administración (N2): la fila primero, y la revisión que leyó el perfil. Así el nombre que
+        // cambió un administrador, u otra pestaña, no se pisa con el que el formulario tenía abierto.
+        await userRepository.LockAsync(userId, cancellationToken);
+        if (await users.FindByIdAsync(userId, cancellationToken) is not { } user)
+        {
+            return UserErrors.NotFound;
+        }
+
+        if (user.Revision != request.ExpectedRevision)
+        {
+            return UserErrors.RevisionConflict;
         }
 
         // UserManager autoguarda dentro de la transacción: si algo falla después, no queda nada.

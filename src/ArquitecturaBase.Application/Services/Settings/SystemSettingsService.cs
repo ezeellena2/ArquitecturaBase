@@ -86,43 +86,4 @@ internal sealed class SystemSettingsService(
             return result;
         });
     }
-
-    public Task<Result> UpdateAsync(UpdateSystemSettingsRequest request, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        return OperationLog.RunAsync<Result>(logger, "UpdateSystemSettings", async () =>
-        {
-            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
-            {
-                return validationError;
-            }
-
-            var result = await unitOfWork.ExecuteInTransactionAsync(
-                ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-            // Después del commit y solo si se confirmó: invalidar antes dejaría que una lectura concurrente vuelva a
-            // cachear el modo viejo. Que la fábrica no vea lo no confirmado lo garantiza el lector, que lee en su propio
-            // scope.
-            if (result.IsSuccess)
-            {
-                await cache.InvalidateAsync(cancellationToken);
-            }
-
-            return result;
-        });
-    }
-
-    private async Task<Result> UpdateCoreAsync(UpdateSystemSettingsRequest request, CancellationToken cancellationToken)
-    {
-        await repository.LockAsync(cancellationToken);
-        var settings = await repository.GetAsync(cancellationToken);
-        if (settings is null)
-        {
-            return SettingsErrors.NotFound;
-        }
-
-        settings.SetRegistrationMode(request.RegistrationMode);
-        return Result.Success();
-    }
 }

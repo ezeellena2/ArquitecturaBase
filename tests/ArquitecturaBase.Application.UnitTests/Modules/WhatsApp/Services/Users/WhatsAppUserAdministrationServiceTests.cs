@@ -22,7 +22,7 @@ public sealed class WhatsAppUserAdministrationServiceTests
         var user = host.Accounts.AddUser("ana@example.com", phoneNumber: "+59899123456");
         host.Accounts.SetRoles(user.Id, SystemRoles.User);
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana nueva", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana nueva", [SystemRoles.User], 1,
             Phone: new PhoneNumberInput("UY", user.PhoneNumber)), Ct);
 
         Assert.True(result.IsSuccess);
@@ -40,7 +40,7 @@ public sealed class WhatsAppUserAdministrationServiceTests
         var user = host.Accounts.AddUser("ana@example.com");
         host.Accounts.SetRoles(user.Id, SystemRoles.User);
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Nuevo", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Nuevo", [SystemRoles.User], 1,
             Phone: new PhoneNumberInput("UY", "+59899123456")), Ct);
 
         Assert.Equal(WhatsAppErrors.CountryNotSupported, result.Error);
@@ -61,7 +61,7 @@ public sealed class WhatsAppUserAdministrationServiceTests
         contact.LinkUser(user.Id);
         host.Contacts.Contacts.Add(contact);
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", [SystemRoles.User], 1,
             Phone: new PhoneNumberInput("AR", "+5493515550202")), Ct);
 
         Assert.True(result.IsSuccess);

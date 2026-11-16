@@ -10,6 +10,7 @@ public static class RoleErrors
     public const string HasUsersCode = "Roles.Role.HasUsers";
     public const string PermissionsNotHeldCode = "Roles.Role.PermissionsNotHeld";
     public const string UserRoleAdminOnlyCode = "Roles.Role.UserRoleAdminOnly";
+    public const string RevisionConflictCode = "Roles.Role.RevisionConflict";
 
     public const string UserCountKey = "userCount";
 
@@ -28,6 +29,10 @@ public static class RoleErrors
     /// <summary>Cambiar los permisos de User, el rol que recibe toda cuenta nueva, sin tener el rol Admin.</summary>
     public static readonly Error UserRoleAdminOnly =
         Error.Forbidden(UserRoleAdminOnlyCode, "Only an administrator can change the permissions of the User role.");
+
+    /// <summary>El rol cambió desde que se leyó: el nombre, la descripción o los permisos (N2).</summary>
+    public static readonly Error RevisionConflict =
+        Error.Conflict(RevisionConflictCode, "The role has changed. Review the current values.");
 
     /// <summary>Borrar un rol con usuarios. El metadato dice cuántos son, para que se reasignen primero.</summary>
     public static Error HasUsers(int userCount) =>

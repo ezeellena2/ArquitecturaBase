@@ -27,7 +27,7 @@ public sealed class ProfileServiceTests
         var user = _accounts.AddUser("ana@example.com");
 
         var result = await Service(user.Id).UpdateAsync(
-            new UpdateProfileRequest("Ana", "en", "America/Sao_Paulo"), Ct);
+            new UpdateProfileRequest("Ana", "en", "America/Sao_Paulo", 1), Ct);
 
         Assert.True(result.IsSuccess);
         var updated = await _accounts.FindByIdAsync(user.Id, Ct);
@@ -37,6 +37,35 @@ public sealed class ProfileServiceTests
         Assert.Equal(1, _unitOfWork.Commits);
         Assert.Equal(["Handling UpdateProfile", "Handled UpdateProfile"],
             _logger.Collector.GetSnapshot().Select(record => record.Message));
+    }
+
+    [Fact]
+    public async Task A_profile_read_before_another_edit_conflicts_and_keeps_the_newer_name()
+    {
+        var user = _accounts.AddUser("ana@example.com");
+        await _accounts.ArrangeAsync(accounts => accounts.SetDisplayNameAsync(user.Id, "Ana María", Ct));
+
+        var result = await Service(user.Id).UpdateAsync(
+            new UpdateProfileRequest("Ana", "en", "America/Sao_Paulo", user.Revision), Ct);
+
+        Assert.Equal(UserErrors.RevisionConflict, result.Error);
+        var stored = await _accounts.FindByIdAsync(user.Id, Ct);
+        Assert.Equal("Ana María", stored!.DisplayName);
+        Assert.Equal("es", stored.Culture);
+        Assert.Equal([user.Id], _accounts.LockedUsers);
+        Assert.Equal(0, _unitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task Changing_only_the_language_does_not_advance_the_revision()
+    {
+        var user = _accounts.AddUser("ana@example.com");
+
+        var result = await Service(user.Id).UpdateAsync(
+            new UpdateProfileRequest(null, "en", "America/Sao_Paulo", user.Revision), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(user.Revision, (await _accounts.FindByIdAsync(user.Id, Ct))!.Revision);
     }
 
     [Theory]
@@ -49,7 +78,7 @@ public sealed class ProfileServiceTests
     {
         var user = _accounts.AddUser("ana@example.com");
 
-        var result = await Service(user.Id).UpdateAsync(new UpdateProfileRequest("Ana", culture, timeZoneId), Ct);
+        var result = await Service(user.Id).UpdateAsync(new UpdateProfileRequest("Ana", culture, timeZoneId, 1), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Contains(field, error.Errors.Keys);
@@ -65,7 +94,7 @@ public sealed class ProfileServiceTests
         var user = _accounts.AddUser("ana@example.com");
 
         var result = await Service(user.Id).UpdateAsync(new UpdateProfileRequest(
-            new string('A', ValidationRules.DisplayNameMaxLength + 1), "es", "America/Argentina/Buenos_Aires"), Ct);
+            new string('A', ValidationRules.DisplayNameMaxLength + 1), "es", "America/Argentina/Buenos_Aires", 1), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Contains("displayName", error.Errors.Keys);
@@ -77,7 +106,7 @@ public sealed class ProfileServiceTests
     public async Task Unknown_user_cannot_update_a_profile()
     {
         var result = await Service(Guid.CreateVersion7()).UpdateAsync(
-            new UpdateProfileRequest("Ana", "es", "America/Argentina/Buenos_Aires"), Ct);
+            new UpdateProfileRequest("Ana", "es", "America/Argentina/Buenos_Aires", 1), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Equal(0, _unitOfWork.Commits);
@@ -90,7 +119,7 @@ public sealed class ProfileServiceTests
     public async Task Anonymous_request_cannot_update_a_profile()
     {
         var result = await Service(userId: null).UpdateAsync(
-            new UpdateProfileRequest("Ana", "es", "America/Argentina/Buenos_Aires"), Ct);
+            new UpdateProfileRequest("Ana", "es", "America/Argentina/Buenos_Aires", 1), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Equal(0, _unitOfWork.Commits);

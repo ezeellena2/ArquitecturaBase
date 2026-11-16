@@ -120,7 +120,8 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
             dbContext.RoleClaims
                 .Where(claim => claim.RoleId == role.Id && claim.ClaimType == Permissions.ClaimType)
                 .Select(claim => claim.ClaimValue!)
-                .ToList()));
+                .ToList(),
+            role.Revision));
 
     // En memoria: si es de sistema y el orden ordinal de los permisos, que Postgres no garantiza.
     private static RoleRow ToRow(RoleData role) =>
@@ -130,7 +131,9 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
             role.Description,
             SystemRoles.All.Contains(role.Name, StringComparer.Ordinal),
             role.UserCount,
-            [.. role.Permissions.Order(StringComparer.Ordinal)]);
+            [.. role.Permissions.Order(StringComparer.Ordinal)],
+            role.Revision);
 
-    private sealed record RoleData(Guid Id, string Name, string? Description, int UserCount, List<string> Permissions);
+    private sealed record RoleData(
+        Guid Id, string Name, string? Description, int UserCount, List<string> Permissions, long Revision);
 }

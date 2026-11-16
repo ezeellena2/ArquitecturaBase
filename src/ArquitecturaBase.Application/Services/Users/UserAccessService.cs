@@ -51,6 +51,9 @@ internal sealed class UserAccessService(
             await loginLinks.LockAccountAsync(userId, cancellationToken);
         }
 
+        // Activar y desactivar a la vez pasan de a uno sobre la fila, y gana el último: sin el lock, el segundo guardado
+        // chocaba con el ConcurrencyStamp y salía un 500 (O4). Sin revisión que comparar: el estado pedido va en la ruta.
+        await repository.LockAsync(userId, cancellationToken);
         if (await users.FindByIdAsync(userId, cancellationToken) is not { } user)
         {
             return UserErrors.NotFound;
@@ -80,6 +83,7 @@ internal sealed class UserAccessService(
     {
         // Pone en fila la revocación con la emisión y el canje de enlaces de la cuenta.
         await loginLinks.LockAccountAsync(userId, cancellationToken);
+        await repository.LockAsync(userId, cancellationToken);
 
         if (await users.FindByIdAsync(userId, cancellationToken) is not { } user)
         {

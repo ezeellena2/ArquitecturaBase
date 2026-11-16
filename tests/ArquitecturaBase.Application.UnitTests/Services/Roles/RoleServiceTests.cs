@@ -21,7 +21,7 @@ public sealed class RoleServiceTests
     {
         var reader = new FakeRoleReader
         {
-            Roles = [new(Guid.NewGuid(), "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read])],
+            Roles = [new(Guid.NewGuid(), "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read], 1)],
         };
         var logger = new FakeLogger<RoleService>();
         var service = NewService(reader, logger);
@@ -72,7 +72,7 @@ public sealed class RoleServiceTests
     {
         var reader = new FakeRoleReader
         {
-            Roles = [new(Guid.NewGuid(), "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read])],
+            Roles = [new(Guid.NewGuid(), "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read], 1)],
         };
         var logger = new FakeLogger<RoleService>();
         var service = NewService(reader, logger);
@@ -96,8 +96,8 @@ public sealed class RoleServiceTests
         {
             Roles =
             [
-                new(Guid.NewGuid(), "Otro", null, false, 0, []),
-                new(roleId, "Admin", "Todo", true, 3, [Permissions.Roles.Manage, Permissions.Users.Read]),
+                new(Guid.NewGuid(), "Otro", null, false, 0, [], 1),
+                new(roleId, "Admin", "Todo", true, 3, [Permissions.Roles.Manage, Permissions.Users.Read], 1),
             ],
         };
         var logger = new FakeLogger<RoleService>();
@@ -144,7 +144,7 @@ public sealed class RoleServiceTests
         var reader = new FakeRoleReader
         {
             Page = new PagedResult<RoleRow>(
-                [new(roleId, "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read])],
+                [new(roleId, "Lectores", "Solo lectura", false, 2, [Permissions.Users.Read], 1)],
                 Page: 2,
                 PageSize: 1,
                 TotalCount: 3),
@@ -252,6 +252,11 @@ public sealed class RoleServiceTests
             throw new NotSupportedException();
 
         public Task DeleteAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task LockAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task LockForAssignmentAsync(IReadOnlyCollection<string> names, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class UnusedPermissionCacheInvalidator : IPermissionCacheInvalidator

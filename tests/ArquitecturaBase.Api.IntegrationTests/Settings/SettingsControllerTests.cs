@@ -52,7 +52,7 @@ public sealed class SettingsControllerTests(ApiFactory factory)
         var email = TestEmails.Unique("afterswitch");
 
         using var closed = await client.PostJsonAsync("/account/login-code", new { email });
-        using var updated = await PutSettingsAsync(client, tokens.AccessToken, new { registrationMode = "Open" });
+        using var updated = await PatchSettingsAsync(client, tokens.AccessToken, new { registrationMode = "Open" });
         var code = await client.RequestCodeAsync(factory, email);
 
         Assert.Equal(HttpStatusCode.Accepted, closed.StatusCode);
@@ -71,7 +71,7 @@ public sealed class SettingsControllerTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
 
         // JsonStringEnumConverter acepta números: el que pone la lista blanca es el validador.
-        using var response = await PutSettingsAsync(client, tokens.AccessToken, new { registrationMode = 7 }, "es");
+        using var response = await PatchSettingsAsync(client, tokens.AccessToken, new { registrationMode = 7 }, "es");
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -80,15 +80,22 @@ public sealed class SettingsControllerTests(ApiFactory factory)
             problem.GetProperty("errors").GetProperty("registrationMode")[0].GetString());
     }
 
-    private static async Task<HttpResponseMessage> PutSettingsAsync(
+    private static async Task<HttpResponseMessage> PatchSettingsAsync(
         HttpClient client,
         string accessToken,
         object body,
         string? language = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri("/api/settings", UriKind.Relative))
+        // La sección, con la revisión que tiene ahora la configuración, como la pantalla (el PUT se retiró, N2).
+        var json = System.Text.Json.JsonSerializer.SerializeToNode(body, System.Text.Json.JsonSerializerOptions.Web)!.AsObject();
+        using (var current = await client.GetWithTokenAsync("/api/settings", accessToken))
         {
-            Content = JsonContent.Create(body),
+            json["expectedRevision"] = (await current.ReadJsonAsync()).GetProperty("revision").GetInt64();
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Patch, new Uri("/api/settings", UriKind.Relative))
+        {
+            Content = JsonContent.Create(json),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 

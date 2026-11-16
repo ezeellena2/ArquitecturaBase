@@ -99,9 +99,7 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
         var roleId = await CreateAsync(client, tokens.AccessToken, UniqueName("editar"), [Permissions.Users.Read]);
         var newName = UniqueName("editado");
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            $"/api/roles/{roleId}",
+        using var response = await client.PutWithRevisionAsync($"/api/roles/{roleId}",
             tokens.AccessToken,
             new { name = newName, description = "Cambiada", permissions = new[] { Permissions.Roles.Read } });
         var role = await FindAsync(client, tokens.AccessToken, roleId);
@@ -130,9 +128,7 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
         using var before = await member.GetWithTokenAsync("/api/me", memberTokens.AccessToken);
         Assert.Equal([Permissions.Users.Read], Strings(await before.ReadJsonAsync(), "permissions"));
 
-        using var update = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            $"/api/roles/{roleId}",
+        using var update = await client.PutWithRevisionAsync($"/api/roles/{roleId}",
             tokens.AccessToken,
             new { name = RoleNameOf(await FindAsync(client, tokens.AccessToken, roleId)), permissions = Array.Empty<string>() });
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
@@ -149,9 +145,7 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
         var admin = await FindByNameAsync(client, tokens.AccessToken, SystemRoles.Admin);
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            $"/api/roles/{admin.GetProperty("id").GetGuid()}",
+        using var response = await client.PutWithRevisionAsync($"/api/roles/{admin.GetProperty("id").GetGuid()}",
             tokens.AccessToken,
             new { name = "Superadmin", permissions = Strings(admin, "permissions") });
         var problem = await response.ReadJsonAsync();
@@ -167,9 +161,7 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
         var admin = await FindByNameAsync(client, tokens.AccessToken, SystemRoles.Admin);
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            $"/api/roles/{admin.GetProperty("id").GetGuid()}",
+        using var response = await client.PutWithRevisionAsync($"/api/roles/{admin.GetProperty("id").GetGuid()}",
             tokens.AccessToken,
             new { name = SystemRoles.Admin, permissions = new[] { Permissions.Users.Read } });
         var problem = await response.ReadJsonAsync();

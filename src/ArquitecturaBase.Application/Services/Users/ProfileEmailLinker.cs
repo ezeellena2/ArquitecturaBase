@@ -102,6 +102,11 @@ internal sealed class ProfileEmailLinker(
             DestinationCodeVerifier.Consume(phoneCheck);
         }
 
+        // La fila de la cuenta, después de los locks de los códigos y antes de escribir: una edición de la administración en
+        // curso termina antes, y el guardado no choca con su ConcurrencyStamp. El cambio avanza la revisión (N2), pero no
+        // la pide: lo confirma el código.
+        await userRepository.LockAsync(user.Id, cancellationToken);
+
         // El índice único conserva también los correos de cuentas borradas.
         var owner = await users.FindByEmailAsync(email, cancellationToken);
         if (owner is null ? await users.ExistsDeletedByEmailAsync(email, cancellationToken) : owner.Id != user.Id)

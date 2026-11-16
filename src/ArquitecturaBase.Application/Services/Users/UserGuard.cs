@@ -28,6 +28,7 @@ internal sealed class UserGuard(
     IUserReader users,
     IUserRepository userRepository,
     IRoleReader roleReader,
+    IRoleRepository roleRepository,
     PermissionDelegationGuard delegation,
     IInitialAdmin initialAdmin)
 {
@@ -35,12 +36,15 @@ internal sealed class UserGuard(
 
     /// <summary>
     /// Que existan todos los <paramref name="roles"/> pedidos en el alta o la edición, comparados por nombre exacto: si
-    /// falta uno, <see cref="RoleErrors.NotFound"/>.
+    /// falta uno, <see cref="RoleErrors.NotFound"/>. Antes los bloquea para asignarlos
+    /// (<see cref="IRoleRepository.LockForAssignmentAsync"/>), hasta el final del límite: el borrado de uno de ellos
+    /// espera y cuenta la asignación, o termina antes y acá no se lo encuentra (N2).
     /// </summary>
     public async Task<Result> EnsureRolesExistAsync(IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(roles);
 
+        await roleRepository.LockForAssignmentAsync(roles, cancellationToken);
         var knownRoles = await roleReader.ListRoleNamesAsync(cancellationToken);
 
         return roles.Any(role => !knownRoles.Contains(role, StringComparer.Ordinal))

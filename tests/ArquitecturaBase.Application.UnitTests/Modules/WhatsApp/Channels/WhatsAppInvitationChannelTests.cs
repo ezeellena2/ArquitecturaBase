@@ -139,7 +139,8 @@ public sealed class WhatsAppInvitationChannelTests
         "Ana",
         "es",
         "UTC",
-        IsActive: true);
+        IsActive: true,
+        Revision: 1);
 
     private static UserInvitation Invitation(UserAccount user) =>
         UserInvitation.Send(user.Id, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), Now, consentConfirmed: true);

@@ -43,6 +43,20 @@ internal sealed class UserRepository(
     public Task LockAdminsAsync(CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.Admins], cancellationToken);
 
+    // FOR UPDATE y no FOR NO KEY UPDATE: cambiar el correo o el número toca columnas con índice único, y ese UPDATE pide
+    // FOR UPDATE, que choca con el FOR KEY SHARE que toma quien inserta una fila que apunta a la cuenta (un ingreso, un
+    // código). Si la edición tomara antes FOR NO KEY UPDATE, que no choca con ese lock, quedaría esperando al ingreso
+    // mientras el ingreso, al escribir la cuenta, la espera a ella: un deadlock (40P01). Tomando FOR UPDATE de entrada,
+    // la edición espera a que termine el ingreso, o el ingreso a que termine la edición. También la fila de una cuenta
+    // borrada: el filtro global no cuenta en SQL crudo, y quien llama decide con la lectura que sigue.
+    public async Task LockAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"AspNetUsers\" WHERE \"Id\" = {userId} FOR UPDATE", cancellationToken);
+    }
+
     public async Task<UserAccount> CreateAsync(
         Email? email,
         PhoneNumber? phone,
@@ -104,6 +118,7 @@ internal sealed class UserRepository(
             ?? throw new InvalidOperationException("The user does not exist.");
 
         user.Restore(displayName, culture, timeZoneId);
+        user.AdvanceRevision();
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("restore the user");
 
@@ -124,6 +139,7 @@ internal sealed class UserRepository(
         ArgumentNullException.ThrowIfNull(email);
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
+        AdvanceRevisionIfChanged(user, user.Email, email.Value);
         user.Email = email.Value;
         user.EmailConfirmed = confirmed;
 
@@ -136,6 +152,7 @@ internal sealed class UserRepository(
         ArgumentNullException.ThrowIfNull(phone);
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
+        AdvanceRevisionIfChanged(user, user.PhoneNumber, phone.Value);
         user.PhoneNumber = phone.Value;
         user.PhoneNumberConfirmed = confirmed;
 
@@ -147,6 +164,7 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
+        AdvanceRevisionIfChanged(user, user.Email, null);
         user.Email = null;
         user.EmailConfirmed = false;
 
@@ -158,6 +176,7 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
+        AdvanceRevisionIfChanged(user, user.PhoneNumber, null);
         user.PhoneNumber = null;
         user.PhoneNumberConfirmed = false;
 
@@ -172,13 +191,19 @@ internal sealed class UserRepository(
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
         var current = await userManager.GetRolesAsync(user);
         var removed = current.Except(roles, StringComparer.Ordinal).ToList();
+        var added = roles.Except(current, StringComparer.Ordinal).ToList();
+
+        // Identity la guarda con los roles: RemoveFromRolesAsync y AddToRolesAsync actualizan la cuenta.
+        if (removed.Count > 0 || added.Count > 0)
+        {
+            user.AdvanceRevision();
+        }
 
         if (removed.Count > 0)
         {
             (await userManager.RemoveFromRolesAsync(user, removed)).EnsureSucceeded("remove the roles");
         }
 
-        var added = roles.Except(current, StringComparer.Ordinal).ToList();
         if (added.Count > 0)
         {
             (await userManager.AddToRolesAsync(user, added)).EnsureSucceeded("assign the roles");
@@ -190,6 +215,7 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
+        AdvanceRevisionIfChanged(user, user.DisplayName, displayName);
         user.Rename(displayName);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the display name");
@@ -200,6 +226,11 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
+        if (user.IsActive != isActive)
+        {
+            user.AdvanceRevision();
+        }
+
         user.SetActive(isActive);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the account status");
@@ -210,8 +241,11 @@ internal sealed class UserRepository(
     {
         dbContext.RequireTransaction();
 
-        (await userManager.DeleteAsync(await userManager.RequireUserAsync(userId, cancellationToken)))
-            .EnsureSucceeded("delete the user");
+        // La fila queda: un editor abierto sobre ella choca en vez de guardar sobre una cuenta borrada y restaurada.
+        var user = await userManager.RequireUserAsync(userId, cancellationToken);
+        user.AdvanceRevision();
+
+        (await userManager.DeleteAsync(user)).EnsureSucceeded("delete the user");
     }
 
     public async Task UpdateProfileAsync(
@@ -220,10 +254,22 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         var user = await userManager.RequireUserAsync(userId, cancellationToken);
+
+        // El idioma y la zona horaria son sólo del perfil: no avanzan la revisión que mira la administración.
+        AdvanceRevisionIfChanged(user, user.DisplayName, displayName);
         user.Rename(displayName);
         user.UpdatePreferences(culture, timeZoneId);
 
         (await userManager.UpdateAsync(user)).EnsureSucceeded("update the profile");
+    }
+
+    // Un dato que se escribe igual (o sólo se confirma) no es un cambio: daría conflictos falsos.
+    private static void AdvanceRevisionIfChanged(ApplicationUser user, string? current, string? next)
+    {
+        if (!string.Equals(current, next, StringComparison.Ordinal))
+        {
+            user.AdvanceRevision();
+        }
     }
 
     private static ApplicationUser NewUser(

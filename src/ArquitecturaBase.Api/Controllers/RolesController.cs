@@ -59,14 +59,15 @@ public sealed class RolesController(IRoleService service, ISystemSettingsService
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.Roles.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    // Otro rol con el mismo nombre.
+    // Otro rol con el mismo nombre, o una revisión vieja (N2).
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
         [FromRoute] Guid id,
         [FromBody] UpdateRoleHttpRequest request,
         CancellationToken cancellationToken) =>
         (await service.UpdateAsync(
-            new UpdateRoleRequest(id, request.Name, request.Description, request.Permissions), cancellationToken))
+            new UpdateRoleRequest(id, request.Name, request.Description, request.Permissions, request.ExpectedRevision),
+            cancellationToken))
             .ToActionResult(this);
 
     [HttpDelete("{id:guid}")]

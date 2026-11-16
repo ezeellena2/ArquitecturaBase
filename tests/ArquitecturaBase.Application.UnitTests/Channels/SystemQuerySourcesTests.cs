@@ -262,7 +262,7 @@ public sealed class SystemQuerySourcesTests
 
     private sealed class RoleReader : IRoleReader
     {
-        public IReadOnlyList<RoleRow> Roles { get; set; } = [new(Guid.CreateVersion7(), "Readers", "Read only", false, 2, [Permissions.Users.Read, "removed.permission"])];
+        public IReadOnlyList<RoleRow> Roles { get; set; } = [new(Guid.CreateVersion7(), "Readers", "Read only", false, 2, [Permissions.Users.Read, "removed.permission"], 1)];
         public int Calls { get; private set; }
         public int TotalCount { get; set; } = 1;
         public Guid? FoundId { get; private set; }

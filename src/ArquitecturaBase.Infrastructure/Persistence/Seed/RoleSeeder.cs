@@ -28,6 +28,7 @@ internal sealed class RoleSeeder(
     private async Task<Guid> EnsureRoleAsync(string name, IReadOnlyCollection<string> permissions)
     {
         var role = await roleManager.FindByNameAsync(name);
+        var existed = role is not null;
 
         if (role is null)
         {
@@ -39,8 +40,16 @@ internal sealed class RoleSeeder(
             .Where(claim => claim.Type == Permissions.ClaimType)
             .Select(claim => claim.Value)
             .ToHashSet(StringComparer.Ordinal);
+        var missing = permissions.Where(permission => !current.Contains(permission)).ToList();
 
-        foreach (var permission in permissions.Where(permission => !current.Contains(permission)))
+        // Como RoleRepository: si a un rol que ya existía le cambian los permisos (Admin recibe los de un módulo nuevo),
+        // avanza su revisión, así un editor abierto desde antes choca (N2). AddClaimAsync guarda el rol con ella.
+        if (existed && missing.Count > 0)
+        {
+            role.AdvanceRevision();
+        }
+
+        foreach (var permission in missing)
         {
             (await roleManager.AddClaimAsync(role, new Claim(Permissions.ClaimType, permission))).EnsureSucceeded("add a permission");
         }
@@ -61,6 +70,8 @@ internal sealed class RoleSeeder(
 
         if (admin is not null && !await userManager.IsInRoleAsync(admin, SystemRoles.Admin))
         {
+            // Cambian los roles de la cuenta, como en UserRepository: avanza su revisión (N2), y AddToRoleAsync la guarda.
+            admin.AdvanceRevision();
             (await userManager.AddToRoleAsync(admin, SystemRoles.Admin)).EnsureSucceeded("assign the Admin role");
         }
     }

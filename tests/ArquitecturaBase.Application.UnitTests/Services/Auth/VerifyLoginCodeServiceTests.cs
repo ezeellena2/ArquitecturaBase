@@ -84,6 +84,7 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(LoginCodeErrors.InvalidCode, result.Error.Code);
         Assert.Equal(4, result.Error.Metadata![LoginCodeErrors.AttemptsLeftKey]);
         Assert.Equal(1, fixture.SignIn.FailedAttempts[user.Id]);
+        Assert.Equal([user.Id], fixture.Accounts.LockedUsers);
         Assert.False(Assert.Single(fixture.Audits.Audits).Succeeded);
         Assert.Equal(LoginCodeErrors.InvalidCode, fixture.Audits.Audits[0].FailureReason);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
@@ -93,6 +94,24 @@ public sealed class VerifyLoginCodeServiceTests
         Assert.Equal(
             "VerifyLoginCode failed with " + LoginCodeErrors.InvalidCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
+    }
+
+    /// <summary>
+    /// La fila de la cuenta, después del lock del destino y antes de escribirla (confirmar el correo, los intentos): una
+    /// edición de la administración en curso termina antes, y este guardado no choca con su ConcurrencyStamp (N2).
+    /// </summary>
+    [Fact]
+    public async Task Valid_code_of_an_existing_account_locks_its_row_before_writing_it()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser(UserEmail);
+        fixture.IssueEmailCode();
+
+        var result = await fixture.Service.VerifyLoginCodeAsync(EmailRequest(), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([UserEmail], fixture.Codes.LockedDestinations);
+        Assert.Equal([user.Id], fixture.Accounts.LockedUsers);
     }
 
     /// <summary>

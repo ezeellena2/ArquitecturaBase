@@ -146,11 +146,11 @@ public sealed class SystemSettingsServiceTests
     }
 
     [Fact]
-    public async Task Update_returns_not_found_without_saving_when_the_single_row_is_missing()
+    public async Task Section_update_returns_not_found_without_saving_when_the_single_row_is_missing()
     {
         var fixture = new Fixture();
 
-        var result = await fixture.Service.UpdateAsync(new UpdateSystemSettingsRequest(RegistrationMode.Open), Ct);
+        var result = await fixture.Service.UpdateSectionAsync(new UpdateSystemSettingsSectionRequest(1, RegistrationMode: RegistrationMode.Open), Ct);
 
         Assert.True(result.IsFailure);
         Assert.Equal(SettingsErrors.NotFound, result.Error);
@@ -158,19 +158,19 @@ public sealed class SystemSettingsServiceTests
         Assert.Empty(fixture.Events);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
         Assert.Equal(
-            ["Handling UpdateSystemSettings", "UpdateSystemSettings failed with " + SettingsErrors.NotFoundCode],
+            ["Handling UpdateSystemSettingsSection", "UpdateSystemSettingsSection failed with " + SettingsErrors.NotFoundCode],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Theory]
     [InlineData("es", "El modo de registro no es válido.")]
     [InlineData("en", "The registration mode is not valid.")]
-    public async Task Update_validates_before_reading_or_saving(string culture, string message)
+    public async Task Section_update_validates_before_reading_or_saving(string culture, string message)
     {
         using var cultureScope = new CultureScope(culture);
         var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
 
-        var result = await fixture.Service.UpdateAsync(new UpdateSystemSettingsRequest((RegistrationMode)7), Ct);
+        var result = await fixture.Service.UpdateSectionAsync(new UpdateSystemSettingsSectionRequest(1, RegistrationMode: (RegistrationMode)7), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Equal(ValidationError.ErrorCode, error.Code);
@@ -180,17 +180,17 @@ public sealed class SystemSettingsServiceTests
         Assert.Empty(fixture.Events);
         Assert.Equal(0, fixture.UnitOfWork.Transactions);
         Assert.Equal(
-            ["Handling UpdateSystemSettings", "UpdateSystemSettings failed with Validation.Failed"],
+            ["Handling UpdateSystemSettingsSection", "UpdateSystemSettingsSection failed with Validation.Failed"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
         Assert.Equal(LogLevel.Warning, fixture.Logger.Collector.GetSnapshot()[1].Level);
     }
 
     [Fact]
-    public async Task Update_saves_the_changed_mode_once_before_invalidating_the_cache()
+    public async Task Section_update_saves_the_changed_mode_once_before_invalidating_the_cache()
     {
         var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
 
-        var result = await fixture.Service.UpdateAsync(new UpdateSystemSettingsRequest(RegistrationMode.Open), Ct);
+        var result = await fixture.Service.UpdateSectionAsync(new UpdateSystemSettingsSectionRequest(1, RegistrationMode: RegistrationMode.Open), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(RegistrationMode.Open, fixture.Settings.RegistrationMode);
@@ -198,13 +198,13 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(["commit", "invalidate"], fixture.Events);
         Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
         Assert.Equal(
-            ["Handling UpdateSystemSettings", "Handled UpdateSystemSettings"],
+            ["Handling UpdateSystemSettingsSection", "Handled UpdateSystemSettingsSection"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     /// <summary>Un commit fallido no invalida el caché ni deja un Handled: solo queda el Handling.</summary>
     [Fact]
-    public async Task Update_does_not_invalidate_the_cache_or_log_success_when_the_commit_fails()
+    public async Task Section_update_does_not_invalidate_the_cache_or_log_success_when_the_commit_fails()
     {
         var fixture = new Fixture
         {
@@ -213,13 +213,13 @@ public sealed class SystemSettingsServiceTests
         };
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            fixture.Service.UpdateAsync(new UpdateSystemSettingsRequest(RegistrationMode.Open), Ct));
+            fixture.Service.UpdateSectionAsync(new UpdateSystemSettingsSectionRequest(1, RegistrationMode: RegistrationMode.Open), Ct));
 
         Assert.Equal("Commit failed.", error.Message);
         Assert.Equal(["commit"], fixture.Events);
         Assert.Equal(1, fixture.UnitOfWork.Rollbacks);
         Assert.Equal(
-            ["Handling UpdateSystemSettings"],
+            ["Handling UpdateSystemSettingsSection"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
@@ -237,7 +237,7 @@ public sealed class SystemSettingsServiceTests
                 _repository,
                 _cache,
                 UnitOfWork,
-                RequestValidators.For(new UpdateSystemSettingsRequestValidator(), new UpdateSystemSettingsSectionRequestValidator()),
+                RequestValidators.For(new UpdateSystemSettingsSectionRequestValidator()),
                 Logger, new FakeReader(), capabilities);
         }
 

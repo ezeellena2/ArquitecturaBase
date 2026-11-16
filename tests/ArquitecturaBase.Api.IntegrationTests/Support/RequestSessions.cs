@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
@@ -33,5 +34,21 @@ internal static class RequestSessions
         using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
 
         return (await me.ReadJsonAsync()).GetProperty("id").GetGuid();
+    }
+
+    /// <summary>
+    /// El id del administrador del seed, leído de la base; entra por código sólo si todavía no tiene cuenta. Cada código de
+    /// más cuenta para el límite de pedidos de su correo, que comparten los tests que corren juntos.
+    /// </summary>
+    public static async Task<Guid> SeedAdminIdAsync(ApiFactory factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+
+        var normalized = ApiFactory.AdminEmail.ToUpperInvariant();
+        return await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
+                .Where(user => user.NormalizedEmail == normalized)
+                .Select(user => (Guid?)user.Id)
+                .SingleOrDefaultAsync(TestContext.Current.CancellationToken))
+            ?? await SignInSeedAdminAsync(factory);
     }
 }

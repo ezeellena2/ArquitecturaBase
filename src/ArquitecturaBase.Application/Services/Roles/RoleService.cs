@@ -174,10 +174,18 @@ internal sealed class RoleService(
 
     private async Task<Result> UpdateCoreAsync(UpdateRoleRequest request, CancellationToken cancellationToken)
     {
+        // La fila primero y la lectura después: dos ediciones del mismo rol pasan de a una, y la segunda ve la revisión
+        // que dejó la primera (N2).
+        await repository.LockAsync(request.RoleId, cancellationToken);
         var role = await roles.FindByIdAsync(request.RoleId, cancellationToken);
         if (role is null)
         {
             return RoleErrors.NotFound;
+        }
+
+        if (role.Revision != request.ExpectedRevision)
+        {
+            return RoleErrors.RevisionConflict;
         }
 
         var name = request.Name!.Trim();
@@ -233,6 +241,9 @@ internal sealed class RoleService(
 
     private async Task<Result> DeleteCoreAsync(DeleteRoleRequest request, CancellationToken cancellationToken)
     {
+        // FOR UPDATE antes de contar: una asignación del rol en curso (que lo bloquea para asignarlo) termina antes y se
+        // cuenta, o espera al borrado y no lo encuentra. Sin el lock, la cascada borraba la asignación en silencio (N2).
+        await repository.LockAsync(request.RoleId, cancellationToken);
         var role = await roles.FindByIdAsync(request.RoleId, cancellationToken);
         if (role is null)
         {
@@ -255,7 +266,7 @@ internal sealed class RoleService(
 
     // El detalle y cada ítem del catálogo y del listado tienen la misma forma.
     private static RoleResponse ToResponse(RoleRow role) =>
-        new(role.Id, role.Name, role.Description, role.IsSystemRole, role.UserCount, role.Permissions);
+        new(role.Id, role.Name, role.Description, role.IsSystemRole, role.UserCount, role.Permissions, role.Revision);
 
     private static string AreaOf(string permission) => permission[..permission.IndexOf('.', StringComparison.Ordinal)];
 }

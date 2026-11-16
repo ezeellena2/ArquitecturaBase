@@ -3,7 +3,8 @@ namespace ArquitecturaBase.Application.Models.Users;
 /// <summary>
 /// El usuario con sus roles, tal como lo proyecta el lector: lo que necesita el diálogo de edición (sección 10 del spec
 /// de la Fase 4). El correo y el número pueden faltar, y cada uno dice si la persona ya demostró que es suyo. El número
-/// para mostrar y la última invitación los suma el caso de uso en <see cref="UserDetailResponse"/>.
+/// para mostrar y la última invitación los suma el caso de uso en <see cref="UserDetailResponse"/>. La revisión es la que
+/// la edición manda de vuelta (N2).
 /// </summary>
 public sealed record UserDetailRow(
     Guid Id,
@@ -14,4 +15,5 @@ public sealed record UserDetailRow(
     string? DisplayName,
     bool IsActive,
     DateTime CreatedAtUtc,
-    IReadOnlyCollection<string> Roles);
+    IReadOnlyCollection<string> Roles,
+    long Revision);

@@ -575,6 +575,8 @@ public sealed class ProfileEmailServiceTests
 
         public Task LockAdminsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
 
+        public Task LockAsync(Guid userId, CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed,
             string? displayName, string culture, CancellationToken cancellationToken, string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId) => throw new NotSupportedException();
 

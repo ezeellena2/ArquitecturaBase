@@ -34,6 +34,36 @@ public sealed class SeedTests(ApiFactory factory)
         Assert.Equal(factory.Services.GetRequiredService<IPermissionCatalog>().All.Order(StringComparer.Ordinal), adminPermissions.Order(StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// El seed que le devuelve a Admin un permiso que le faltaba (un módulo nuevo) o a la cuenta de Seed:AdminEmail el rol
+    /// Admin cambia lo que muestra la pantalla: avanza la revisión, así un editor abierto desde antes choca (N2). Sembrar
+    /// otra vez sin nada que agregar no la avanza.
+    /// </summary>
+    [Fact]
+    public async Task Seeding_back_a_missing_admin_permission_or_role_advances_the_revision()
+    {
+        var permission = factory.Services.GetRequiredService<IPermissionCatalog>().All.Order(StringComparer.Ordinal).First();
+        var adminId = await RequestSessions.SeedAdminIdAsync(factory);
+        var before = await RevisionsAsync(adminId);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                DELETE FROM "AspNetRoleClaims"
+                WHERE "RoleId" = {before.RoleId} AND "ClaimType" = {Permissions.ClaimType} AND "ClaimValue" = {permission}
+                """, Ct);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM \"AspNetUserRoles\" WHERE \"UserId\" = {adminId} AND \"RoleId\" = {before.RoleId}", Ct);
+        });
+
+        await factory.Services.SeedDatabaseAsync(Ct);
+        var seeded = await RevisionsAsync(adminId);
+        await factory.Services.SeedDatabaseAsync(Ct);
+
+        Assert.Equal(before.Role + 1, seeded.Role);
+        Assert.Equal(before.User + 1, seeded.User);
+        Assert.Equal(seeded, await RevisionsAsync(adminId));
+    }
+
     [Fact]
     public async Task Seeding_again_keeps_a_single_web_client()
     {
@@ -45,4 +75,12 @@ public sealed class SeedTests(ApiFactory factory)
 
         Assert.Equal(1, clients);
     }
+
+    private Task<(Guid RoleId, long Role, long User)> RevisionsAsync(Guid adminId) =>
+        factory.ExecuteDbContextAsync(async db =>
+        {
+            var role = await db.Roles.AsNoTracking().SingleAsync(role => role.Name == SystemRoles.Admin, Ct);
+            var user = await db.Users.AsNoTracking().SingleAsync(user => user.Id == adminId, Ct);
+            return (role.Id, role.Revision, user.Revision);
+        });
 }

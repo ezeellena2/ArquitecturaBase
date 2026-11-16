@@ -55,7 +55,8 @@ internal sealed class UserReader(
         user.DisplayName,
         user.Culture,
         user.TimeZoneId,
-        user.IsActive);
+        user.IsActive,
+        user.Revision);
 
     public Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
         userManager.Users
@@ -163,6 +164,7 @@ internal sealed class UserReader(
                 user.DisplayName,
                 user.IsActive,
                 user.CreatedAtUtc,
+                user.Revision,
                 Roles = dbContext.Roles
                     .Where(role => dbContext.UserRoles.Any(userRole => userRole.UserId == user.Id && userRole.RoleId == role.Id))
                     .Select(role => role.Name!)
@@ -181,7 +183,8 @@ internal sealed class UserReader(
                 detail.DisplayName,
                 detail.IsActive,
                 detail.CreatedAtUtc,
-                [.. detail.Roles.Order(StringComparer.Ordinal)]);
+                [.. detail.Roles.Order(StringComparer.Ordinal)],
+                detail.Revision);
     }
 
     /// <summary>

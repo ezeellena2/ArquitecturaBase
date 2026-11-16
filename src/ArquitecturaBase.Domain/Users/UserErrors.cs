@@ -23,6 +23,7 @@ public static class UserErrors
     public const string PhoneAlreadySetCode = "Users.User.PhoneAlreadySet";
     public const string NoPhoneCode = "Users.User.NoPhone";
     public const string NoVerifiedPhoneCode = "Users.User.NoVerifiedPhone";
+    public const string RevisionConflictCode = "Users.User.RevisionConflict";
 
     public static readonly Error EmailInvalid = Error.Validation(EmailInvalidCode, "The email address is not valid.");
 
@@ -130,4 +131,11 @@ public static class UserErrors
     /// </summary>
     public static readonly Error NoVerifiedPhone = Error.Conflict(
         NoVerifiedPhoneCode, "The account has no verified phone number to send the code to.");
+
+    /// <summary>
+    /// La cuenta cambió desde que se leyó (N2): el nombre, el correo, el número, los roles o el estado, desde la
+    /// administración, el perfil u otra pestaña. Lo que no se edita, como un código mal escrito, no la cambia.
+    /// </summary>
+    public static readonly Error RevisionConflict = Error.Conflict(
+        RevisionConflictCode, "The account has changed. Review the current values.");
 }

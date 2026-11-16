@@ -147,7 +147,8 @@ public sealed class LastAdminLockTests(ApiFactory factory)
                 .SetUserActiveAsync(userId, isActive: false, Ct),
             "delete" => await services.GetRequiredService<IUserAccessService>().DeleteUserAsync(userId, Ct),
             "remove-admin-role" => await services.GetRequiredService<IUserAdministrationService>()
-                .UpdateUserAsync(new UpdateUserRequest(userId, "Sin admin", [SystemRoles.User]), Ct),
+                .UpdateUserAsync(new UpdateUserRequest(userId, "Sin admin", [SystemRoles.User],
+                    (await services.GetRequiredService<IUserReader>().FindByIdAsync(userId, Ct))!.Revision), Ct),
             _ => throw new ArgumentOutOfRangeException(nameof(removal), removal, null),
         };
     }

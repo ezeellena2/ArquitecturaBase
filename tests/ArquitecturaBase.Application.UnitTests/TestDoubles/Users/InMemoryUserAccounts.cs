@@ -68,7 +68,8 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             DisplayName: null,
             culture,
             DefaultTimeZoneId,
-            isActive);
+            isActive,
+            Revision: 1);
         _users.Add(user);
         _roles[user.Id] = [];
 
@@ -119,7 +120,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
 
     public Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult(_users.SingleOrDefault(user => user.Id == userId)
-            ?? (UnknownAccountsAreActive ? new UserAccount(userId, null, false, null, false, null, "es", DefaultTimeZoneId, true) : null));
+            ?? (UnknownAccountsAreActive ? new UserAccount(userId, null, false, null, false, null, "es", DefaultTimeZoneId, true, 1) : null));
 
     public Task<UserAccount?> FindByEmailAsync(Email email, CancellationToken cancellationToken) =>
         Task.FromResult(_users.SingleOrDefault(user => user.Email == email.Value));
@@ -165,7 +166,8 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
                 user.DisplayName,
                 user.IsActive,
                 default,
-                [.. (_roles.GetValueOrDefault(user.Id) ?? []).Order(StringComparer.Ordinal)]));
+                [.. (_roles.GetValueOrDefault(user.Id) ?? []).Order(StringComparer.Ordinal)],
+                user.Revision));
     }
 
     public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken)
@@ -213,6 +215,17 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         return Task.CompletedTask;
     }
 
+    /// <summary>Las cuentas cuya fila se bloqueó (<see cref="IUserRepository.LockAsync"/>), en orden.</summary>
+    public List<Guid> LockedUsers { get; } = [];
+
+    public Task LockAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        TransactionGuard.Require(InTransaction);
+        LockedUsers.Add(userId);
+
+        return Task.CompletedTask;
+    }
+
     public Task LockExternalSignInAsync(
         Email email, string provider, string providerKey, CancellationToken cancellationToken)
     {
@@ -246,7 +259,8 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             Named(displayName),
             culture,
             timeZoneId,
-            IsActive: true);
+            IsActive: true,
+            Revision: 1);
         _users.Add(user);
         _roles[user.Id] = ["User"];
 
@@ -278,7 +292,8 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             Named(displayName),
             culture,
             timeZoneId,
-            IsActive: true);
+            IsActive: true,
+            Revision: 1);
         _users.Add(user);
         _roles[user.Id] = ["User"];
 
@@ -312,6 +327,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
             Culture = culture,
             TimeZoneId = timeZoneId,
             IsActive = true,
+            Revision = user.Revision + 1,
         });
         _roles[user.Id] = [];
 
@@ -340,6 +356,14 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     {
         TransactionGuard.Require(InTransaction);
         OnSetRoles?.Invoke();
+
+        // Como el repositorio: quitar o agregar un rol avanza la revisión de la cuenta.
+        if (!(_roles.GetValueOrDefault(userId) ?? []).ToHashSet(StringComparer.Ordinal).SetEquals(roles))
+        {
+            var index = _users.FindIndex(user => user.Id == userId);
+            _users[index] = _users[index] with { Revision = _users[index].Revision + 1 };
+        }
+
         _roles[userId] = [.. roles];
 
         return Task.CompletedTask;
@@ -357,7 +381,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
         var user = _users.Single(user => user.Id == userId);
         _users.Remove(user);
         _roles.Remove(userId);
-        DeletedUsers.Add(user);
+        DeletedUsers.Add(user with { Revision = user.Revision + 1 });
 
         // ExistsDeletedByEmailAsync lee DeletedEmails: los dos tienen que decir lo mismo.
         if (user.Email is not null)
@@ -384,7 +408,13 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     {
         TransactionGuard.Require(InTransaction);
         var index = _users.FindIndex(user => user.Id == userId);
-        _users[index] = change(_users[index]);
+        var before = _users[index];
+        var after = change(before);
+
+        // Como el repositorio: avanza la revisión sólo si cambia lo que muestra la administración (N2).
+        var edited = before.DisplayName != after.DisplayName || before.Email != after.Email
+            || before.PhoneNumber != after.PhoneNumber || before.IsActive != after.IsActive;
+        _users[index] = edited ? after with { Revision = before.Revision + 1 } : after;
 
         return Task.CompletedTask;
     }

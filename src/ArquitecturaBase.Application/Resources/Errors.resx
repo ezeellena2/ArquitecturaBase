@@ -61,6 +61,7 @@
   <data name="Users.User.PhoneAlreadySet" xml:space="preserve"><value>Tu cuenta ya tiene un número de WhatsApp verificado, y desde tu perfil no se reemplaza. Para cambiarlo, desvinculalo y vinculá el nuevo; si es tu único medio de ingreso, pedíselo a un administrador.</value></data>
   <data name="Users.User.NoPhone" xml:space="preserve"><value>Tu cuenta no tiene un número de WhatsApp para desvincular.</value></data>
   <data name="Users.User.NoVerifiedPhone" xml:space="preserve"><value>Tu cuenta no tiene un número de WhatsApp verificado al que mandarte el código.</value></data>
+  <data name="Users.User.RevisionConflict" xml:space="preserve"><value>La cuenta cambió mientras la editabas. Volvé a leerla y revisá tus cambios antes de guardar.</value></data>
   <data name="Users.Identity.Required" xml:space="preserve"><value>Cargá un correo o un número de WhatsApp.</value></data>
   <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirmá que la persona aceptó recibir mensajes por WhatsApp.</value></data>
   <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>Para invitar por WhatsApp, cargá el nombre de la persona.</value></data>
@@ -72,6 +73,7 @@
   <data name="Roles.Role.HasUsers" xml:space="preserve"><value>El rol tiene usuarios asignados. Reasignalos antes de borrarlo.</value></data>
   <data name="Roles.Role.PermissionsNotHeld" xml:space="preserve"><value>No podés dar ni quitar permisos que no tenés.</value></data>
   <data name="Roles.Role.UserRoleAdminOnly" xml:space="preserve"><value>Sólo un administrador puede cambiar los permisos de User, el rol que recibe toda cuenta nueva.</value></data>
+  <data name="Roles.Role.RevisionConflict" xml:space="preserve"><value>El rol cambió mientras lo editabas. Volvé a leerlo y revisá tus cambios antes de guardar.</value></data>
   <data name="Auth.Account.NotRegistered" xml:space="preserve"><value>Todavía no tenés una cuenta. Elegí Crear cuenta para registrarte.</value></data>
   <data name="Auth.Account.AlreadyRegistered" xml:space="preserve"><value>Ya tenés una cuenta. Elegí Iniciar sesión para entrar.</value></data>
   <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>La configuración cambió. Revisá los valores actuales antes de guardar.</value></data>

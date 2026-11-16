@@ -7,4 +7,5 @@ public sealed record RoleRow(
     string? Description,
     bool IsSystemRole,
     int UserCount,
-    IReadOnlyCollection<string> Permissions);
+    IReadOnlyCollection<string> Permissions,
+    long Revision);

@@ -28,6 +28,26 @@ public sealed class UserAccessServiceStatusTests
     }
 
     [Fact]
+    public async Task Activate_deactivate_and_delete_lock_the_account_row_and_advance_its_revision()
+    {
+        // O4: el estado y el borrado pasan de a uno sobre la fila y avanzan la revisión que compara el editor (N2).
+        var host = new UserServiceTestHost();
+        var user = host.Accounts.AddUser("user@example.com");
+
+        var deactivated = await host.Access.SetUserActiveAsync(user.Id, isActive: false, Ct);
+        var revisionAfterDeactivating = (await host.Accounts.FindByIdAsync(user.Id, Ct))!.Revision;
+        var activated = await host.Access.SetUserActiveAsync(user.Id, isActive: true, Ct);
+        var revisionAfterActivating = (await host.Accounts.FindByIdAsync(user.Id, Ct))!.Revision;
+        var deleted = await host.Access.DeleteUserAsync(user.Id, Ct);
+
+        Assert.True(deactivated.IsSuccess && activated.IsSuccess && deleted.IsSuccess);
+        Assert.Equal(user.Revision + 1, revisionAfterDeactivating);
+        Assert.Equal(user.Revision + 2, revisionAfterActivating);
+        Assert.Equal(user.Revision + 3, Assert.Single(host.Accounts.DeletedUsers).Revision);
+        Assert.Equal([user.Id, user.Id, user.Id], host.Accounts.LockedUsers);
+    }
+
+    [Fact]
     public async Task Activate_rejects_an_account_with_permissions_the_actor_does_not_have()
     {
         // Quien sólo administra cuentas no reactiva a un administrador desactivado a propósito (N1).

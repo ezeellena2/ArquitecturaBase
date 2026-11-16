@@ -37,6 +37,15 @@ public sealed class ApplicationUser : IdentityUser<Guid>, IAuditable, ISoftDelet
 
     public bool IsActive { get; private set; } = true;
 
+    /// <summary>
+    /// La revisión de lo que muestran y editan la administración y el perfil (N2): el nombre, el correo, el número, los
+    /// roles, el estado y el borrado. Nace en 1, como la de la configuración, así un pedido sin revisión choca. La avanza
+    /// <c>UserRepository</c> con cada cambio de uno de esos datos, venga de donde venga; lo demás (un código mal escrito,
+    /// el reinicio de intentos, el idioma, la confirmación de un dato) no la toca, porque daría conflictos falsos. No es el
+    /// <c>ConcurrencyStamp</c>, que cambia con cualquier escritura.
+    /// </summary>
+    public long Revision { get; private set; } = 1;
+
     public DateTime CreatedAtUtc { get; private set; }
 
     public Guid? CreatedBy { get; private set; }
@@ -96,6 +105,9 @@ public sealed class ApplicationUser : IdentityUser<Guid>, IAuditable, ISoftDelet
     }
 
     public void SetActive(bool isActive) => IsActive = isActive;
+
+    /// <summary>Uno de los datos de <see cref="Revision"/> cambió: quien lo cambia la avanza en el mismo guardado.</summary>
+    public void AdvanceRevision() => Revision++;
 
     /// <summary>El idioma y la zona horaria, ya validados por quien los recibe.</summary>
     public void UpdatePreferences(string culture, string timeZoneId)

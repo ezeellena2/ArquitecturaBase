@@ -60,7 +60,7 @@ public sealed class AdminsLockTests
         };
 
         var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
-            target.Id, "Ana", [SystemRoles.User], Email: target.Email,
+            target.Id, "Ana", [SystemRoles.User], 1, Email: target.Email,
             Phone: new PhoneNumberInput("AR", target.PhoneNumber)), Ct);
 
         Assert.True(result.IsSuccess);
@@ -120,7 +120,7 @@ public sealed class AdminsLockTests
         var user = host.Accounts.AddUser("ana@example.com");
         host.Accounts.SetRoles(user.Id, currentRole);
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", requestedRoles), Ct);
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", requestedRoles, 1), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Empty(host.Accounts.AdminEvents);

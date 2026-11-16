@@ -71,7 +71,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
-                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User], changedEmail,
+                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User], 1, changedEmail,
                     new PhoneNumberInput("AR", TestPhones.AsTypedLocally(phone))), Ct)));
 
         var persisted = await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
@@ -109,7 +109,7 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
-                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User]), Ct)));
+                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User], 1), Ct)));
 
         Assert.Equal("Antes", await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()
             .Where(user => user.Id == created.Value.Id)
@@ -283,6 +283,8 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
             inner.LockExternalSignInAsync(email, provider, providerKey, cancellationToken);
 
         public Task LockAdminsAsync(CancellationToken cancellationToken) => inner.LockAdminsAsync(cancellationToken);
+
+        public Task LockAsync(Guid userId, CancellationToken cancellationToken) => inner.LockAsync(userId, cancellationToken);
 
         public Task<UserAccount> CreateAsync(Email? email, PhoneNumber? phone, bool phoneConfirmed, string? displayName,
             string culture, CancellationToken cancellationToken, string timeZoneId = ArquitecturaBase.Domain.Settings.SystemSettings.InitialTimeZoneId) =>

@@ -22,16 +22,6 @@ public sealed class SettingsController(ISystemSettingsService service) : Control
     public async Task<IActionResult> Get(CancellationToken cancellationToken) =>
         (await service.GetAsync(cancellationToken)).ToActionResult(this);
 
-    [HttpPut]
-    [HasPermission(Permissions.Settings.Manage)]
-    [ProducesProblem(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Update(
-        [FromBody] UpdateSystemSettingsHttpRequest request,
-        CancellationToken cancellationToken) =>
-        (await service.UpdateAsync(new UpdateSystemSettingsRequest(request.RegistrationMode), cancellationToken))
-            .ToActionResult(this);
-
     [HttpGet("presentation")]
     [AllowAnonymous]
     [ProducesResponseType<SystemPresentationResponse>(StatusCodes.Status200OK)]

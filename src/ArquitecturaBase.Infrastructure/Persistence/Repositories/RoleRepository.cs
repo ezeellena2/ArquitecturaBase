@@ -39,6 +39,19 @@ internal sealed class RoleRepository(RoleManager<ApplicationRole> roleManager, A
         dbContext.RequireTransaction();
 
         var role = await RequireRoleAsync(roleId, cancellationToken);
+        var current = (await roleManager.GetClaimsAsync(role))
+            .Where(claim => claim.Type == Permissions.ClaimType)
+            .Select(claim => claim.Value)
+            .ToHashSet(StringComparer.Ordinal);
+
+        // Guardar lo mismo no avanza la revisión: daría un conflicto falso a quien tiene el rol abierto.
+        if (!string.Equals(role.Name, name, StringComparison.Ordinal)
+            || !string.Equals(role.Description, description, StringComparison.Ordinal)
+            || !current.SetEquals(permissions))
+        {
+            role.AdvanceRevision();
+        }
+
         role.Description = description;
 
         // SetRoleNameAsync escribe el nombre y el normalizado en el store; UpdateAsync es el que guarda.
@@ -54,6 +67,30 @@ internal sealed class RoleRepository(RoleManager<ApplicationRole> roleManager, A
 
         (await roleManager.DeleteAsync(await RequireRoleAsync(roleId, cancellationToken)))
             .EnsureSucceeded("delete the role");
+    }
+
+    public async Task LockAsync(Guid roleId, CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"AspNetRoles\" WHERE \"Id\" = {roleId} FOR UPDATE", cancellationToken);
+    }
+
+    public async Task LockForAssignmentAsync(IReadOnlyCollection<string> names, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(names);
+        dbContext.RequireTransaction();
+
+        // FOR KEY SHARE no choca consigo mismo: dos asignaciones de los mismos roles no se esperan.
+        string[] normalized = [.. names.Select(name => roleManager.NormalizeKey(name)!).Distinct(StringComparer.Ordinal)];
+        if (normalized.Length == 0)
+        {
+            return;
+        }
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"AspNetRoles\" WHERE \"NormalizedName\" = ANY({normalized}) FOR KEY SHARE", cancellationToken);
     }
 
     private async Task SetRolePermissionsAsync(ApplicationRole role, IReadOnlyCollection<string> permissions)

@@ -45,7 +45,7 @@ public sealed class WhatsAppUserRepositoryTransactionTests(ApiFactory factory)
 
         await Assert.ThrowsAsync<ExpectedWriteFailure>(() => InScopeAsync(api.Services, services =>
             services.GetRequiredService<IUserAdministrationService>().UpdateUserAsync(
-                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User], changedEmail,
+                new UpdateUserRequest(created.Value.Id, "Después", [SystemRoles.User], 1, changedEmail,
                     new PhoneNumberInput("AR", TestPhones.AsTypedLocally(phone))), Ct)));
 
         var persisted = await factory.ExecuteDbContextAsync(db => db.Users.AsNoTracking()

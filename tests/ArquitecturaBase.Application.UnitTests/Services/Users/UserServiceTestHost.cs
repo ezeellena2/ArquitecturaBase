@@ -103,7 +103,7 @@ internal class UserServiceTestHost
         Destinations.InTransaction = () => UnitOfWork.InTransaction;
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
         Links.InTransaction = () => UnitOfWork.InTransaction;
-        RoleReader = new FakeRoleReader(Accounts);
+        RoleReader = new FakeRoleReader(Accounts) { InTransaction = () => UnitOfWork.InTransaction };
         Accounts.SetRoles(CurrentUser.UserId!.Value, SystemRoles.Admin);
         var phoneNumbers = new FakePhoneNumberParser();
         var phoneLinker = new PhoneNumberLinker(
@@ -117,6 +117,7 @@ internal class UserServiceTestHost
             CurrentUser,
             Accounts,
             Accounts,
+            RoleReader,
             RoleReader,
             new PermissionDelegationGuard(CurrentUser, RoleReader, RoleReader.Catalog, InitialAdmin),
             InitialAdmin);
@@ -202,9 +203,35 @@ internal class UserServiceTestHost
     /// núcleo; los demás, lo que diga <see cref="Permissions"/>. Cada nombre tiene un id fijo, y los roles de una cuenta
     /// salen de los nombres que guarda <paramref name="accounts"/>. Las demás lecturas de roles no se usan acá.
     /// </summary>
-    internal sealed class FakeRoleReader(InMemoryUserAccounts accounts) : IRoleReader
+    /// <summary>El catálogo de roles y, como repositorio, sólo el lock de la asignación: escribir roles no es de estos tests.</summary>
+    internal sealed class FakeRoleReader(InMemoryUserAccounts accounts) : IRoleReader, IRoleRepository
     {
         private readonly Dictionary<string, Guid> _ids = new(StringComparer.Ordinal);
+
+        /// <summary>Los nombres de cada lock de asignación (<see cref="IRoleRepository.LockForAssignmentAsync"/>), en orden.</summary>
+        public List<IReadOnlyCollection<string>> LockedForAssignment { get; } = [];
+
+        /// <summary>Si no es null, bloquear fuera de la transacción lanza, como el repositorio.</summary>
+        public Func<bool>? InTransaction { get; set; }
+
+        public Task LockForAssignmentAsync(IReadOnlyCollection<string> names, CancellationToken cancellationToken)
+        {
+            TransactionGuard.Require(InTransaction);
+            LockedForAssignment.Add([.. names]);
+            return Task.CompletedTask;
+        }
+
+        public Task LockAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<Guid> CreateAsync(
+            string name, string? description, IReadOnlyCollection<string> permissions, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task UpdateAsync(
+            Guid roleId, string name, string? description, IReadOnlyCollection<string> permissions,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task DeleteAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<RoleRow?> FindByNameAsync(string name, CancellationToken cancellationToken) =>
             Task.FromResult(RoleNames.Contains(name, StringComparer.Ordinal) ? Row(name) : null);
@@ -250,7 +277,8 @@ internal class UserServiceTestHost
                 null,
                 SystemRoles.All.Contains(name, StringComparer.Ordinal),
                 0,
-                name == SystemRoles.Admin ? [.. Catalog.All] : Permissions.GetValueOrDefault(name) ?? []);
+                name == SystemRoles.Admin ? [.. Catalog.All] : Permissions.GetValueOrDefault(name) ?? [],
+                Revision: 1);
 
         private Guid IdOf(string name)
         {

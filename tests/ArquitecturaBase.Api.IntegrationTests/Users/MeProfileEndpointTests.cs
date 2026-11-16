@@ -61,9 +61,7 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("perfil"));
 
-        using var update = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            "/api/me",
+        using var update = await client.PutWithRevisionAsync("/api/me",
             tokens.AccessToken,
             new { displayName = "Ana", culture = "en", timeZoneId = "America/Sao_Paulo" });
         using var read = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
@@ -98,7 +96,7 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("cuerpoperfil"));
 
-        using var missing = await client.SendWithTokenAsync(HttpMethod.Put, "/api/me", tokens.AccessToken);
+        using var missing = await client.PutWithRevisionAsync("/api/me", tokens.AccessToken);
         using var malformed = await SendBodyAsync("{", "application/json");
         using var plain = await SendBodyAsync("{}", "text/plain");
         using var form = await SendBodyAsync("culture=es&timeZoneId=America%2FArgentina%2FBuenos_Aires", "application/x-www-form-urlencoded");
@@ -141,9 +139,7 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("logperfil"));
         var privateName = "NombrePrivado" + Guid.NewGuid().ToString("N", System.Globalization.CultureInfo.InvariantCulture);
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            "/api/me",
+        using var response = await client.PutWithRevisionAsync("/api/me",
             tokens.AccessToken,
             new { displayName = privateName, culture = "es", timeZoneId = "America/Argentina/Buenos_Aires" });
 
@@ -165,7 +161,7 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
     public void Profile_request_hides_its_values_in_action_logs() =>
         Assert.Equal(
             nameof(UpdateProfileHttpRequest),
-            new UpdateProfileHttpRequest("NombrePrivado", "es", "America/Argentina/Buenos_Aires").ToString());
+            new UpdateProfileHttpRequest("NombrePrivado", "es", "America/Argentina/Buenos_Aires", 1).ToString());
 
     [Fact]
     public async Task The_existing_endpoint_rejects_a_display_name_over_the_limit()
@@ -173,9 +169,7 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("nombremuylargo"));
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            "/api/me",
+        using var response = await client.PutWithRevisionAsync("/api/me",
             tokens.AccessToken,
             new
             {
@@ -227,9 +221,7 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("idioma"));
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            "/api/me",
+        using var response = await client.PutWithRevisionAsync("/api/me",
             tokens.AccessToken,
             new { culture = "fr", timeZoneId = "America/Argentina/Buenos_Aires" },
             language: "es");
@@ -245,9 +237,7 @@ public sealed class MeProfileEndpointTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("zona"));
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            "/api/me",
+        using var response = await client.PutWithRevisionAsync("/api/me",
             tokens.AccessToken,
             new { culture = "es", timeZoneId = "Marte/Olympus" },
             language: "es");

@@ -65,7 +65,7 @@ internal sealed class AdminUsersApi(ApiFactory factory, HttpClient client, strin
     }
 
     public Task<HttpResponseMessage> UpdateAsync(Guid userId, object body, string? language = null) =>
-        client.SendWithTokenAsync(HttpMethod.Put, $"/api/users/{userId}", accessToken, body, language);
+        client.PutWithRevisionAsync($"/api/users/{userId}", accessToken, body, language);
 
     public Task<HttpResponseMessage> InviteAsync(Guid userId, object body, string? language = null) =>
         client.SendWithTokenAsync(HttpMethod.Post, $"/api/users/{userId}/invitation", accessToken, body, language);

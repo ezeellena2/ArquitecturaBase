@@ -27,11 +27,14 @@ public sealed class MeController(
 
     [HttpPut]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    // Una revisión vieja: un administrador u otra pestaña cambiaron la cuenta (N2).
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
         [FromBody] UpdateProfileHttpRequest request,
         CancellationToken cancellationToken) =>
         (await profile.UpdateAsync(
-            new UpdateProfileRequest(request.DisplayName, request.Culture, request.TimeZoneId), cancellationToken))
+            new UpdateProfileRequest(request.DisplayName, request.Culture, request.TimeZoneId, request.ExpectedRevision),
+            cancellationToken))
             .ToActionResult(this);
 
     [HttpPost("email/code")]

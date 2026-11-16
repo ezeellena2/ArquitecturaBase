@@ -46,7 +46,8 @@ internal sealed class PhoneNumberLinker(
     /// y el contacto que suelta para vincular el suyo no lo espera). Corre dentro de la transacción del caso de uso, que
     /// los locks exigen, así el número, lo que atan los participantes y los enlaces se guardan juntos. Quien llama lee la
     /// cuenta después, no antes: mientras espera, el bot puede escribirla (verifica el número del chat), y un guardado
-    /// hecho con lo leído antes chocaría con el ConcurrencyStamp de Identity, que también es un 500.
+    /// hecho con lo leído antes chocaría con el ConcurrencyStamp de Identity, que también es un 500. Termina con la fila de
+    /// la cuenta (<see cref="IUserRepository.LockAsync"/>), donde la toman la edición y el perfil.
     /// </summary>
     public async Task LockAsync(Guid userId, PhoneNumber? newPhone, CancellationToken cancellationToken)
     {
@@ -56,6 +57,9 @@ internal sealed class PhoneNumberLinker(
         }
 
         await loginLinks.LockAccountAsync(userId, cancellationToken);
+
+        // Y la fila de la cuenta, que una edición de la administración o el perfil toman en el mismo lugar del orden (N2).
+        await userRepository.LockAsync(userId, cancellationToken);
     }
 
     /// <summary>

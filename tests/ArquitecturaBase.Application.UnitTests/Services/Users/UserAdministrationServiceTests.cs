@@ -54,7 +54,7 @@ public sealed class UserAdministrationServiceTests
     }
 
     [Fact]
-    public async Task Create_locks_email_before_phone_and_rejects_unknown_roles_without_mutation()
+    public async Task Create_locks_email_before_phone_and_rejects_unknown_roles_after_them_rolling_back()
     {
         var host = new UserServiceTestHost();
         var request = new CreateUserRequest("ana@example.com", "Ana", ["DoesNotExist"],
@@ -62,15 +62,13 @@ public sealed class UserAdministrationServiceTests
 
         var result = await host.Administration.CreateUserAsync(request, Ct);
 
+        // Los roles se bloquean y se buscan después de los destinos (el orden de backend.md, N2): el rechazo deshace el alta,
+        // que este doble no simula, así que basta con que no haya commit.
         Assert.Equal(RoleErrors.NotFound, result.Error);
-        Assert.Empty(host.Destinations.LockedDestinations);
+        Assert.Equal(["ana@example.com", "+5493515550101"], host.Destinations.LockedDestinations);
+        Assert.Equal("DoesNotExist", Assert.Single(Assert.Single(host.RoleReader.LockedForAssignment)));
         Assert.Equal(0, host.UnitOfWork.Commits);
         Assert.Equal(1, host.UnitOfWork.Rollbacks);
-
-        var valid = await host.Administration.CreateUserAsync(request with { Roles = [SystemRoles.User] }, Ct);
-        Assert.True(valid.IsSuccess);
-        Assert.Equal(["ana@example.com", "+5493515550101"], host.Destinations.LockedDestinations);
-        Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
     [Fact]
@@ -337,7 +335,7 @@ public sealed class UserAdministrationServiceTests
         RenameDuringAssignment(host);
 
         var result = await host.Administration.UpdateUserAsync(
-            new UpdateUserRequest(user.Id, "Beto", [SystemRoles.User, Readers]), Ct);
+            new UpdateUserRequest(user.Id, "Beto", [SystemRoles.User, Readers], 1), Ct);
 
         Assert.Equal(UserErrors.RolesNotHeld, result.Error);
         Assert.Equal(0, host.UnitOfWork.Commits);
@@ -384,7 +382,7 @@ public sealed class UserAdministrationServiceTests
         var host = new UserServiceTestHost();
         var user = host.Accounts.AddUser("ana@example.com");
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", Roles: null), Ct);
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", Roles: null, ExpectedRevision: 1), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.True(error.Errors.ContainsKey("roles"));
@@ -402,7 +400,7 @@ public sealed class UserAdministrationServiceTests
         var admin = host.Accounts.AddUser("ultimo-admin@example.com");
         host.Accounts.SetRoles(admin.Id, SystemRoles.Admin);
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(admin.Id, "Admin", [SystemRoles.User]), Ct);
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(admin.Id, "Admin", [SystemRoles.User], 1), Ct);
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.Equal([SystemRoles.Admin], await host.Accounts.ListRoleNamesForUserAsync(admin.Id, Ct));
@@ -480,12 +478,64 @@ public sealed class UserAdministrationServiceTests
     }
 
     [Fact]
+    public async Task Two_edits_read_at_the_same_revision_let_the_first_through_and_the_second_conflicts()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Accounts.AddUser("beto@example.com");
+        host.Accounts.SetRoles(user.Id, SystemRoles.User);
+
+        var first = await host.Administration.UpdateUserAsync(
+            new UpdateUserRequest(user.Id, "Beto", [SystemRoles.User], user.Revision), Ct);
+        var second = await host.Administration.UpdateUserAsync(
+            new UpdateUserRequest(user.Id, "Roberto", [SystemRoles.User, SystemRoles.Admin], user.Revision), Ct);
+
+        Assert.True(first.IsSuccess);
+        Assert.Equal(UserErrors.RevisionConflict, second.Error);
+        var stored = await host.Accounts.FindByIdAsync(user.Id, Ct);
+        Assert.Equal("Beto", stored!.DisplayName);
+        Assert.Equal(user.Revision + 1, stored.Revision);
+        Assert.Equal([SystemRoles.User], await host.Accounts.ListRoleNamesForUserAsync(user.Id, Ct));
+        Assert.Equal(1, host.UnitOfWork.Commits);
+        Assert.Equal(1, host.UnitOfWork.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Update_locks_the_account_row_and_the_requested_roles_inside_the_transaction()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Accounts.AddUser("beto@example.com");
+        host.Accounts.SetRoles(user.Id, SystemRoles.User);
+
+        var result = await host.Administration.UpdateUserAsync(
+            new UpdateUserRequest(user.Id, "Beto", [SystemRoles.User], user.Revision), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([user.Id], host.Accounts.LockedUsers);
+        var locked = Assert.Single(host.RoleReader.LockedForAssignment);
+        Assert.Equal([SystemRoles.User], locked);
+    }
+
+    [Fact]
+    public async Task Saving_the_same_values_does_not_advance_the_revision()
+    {
+        var host = new UserServiceTestHost();
+        var user = host.Accounts.AddUser("beto@example.com");
+        host.Accounts.SetRoles(user.Id, SystemRoles.User);
+
+        var result = await host.Administration.UpdateUserAsync(
+            new UpdateUserRequest(user.Id, null, [SystemRoles.User], user.Revision, "beto@example.com"), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(user.Revision, (await host.Accounts.FindByIdAsync(user.Id, Ct))!.Revision);
+    }
+
+    [Fact]
     public async Task Update_missing_user_returns_not_found_without_committing()
     {
         var host = new UserServiceTestHost();
 
         var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
-            Guid.CreateVersion7(), "Nadie", [SystemRoles.User]), Ct);
+            Guid.CreateVersion7(), "Nadie", [SystemRoles.User], 1), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Equal(0, host.UnitOfWork.Commits);
@@ -498,7 +548,7 @@ public sealed class UserAdministrationServiceTests
         var host = new UserServiceTestHost();
 
         var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
-            Guid.CreateVersion7(), "Nadie", ["DoesNotExist"]), Ct);
+            Guid.CreateVersion7(), "Nadie", ["DoesNotExist"], 1), Ct);
 
         Assert.Equal(UserErrors.NotFound, result.Error);
         Assert.Equal(0, host.UnitOfWork.Commits);
@@ -514,7 +564,7 @@ public sealed class UserAdministrationServiceTests
         host.Accounts.AddUser("taken@example.com");
 
         var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
-            user.Id, "Ana", ["DoesNotExist"], Email: "taken@example.com"), Ct);
+            user.Id, "Ana", ["DoesNotExist"], 1, Email: "taken@example.com"), Ct);
 
         Assert.Equal(RoleErrors.NotFound, result.Error);
         Assert.Equal("ana@example.com", host.Accounts.Users.Single(account => account.Id == user.Id).Email);
@@ -531,7 +581,7 @@ public sealed class UserAdministrationServiceTests
         host.Accounts.AddUser("taken@example.com");
 
         var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
-            admin.Id, "Admin", [SystemRoles.User], Email: "taken@example.com"), Ct);
+            admin.Id, "Admin", [SystemRoles.User], 1, Email: "taken@example.com"), Ct);
 
         Assert.Equal(UserErrors.LastAdmin, result.Error);
         Assert.Equal([SystemRoles.Admin], await host.Accounts.ListRoleNamesForUserAsync(admin.Id, Ct));
@@ -551,7 +601,7 @@ public sealed class UserAdministrationServiceTests
         host.Accounts.AddUser("taken@example.com");
 
         var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(
-            me.Id, "Yo", [SystemRoles.User], Email: "taken@example.com"), Ct);
+            me.Id, "Yo", [SystemRoles.User], 1, Email: "taken@example.com"), Ct);
 
         Assert.Equal(UserErrors.CannotModifySelf, result.Error);
         Assert.Equal([SystemRoles.Admin], await host.Accounts.ListRoleNamesForUserAsync(me.Id, Ct));
@@ -568,7 +618,7 @@ public sealed class UserAdministrationServiceTests
         var user = host.Accounts.AddUser("ana@example.com", phoneNumber: "+59899123456");
         host.Accounts.SetRoles(user.Id, SystemRoles.User);
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana nueva", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana nueva", [SystemRoles.User], 1,
             Phone: new PhoneNumberInput("UY", user.PhoneNumber)), Ct);
 
         Assert.True(result.IsSuccess);
@@ -588,7 +638,7 @@ public sealed class UserAdministrationServiceTests
         var user = host.Accounts.AddUser("ana@example.com");
         host.Accounts.SetRoles(user.Id, SystemRoles.User);
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Nuevo", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Nuevo", [SystemRoles.User], 1,
             Phone: new PhoneNumberInput("UY", "+59899123456")), Ct);
 
         Assert.Equal(UserErrors.PhoneInvalid, result.Error);
@@ -607,7 +657,7 @@ public sealed class UserAdministrationServiceTests
         var link = LoginLink.Issue(user.Id, "hash", host.Clock.GetUtcNow().UtcDateTime);
         host.Links.Links.Add(link);
 
-        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", [SystemRoles.User],
+        var result = await host.Administration.UpdateUserAsync(new UpdateUserRequest(user.Id, "Ana", [SystemRoles.User], 1,
             Phone: new PhoneNumberInput("AR", "+5493515550202")), Ct);
 
         Assert.True(result.IsSuccess);

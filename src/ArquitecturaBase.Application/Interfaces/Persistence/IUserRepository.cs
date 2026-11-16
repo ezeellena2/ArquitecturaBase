@@ -14,7 +14,9 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// transacción y con un savepoint por guardado: un Result fallido con <see cref="CommitPolicy.OnSuccess"/> o una
 /// excepción deshacen todo, incluidos esos guardados. Un nombre más largo que <c>AccountRules.DisplayNameMaxLength</c>
 /// lanza <see cref="ArgumentException"/>: HTTP ya lo valida, y un nombre ajeno (Google, WhatsApp) se recorta antes con
-/// <c>AccountRules.FitExternalDisplayName</c>.
+/// <c>AccountRules.FitExternalDisplayName</c>. Cada escritura que cambia el nombre, el correo, el número, los roles, el estado
+/// o el borrado avanza la revisión de la cuenta (<see cref="UserAccount.Revision"/>); escribir lo mismo, confirmar un dato o
+/// cambiar el idioma no la avanza.
 /// </summary>
 public interface IUserRepository
 {
@@ -37,6 +39,16 @@ public interface IUserRepository
     /// <see cref="InvalidOperationException"/>.
     /// </summary>
     Task LockAdminsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Bloquea la fila de la cuenta (FOR UPDATE) hasta el final de la transacción, para comparar su revisión y escribir
+    /// sin que otra edición, el perfil, el ingreso con un código, la activación o el borrado se metan en el medio (N2, O4):
+    /// quien llama lee la cuenta después. FOR UPDATE choca también con quien inserta una fila que apunta a la cuenta, así
+    /// un cambio de correo o de número no se traba con un ingreso. Va después de los locks de los destinos, de los
+    /// participantes del número y de la cuenta, y antes de los roles pedidos y de <see cref="LockAdminsAsync"/>. Sin la
+    /// transacción lanza <see cref="InvalidOperationException"/>.
+    /// </summary>
+    Task LockAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Crea la cuenta con un correo, un número o los dos; sin ninguno lanza una <see cref="ArgumentException"/>, porque

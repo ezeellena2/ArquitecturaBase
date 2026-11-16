@@ -115,7 +115,7 @@ public sealed class RoleRepositoryTransactionTests(ApiFactory factory)
         {
             services.ActAs(adminId);
             return services.GetRequiredService<IRoleService>()
-                .UpdateAsync(new UpdateRoleRequest(created.Value, renamed, "After", [Permissions.Roles.Read]), Ct);
+                .UpdateAsync(new UpdateRoleRequest(created.Value, renamed, "After", [Permissions.Roles.Read], 1), Ct);
         });
         Assert.True(updated.IsSuccess);
 

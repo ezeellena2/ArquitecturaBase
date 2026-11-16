@@ -48,9 +48,7 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
         var userId = await CreateAsync(client, tokens.AccessToken, TestEmails.Unique("editar"), "Ana", [SystemRoles.User]);
 
-        using var update = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            $"/api/users/{userId}",
+        using var update = await client.PutWithRevisionAsync($"/api/users/{userId}",
             tokens.AccessToken,
             new { displayName = "Ana María", roles = new[] { SystemRoles.Admin } });
         using var read = await client.GetWithTokenAsync($"/api/users/{userId}", tokens.AccessToken);
@@ -71,9 +69,7 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
         using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var myId = (await me.ReadJsonAsync()).GetProperty("id").GetGuid();
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            $"/api/users/{myId}",
+        using var response = await client.PutWithRevisionAsync($"/api/users/{myId}",
             tokens.AccessToken,
             new { displayName = (string?)null, roles = new[] { SystemRoles.User } });
         var problem = await response.ReadJsonAsync();
@@ -89,8 +85,7 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
         var userId = await CreateAsync(client, tokens.AccessToken, TestEmails.Unique("rolraro2"), null, [SystemRoles.User]);
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put, $"/api/users/{userId}", tokens.AccessToken, new { roles = new[] { "Inventado" } });
+        using var response = await client.PutWithRevisionAsync($"/api/users/{userId}", tokens.AccessToken, new { roles = new[] { "Inventado" } });
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -104,8 +99,7 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
         var userId = await CreateAsync(client, tokens.AccessToken, TestEmails.Unique("sinrol"), null, [SystemRoles.User]);
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put, $"/api/users/{userId}", tokens.AccessToken, new { roles = Array.Empty<string>() }, language: "es");
+        using var response = await client.PutWithRevisionAsync($"/api/users/{userId}", tokens.AccessToken, new { roles = Array.Empty<string>() }, language: "es");
         var problem = await response.ReadJsonAsync();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -132,9 +126,7 @@ public sealed class UpdateUserEndpointTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("sinedicion"));
 
-        using var response = await client.SendWithTokenAsync(
-            HttpMethod.Put,
-            $"/api/users/{Guid.CreateVersion7()}",
+        using var response = await client.PutWithRevisionAsync($"/api/users/{Guid.CreateVersion7()}",
             tokens.AccessToken,
             new { roles = new[] { SystemRoles.User } },
             language: "es");
