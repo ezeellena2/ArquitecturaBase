@@ -56,6 +56,13 @@
   <data name="Users.User.RolesNotHeld" xml:space="preserve"><value>No podés dar ni quitar un rol con permisos que no tenés.</value></data>
   <data name="Users.User.HasMorePermissions" xml:space="preserve"><value>Esta cuenta tiene permisos que vos no tenés: no podés cambiarle el correo o el número, desvincularle el número, desactivarla, reactivarla ni borrarla.</value></data>
   <data name="Users.User.InitialAdmin" xml:space="preserve"><value>Es la cuenta del administrador inicial, que recupera Admin en cada arranque: para quitarle Admin o cambiarle el correo, primero hay que cambiar la clave Seed:AdminEmail de la configuración.</value></data>
+  <data name="Users.User.EmailAlreadySet" xml:space="preserve"><value>Tu cuenta ya tiene un correo verificado, y desde tu perfil no se cambia. Si hay que cambiarlo, pedíselo a un administrador.</value></data>
+  <data name="Users.User.PhoneCodeUnavailable" xml:space="preserve"><value>Para agregar un correo hay que confirmarlo con un código a tu WhatsApp, y ahora no se pueden mandar códigos por WhatsApp. Probá más tarde o pedíselo a un administrador.</value></data>
+  <data name="Users.User.ConfirmationCodeRequired" xml:space="preserve"><value>Falta el código que te mandamos para confirmar que sos vos.</value></data>
+  <data name="Users.User.NoVerifiedEmail" xml:space="preserve"><value>Tu cuenta no tiene un correo verificado al que mandarte el código.</value></data>
+  <data name="Users.User.PhoneAlreadySet" xml:space="preserve"><value>Tu cuenta ya tiene un número de WhatsApp verificado, y desde tu perfil no se reemplaza. Para cambiarlo, desvinculalo y vinculá el nuevo; si es tu único medio de ingreso, pedíselo a un administrador.</value></data>
+  <data name="Users.User.NoPhone" xml:space="preserve"><value>Tu cuenta no tiene un número de WhatsApp para desvincular.</value></data>
+  <data name="Users.User.NoVerifiedPhone" xml:space="preserve"><value>Tu cuenta no tiene un número de WhatsApp verificado al que mandarte el código.</value></data>
   <data name="Users.Identity.Required" xml:space="preserve"><value>Cargá un correo o un número de WhatsApp.</value></data>
   <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirmá que la persona aceptó recibir mensajes por WhatsApp.</value></data>
   <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>Para invitar por WhatsApp, cargá el nombre de la persona.</value></data>

@@ -19,6 +19,12 @@ public sealed class WhatsAppOpenApiTests(ApiFactory factory)
         Assert.True(profileWhatsAppCode.GetProperty("requestBody").GetProperty("content")
             .TryGetProperty("application/json", out _));
         Assert.True(profileWhatsAppCode.GetProperty("responses").TryGetProperty("202", out _));
+        // El código al número verificado que confirma agregar un correo: sin cuerpo, 409 sin número verificado o con un
+        // correo verificado.
+        var confirmationCode = paths.GetProperty("/api/me/whatsapp/confirmation-code").GetProperty("post");
+        Assert.Equal("Users", confirmationCode.GetProperty("tags")[0].GetString());
+        Assert.True(confirmationCode.GetProperty("responses").TryGetProperty("202", out _));
+        Assert.True(confirmationCode.GetProperty("responses").TryGetProperty("409", out _));
         var profileWhatsApp = paths.GetProperty("/api/me/whatsapp");
         Assert.Equal("Users", profileWhatsApp.GetProperty("put").GetProperty("tags")[0].GetString());
         Assert.True(profileWhatsApp.GetProperty("put").GetProperty("requestBody").GetProperty("content")

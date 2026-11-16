@@ -39,6 +39,17 @@ internal sealed class LoginCodeIssuer(
         CancellationToken cancellationToken) =>
         IssueAsync(destination, LoginCodePurpose.VerifyDestination, userId, cancellationToken);
 
+    /// <summary>
+    /// Un código para que <paramref name="userId"/> confirme, con un medio que ya tiene verificado, un cambio de sus
+    /// medios de ingreso desde el perfil (cada medio confirma los cambios del otro, 2026-11-16). Es de la cuenta, como el
+    /// de verificar un destino, pero no sirve para verificarlo, ni el otro para confirmar un cambio.
+    /// </summary>
+    public Task<Result<IssuedLoginCode>> IssueConfirmationCodeAsync(
+        LoginCodeDestination destination,
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        IssueAsync(destination, LoginCodePurpose.ConfirmChange, userId, cancellationToken);
+
     private async Task<Result<IssuedLoginCode>> IssueAsync(
         LoginCodeDestination destination,
         LoginCodePurpose purpose,

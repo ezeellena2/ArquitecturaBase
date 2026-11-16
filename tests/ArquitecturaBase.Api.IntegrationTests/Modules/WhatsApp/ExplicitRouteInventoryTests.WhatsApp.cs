@@ -14,6 +14,7 @@ public sealed partial class ExplicitRouteInventoryTests
         "POST /account/login-code/whatsapp",
         "GET /api/me/whatsapp",
         "POST /api/me/whatsapp/code",
+        "POST /api/me/whatsapp/confirmation-code",
         "PUT /api/me/whatsapp",
         "GET /webhooks/whatsapp",
         "POST /webhooks/whatsapp",
@@ -62,13 +63,13 @@ public sealed partial class ExplicitRouteInventoryTests
         : [.. WhatsAppRoutes.Except(WhatsAppFormRoutes)];
 
     [Fact]
-    public void The_whatsapp_module_adds_its_twenty_eight_routes_and_the_form_ones_only_with_the_forms_publisher()
+    public void The_whatsapp_module_adds_its_twenty_nine_routes_and_the_form_ones_only_with_the_forms_publisher()
     {
         List<string> routes = [];
 
         AddModuleRoutes(routes);
 
-        Assert.Equal(28, WhatsAppRoutes.Length);
+        Assert.Equal(29, WhatsAppRoutes.Length);
         Assert.Subset(WhatsAppRoutes.ToHashSet(), WhatsAppFormRoutes.ToHashSet());
         Assert.Equal(InstalledWhatsAppRoutes, routes.Where(WhatsAppRoutes.Contains));
     }

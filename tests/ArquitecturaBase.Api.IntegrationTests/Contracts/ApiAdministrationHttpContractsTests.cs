@@ -52,6 +52,7 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     [InlineData("PUT", "/api/me")]
     [InlineData("POST", "/api/me/email/code")]
     [InlineData("PUT", "/api/me/email")]
+    [InlineData("POST", "/api/me/email/confirmation-code")]
     [InlineData("GET", "/api/roles")]
     [InlineData("GET", "/api/roles/paged")]
     [InlineData("GET", "/api/roles/00000000-0000-0000-0000-000000000001")]
@@ -380,6 +381,8 @@ public sealed class ApiAdministrationHttpContractsTests(ApiFactory factory)
     [Theory]
     [InlineData("POST", "/api/me/email/code", "RateLimiting:LoginCodePermitLimit")]
     [InlineData("PUT", "/api/me/email", "RateLimiting:LoginVerifyPermitLimit")]
+    [InlineData("POST", "/api/me/email/confirmation-code", "RateLimiting:LoginCodePermitLimit")]
+    [InlineData("DELETE", "/api/me/whatsapp", "RateLimiting:LoginVerifyPermitLimit")]
     public async Task Profile_code_routes_return_429_with_retry_after_when_the_ip_limit_is_reached(
         string method,
         string route,

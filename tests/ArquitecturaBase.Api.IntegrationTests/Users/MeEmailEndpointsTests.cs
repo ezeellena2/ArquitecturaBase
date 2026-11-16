@@ -83,6 +83,24 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task With_a_verified_email_asking_for_a_code_for_another_answers_409_and_sends_nothing()
+    {
+        // Un correo verificado no se cambia desde el perfil: el código no serviría, y no se manda.
+        using var client = factory.CreateClient();
+        var user = await CreateAccountAsync(email: TestEmails.Unique("verificado"));
+        var other = TestEmails.Unique("otro");
+
+        using var response = await client.SendAsync(
+            HttpMethod.Post, CodeUrl, JsonContent.Create(new { email = other }), language: "es",
+            userId: user.Id.ToString("D", CultureInfo.InvariantCulture));
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(UserErrors.EmailAlreadySetCode, problem.GetProperty("code").GetString());
+        Assert.Equal(0, factory.EmailSender.CountFor(other));
+    }
+
+    [Fact]
     public async Task Asking_for_the_email_of_another_account_answers_the_same_202_and_sends_the_code_the_same()
     {
         using var client = factory.CreateClient();
@@ -339,10 +357,13 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         return CapturingEmailSender.CodeOf(await factory.EmailSender.WaitForAsync(email, previous + 1));
     }
 
-    /// <summary>Una cuenta con un correo (verificado), un número (verificado) o los dos.</summary>
+    /// <summary>
+    /// Una cuenta con un correo (verificado), un número (sin verificar) o los dos. Con el número verificado, agregar un
+    /// correo pide además el código de ese número (N11), que prueba <c>MeEmailWithVerifiedPhoneTests</c>.
+    /// </summary>
     private Task<UserAccount> CreateAccountAsync(string? email = null, PhoneNumber? phone = null, string culture = "es") =>
         factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
-            email is null ? null : Email.Create(email).Value, phone, phoneConfirmed: true, displayName: null, culture, Ct));
+            email is null ? null : Email.Create(email).Value, phone, phoneConfirmed: false, displayName: null, culture, Ct));
 
     private Task<UserAccount> AccountAsync(Guid userId) =>
         factory.ExecuteScopeAsync(async services =>

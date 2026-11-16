@@ -46,6 +46,7 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
         "PUT /api/me",
         "POST /api/me/email/code",
         "PUT /api/me/email",
+        "POST /api/me/email/confirmation-code",
         "DELETE /api/me/whatsapp",
         "GET /api/roles",
         "GET /api/roles/paged",
@@ -85,7 +86,7 @@ public sealed partial class ExplicitRouteInventoryTests(ApiFactory factory)
                 .Select(method => $"{method.ToUpperInvariant()} /{endpoint.RoutePattern.RawText?.Trim('/').ToLowerInvariant()}") ?? [])
             .Order(StringComparer.Ordinal);
 
-        Assert.Equal(40, CoreRoutes.Length);
+        Assert.Equal(41, CoreRoutes.Length);
         Assert.Equal(CoreRoutes.Order(StringComparer.Ordinal), actualCore);
         Assert.Equal(expected.Order(StringComparer.Ordinal), actual);
     }

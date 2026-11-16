@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Results;
@@ -15,7 +16,9 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// <summary>
 /// Los datos del perfil y su correo: editar nombre, idioma y zona horaria, pedir un código para un correo y
 /// confirmarlo. El código lo emite <see cref="DestinationCodeIssuer"/>, y el correo confirmado lo pone
-/// <see cref="ProfileEmailLinker"/>.
+/// <see cref="ProfileEmailLinker"/>. También pide, al correo verificado, el código que confirma vincular o desvincular
+/// el número (cada medio confirma los cambios del otro, 2026-11-16), que verifican <see cref="PhoneNumberLinker"/> y
+/// <see cref="ProfilePhoneService"/>.
 /// No cambian la sesión actual. La lectura está en <see cref="ProfileQueryService"/>, y la desvinculación del número propio, en
 /// <see cref="ProfilePhoneService"/>.
 /// </summary>
@@ -84,6 +87,24 @@ internal sealed class ProfileService(
         });
     }
 
+    public Task<Result<RequestEmailCodeResponse>> RequestEmailConfirmationCodeAsync(
+        RequestEmailConfirmationCodeRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return OperationLog.RunAsync<Result<RequestEmailCodeResponse>>(logger, "RequestEmailConfirmationCode", async () =>
+        {
+            if (await validator.ValidateAsync(request, cancellationToken) is { } validationError)
+            {
+                return validationError;
+            }
+
+            // Una espera o un tope de pedidos no dejan nada; el correo se encola adentro, antes del commit.
+            return await unitOfWork.ExecuteInTransactionAsync(
+                ct => RequestEmailConfirmationCodeCoreAsync(request.Change!.Value, ct), CommitPolicy.OnSuccess, cancellationToken);
+        });
+    }
+
     private async Task<Result> UpdateCoreAsync(UpdateProfileRequest request, CancellationToken cancellationToken)
     {
         if (currentUser.UserId is not { } userId
@@ -110,8 +131,48 @@ internal sealed class ProfileService(
             return UserErrors.NotFound;
         }
 
+        // Un correo verificado no se cambia desde el perfil (N11): su código no serviría, y no se manda.
+        if (user.EmailConfirmed)
+        {
+            return UserErrors.EmailAlreadySet;
+        }
+
         return await issuer.RequestEmailCodeAsync(user, request, cancellationToken);
     }
+
+    // El pedido del código que confirma con el correo un cambio del número: corre dentro del límite, con OnSuccess. Lo
+    // que el cambio no admite se rechaza antes de emitir, así no llega un código que no sirve.
+    private async Task<Result<RequestEmailCodeResponse>> RequestEmailConfirmationCodeCoreAsync(
+        ProfileChange change, CancellationToken cancellationToken)
+    {
+        var user = currentUser.UserId is { } userId
+            ? await users.FindByIdAsync(userId, cancellationToken)
+            : null;
+        if (user is null)
+        {
+            return UserErrors.NotFound;
+        }
+
+        if (change is ProfileChange.UnlinkPhone && user.PhoneNumber is null)
+        {
+            return UserErrors.NoPhone;
+        }
+
+        if (change is ProfileChange.LinkPhone && user.PhoneNumberConfirmed)
+        {
+            return UserErrors.PhoneAlreadySet;
+        }
+
+        return VerifiedEmailOf(user) is { } email
+            ? await issuer.RequestConfirmationCodeAsync(user, email, change, cancellationToken)
+            : UserErrors.NoVerifiedEmail;
+    }
+
+    /// <summary>El correo verificado de la cuenta, el que confirma los cambios del número.</summary>
+    internal static Email? VerifiedEmailOf(UserAccount user) =>
+        user is { Email: { } value, EmailConfirmed: true } && Email.Create(value) is { IsSuccess: true } email
+            ? email.Value
+            : null;
 
     // La confirmación, ya validada: corre dentro del límite con OnAnyResult, porque la verificación puede contar un
     // intento o gastar el código aunque la cuenta no exista, el correo esté ocupado o la escritura choque con el índice
@@ -132,6 +193,6 @@ internal sealed class ProfileService(
             return emailResult.Error;
         }
 
-        return await emailLinker.LinkAsync(user, emailResult.Value, request.Code!, cancellationToken);
+        return await emailLinker.LinkAsync(user, emailResult.Value, request.Code!, request.PhoneCode, cancellationToken);
     }
 }

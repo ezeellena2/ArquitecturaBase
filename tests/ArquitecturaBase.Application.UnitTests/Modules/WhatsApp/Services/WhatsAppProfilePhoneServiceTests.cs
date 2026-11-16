@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Users;
@@ -20,13 +21,12 @@ public sealed class WhatsAppProfilePhoneServiceTests
         var contact = AddContact(host, user.Id);
         var link = AddLink(host, user.Id);
 
-        var result = await host.ProfilePhone.UnlinkOwnPhoneAsync(Ct);
+        var result = await host.ProfilePhone.UnlinkOwnPhoneAsync(new UnlinkOwnPhoneRequest(null), Ct);
 
         Assert.Equal(UserErrors.LastLoginMethod, result.Error);
         Assert.Equal(user.Id, contact.UserId);
         Assert.Null(link.InvalidatedAtUtc);
-        Assert.Equal(0, host.UnitOfWork.Commits);
-        Assert.Equal(1, host.UnitOfWork.Rollbacks);
+        Assert.Equal(CommitPolicy.OnAnyResult, host.UnitOfWork.LastPolicy);
     }
 
     [Fact]
@@ -44,8 +44,9 @@ public sealed class WhatsAppProfilePhoneServiceTests
             host.MessagesLog.Lock(["login-link:" + userId]);
             return Task.CompletedTask;
         };
+        var code = host.IssueUnlinkCode(user);
 
-        var result = await host.ProfilePhone.UnlinkOwnPhoneAsync(Ct);
+        var result = await host.ProfilePhone.UnlinkOwnPhoneAsync(new UnlinkOwnPhoneRequest(code), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(["number-change:" + user.Id, "login-link:" + user.Id], host.MessagesLog.Keys);
@@ -56,7 +57,7 @@ public sealed class WhatsAppProfilePhoneServiceTests
         Assert.NotNull(active.InvalidatedAtUtc);
         Assert.Null(expired.InvalidatedAtUtc);
         Assert.Equal(1, host.UnitOfWork.Commits);
-        Assert.Equal(CommitPolicy.OnSuccess, host.UnitOfWork.LastPolicy);
+        Assert.Equal(CommitPolicy.OnAnyResult, host.UnitOfWork.LastPolicy);
         Assert.Equal(["Handling UnlinkOwnPhone", "Handled UnlinkOwnPhone"],
             host.ProfilePhoneLogger.Collector.GetSnapshot().Select(record => record.Message));
     }
@@ -70,7 +71,7 @@ public sealed class WhatsAppProfilePhoneServiceTests
         var contact = AddContact(host, user.Id);
         var link = AddLink(host, user.Id);
 
-        var result = await host.ProfilePhone.UnlinkOwnPhoneAsync(Ct);
+        var result = await host.ProfilePhone.UnlinkOwnPhoneAsync(new UnlinkOwnPhoneRequest(null), Ct);
 
         Assert.True(result.IsSuccess);
         Assert.Null(contact.UserId);

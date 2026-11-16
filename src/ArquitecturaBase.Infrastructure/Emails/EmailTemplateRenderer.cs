@@ -27,6 +27,12 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
     public EmailMessage RenderEmailVerificationCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
         RenderCode("VerifyEmail", to, code, lifetimeMinutes, culture);
 
+    public EmailMessage RenderPhoneUnlinkCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
+        RenderCode("UnlinkPhone", to, code, lifetimeMinutes, culture);
+
+    public EmailMessage RenderPhoneLinkCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
+        RenderCode("LinkPhone", to, code, lifetimeMinutes, culture);
+
     /// <summary>
     /// La invitación de un administrador (panel 3 del tablero de mensajes): el saludo con el nombre, si lo hay, un botón a
     /// /login y cómo se entra. No lleva código ni enlace para entrar: la persona entra con el código de siempre. El pie

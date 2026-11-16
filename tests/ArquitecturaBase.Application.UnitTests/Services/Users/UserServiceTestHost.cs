@@ -1,4 +1,6 @@
 using ArquitecturaBase.Application.Channels;
+using ArquitecturaBase.Application.Configuration.Auth;
+using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -11,9 +13,11 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Channels;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Users;
+using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging.Testing;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Users;
@@ -159,8 +163,37 @@ internal class UserServiceTestHost
             AdministrationLogger);
         Access = new UserAccessService(
             Accounts, Accounts, guard, Links, phoneLinker, revoker, UnitOfWork, AccessLogger);
+        var codeOptions = Options.Create(new LoginCodeOptions());
+        var codeHasher = new FakeLoginCodeHasher();
         ProfilePhone = new ProfilePhoneService(
-            CurrentUser, Accounts, guard, phoneLinker, UnitOfWork, ProfilePhoneLogger);
+            CurrentUser,
+            Accounts,
+            guard,
+            phoneLinker,
+            new DestinationCodeVerifier(Destinations, codeHasher, Clock),
+            RequestValidators.For(new UnlinkOwnPhoneRequestValidator(codeOptions)),
+            UnitOfWork,
+            ProfilePhoneLogger);
+    }
+
+    /// <summary>
+    /// Un código al correo de <paramref name="user"/>, como el que pide
+    /// <see cref="ProfileService.RequestEmailConfirmationCodeAsync"/> (de <see cref="LoginCodePurpose.ConfirmChange"/>),
+    /// y lo devuelve. Con <paramref name="purpose"/>, uno de otro propósito.
+    /// </summary>
+    public string IssueUnlinkCode(
+        UserAccount user, int maxAttempts = 5, LoginCodePurpose purpose = LoginCodePurpose.ConfirmChange)
+    {
+        var email = Domain.ValueObjects.Email.Create(user.Email).Value;
+        Destinations.Add(LoginCode.Issue(
+            LoginCodeDestination.ForEmail(email),
+            purpose,
+            user.Id,
+            FakeLoginCodeHasher.HashOf(email.Value, purpose, FakeLoginCodeGenerator.Code),
+            Clock.GetUtcNow().UtcDateTime,
+            TimeSpan.FromMinutes(10),
+            maxAttempts));
+        return FakeLoginCodeGenerator.Code;
     }
 
     /// <summary>

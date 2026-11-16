@@ -332,6 +332,9 @@ public sealed class DelegatedAdministrationTests(ApiFactory factory)
         var seedEmail = TestEmails.Unique("inicial-perfil");
         var account = await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
             Email.Create(seedEmail).Value, phone: null, phoneConfirmed: false, displayName: null, "es", Ct));
+        // Con el correo verificado, el perfil ni manda el código (EmailAlreadySet); sin verificar, lo frena N25.
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>()
+            .SetEmailAsync(account.Id, Email.Create(seedEmail).Value, confirmed: false, Ct));
         var userId = account.Id.ToString("D", CultureInfo.InvariantCulture);
         await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("Seed:AdminEmail", seedEmail));
         using var client = api.CreateClient();

@@ -13,8 +13,9 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 /// <summary>
-/// El WhatsApp propio desde el perfil: pedir el código y confirmar el número; conserva locks, cuotas y
-/// consumo de códigos. El código lo pide <see cref="WhatsAppCodeIssuer"/>, y los pasos que comparte con la
+/// El WhatsApp propio desde el perfil: pedir el código y confirmar el número, y pedir al número verificado el código que
+/// confirma agregar un correo (cada medio confirma los cambios del otro, 2026-11-16); conserva locks, cuotas y consumo
+/// de códigos. El código lo pide <see cref="WhatsAppCodeIssuer"/>, y los pasos que comparte con la
 /// administración (el orden de los locks y la anulación de enlaces) los da <see cref="PhoneNumberLinker"/>.
 /// </summary>
 internal sealed class ProfileWhatsAppService(
@@ -67,6 +68,41 @@ internal sealed class ProfileWhatsAppService(
         });
     }
 
+    public Task<Result<RequestPhoneConfirmationCodeResponse>> RequestPhoneConfirmationCodeAsync(
+        CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<RequestPhoneConfirmationCodeResponse>>(logger, "RequestPhoneConfirmationCode", () =>
+        {
+            // Como el de vincular: con WhatsApp apagado es un error de programación, y no abre transacción.
+            issuer.EnsureEnabledForLink();
+
+            return unitOfWork.ExecuteInTransactionAsync(
+                RequestPhoneConfirmationCodeCoreAsync, CommitPolicy.OnSuccess, cancellationToken);
+        });
+
+    // El pedido del código que confirma agregar un correo: corre dentro del límite, con OnSuccess. Lo que no admite se
+    // rechaza antes de emitir, así no se paga un mensaje que no sirve.
+    private async Task<Result<RequestPhoneConfirmationCodeResponse>> RequestPhoneConfirmationCodeCoreAsync(
+        CancellationToken cancellationToken)
+    {
+        var user = currentUser.UserId is { } userId
+            ? await users.FindByIdAsync(userId, cancellationToken)
+            : null;
+        if (user is null)
+        {
+            return UserErrors.NotFound;
+        }
+
+        // Un correo verificado no se cambia desde el perfil: no hay correo que agregar.
+        if (user.EmailConfirmed)
+        {
+            return UserErrors.EmailAlreadySet;
+        }
+
+        return user is { PhoneNumber: { } value, PhoneNumberConfirmed: true } && PhoneNumber.Create(value) is { IsSuccess: true } phone
+            ? await issuer.RequestConfirmationCodeAsync(user, phone.Value, cancellationToken)
+            : UserErrors.NoVerifiedPhone;
+    }
+
     // El pedido de código, ya validado y con WhatsApp prendido: corre dentro del límite, con OnSuccess.
     private async Task<Result<RequestPhoneLinkCodeResponse>> RequestPhoneLinkCodeCoreAsync(
         RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken)
@@ -96,6 +132,7 @@ internal sealed class ProfileWhatsAppService(
             return phoneResult.Error;
         }
 
-        return await phoneLinker.ConfirmOwnPhoneAsync(userId, phoneResult.Value, request.Code!, cancellationToken);
+        return await phoneLinker.ConfirmOwnPhoneAsync(
+            userId, phoneResult.Value, request.Code!, request.EmailCode, cancellationToken);
     }
 }

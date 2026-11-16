@@ -142,7 +142,7 @@ public sealed class ProfileWhatsAppServiceTests
     public async Task Confirm_locks_the_code_then_the_contacts_then_the_account_links_and_links_the_number()
     {
         var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser("ana@example.com");
+        var user = fixture.Accounts.AddUser(email: null);
         var contact = fixture.AddContact(WaId);
         var code = fixture.Issue(user.Id);
         fixture.Links.WhileWaitingForTheLock = userId =>
@@ -179,7 +179,7 @@ public sealed class ProfileWhatsAppServiceTests
         // Mientras espera el lock de los enlaces, otro pedido borra la cuenta: la lectura de después ya no la ve. Si la
         // cuenta se leyera antes de los locks, la confirmación seguiría con lo leído.
         var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser("ana@example.com");
+        var user = fixture.Accounts.AddUser(email: null);
         var code = fixture.Issue(user.Id);
         fixture.Links.WhileWaitingForTheLock = userId =>
             fixture.Accounts.ArrangeAsync(accounts => accounts.DeleteAsync(userId, Ct));
@@ -199,7 +199,7 @@ public sealed class ProfileWhatsAppServiceTests
     public async Task Occupied_number_is_revealed_only_after_a_correct_code_and_the_code_is_saved_as_spent(bool deleted)
     {
         var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser("ana@example.com");
+        var user = fixture.Accounts.AddUser(email: null);
         if (deleted)
         {
             var owner = fixture.Accounts.AddUser("beto@example.com", phoneNumber: Phone);
@@ -228,7 +228,7 @@ public sealed class ProfileWhatsAppServiceTests
     public async Task Unique_index_race_returns_conflict_and_still_saves_the_consumed_code()
     {
         var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser("ana@example.com");
+        var user = fixture.Accounts.AddUser(email: null);
         var contact = fixture.AddContact(WaId);
         var code = fixture.Issue(user.Id);
         fixture.Repository = new RejectingPhoneRepository(fixture.Accounts);
@@ -248,7 +248,7 @@ public sealed class ProfileWhatsAppServiceTests
     public async Task Wrong_code_saves_the_failed_attempt_before_taking_any_other_lock()
     {
         var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser("ana@example.com");
+        var user = fixture.Accounts.AddUser(email: null);
         var code = fixture.Issue(user.Id);
 
         var result = await fixture.Service(user.Id).ConfirmPhoneLinkAsync(
@@ -266,6 +266,55 @@ public sealed class ProfileWhatsAppServiceTests
         Assert.Equal(
             "ConfirmPhoneLink failed with " + LoginCodeErrors.InvalidCode,
             fixture.Logger.Collector.GetSnapshot()[^1].Message);
+    }
+
+    [Fact]
+    public async Task A_verified_number_is_not_replaced_from_the_profile()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: "+5493517654321");
+        var code = fixture.Issue(user.Id);
+
+        var result = await fixture.Service(user.Id).ConfirmPhoneLinkAsync(new ConfirmPhoneLinkRequest(Phone, Code), Ct);
+
+        Assert.Equal(UserErrors.PhoneAlreadySet, result.Error);
+        Assert.Null(code.ConsumedAtUtc);
+        Assert.Empty(fixture.Locks.Keys);
+        Assert.Equal("+5493517654321", (await fixture.Accounts.FindByIdAsync(user.Id, Ct))!.PhoneNumber);
+    }
+
+    [Fact]
+    public async Task The_code_that_confirms_adding_an_email_goes_to_the_verified_number_before_the_commit()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser(email: null, culture: "en", phoneNumber: Phone);
+
+        var result = await fixture.Service(user.Id).RequestPhoneConfirmationCodeAsync(Ct);
+
+        Assert.True(result.IsSuccess);
+        var stored = Assert.Single(fixture.Codes.Codes);
+        Assert.Equal(Phone, stored.Destination);
+        Assert.Equal(LoginCodePurpose.ConfirmChange, stored.Purpose);
+        Assert.Equal(user.Id, stored.RequestedByUserId);
+        Assert.NotNull(stored.SentAtUtc);
+        Assert.Single(fixture.SendQueue.Messages);
+        Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
+    }
+
+    [Fact]
+    public async Task No_code_to_confirm_adding_an_email_goes_without_a_verified_number_or_with_a_verified_email()
+    {
+        var fixture = new Fixture();
+        var withoutPhone = fixture.Accounts.AddUser(email: null);
+        var withEmail = fixture.Accounts.AddUser("ana@example.com", phoneNumber: Phone);
+
+        var noPhone = await fixture.Service(withoutPhone.Id).RequestPhoneConfirmationCodeAsync(Ct);
+        var emailSet = await fixture.Service(withEmail.Id).RequestPhoneConfirmationCodeAsync(Ct);
+
+        Assert.Equal(UserErrors.NoVerifiedPhone, noPhone.Error);
+        Assert.Equal(UserErrors.EmailAlreadySet, emailSet.Error);
+        Assert.Empty(fixture.Codes.Codes);
+        Assert.Empty(fixture.SendQueue.Messages);
     }
 
     [Fact]
@@ -293,8 +342,16 @@ public sealed class ProfileWhatsAppServiceTests
     [InlineData(null, false)]
     public async Task Confirm_voids_the_pending_links_only_when_the_number_changes(string? previous, bool voided)
     {
+        // Un número distinto sólo se reemplaza sin verificar (lo cargó un administrador): uno verificado no se reemplaza
+        // desde el perfil.
         var fixture = new Fixture();
-        var user = fixture.Accounts.AddUser("ana@example.com", phoneNumber: previous);
+        var user = fixture.Accounts.AddUser(email: null, phoneNumber: previous);
+        if (previous is not null && previous != Phone)
+        {
+            await fixture.Accounts.ArrangeAsync(accounts =>
+                accounts.SetPhoneAsync(user.Id, PhoneNumber.Create(previous).Value, confirmed: false, Ct));
+        }
+
         var link = fixture.AddLink(user.Id);
         fixture.Issue(user.Id);
 

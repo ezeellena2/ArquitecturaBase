@@ -13,6 +13,7 @@ public sealed class WhatsAppApiAdministrationHttpContractsTests(ApiFactory facto
 {
     [Theory]
     [InlineData("POST", "/api/me/whatsapp/code", "RateLimiting:LoginCodePermitLimit")]
+    [InlineData("POST", "/api/me/whatsapp/confirmation-code", "RateLimiting:LoginCodePermitLimit")]
     [InlineData("PUT", "/api/me/whatsapp", "RateLimiting:LoginVerifyPermitLimit")]
     public async Task Profile_code_routes_return_429_with_retry_after_when_the_ip_limit_is_reached(
         string method,

@@ -101,19 +101,29 @@ public sealed class WhatsAppRouteContractsTests(ApiFactory factory)
         using var preview = await client.PostJsonAsync("/account/login-link/preview", new { token = "invented" });
         using var redeem = await client.PostJsonAsync("/account/login-link/redeem", new { token = "invented" });
         using var methods = await client.GetAsync("/account/login-methods", Ct);
-        var tokens = await client.LoginAsync(factory, TestEmails.Unique("whatsapp-off-contract"));
+        var email = TestEmails.Unique("whatsapp-off-contract");
+        var tokens = await client.LoginAsync(factory, email);
         using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var userId = (await me.ReadJsonAsync()).GetProperty("id").GetGuid();
+        var ownPhone = TestPhones.Unique();
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<ArquitecturaBase.Application.Interfaces.Persistence.IUserRepository>()
-                .SetPhoneAsync(userId, TestPhones.Unique(), confirmed: true, Ct);
+                .SetPhoneAsync(userId, ownPhone, confirmed: true, Ct);
         });
+        // El mismo número verificado: otro no se reemplaza desde el perfil (409 antes de mirar el código).
         using var authenticatedConfirm = await client.SendWithTokenAsync(
             HttpMethod.Put, "/api/me/whatsapp", tokens.AccessToken,
-            new { phone = "+5493515551234", code = "000000" });
+            new { phone = ownPhone.Value, code = "000000" });
+        // La cuenta entró con su correo: desvincular el número lo confirma el código que llega a ese correo, que pide una
+        // ruta del núcleo, también con WhatsApp apagado.
+        var sentToEmail = factory.EmailSender.CountFor(email);
+        using var unlinkCodeRequest = await client.SendWithTokenAsync(
+            HttpMethod.Post, "/api/me/email/confirmation-code", tokens.AccessToken, new { change = "UnlinkPhone" });
+        Assert.Equal(HttpStatusCode.Accepted, unlinkCodeRequest.StatusCode);
+        var unlinkCode = CapturingEmailSender.CodeOf(await factory.EmailSender.WaitForAsync(email, sentToEmail + 1));
         using var authenticatedUnlink = await client.SendWithTokenAsync(
-            HttpMethod.Delete, "/api/me/whatsapp", tokens.AccessToken);
+            HttpMethod.Delete, "/api/me/whatsapp", tokens.AccessToken, new { code = unlinkCode });
 
         Assert.Equal(HttpStatusCode.Unauthorized, confirm.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, unlink.StatusCode);

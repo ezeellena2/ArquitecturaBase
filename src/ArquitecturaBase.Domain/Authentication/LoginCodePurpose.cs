@@ -14,4 +14,11 @@ public enum LoginCodePurpose
     /// que lo pidió.
     /// </summary>
     VerifyDestination = 2,
+
+    /// <summary>
+    /// Confirmar, con un medio que la cuenta ya tiene verificado, un cambio de sus medios de ingreso desde el perfil
+    /// (cada medio confirma los cambios del otro, 2026-11-16): agregar un correo, vincular un número o desvincularlo.
+    /// Lo emiten sólo las rutas de confirmación y sólo sirve para la cuenta que lo pidió.
+    /// </summary>
+    ConfirmChange = 3,
 }

@@ -138,6 +138,38 @@ internal sealed class WhatsAppCodeIssuer(
         return new RequestPhoneLinkCodeResponse(issued.Value.ResendCooldownSeconds, phone.Value, phoneNumbers.Mask(phone));
     }
 
+    /// <summary>
+    /// El código que confirma, con el número verificado de <paramref name="user"/> (que quien llama ya leyó), agregar un
+    /// correo desde el perfil (cada medio confirma los cambios del otro, 2026-11-16). Es de
+    /// <see cref="LoginCodePurpose.ConfirmChange"/>: no sirve para vincular el número, ni el de vincular para confirmar un
+    /// cambio. La plantilla de Meta es la del código, que no admite otro texto. Tiene los mismos topes que el de vincular.
+    /// </summary>
+    public async Task<Result<RequestPhoneConfirmationCodeResponse>> RequestConfirmationCodeAsync(
+        UserAccount user, PhoneNumber phone, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(phone);
+
+        if (await quota.CheckLinkAsync(user.Id, cancellationToken) is { } quotaError)
+        {
+            return quotaError;
+        }
+
+        var issued = await issuer.IssueConfirmationCodeAsync(LoginCodeDestination.ForPhone(phone), user.Id, cancellationToken);
+        if (issued.IsFailure)
+        {
+            return issued.Error;
+        }
+
+        if (Send(phone, UserCultures.Of(user), issued.Value, WhatsAppAccessEventKind.VerifyPhoneCode)
+            && await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken) && quota.TakeAddress() is { } addressError)
+        {
+            return addressError;
+        }
+
+        return new RequestPhoneConfirmationCodeResponse(issued.Value.ResendCooldownSeconds, phoneNumbers.Mask(phone));
+    }
+
     // El país sale del número ya interpretado, no del que eligió la persona.
     private Result<PhoneNumber> ReadPhone(string? country, string? number)
     {

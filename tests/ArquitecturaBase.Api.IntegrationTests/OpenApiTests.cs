@@ -168,9 +168,22 @@ public sealed class OpenApiTests(ApiFactory factory)
 
         var unlinkPhone = paths.GetProperty("/api/me/whatsapp").GetProperty("delete");
         Assert.Equal("Users", unlinkPhone.GetProperty("tags")[0].GetString());
-        Assert.False(unlinkPhone.TryGetProperty("requestBody", out _));
+        // Con un correo verificado lleva el código que confirma el cambio, mandado a ese correo; sin él, puede ir vacío.
+        Assert.True(unlinkPhone.TryGetProperty("requestBody", out _));
         Assert.True(unlinkPhone.GetProperty("responses").TryGetProperty("204", out _));
-        AssertErrors(paths, "delete", "/api/me/whatsapp", "401", "404", "409", "500");
+        AssertErrors(paths, "delete", "/api/me/whatsapp", "400", "401", "404", "409", "429", "500");
+
+        // El código al correo que confirma vincular o desvincular el número: 409 sin correo verificado, sin número para
+        // desvincular o con un número verificado, que no se reemplaza.
+        var confirmationCode = paths.GetProperty("/api/me/email/confirmation-code").GetProperty("post");
+        Assert.Equal("Users", confirmationCode.GetProperty("tags")[0].GetString());
+        Assert.True(confirmationCode.GetProperty("requestBody").GetProperty("content")
+            .TryGetProperty("application/json", out _));
+        Assert.True(confirmationCode.GetProperty("responses").TryGetProperty("202", out _));
+        AssertErrors(paths, "post", "/api/me/email/confirmation-code", "400", "401", "404", "409", "429", "500");
+
+        // Pedir el código de un correo: 409 si la cuenta ya tiene uno verificado, que desde el perfil no se cambia.
+        AssertErrors(paths, "post", "/api/me/email/code", "400", "401", "404", "409", "429", "500");
     }
 
     [Fact]

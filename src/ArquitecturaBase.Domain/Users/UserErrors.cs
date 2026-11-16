@@ -16,6 +16,13 @@ public static class UserErrors
     public const string RolesNotHeldCode = "Users.User.RolesNotHeld";
     public const string HasMorePermissionsCode = "Users.User.HasMorePermissions";
     public const string InitialAdminCode = "Users.User.InitialAdmin";
+    public const string EmailAlreadySetCode = "Users.User.EmailAlreadySet";
+    public const string PhoneCodeUnavailableCode = "Users.User.PhoneCodeUnavailable";
+    public const string ConfirmationCodeRequiredCode = "Users.User.ConfirmationCodeRequired";
+    public const string NoVerifiedEmailCode = "Users.User.NoVerifiedEmail";
+    public const string PhoneAlreadySetCode = "Users.User.PhoneAlreadySet";
+    public const string NoPhoneCode = "Users.User.NoPhone";
+    public const string NoVerifiedPhoneCode = "Users.User.NoVerifiedPhone";
 
     public static readonly Error EmailInvalid = Error.Validation(EmailInvalidCode, "The email address is not valid.");
 
@@ -79,4 +86,48 @@ public static class UserErrors
     /// </summary>
     public static readonly Error InitialAdmin = Error.Conflict(
         InitialAdminCode, "This is the initial administrator's account: Seed:AdminEmail has to change in the configuration first.");
+
+    /// <summary>
+    /// El perfil agrega un correo, pero no cambia uno verificado (N11): con una sesión abierta ajena, cambiarlo sería
+    /// quedarse con la cuenta. Lo cambia un administrador.
+    /// </summary>
+    public static readonly Error EmailAlreadySet = Error.Conflict(
+        EmailAlreadySetCode, "The account already has a verified email, and it can't be changed from the profile.");
+
+    /// <summary>
+    /// Agregar un correo a una cuenta con número verificado pide un código a ese número (N11), y ahora el canal
+    /// telefónico no manda códigos (sin WhatsApp, o apagado).
+    /// </summary>
+    public static readonly Error PhoneCodeUnavailable = Error.Conflict(
+        PhoneCodeUnavailableCode, "The change needs a code sent to the account's phone number, and no codes can be sent to phones now.");
+
+    /// <summary>
+    /// El cambio pide el código que se mandó al medio que la cuenta ya tiene (N11: el del número para agregar un
+    /// correo, el del correo para desvincular el número), y no vino. Va atado al campo de ese código.
+    /// </summary>
+    public static readonly Error ConfirmationCodeRequired = Error.Validation(
+        ConfirmationCodeRequiredCode, "The change needs the code sent to the account's other sign-in method.");
+
+    /// <summary>
+    /// Se pidió al correo el código que confirma un cambio del número, y la cuenta no tiene un correo verificado.
+    /// </summary>
+    public static readonly Error NoVerifiedEmail = Error.Conflict(
+        NoVerifiedEmailCode, "The account has no verified email to send the code to.");
+
+    /// <summary>
+    /// El perfil vincula un número, pero no reemplaza uno verificado (cada medio confirma los cambios del otro,
+    /// 2026-11-16): para cambiarlo, se desvincula (con el código del correo) y se vincula el nuevo; en una cuenta sólo con
+    /// WhatsApp lo cambia un administrador. Uno sin verificar, que cargó un administrador, sí se reemplaza.
+    /// </summary>
+    public static readonly Error PhoneAlreadySet = Error.Conflict(
+        PhoneAlreadySetCode, "The account already has a verified phone number, and it can't be replaced from the profile.");
+
+    /// <summary>Se pidió el código que confirma desvincular el número, y la cuenta no tiene número.</summary>
+    public static readonly Error NoPhone = Error.Conflict(NoPhoneCode, "The account has no phone number to unlink.");
+
+    /// <summary>
+    /// Se pidió al número el código que confirma agregar un correo, y la cuenta no tiene un número verificado.
+    /// </summary>
+    public static readonly Error NoVerifiedPhone = Error.Conflict(
+        NoVerifiedPhoneCode, "The account has no verified phone number to send the code to.");
 }

@@ -20,6 +20,14 @@
   <data name="VerifyEmail.Title" xml:space="preserve"><value>Confirmá tu correo</value></data>
   <data name="VerifyEmail.Intro" xml:space="preserve"><value>Usá este código para agregar este correo a tu cuenta de {0}:</value></data>
   <data name="VerifyEmail.Expiry" xml:space="preserve"><value>Vence en {0} minutos. Si no lo pediste, ignorá este email: sin el código, nadie puede agregar esta dirección a una cuenta.</value></data>
+  <data name="UnlinkPhone.Subject" xml:space="preserve"><value>{0} es tu código para desvincular tu WhatsApp de {1}</value></data>
+  <data name="UnlinkPhone.Title" xml:space="preserve"><value>Confirmá que desvinculás tu WhatsApp</value></data>
+  <data name="UnlinkPhone.Intro" xml:space="preserve"><value>Usá este código para desvincular el número de WhatsApp de tu cuenta de {0}:</value></data>
+  <data name="UnlinkPhone.Expiry" xml:space="preserve"><value>Vence en {0} minutos. Si no lo pediste, no se lo des a nadie: alguien está usando tu sesión, y sin el código no puede desvincular tu número.</value></data>
+  <data name="LinkPhone.Subject" xml:space="preserve"><value>{0} es tu código para vincular un WhatsApp a {1}</value></data>
+  <data name="LinkPhone.Title" xml:space="preserve"><value>Confirmá que vinculás un WhatsApp</value></data>
+  <data name="LinkPhone.Intro" xml:space="preserve"><value>Usá este código para vincular un número de WhatsApp a tu cuenta de {0}:</value></data>
+  <data name="LinkPhone.Expiry" xml:space="preserve"><value>Vence en {0} minutos. Si no lo pediste, no se lo des a nadie: alguien está usando tu sesión, y sin el código no puede vincular un número a tu cuenta.</value></data>
   <data name="Invitation.Subject" xml:space="preserve"><value>Te dieron acceso a {0}</value></data>
   <data name="Invitation.Title" xml:space="preserve"><value>Te dieron acceso</value></data>
   <data name="Invitation.Greeting" xml:space="preserve"><value>Hola, {0}. Un administrador te dio acceso a {1}.</value></data>

@@ -192,8 +192,10 @@ internal sealed class UserGuard(
     /// <summary>
     /// Un administrador desvincula el WhatsApp de <paramref name="user"/> (sección 12 del spec del ingreso con WhatsApp).
     /// A otra persona la puede dejar sin medio de ingreso, porque es el caso del teléfono robado: la pantalla se lo
-    /// advierte, salvo que tenga permisos que él no tiene. A sí mismo no: sobre su propia cuenta vale la misma regla que
-    /// en el perfil (<see cref="HasOtherLoginMethodAsync"/>).
+    /// advierte, salvo que tenga permisos que él no tiene. A sí mismo no: sobre su propia cuenta conserva otro medio de
+    /// ingreso (<see cref="HasOtherLoginMethodAsync"/>), como en el perfil. Lo demás del perfil no vale acá: la
+    /// administración no pide el código del correo para desvincular (cada medio confirma los cambios del otro sólo desde
+    /// el perfil).
     /// </summary>
     public async Task<Result> EnsurePhoneCanBeUnlinkedAsync(UserAccount user, CancellationToken cancellationToken)
     {

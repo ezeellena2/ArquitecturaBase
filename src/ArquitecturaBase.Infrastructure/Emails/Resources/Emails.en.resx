@@ -20,6 +20,14 @@
   <data name="VerifyEmail.Title" xml:space="preserve"><value>Confirm your email</value></data>
   <data name="VerifyEmail.Intro" xml:space="preserve"><value>Use this code to add this email to your {0} account:</value></data>
   <data name="VerifyEmail.Expiry" xml:space="preserve"><value>It expires in {0} minutes. If you didn't request it, ignore this email: without the code, nobody can add this address to an account.</value></data>
+  <data name="UnlinkPhone.Subject" xml:space="preserve"><value>{0} is your code to unlink your WhatsApp from {1}</value></data>
+  <data name="UnlinkPhone.Title" xml:space="preserve"><value>Confirm that you are unlinking your WhatsApp</value></data>
+  <data name="UnlinkPhone.Intro" xml:space="preserve"><value>Use this code to unlink the WhatsApp number from your {0} account:</value></data>
+  <data name="UnlinkPhone.Expiry" xml:space="preserve"><value>It expires in {0} minutes. If you didn't request it, don't give it to anyone: someone is using your session, and without the code they can't unlink your number.</value></data>
+  <data name="LinkPhone.Subject" xml:space="preserve"><value>{0} is your code to link a WhatsApp to {1}</value></data>
+  <data name="LinkPhone.Title" xml:space="preserve"><value>Confirm that you are linking a WhatsApp</value></data>
+  <data name="LinkPhone.Intro" xml:space="preserve"><value>Use this code to link a WhatsApp number to your {0} account:</value></data>
+  <data name="LinkPhone.Expiry" xml:space="preserve"><value>It expires in {0} minutes. If you didn't request it, don't give it to anyone: someone is using your session, and without the code they can't link a number to your account.</value></data>
   <data name="Invitation.Subject" xml:space="preserve"><value>You've been given access to {0}</value></data>
   <data name="Invitation.Title" xml:space="preserve"><value>You've been given access</value></data>
   <data name="Invitation.Greeting" xml:space="preserve"><value>Hi, {0}. An administrator gave you access to {1}.</value></data>

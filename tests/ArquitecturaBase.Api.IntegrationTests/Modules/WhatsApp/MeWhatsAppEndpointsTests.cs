@@ -35,6 +35,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 {
     private const string CodeUrl = "/api/me/whatsapp/code";
     private const string LinkUrl = "/api/me/whatsapp";
+    private const string EmailConfirmationCodeUrl = "/api/me/email/confirmation-code";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -69,8 +70,26 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.Equal(userId, stored.RequestedByUserId);
         Assert.NotNull(stored.SentAtUtc);
 
-        using var confirm = await client.SendWithTokenAsync(
+        // La cuenta entró con su correo: vincular un número lo confirma también el código que llega a ese correo, que
+        // dice qué cambio confirma.
+        var email = (await AccountAsync(userId)).Email!;
+        var sentToEmail = factory.EmailSender.CountFor(email);
+        using var askEmailCode = await client.SendWithTokenAsync(
+            HttpMethod.Post, EmailConfirmationCodeUrl, tokens.AccessToken, new { change = "LinkPhone" });
+        Assert.Equal(HttpStatusCode.Accepted, askEmailCode.StatusCode);
+        var emailMessage = await factory.EmailSender.WaitForAsync(email, sentToEmail + 1);
+        var emailCode = CapturingEmailSender.CodeOf(emailMessage);
+        Assert.Equal($"{emailCode} es tu código para vincular un WhatsApp a Acceso", emailMessage.Subject);
+        Assert.Contains("alguien está usando tu sesión", emailMessage.TextBody, StringComparison.Ordinal);
+
+        using var withoutEmailCode = await client.SendWithTokenAsync(
             HttpMethod.Put, LinkUrl, tokens.AccessToken, new { phone = phone.Value, code = message.Code });
+        Assert.Equal(HttpStatusCode.BadRequest, withoutEmailCode.StatusCode);
+        Assert.Equal(
+            UserErrors.ConfirmationCodeRequiredCode, (await withoutEmailCode.ReadJsonAsync()).GetProperty("code").GetString());
+
+        using var confirm = await client.SendWithTokenAsync(
+            HttpMethod.Put, LinkUrl, tokens.AccessToken, new { phone = phone.Value, code = message.Code, emailCode });
         using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var profile = await me.ReadJsonAsync();
 
@@ -300,18 +319,18 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Replacing_the_number_releases_the_contact_of_the_previous_one()
+    public async Task Replacing_an_unverified_number_releases_the_contact_of_the_previous_one()
     {
+        // Un número verificado no se reemplaza desde el perfil; uno sin verificar, que cargó un administrador, sí.
         using var client = factory.CreateClient();
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
-        var previousContact = await ArrangeHistoricalContactAsync(client, previousPhone);
         var newContact = await ArrangeHistoricalContactAsync(client, newPhone);
-        var user = await CreateAccountAsync(email: TestEmails.Unique("reemplaza"));
+        var user = await CreateAccountAsync(email: TestEmails.Unique("reemplaza"), phone: previousPhone, phoneConfirmed: false);
+        var previousContact = await ArrangeHistoricalContactAsync(client, previousPhone);
+        Assert.Equal(user.Id, (await ContactAsync(previousContact)).UserId);
 
-        using var linkPrevious = await ConfirmAsync(client, user, previousPhone, await RequestCodeAsync(client, user, previousPhone));
         using var linkNew = await ConfirmAsync(client, user, newPhone, await RequestCodeAsync(client, user, newPhone));
 
-        Assert.Equal(HttpStatusCode.NoContent, linkPrevious.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, linkNew.StatusCode);
 
         var account = await AccountAsync(user.Id);
@@ -322,14 +341,13 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Replacing_the_number_with_one_that_never_wrote_to_the_bot_also_releases_the_previous_contact()
+    public async Task Replacing_an_unverified_number_with_one_that_never_wrote_to_the_bot_also_releases_the_previous_contact()
     {
         using var client = factory.CreateClient();
         var previousPhone = TestPhones.Unique();
         var newPhone = TestPhones.Unique();
+        var user = await CreateAccountAsync(email: TestEmails.Unique("sinchat"), phone: previousPhone, phoneConfirmed: false);
         var previousContact = await ArrangeHistoricalContactAsync(client, previousPhone);
-        var user = await CreateAccountAsync(email: TestEmails.Unique("sinchat"));
-        using var linkPrevious = await ConfirmAsync(client, user, previousPhone, await RequestCodeAsync(client, user, previousPhone));
         Assert.Equal(user.Id, (await ContactAsync(previousContact)).UserId);
 
         using var linkNew = await ConfirmAsync(client, user, newPhone, await RequestCodeAsync(client, user, newPhone));
@@ -340,11 +358,11 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Replacing_the_number_voids_the_links_already_sent_to_the_chat_of_the_previous_one()
+    public async Task Replacing_an_unverified_number_voids_the_links_already_sent_to_the_chat_of_the_previous_one()
     {
         using var client = factory.CreateClient();
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
-        var user = await CreateAccountAsync(email: TestEmails.Unique("cambia"), phone: previousPhone);
+        var user = await CreateAccountAsync(email: TestEmails.Unique("cambia"), phone: previousPhone, phoneConfirmed: false);
 
         await ArrangeHistoricalContactAsync(client, previousPhone);
         var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
@@ -358,6 +376,71 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         // Para el número anterior es lo mismo que desvincularlo: su chat puede no ser más de esta persona.
         Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task A_verified_number_is_not_replaced_from_the_profile_and_its_code_is_not_spent()
+    {
+        // Cada medio confirma los cambios del otro (2026-11-16): para cambiar un número verificado, se desvincula (con el
+        // código del correo) y se vincula el nuevo; en una cuenta sólo con WhatsApp, lo cambia un administrador.
+        using var client = factory.CreateClient();
+        var (current, other) = (TestPhones.Unique(), TestPhones.Unique());
+        var user = await CreateAccountAsync(phone: current);
+        var code = await RequestCodeAsync(client, user, other);
+
+        using var response = await ConfirmAsync(client, user, other, code, language: "es");
+        var problem = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(UserErrors.PhoneAlreadySetCode, problem.GetProperty("code").GetString());
+        Assert.Equal(
+            "Tu cuenta ya tiene un número de WhatsApp verificado, y desde tu perfil no se reemplaza. Para cambiarlo, desvinculalo y vinculá el nuevo; si es tu único medio de ingreso, pedíselo a un administrador.",
+            problem.GetProperty("detail").GetString());
+        Assert.Null(await factory.ExecuteDbContextAsync(db => db.LoginCodes
+            .Where(stored => stored.Destination == other.Value && stored.RequestedByUserId == user.Id)
+            .Select(stored => stored.ConsumedAtUtc)
+            .SingleAsync(Ct)));
+        Assert.Equal(current.Value, (await AccountAsync(user.Id)).PhoneNumber);
+    }
+
+    [Fact]
+    public async Task With_a_verified_email_a_wrong_or_missing_email_code_does_not_link_and_keeps_the_number_code()
+    {
+        using var client = factory.CreateClient();
+        var phone = TestPhones.Unique();
+        var user = await CreateAccountAsync(email: TestEmails.Unique("con-correo"));
+        var code = await RequestCodeAsync(client, user, phone);
+        var emailCode = await LinkEmailCodeAsync(user, phone);
+
+        using var missing = await SendAsync(client, HttpMethod.Put, LinkUrl, user, new { phone = phone.Value, code }, "es");
+        using var wrong = await ConfirmAsync(client, user, phone, code, language: "es", emailCode: WrongCodeFor(emailCode!));
+        var missingProblem = await missing.ReadJsonAsync();
+        var wrongProblem = await wrong.ReadJsonAsync();
+        using var right = await ConfirmAsync(client, user, phone, code, emailCode: emailCode);
+
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        Assert.Equal(UserErrors.ConfirmationCodeRequiredCode, missingProblem.GetProperty("code").GetString());
+        Assert.True(missingProblem.GetProperty("errors").TryGetProperty("emailCode", out _));
+        Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+        Assert.Equal(LoginCodeErrors.InvalidCode, wrongProblem.GetProperty("code").GetString());
+        Assert.True(wrongProblem.GetProperty("errors").TryGetProperty("emailCode", out _));
+        Assert.Equal(4, wrongProblem.GetProperty("attemptsLeft").GetInt32());
+        Assert.Equal(HttpStatusCode.NoContent, right.StatusCode);
+        Assert.Equal(phone.Value, (await AccountAsync(user.Id)).PhoneNumber);
+    }
+
+    [Fact]
+    public async Task With_a_verified_number_asking_the_email_for_a_code_to_link_another_answers_409()
+    {
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("ya-tiene");
+        var user = await CreateAccountAsync(email: email, phone: TestPhones.Unique());
+
+        using var response = await SendAsync(client, HttpMethod.Post, EmailConfirmationCodeUrl, user, new { change = "LinkPhone" });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(UserErrors.PhoneAlreadySetCode, (await response.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.Equal(0, factory.EmailSender.CountFor(email));
     }
 
     [Fact]
@@ -378,19 +461,20 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Replacing_the_number_while_inbound_processing_holds_the_previous_chat_waits_for_it_and_voids_pending_links()
+    public async Task Replacing_an_unverified_number_while_inbound_processing_holds_the_previous_chat_waits_for_it_and_voids_pending_links()
     {
         using var client = factory.CreateClient();
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
-        var user = await CreateAccountAsync(email: TestEmails.Unique("cruce"), phone: previousPhone);
+        var user = await CreateAccountAsync(email: TestEmails.Unique("cruce"), phone: previousPhone, phoneConfirmed: false);
         var bsuid = await ArrangeHistoricalContactAsync(client, previousPhone);
         var code = await RequestCodeAsync(client, user, newPhone);
+        var emailCode = await LinkEmailCodeAsync(user, newPhone);
         var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
         var sentBefore = factory.WhatsApp.CountFor(previousPhone);
 
         await SayHelloAsync(client, previousPhone, bsuid);
         await using var bot = await StartHeldProcessorAsync(bsuid);
-        var replace = Task.Run(() => ConfirmAsync(client, user, newPhone, code), Ct);
+        var replace = Task.Run(() => ConfirmAsync(client, user, newPhone, code, emailCode: emailCode), Ct);
         await WaitUntilSomeoneWaitsForALockAsync();
         await bot.ReleaseAsync();
         using var response = await replace.WaitAsync(TimeSpan.FromSeconds(30), Ct);
@@ -404,17 +488,18 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Replacing_the_number_during_first_business_processing_does_not_link_the_previous_chat()
+    public async Task Replacing_an_unverified_number_during_first_business_processing_does_not_link_the_previous_chat()
     {
         using var client = factory.CreateClient();
         var (previousPhone, newPhone) = (TestPhones.Unique(), TestPhones.Unique());
         var newContact = await ArrangeHistoricalContactAsync(client, newPhone);
-        var user = await CreateAccountAsync(email: TestEmails.Unique("primerchat"), phone: previousPhone);
+        var user = await CreateAccountAsync(email: TestEmails.Unique("primerchat"), phone: previousPhone, phoneConfirmed: false);
         var code = await RequestCodeAsync(client, user, newPhone);
+        var emailCode = await LinkEmailCodeAsync(user, newPhone);
         var bsuid = MetaWebhook.UniqueBsuid();
         await SayHelloAsync(client, previousPhone, bsuid);
         await using var processor = await StartHeldProcessorAsync(bsuid);
-        using var response = await ConfirmAsync(client, user, newPhone, code);
+        using var response = await ConfirmAsync(client, user, newPhone, code, emailCode: emailCode);
         await processor.ReleaseAsync();
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty(factory.WhatsApp.SentTo(previousPhone));
@@ -432,12 +517,13 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
             Email.Create(TestEmails.Unique("verifican")).Value, phone, phoneConfirmed: false, displayName: null, "es", Ct));
         var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
         var code = await RequestCodeAsync(client, user, phone);
+        var emailCode = await LinkEmailCodeAsync(user, phone);
         var bsuid = MetaWebhook.UniqueBsuid();
         var sentBefore = factory.WhatsApp.CountFor(phone);
 
         await SayHelloAsync(client, phone, bsuid);
         await using var bot = await StartHeldProcessorAsync(bsuid);
-        var confirm = Task.Run(() => ConfirmAsync(client, user, phone, code), Ct);
+        var confirm = Task.Run(() => ConfirmAsync(client, user, phone, code, emailCode: emailCode), Ct);
         await WaitUntilSomeoneWaitsForALockAsync();
         await bot.ReleaseAsync();
         using var response = await confirm.WaitAsync(TimeSpan.FromSeconds(30), Ct);
@@ -484,10 +570,12 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var second = await CreateAccountAsync(email: TestEmails.Unique("carrera2"));
         var firstCode = await RequestCodeAsync(client, first, phone);
         var secondCode = await RequestCodeAsync(client, second, phone);
+        var firstEmailCode = await LinkEmailCodeAsync(first, phone);
+        var secondEmailCode = await LinkEmailCodeAsync(second, phone);
 
         var responses = await Task.WhenAll(
-            ConfirmAsync(client, first, phone, firstCode),
-            ConfirmAsync(client, second, phone, secondCode));
+            ConfirmAsync(client, first, phone, firstCode, emailCode: firstEmailCode),
+            ConfirmAsync(client, second, phone, secondCode, emailCode: secondEmailCode));
 
         try
         {
@@ -660,8 +748,13 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var bsuid = await ArrangeHistoricalContactAsync(client, phone);
         var link = await TestLoginLinks.IssueUrlAsync(client, userId);
         Assert.Equal(userId, (await ContactAsync(bsuid)).UserId);
+        var previous = factory.EmailSender.CountFor(email);
+        using var ask = await client.SendWithTokenAsync(
+            HttpMethod.Post, EmailConfirmationCodeUrl, tokens.AccessToken, new { change = "UnlinkPhone" });
+        Assert.Equal(HttpStatusCode.Accepted, ask.StatusCode);
+        var code = CapturingEmailSender.CodeOf(await factory.EmailSender.WaitForAsync(email, previous + 1));
 
-        using var response = await client.SendWithTokenAsync(HttpMethod.Delete, LinkUrl, tokens.AccessToken);
+        using var response = await client.SendWithTokenAsync(HttpMethod.Delete, LinkUrl, tokens.AccessToken, new { code });
         using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var profile = await me.ReadJsonAsync();
         using var redeem = await client.PostJsonAsync("/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
@@ -885,18 +978,24 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         using var client = api.CreateClient();
         var phone = TestPhones.Unique();
         var email = TestEmails.Unique("logs");
-        var user = await CreateAccountAsync(email: TestEmails.Unique("registro"));
+        var user = await CreateAccountAsync(phone: phone);
 
+        // El recorrido de cada medio confirma: el código que confirma el cambio, mandado al número que ya tiene la
+        // cuenta, agrega el correo nuevo, y el del correo, que se desvincule el número.
         var code = await RequestCodeAsync(client, user, phone);
         using var wrong = await ConfirmAsync(client, user, phone, WrongCodeFor(code));
-        using var right = await ConfirmAsync(client, user, phone, code);
+        var sentToPhone = factory.WhatsApp.CountFor(phone);
+        using var phoneCodeRequest = await SendAsync(client, HttpMethod.Post, "/api/me/whatsapp/confirmation-code", user);
+        Assert.Equal(HttpStatusCode.Accepted, phoneCodeRequest.StatusCode);
+        var phoneCode = CapturingWhatsAppSendQueue.CodeOf(factory.WhatsApp.SentTo(phone)[sentToPhone]);
         using var emailRequest = await SendAsync(client, HttpMethod.Post, "/api/me/email/code", user, new { email });
         var emailCode = CapturingEmailSender.CodeOf(await factory.EmailSender.WaitForAsync(email));
-        using var emailConfirm = await SendAsync(client, HttpMethod.Put, "/api/me/email", user, new { email, code = emailCode });
-        using var unlink = await UnlinkAsync(client, user);
+        using var emailConfirm = await SendAsync(
+            client, HttpMethod.Put, "/api/me/email", user, new { email, code = emailCode, phoneCode });
+        var unlinkCode = await UnlinkCodeAsync(client, user);
+        using var unlink = await UnlinkWithCodeAsync(client, user, unlinkCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, right.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, emailConfirm.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, unlink.StatusCode);
 
@@ -914,7 +1013,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.NotEmpty(logged);
 
         // Como palabra suelta: un trace id en hexadecimal puede tener seis dígitos seguidos por casualidad.
-        string[] secrets = [code, emailCode, phone.Value, phone.Value[1..], TestPhones.AsTypedLocally(phone)];
+        string[] secrets = [code, phoneCode, emailCode, unlinkCode!, phone.Value, phone.Value[1..], TestPhones.AsTypedLocally(phone)];
         var leaks = secrets
             .SelectMany(secret => logged
                 .Where(text => Regex.IsMatch(text, $"(?<![0-9A-Za-z]){Regex.Escape(secret)}(?![0-9A-Za-z])"))
@@ -938,6 +1037,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     [Theory]
     [InlineData("GET", "/api/me/whatsapp")]
     [InlineData("POST", "/api/me/whatsapp/code")]
+    [InlineData("POST", "/api/me/whatsapp/confirmation-code")]
     [InlineData("PUT", "/api/me/whatsapp")]
     [InlineData("POST", "/api/me/email/code")]
     [InlineData("PUT", "/api/me/email")]
@@ -967,12 +1067,68 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         HttpClient client, UserAccount user, PhoneNumber phone, string? language = null) =>
         SendAsync(client, HttpMethod.Post, CodeUrl, user, new { country = "AR", number = TestPhones.AsTypedLocally(phone) }, language);
 
-    private static Task<HttpResponseMessage> ConfirmAsync(
-        HttpClient client, UserAccount user, PhoneNumber phone, string code, string? language = null) =>
-        SendAsync(client, HttpMethod.Put, LinkUrl, user, new { phone = phone.Value, code }, language);
+    /// <summary>
+    /// Confirma el número. Sin <paramref name="emailCode"/>, si la cuenta lo necesita (un correo verificado y un número
+    /// que cambia), antes lo pide al correo con <see cref="LinkEmailCodeAsync"/>.
+    /// </summary>
+    private async Task<HttpResponseMessage> ConfirmAsync(
+        HttpClient client, UserAccount user, PhoneNumber phone, string code, string? language = null, string? emailCode = null)
+    {
+        emailCode ??= await LinkEmailCodeAsync(user, phone);
 
-    private static Task<HttpResponseMessage> UnlinkAsync(HttpClient client, UserAccount user, string? language = null) =>
-        SendAsync(client, HttpMethod.Delete, LinkUrl, user, body: null, language);
+        return await SendAsync(client, HttpMethod.Put, LinkUrl, user, new { phone = phone.Value, code, emailCode }, language);
+    }
+
+    /// <summary>
+    /// El código al correo verificado de la cuenta que confirma vincular <paramref name="phone"/> (cada medio confirma
+    /// los cambios del otro), pedido con la Api compartida; null si no hace falta: sin correo verificado, o
+    /// si el número ya es el verificado de la cuenta.
+    /// </summary>
+    private async Task<string?> LinkEmailCodeAsync(UserAccount user, PhoneNumber phone)
+    {
+        var account = await factory.ExecuteScopeAsync(services =>
+            services.GetRequiredService<IUserReader>().FindByIdAsync(user.Id, Ct));
+        if (account is not { Email: { } email, EmailConfirmed: true }
+            || account is { PhoneNumberConfirmed: true } && account.PhoneNumber == phone.Value)
+        {
+            return null;
+        }
+
+        using var client = factory.CreateClient();
+        var previous = factory.EmailSender.CountFor(email);
+        using var response = await SendAsync(client, HttpMethod.Post, EmailConfirmationCodeUrl, user, new { change = "LinkPhone" });
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+
+        return CapturingEmailSender.CodeOf(await factory.EmailSender.WaitForAsync(email, previous + 1));
+    }
+
+    /// <summary>
+    /// Desvincula el número. Con un correo verificado, antes pide el código a ese correo y lo manda (N11).
+    /// </summary>
+    private async Task<HttpResponseMessage> UnlinkAsync(HttpClient client, UserAccount user, string? language = null) =>
+        await UnlinkWithCodeAsync(client, user, await UnlinkCodeAsync(client, user), language);
+
+    private static Task<HttpResponseMessage> UnlinkWithCodeAsync(
+        HttpClient client, UserAccount user, string? code, string? language = null) =>
+        SendAsync(client, HttpMethod.Delete, LinkUrl, user, code is null ? null : new { code }, language);
+
+    /// <summary>
+    /// El código al correo verificado de la cuenta para desvincular el número; null si no tiene uno, o si no tiene número
+    /// (sin número, desvincular sólo suelta lo que quedó atado, sin código).
+    /// </summary>
+    private async Task<string?> UnlinkCodeAsync(HttpClient client, UserAccount user)
+    {
+        if (await AccountAsync(user.Id) is not { Email: { } email, EmailConfirmed: true, PhoneNumber: not null })
+        {
+            return null;
+        }
+
+        var previous = factory.EmailSender.CountFor(email);
+        using var response = await SendAsync(client, HttpMethod.Post, EmailConfirmationCodeUrl, user, new { change = "UnlinkPhone" });
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+
+        return CapturingEmailSender.CodeOf(await factory.EmailSender.WaitForAsync(email, previous + 1));
+    }
 
     private static Task<HttpResponseMessage> ReadChatAsync(HttpClient client, UserAccount user) =>
         SendAsync(client, HttpMethod.Get, LinkUrl, user);
@@ -991,10 +1147,14 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         return CapturingWhatsAppSendQueue.CodeOf(messages[^1]);
     }
 
-    /// <summary>Una cuenta con un correo (verificado), un número o los dos, en español si no se pide otro idioma.</summary>
-    private Task<UserAccount> CreateAccountAsync(string? email = null, PhoneNumber? phone = null, string culture = "es") =>
+    /// <summary>
+    /// Una cuenta con un correo (verificado), un número (verificado, salvo que se pida lo contrario, como uno que cargó un
+    /// administrador) o los dos, en español si no se pide otro idioma.
+    /// </summary>
+    private Task<UserAccount> CreateAccountAsync(
+        string? email = null, PhoneNumber? phone = null, string culture = "es", bool phoneConfirmed = true) =>
         factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
-            email is null ? null : Email.Create(email).Value, phone, phoneConfirmed: true, displayName: null, culture, Ct));
+            email is null ? null : Email.Create(email).Value, phone, phoneConfirmed, displayName: null, culture, Ct));
 
     private Task<UserAccount> AccountAsync(Guid userId) =>
         factory.ExecuteScopeAsync(async services =>

@@ -252,6 +252,81 @@ public sealed class LoginCodeTests
     }
 
     [Fact]
+    public void Checking_a_code_to_verify_a_destination_counts_a_wrong_one_but_does_not_spend_the_right_one()
+    {
+        // N11: un cambio que pide dos códigos los revisa a los dos antes de gastar alguno.
+        var code = IssueToVerifyDestination();
+
+        var wrong = code.CheckFor(Owner, "HASH-WRONG", Now);
+        var right = code.CheckFor(Owner, Hash, Now);
+        var stillRight = code.CheckFor(Owner, Hash, Now);
+
+        Assert.Equal(LoginCodeErrors.InvalidCode, wrong.Error.Code);
+        Assert.Equal(4, wrong.Error.Metadata![LoginCodeErrors.AttemptsLeftKey]);
+        Assert.True(right.IsSuccess);
+        Assert.True(stillRight.IsSuccess);
+        Assert.Null(code.ConsumedAtUtc);
+        Assert.Equal(1, code.FailedAttempts);
+
+        code.Consume(Now);
+
+        Assert.Equal(Now, code.ConsumedAtUtc);
+        Assert.Equal(LoginCodeErrors.AlreadyUsedCode, code.CheckFor(Owner, Hash, Now).Error.Code);
+    }
+
+    [Fact]
+    public void Checking_follows_the_same_rules_as_verifying_for_other_accounts_and_sign_in_codes()
+    {
+        var foreign = IssueToVerifyDestination().CheckFor(Guid.CreateVersion7(), Hash, Now);
+        var signIn = Issue();
+
+        Assert.Equal(LoginCodeErrors.InvalidCode, foreign.Error.Code);
+        Assert.Null(foreign.Error.Metadata);
+        Assert.Equal(LoginCodeErrors.InvalidCode, signIn.CheckFor(Owner, Hash, Now).Error.Code);
+        Assert.Equal(0, signIn.FailedAttempts);
+    }
+
+    [Fact]
+    public void Only_an_active_code_can_be_consumed()
+    {
+        var expired = IssueToVerifyDestination();
+        var used = IssueToVerifyDestination();
+        used.Consume(Now);
+
+        Assert.Throws<InvalidOperationException>(() => expired.Consume(Now + Lifetime));
+        Assert.Throws<InvalidOperationException>(() => used.Consume(Now));
+    }
+
+    [Fact]
+    public void A_code_to_confirm_a_change_needs_the_account_that_requested_it()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            LoginCode.Issue(AnaPhone, LoginCodePurpose.ConfirmChange, requestedByUserId: null, Hash, Now, Lifetime, 5));
+        Assert.Throws<ArgumentException>(() =>
+            LoginCode.Issue(AnaPhone, LoginCodePurpose.ConfirmChange, Guid.Empty, Hash, Now, Lifetime, 5));
+    }
+
+    [Fact]
+    public void A_code_to_confirm_a_change_is_checked_and_verified_only_for_the_account_that_requested_it()
+    {
+        // Cada medio confirma los cambios del otro (2026-11-16): el código que confirma es de la cuenta, como el que
+        // verifica un destino, y lo que lo separa de ese es su propósito (el repositorio busca por propósito).
+        var checkedCode = IssueToConfirmChange();
+        var verifiedCode = IssueToConfirmChange();
+
+        Assert.True(checkedCode.CheckFor(Owner, Hash, Now).IsSuccess);
+        Assert.Null(checkedCode.ConsumedAtUtc);
+        Assert.Equal(LoginCodeErrors.InvalidCode, checkedCode.CheckFor(Guid.CreateVersion7(), Hash, Now).Error.Code);
+        Assert.Equal(LoginCodeErrors.InvalidCode, IssueToConfirmChange().VerifyFor(Guid.CreateVersion7(), Hash, Now).Error.Code);
+        Assert.True(verifiedCode.VerifyFor(Owner, Hash, Now).IsSuccess);
+        Assert.Equal(Now, verifiedCode.ConsumedAtUtc);
+        Assert.Equal(LoginCodeErrors.InvalidCode, IssueToConfirmChange().Verify(Hash, Now).Error.Code);
+    }
+
+    private static LoginCode IssueToConfirmChange() =>
+        LoginCode.Issue(AnaPhone, LoginCodePurpose.ConfirmChange, Owner, Hash, Now, Lifetime, maxAttempts: 5);
+
+    [Fact]
     public void Marking_it_sent_keeps_the_first_send()
     {
         var code = Issue();

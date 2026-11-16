@@ -47,7 +47,8 @@ public sealed class LoginCode : Entity
     public LoginCodePurpose Purpose { get; private set; }
 
     /// <summary>
-    /// La cuenta que pidió un código de <see cref="LoginCodePurpose.VerifyDestination"/>; null en los de ingreso.
+    /// La cuenta que pidió un código de <see cref="LoginCodePurpose.VerifyDestination"/> o
+    /// <see cref="LoginCodePurpose.ConfirmChange"/>; null en los de ingreso.
     /// </summary>
     public Guid? RequestedByUserId { get; private set; }
 
@@ -75,8 +76,9 @@ public sealed class LoginCode : Entity
     public int AttemptsLeft => Math.Max(0, MaxAttempts - FailedAttempts);
 
     /// <summary>
-    /// Emite un código. La cuenta que lo pide es obligatoria con <see cref="LoginCodePurpose.VerifyDestination"/> y no
-    /// se admite con <see cref="LoginCodePurpose.SignIn"/>: un código para entrar todavía no es de ninguna cuenta.
+    /// Emite un código. La cuenta que lo pide es obligatoria con <see cref="LoginCodePurpose.VerifyDestination"/> y
+    /// <see cref="LoginCodePurpose.ConfirmChange"/>, y no se admite con <see cref="LoginCodePurpose.SignIn"/>: un código
+    /// para entrar todavía no es de ninguna cuenta.
     /// </summary>
     public static LoginCode Issue(
         LoginCodeDestination destination,
@@ -97,11 +99,13 @@ public sealed class LoginCode : Entity
             case LoginCodePurpose.SignIn when requestedByUserId is not null:
                 throw new ArgumentException("A sign-in code can't be requested by an account.", nameof(requestedByUserId));
 
-            case LoginCodePurpose.VerifyDestination when requestedByUserId is null || requestedByUserId == Guid.Empty:
+            case LoginCodePurpose.VerifyDestination or LoginCodePurpose.ConfirmChange
+                when requestedByUserId is null || requestedByUserId == Guid.Empty:
                 throw new ArgumentException(
-                    "A destination verification code needs the account that requested it.", nameof(requestedByUserId));
+                    "A code to verify a destination or confirm a change needs the account that requested it.",
+                    nameof(requestedByUserId));
 
-            case LoginCodePurpose.SignIn or LoginCodePurpose.VerifyDestination:
+            case LoginCodePurpose.SignIn or LoginCodePurpose.VerifyDestination or LoginCodePurpose.ConfirmChange:
                 break;
 
             default:
@@ -138,25 +142,61 @@ public sealed class LoginCode : Entity
     }
 
     /// <summary>
-    /// Verifica un código de <see cref="LoginCodePurpose.VerifyDestination"/> para la cuenta <paramref name="userId"/>.
-    /// Si el código es de ingreso o lo pidió otra cuenta, la respuesta es la misma que cuando no hay código y no se
-    /// toca ningún contador: así no se sabe que otra cuenta está vinculando ese destino, ni se le gastan los intentos.
+    /// Verifica un código de una cuenta (<see cref="LoginCodePurpose.VerifyDestination"/> o
+    /// <see cref="LoginCodePurpose.ConfirmChange"/>) para la cuenta <paramref name="userId"/>. Si el código es de ingreso
+    /// o lo pidió otra cuenta, la respuesta es la misma que cuando no hay código y no se toca ningún contador: así no se
+    /// sabe que otra cuenta está vinculando ese destino, ni se le gastan los intentos. Que el propósito sea el que se
+    /// busca lo asegura quien lo trae (el repositorio busca por propósito, y el hash lo incluye).
     /// </summary>
     public Result VerifyFor(Guid userId, string codeHash, DateTime nowUtc)
     {
         ArgumentNullException.ThrowIfNull(codeHash);
 
-        return Purpose is LoginCodePurpose.VerifyDestination && RequestedByUserId == userId
+        return IsOf(userId)
             ? Check(codeHash, nowUtc)
             : LoginCodeErrors.Invalid(attemptsLeft: null);
     }
+
+    /// <summary>
+    /// Como <see cref="VerifyFor"/>, pero un código correcto no se gasta: un cambio que pide dos códigos (N11: agregar
+    /// un correo con el del número que la cuenta ya tiene, o vincular un número con el del correo) revisa los dos y los
+    /// gasta juntos con <see cref="Consume"/>, así un error de tipeo en uno no le gasta el otro a la persona. Uno
+    /// equivocado cuenta el intento igual.
+    /// </summary>
+    public Result CheckFor(Guid userId, string codeHash, DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(codeHash);
+
+        return IsOf(userId)
+            ? Check(codeHash, nowUtc, consume: false)
+            : LoginCodeErrors.Invalid(attemptsLeft: null);
+    }
+
+    /// <summary>
+    /// Gasta un código que <see cref="CheckFor"/> ya dio por bueno, con la hora de esa revisión: así uno que vence entre
+    /// revisar y gastar se gasta igual. Uno que no está activo a esa hora (usado, invalidado, vencido o sin intentos) es
+    /// un error de programación: nadie lo revisó antes.
+    /// </summary>
+    public void Consume(DateTime nowUtc)
+    {
+        if (!IsActive(nowUtc))
+        {
+            throw new InvalidOperationException("Only an active code can be consumed.");
+        }
+
+        ConsumedAtUtc = nowUtc;
+    }
+
+    // Los códigos de una cuenta: los de ingreso no son de nadie.
+    private bool IsOf(Guid userId) =>
+        Purpose is LoginCodePurpose.VerifyDestination or LoginCodePurpose.ConfirmChange && RequestedByUserId == userId;
 
     /// <remarks>
     /// Usado y vencido se dicen sólo al código que coincide (N3): con uno cualquiera, la respuesta es la de no tener
     /// código, así no se sabe si alguien ya entró con ese destino. Ninguno de los dos gasta intentos, y un código muerto
     /// no deja entrar aunque se adivine.
     /// </remarks>
-    private Result Check(string codeHash, DateTime nowUtc)
+    private Result Check(string codeHash, DateTime nowUtc, bool consume = true)
     {
         // Comparación en tiempo constante: no revela cuántos caracteres coinciden.
         var matches = CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(CodeHash), Encoding.UTF8.GetBytes(codeHash));
@@ -188,7 +228,10 @@ public sealed class LoginCode : Entity
             return FailedAttempts >= MaxAttempts ? LoginCodeErrors.TooManyAttempts : LoginCodeErrors.Invalid(AttemptsLeft);
         }
 
-        ConsumedAtUtc = nowUtc;
+        if (consume)
+        {
+            ConsumedAtUtc = nowUtc;
+        }
 
         return Result.Success();
     }

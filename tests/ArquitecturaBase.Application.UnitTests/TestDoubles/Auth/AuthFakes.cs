@@ -22,10 +22,17 @@ internal sealed class InMemoryLoginCodeRepository : ILoginCodeRepository
     /// <summary>Si no es null, tomar el lock fuera de la transacción lanza (ver <see cref="TransactionGuard"/>).</summary>
     public Func<bool>? InTransaction { get; set; }
 
+    /// <summary>
+    /// Si no es null, cada lock de un destino se anota también acá, como <c>login-code:destino</c>: así un test ve su
+    /// orden contra los demás locks del caso de uso.
+    /// </summary>
+    public List<string>? Events { get; set; }
+
     public Task LockDestinationAsync(LoginCodeDestination destination, CancellationToken cancellationToken)
     {
         TransactionGuard.Require(InTransaction);
         LockedDestinations.Add(destination.Value);
+        Events?.Add("login-code:" + destination.Value);
 
         return Task.CompletedTask;
     }
@@ -217,6 +224,22 @@ internal sealed class FakeEmailTemplateRenderer : IEmailTemplateRenderer
         LastCulture = culture;
 
         return new EmailMessage(to, "verification subject", "<p>html</p>", "text");
+    }
+
+    public EmailMessage RenderPhoneUnlinkCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
+    {
+        LastCode = code;
+        LastCulture = culture;
+
+        return new EmailMessage(to, "unlink subject", "<p>html</p>", "text");
+    }
+
+    public EmailMessage RenderPhoneLinkCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
+    {
+        LastCode = code;
+        LastCulture = culture;
+
+        return new EmailMessage(to, "link subject", "<p>html</p>", "text");
     }
 
     public EmailMessage RenderInvitation(string to, string? displayName, string loginUrl, CultureInfo culture)

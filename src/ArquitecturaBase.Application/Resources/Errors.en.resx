@@ -56,6 +56,13 @@
   <data name="Users.User.RolesNotHeld" xml:space="preserve"><value>You can't give or take away a role with permissions you don't have.</value></data>
   <data name="Users.User.HasMorePermissions" xml:space="preserve"><value>This account has permissions you don't have: you can't change its email or number, unlink its number, deactivate it, reactivate it or delete it.</value></data>
   <data name="Users.User.InitialAdmin" xml:space="preserve"><value>This is the initial administrator's account, which gets Admin back on every startup: to take Admin away from it or change its email, the Seed:AdminEmail key in the configuration has to change first.</value></data>
+  <data name="Users.User.EmailAlreadySet" xml:space="preserve"><value>Your account already has a verified email, and it can't be changed from your profile. If it has to change, ask an administrator.</value></data>
+  <data name="Users.User.PhoneCodeUnavailable" xml:space="preserve"><value>To add an email you have to confirm it with a code sent to your WhatsApp, and codes can't be sent by WhatsApp right now. Try again later or ask an administrator.</value></data>
+  <data name="Users.User.ConfirmationCodeRequired" xml:space="preserve"><value>The code we sent you to confirm it's you is missing.</value></data>
+  <data name="Users.User.NoVerifiedEmail" xml:space="preserve"><value>Your account has no verified email to send the code to.</value></data>
+  <data name="Users.User.PhoneAlreadySet" xml:space="preserve"><value>Your account already has a verified WhatsApp number, and it can't be replaced from your profile. To change it, unlink it and link the new one; if it's your only way to sign in, ask an administrator.</value></data>
+  <data name="Users.User.NoPhone" xml:space="preserve"><value>Your account has no WhatsApp number to unlink.</value></data>
+  <data name="Users.User.NoVerifiedPhone" xml:space="preserve"><value>Your account has no verified WhatsApp number to send you the code.</value></data>
   <data name="Users.Identity.Required" xml:space="preserve"><value>Enter an email or a WhatsApp number.</value></data>
   <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirm that the person agreed to receive WhatsApp messages.</value></data>
   <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>To invite by WhatsApp, enter the name of the person.</value></data>
