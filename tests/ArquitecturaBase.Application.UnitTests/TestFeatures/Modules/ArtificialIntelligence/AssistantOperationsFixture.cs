@@ -46,6 +46,7 @@ internal sealed class AssistantOperationsFixture
     public FakeLogger<AiAssistantResponsePolicy> ResponseLog { get; } = new();
     // I7, review: the saved key's probes, one per request and after the checks in memory.
     public FictionalCredentials.Protector Secrets { get; } = new();
+    public FictionalCredentials.KeyRing KeyRing { get; } = new();
 
     // extraCapabilities: other definitions the catalog registers next to Source, such as two versions of one Id (I4).
     public AssistantOperationsFixture(bool qualified = true, bool audioQualified = false, bool documentQualified = false, AiAssistantLimits? limits = null,
@@ -66,7 +67,7 @@ internal sealed class AssistantOperationsFixture
         var catalog = Catalog = new AiAssistantCapabilityCatalogPolicy(
             extraCapabilities is null ? [Source] : [Source, new PreparedAssistantCapabilitySource(extraCapabilities)], Permissions);
         var guard = Guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
-            new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), new AiConnectionCandidatePolicy(Secrets));
+            new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), new AiConnectionCandidatePolicy(Secrets, KeyRing));
         var responses = Responses = new AiAssistantResponsePolicy(Protector, Clock, catalog, ResponseLog);
         var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, responses);
         Service = new(Store, guard, submissions, Work, Store, responses, NullLogger<AiAssistantOperations>.Instance);

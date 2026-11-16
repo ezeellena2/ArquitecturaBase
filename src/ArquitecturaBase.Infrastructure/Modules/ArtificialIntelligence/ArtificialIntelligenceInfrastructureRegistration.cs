@@ -31,6 +31,9 @@ public static class ArtificialIntelligenceInfrastructureRegistration
         // I17: a copy whose ring does not match the control values in the database is not ready.
         services.AddSingleton<IAiKeyRingControl, HmacAiKeyRingControl>();
         services.AddScoped<IAiKeyRingControlRepository, AiKeyRingControlRepository>();
+        // I17, review: one verdict for the readiness, the worker's claim, the channels' availability and every acceptance.
+        services.AddSingleton<AiKeyRingReadiness>();
+        services.AddSingleton<IAiKeyRingReadiness>(provider => provider.GetRequiredService<AiKeyRingReadiness>());
         services.AddSingleton<AiKeyRingHealthCheck>();
         services.AddHealthChecks().AddCheck<AiKeyRingHealthCheck>(AiKeyRingHealthCheck.Name);
         services.AddScoped<IAiBusinessInformationRepository, AiBusinessInformationRepository>();

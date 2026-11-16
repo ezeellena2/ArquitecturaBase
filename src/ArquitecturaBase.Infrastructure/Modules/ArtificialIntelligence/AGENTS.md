@@ -18,7 +18,7 @@ cancelación cooperativa y reintento exclusivo del cierre ya obtenido; un Runnin
 no vuelve a generar. Límites/perfiles explícitos en AiAssistantOptions; un catálogo de modelos
 no acredita compatibilidad. Meters del módulo sin preguntas ni etiquetas de actor/conversación.
 I10: `AddTurn` guarda en `TraceParent` el contexto W3C activo de quien acepta (sin uno, nada), que continúa el coordinador.
-I17: `AiKeyRingHealthCheck` (readiness, sin `live`) compara una vez, por `IAiKeyRingControlService`, el control de cada clave con `AiKeyRingControls` y nombra sólo el keyId. Huella con clave ausente: no coincide.
+I17: `AiKeyRingReadiness` compara una vez, por `IAiKeyRingControlService`, el control de cada clave con `AiKeyRingControls` y nombra sólo el keyId; lo consultan `AiKeyRingHealthCheck` (readiness, sin `live`), el claim y la aceptación. Huella con clave ausente: no coincide.
 
 Los detalles del negocio usan JSONB nullable y ValueComparer para las colecciones; la migración
 aditiva conserva los siete textos, revisión y comprobantes. La huella histórica sin details no
@@ -47,6 +47,8 @@ ReadDocument tiene su cliente (`OpenAiDocumentReadingClient`), que sólo llama e
 NormalizeAudio convierte las excepciones de almacenamiento no canceladas (también AggregateException por reintentos y las de apertura, lectura y cierre del stream) a ContentUnavailable sólo antes del cliente STT: un archivo que no llegó al proveedor no queda incierto; cancelación y errores del POST conservan su clasificación.
 
 Retención física (I3): ninguna conversación, de Inicio o de un canal, necesita retirada cuando vencieron contenido y recibos y no hay turnos activos; una de Inicio retirada no espera los recibos. La consulta usa ConversationId de recibos independientes, sin FK/cascade ni inferencia desde el vencimiento del turno. Las conversaciones de una cuenta borrada se listan por dueño para retirarlas aun sin contenido; como `IgnoreQueryFilters` vale para toda la consulta, el estado activo va explícito.
+
+I20: la purga y la medición no recorren la historia. Cada motivo (vencido, conversación retirada, cuenta borrada y las fuentes sin nombrar de I2) es una consulta sobre el índice filtrado de los turnos con contenido (`ContentExpiresAtUtc`, `Id`) o el de las conversaciones retiradas, con el orden y el tope del lote, y PostgreSQL ordena de nuevo la unión: eligen lo mismo que una sola condición. Las conversaciones a borrar se buscan igual, retiradas y activas aparte, y sus recibos vigentes por (`ConversationId`, `ExpiresAtUtc`). El bootstrap de Inicio sólo cuenta los pendientes.
 
 I2: la purga de contenido también toma una grabación o una lectura de Inicio enviada hace más de 24 horas que ningún turno de una conversación activa nombra: el audio por `AudioRequestId` y la lectura por la clave de su copia en `AttachmentKey`, que nombra su pedido, comparada entera (una por extensión) para que la responda el índice filtrado bajo el lock del presupuesto. Como `IgnoreQueryFilters` vale para toda la consulta, los turnos que nombran piden la conversación activa explícita: uno purgado de una retirada conserva `AudioRequestId` y `AttachmentKey`. Los canales técnicos, el prefijo y las extensiones de la clave y el corte los pasa Application; sin columna ni índice nuevos. Al borrar una conversación, el repositorio proyecta de sus turnos el `AudioRequestId` y el `AttachmentKey`, cuya clave nombra la lectura: un perfil que esta versión no lee no la esconde.
 

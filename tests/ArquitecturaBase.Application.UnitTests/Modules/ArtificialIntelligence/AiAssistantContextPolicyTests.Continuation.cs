@@ -27,7 +27,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var claimed = await dispatch.ClaimAsync(ct);
         Assert.True(claimed.IsSuccess);
         Assert.Equal(request.RequestId, claimed.Value!.RequestId);
-        var prepared = await new AiAssistantContextPolicy(fixture.Store, fixture.Store, guard, responses, new AiConnectionCandidatePolicy(new SecretProtector()),
+        var prepared = await new AiAssistantContextPolicy(fixture.Store, fixture.Store, guard, responses, new AiConnectionCandidatePolicy(new SecretProtector(), new FictionalCredentials.KeyRing()),
             catalog, limits, fixture.Clock).PrepareAsync(claimed.Value, ct);
         Assert.True(prepared.IsSuccess);
         var messages = prepared.Value.ProviderRequest.Messages;
@@ -53,7 +53,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var dispatch = new AiAssistantDispatchService(fixture.Store, fixture.Work, new(fixture.Store, fixture.Store, fixture.Store, guard, catalog), fixture.Protector,
             limits, fixture.Clock, NullLogger<AiAssistantDispatchService>.Instance, new DisabledAssistantOperationCompletionSignal());
         var claimed = await dispatch.ClaimAsync(ct);
-        var prepared = await new AiAssistantContextPolicy(fixture.Store, fixture.Store, guard, responses, new AiConnectionCandidatePolicy(new SecretProtector()),
+        var prepared = await new AiAssistantContextPolicy(fixture.Store, fixture.Store, guard, responses, new AiConnectionCandidatePolicy(new SecretProtector(), new FictionalCredentials.KeyRing()),
             catalog, limits, fixture.Clock).PrepareAsync(claimed.Value!, ct);
         Assert.True(prepared.IsSuccess);
         Assert.StartsWith(request.Text + "\n\n", Assert.Single(prepared.Value.ProviderRequest.Messages).Text, StringComparison.Ordinal);

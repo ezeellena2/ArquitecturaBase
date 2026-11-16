@@ -1,13 +1,17 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Security;
+using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Workers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -54,6 +58,36 @@ public sealed class AiKeyRingHealthCheckTests(ApiFactory factory)
         Assert.Contains("'" + OtherKeyId + "'", (await CheckAsync(copy)).Description, StringComparison.Ordinal);
         Assert.False(await factory.ExecuteDbContextAsync(dbContext => dbContext.Set<AiKeyRingControl>().AnyAsync(control => control.KeyId == OtherKeyId, Ct)));
     }
+
+    // I17, review: the readiness only takes a copy out of HTTP traffic. Its worker asks the same verdict before taking a turn, and its
+    // channels' availability too: a turn that the copies with the right ring accepted stays pending for them. One copy has another
+    // InstallationId (it could not read the saved key and would close the turn Unavailable); the other reads it, but its active key is
+    // one the others do not have (it would answer encrypting with it).
+    [Fact]
+    public async Task A_copy_with_another_ring_takes_no_turn_and_offers_nothing_to_the_channels()
+    {
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary");
+        var requestId = Guid.NewGuid();
+        await scenario.SubmitAsync(requestId, "How many users are there?");
+        await using var otherInstallation = scenario.CreateAdditionalHost(services => services.AddSingleton(Ring("another-installation", KeyId)));
+        await using var otherActiveKey = scenario.CreateAdditionalHost(services => services.AddSingleton(Ring("integration-installation", OtherKeyId)));
+
+        foreach (var copy in new[] { otherInstallation, otherActiveKey })
+        {
+            Assert.False(await copy.Services.GetRequiredService<AiAssistantCoordinator>().ProcessNextAsync(Ct));
+            await using var scope = copy.Services.CreateAsyncScope();
+            Assert.Equal("notConfigured", (await scope.ServiceProvider.GetRequiredService<IAssistantOperations>().GetAvailabilityAsync(Ct)).State);
+        }
+        using var turn = await scenario.Client.GetAsync($"/api/ai/assistant/turns/{requestId}", Ct);
+        Assert.Equal("pending", (await turn.ReadJsonAsync()).GetProperty("state").GetString());
+        Assert.Empty(scenario.Handler.Requests);
+    }
+
+    private static AiKeyRing Ring(string installationId, string activeKeyId) => new(Options.Create(new AiSecretProtectionOptions
+    {
+        InstallationId = installationId, ActiveKeyId = activeKeyId,
+        Keys = { [KeyId] = ApiFactory.TestHashKey, [OtherKeyId] = Convert.ToBase64String(Enumerable.Repeat((byte)9, 32).ToArray()) },
+    }));
 
     private async Task AssertNotReadyAsync(string setting, string value, string written)
     {

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Globalization;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -14,7 +15,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Workers
 
 /// <summary>Coordinates committed units. No scoped service or provider continuation survives a process restart.</summary>
 internal sealed partial class AiAssistantCoordinator(
-    IServiceScopeFactory scopes, TimeProvider timeProvider, IOptions<AiAssistantOptions> options,
+    IServiceScopeFactory scopes, IAiKeyRingReadiness keyRing, TimeProvider timeProvider, IOptions<AiAssistantOptions> options,
     ILogger<AiAssistantCoordinator> logger)
 {
     private static readonly Meter Meter = new("ArquitecturaBase.AiAssistant", "1.0");
@@ -30,6 +31,9 @@ internal sealed partial class AiAssistantCoordinator(
 
     public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken)
     {
+        // I17, review: the readiness only takes a copy out of HTTP traffic. One whose key ring does not match the others' (or could not
+        // verify it yet) takes no turn: it could not read the saved key, or would answer encrypting with a key the others do not have.
+        if (!await keyRing.MatchesAsync(cancellationToken)) return false;
         AiAssistantClaimResponse? claim;
         await using (var scope = scopes.CreateAsyncScope())
         {

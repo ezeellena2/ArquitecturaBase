@@ -98,7 +98,7 @@ public sealed partial class AiAssistantContextPolicyTests
                 new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
             Guard = guard;
             Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock, catalog, Log),
-                new AiConnectionCandidatePolicy(Secrets), catalog, limits, clock);
+                new AiConnectionCandidatePolicy(Secrets, new FictionalCredentials.KeyRing()), catalog, limits, clock);
         }
     }
     private sealed class Protector : IAiConversationProtector

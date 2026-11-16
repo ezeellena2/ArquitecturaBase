@@ -55,7 +55,7 @@ internal sealed class AssistantDocumentExecutionFixture
         Catalog = new([Inner.Source], Inner.Permissions);
         Guard = new(Inner.Users, Inner.Permissions, [], Limits, new FakeCurrentUser(), Catalog, new([], Inner.DocumentProfiles, new MemoryPrivateFileStore()), FictionalCredentials.Policy);
         var responses = new AiAssistantResponsePolicy(Inner.Protector, Inner.Clock, Catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
-        ContextPolicy = new(Inner.Store, Inner.Store, Guard, responses, new AiConnectionCandidatePolicy(new DocumentSecret()), Catalog, Limits, Inner.Clock);
+        ContextPolicy = new(Inner.Store, Inner.Store, Guard, responses, new AiConnectionCandidatePolicy(new DocumentSecret(), new FictionalCredentials.KeyRing()), Catalog, Limits, Inner.Clock);
         Execution = new(ContextPolicy, Guard, Catalog, null!, Client, Limits, Inner.Clock, NullLogger<AiAssistantExecutionService>.Instance);
         Dispatch = new(Inner.Store, Inner.Work, new(Inner.Store, Inner.Store, Inner.Store, Guard, Catalog), Inner.Protector, Limits, Inner.Clock,
             NullLogger<AiAssistantDispatchService>.Instance, CompletionSignal);

@@ -17,6 +17,8 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
 {
     public async Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken cancellationToken)
     {
+        // I17, review: a copy with another key ring offers nothing to the channels, as with a key it cannot read.
+        if (!await guard.KeyRingMatchesAsync(cancellationToken)) return new AssistantAvailabilityResponse("notConfigured");
         var connection = await connectionReader.FindAsync(cancellationToken);
         return new AssistantAvailabilityResponse(guard.Availability(connection)) { ReadsDocuments = guard.ReadsDocuments(connection) };
     }

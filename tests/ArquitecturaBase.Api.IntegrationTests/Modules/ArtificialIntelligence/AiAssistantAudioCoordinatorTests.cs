@@ -26,7 +26,7 @@ public sealed class AiAssistantAudioCoordinatorTests
         services.AddSingleton<IAiAssistantExecutionService>(fixture);
         services.AddSingleton<IAiAssistantReader>(fixture);
         await using var provider = services.BuildServiceProvider();
-        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), clock,
+        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), MatchingKeyRing.Instance, clock,
             Options.Create(new AiAssistantOptions()), NullLogger<AiAssistantCoordinator>.Instance);
         Assert.True(await coordinator.ProcessNextAsync(caller.Token));
         Assert.Equal(1, fixture.BeginCalls);
@@ -53,7 +53,7 @@ public sealed class AiAssistantAudioCoordinatorTests
         services.AddSingleton<IAiAssistantExecutionService>(fixture);
         services.AddSingleton<IAiAssistantReader>(fixture);
         await using var provider = services.BuildServiceProvider();
-        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), clock,
+        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), MatchingKeyRing.Instance, clock,
             Options.Create(new AiAssistantOptions()), NullLogger<AiAssistantCoordinator>.Instance);
         Assert.True(await coordinator.ProcessNextAsync(TestContext.Current.CancellationToken));
         Assert.Equal(AiAssistantErrors.ContentUnavailable.Code, fixture.FailureCode);

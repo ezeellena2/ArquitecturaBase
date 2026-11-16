@@ -468,7 +468,7 @@ public sealed partial class AiAssistantAttachmentTests
             var claimed = await dispatch.ClaimAsync(Ct);
             Assert.True(claimed.IsSuccess);
             return await new AiAssistantContextPolicy(Fixture.Store, Fixture.Store, guard, Responses,
-                new AiConnectionCandidatePolicy(new PlainSecretProtector()), catalog, limits, Fixture.Clock).PrepareAsync(claimed.Value!, Ct);
+                new AiConnectionCandidatePolicy(new PlainSecretProtector(), new FictionalCredentials.KeyRing()), catalog, limits, Fixture.Clock).PrepareAsync(claimed.Value!, Ct);
         }
 
         public void Complete(AiAssistantTurn turn)

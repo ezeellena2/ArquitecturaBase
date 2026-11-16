@@ -27,7 +27,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var accepted=await service.SubmitAsync(fixture.Request() with{Context=context},ct);Assert.True(accepted.IsSuccess);
         var dispatch=new AiAssistantDispatchService(fixture.Store,fixture.Work,new(fixture.Store,fixture.Store,fixture.Store,guard,catalog),fixture.Protector,limits,fixture.Clock,NullLogger<AiAssistantDispatchService>.Instance, new DisabledAssistantOperationCompletionSignal());
         var claimed=await dispatch.ClaimAsync(ct);Assert.True(claimed.IsSuccess);Assert.NotNull(claimed.Value);
-        var prepared=await new AiAssistantContextPolicy(fixture.Store,fixture.Store,guard,responses,new AiConnectionCandidatePolicy(new SecretProtector()),catalog,limits,fixture.Clock).PrepareAsync(claimed.Value,ct);
+        var prepared=await new AiAssistantContextPolicy(fixture.Store,fixture.Store,guard,responses,new AiConnectionCandidatePolicy(new SecretProtector(), new FictionalCredentials.KeyRing()),catalog,limits,fixture.Clock).PrepareAsync(claimed.Value,ct);
         Assert.True(prepared.IsSuccess);Assert.Equal(12,prepared.Value.ProviderRequest.Tools.Count);
         Assert.Equal(Stage5Capabilities.Append("assistant_proposal"),prepared.Value.ProviderRequest.Tools.Select(tool=>tool.Name));
         Assert.DoesNotContain("users.summary",prepared.Value.ProviderRequest.Tools.Select(tool=>tool.Name));

@@ -3,8 +3,12 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
-internal sealed class AiConnectionCandidatePolicy(IAiSecretProtector protector)
+internal sealed class AiConnectionCandidatePolicy(IAiSecretProtector protector, IAiKeyRingReadiness keyRing)
 {
+    // I17, review: a copy whose key ring does not match the other copies' (or could not verify it yet) neither offers nor accepts what
+    // needs the saved key, as with a key it cannot read: it would encrypt with a key the others do not have.
+    public Task<bool> KeyRingMatchesAsync(CancellationToken cancellationToken) => keyRing.MatchesAsync(cancellationToken);
+
     // I4: the key of a provider this version does not know serves no other one and is never sent: keeping it drops it, as Remove does.
     public Result<string?> Resolve(AiConnectionRow current, AiProvider provider, AiCredentialChange change, string? apiKey)
     {

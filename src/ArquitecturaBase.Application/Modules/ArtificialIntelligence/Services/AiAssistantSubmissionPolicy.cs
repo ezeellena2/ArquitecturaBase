@@ -119,6 +119,9 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var requestId = home?.RequestId ?? operation!.RequestId;
         var channelId = home is not null ? "home" : operation!.Context.ChannelId;
         if (home?.Attachment is { } homeAttachment && AiAssistantAttachmentPolicy.Validate(homeAttachment) is { } invalid) return invalid;
+        // I17, review: a copy with another key ring accepts nothing, of Home or of a channel: it would encrypt with a key the other
+        // copies do not have, and its worker would not take the turn.
+        if (!await guard.KeyRingMatchesAsync(ct)) return AiAssistantErrors.Unavailable;
         await connections.LockAsync(ct);
         await repository.LockBudgetAsync(ct);
         await repository.LockActorAsync(userId, ct);

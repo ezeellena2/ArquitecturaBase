@@ -10,7 +10,14 @@ internal static class FictionalCredentials
 {
     public const string UnreadableKey = "fictional-unreadable-key";
 
-    public static AiConnectionCandidatePolicy Policy => new(new Protector());
+    public static AiConnectionCandidatePolicy Policy => new(new Protector(), new KeyRing());
+
+    // I17, review: the key ring as this copy verified it against the control values; it matches unless a test says otherwise.
+    internal sealed class KeyRing : IAiKeyRingReadiness
+    {
+        public bool Matches { get; set; } = true;
+        public Task<bool> MatchesAsync(CancellationToken cancellationToken) => Task.FromResult(Matches);
+    }
 
     // Counts how many times the saved key is probed, so a test sees the in-memory checks go first and one probe per request (I7, review).
     internal sealed class Protector : IAiSecretProtector

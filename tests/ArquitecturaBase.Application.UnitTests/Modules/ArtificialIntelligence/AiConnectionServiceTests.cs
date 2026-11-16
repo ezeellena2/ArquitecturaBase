@@ -173,6 +173,7 @@ public sealed class AiConnectionServiceTests
             services.AddSingleton<IAiConnectionRepository>(Store);
             services.AddSingleton<IAiConnectionReader>(Store);
             services.AddSingleton<IAiSecretProtector>(Secrets);
+            services.AddSingleton<IAiKeyRingReadiness>(new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence.FictionalCredentials.KeyRing());
             services.AddSingleton<IAiChangeFingerprint, Fingerprint>();
             services.AddSingleton<ICurrentUser, User>();
             services.AddSingleton<ILlmClient>(Client);

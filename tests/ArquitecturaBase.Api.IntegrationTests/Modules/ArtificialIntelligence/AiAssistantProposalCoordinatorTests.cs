@@ -29,7 +29,7 @@ public sealed class AiAssistantProposalCoordinatorTests
         services.AddSingleton<IAiAssistantExecutionService>(fixture);
         services.AddSingleton<IAiAssistantReader>(fixture);
         await using var provider = services.BuildServiceProvider();
-        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), clock,
+        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), MatchingKeyRing.Instance, clock,
             Options.Create(new AiAssistantOptions()), NullLogger<AiAssistantCoordinator>.Instance);
         Assert.True(await coordinator.ProcessNextAsync(caller.Token));
         Assert.Equal(1, fixture.ProviderCalls);
@@ -55,7 +55,7 @@ public sealed class AiAssistantProposalCoordinatorTests
         services.AddSingleton<IAiAssistantExecutionService>(fixture);
         services.AddSingleton<IAiAssistantReader>(fixture);
         await using var provider = services.BuildServiceProvider();
-        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), clock,
+        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), MatchingKeyRing.Instance, clock,
             Options.Create(new AiAssistantOptions()), NullLogger<AiAssistantCoordinator>.Instance);
 
         Assert.True(await coordinator.ProcessNextAsync(TestContext.Current.CancellationToken));
@@ -113,6 +113,6 @@ public sealed class AiAssistantProposalCoordinatorTests
     }
 
     private static AiAssistantCoordinator Coordinator(ServiceProvider services, FakeTimeProvider clock, ILogger<AiAssistantCoordinator>? logger = null) =>
-        new(services.GetRequiredService<IServiceScopeFactory>(), clock, Options.Create(new AiAssistantOptions()),
+        new(services.GetRequiredService<IServiceScopeFactory>(), MatchingKeyRing.Instance, clock, Options.Create(new AiAssistantOptions()),
             logger ?? NullLogger<AiAssistantCoordinator>.Instance);
 }

@@ -23,7 +23,7 @@ public sealed class AiAssistantDocumentCoordinatorTests
         var clock = new FakeTimeProvider();
         var fixture = new AiAssistantProposalCoordinatorFixture(clock, stops ? caller.Cancel : null, read: true);
         await using var provider = Services(fixture);
-        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), clock,
+        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), MatchingKeyRing.Instance, clock,
             Options.Create(new AiAssistantOptions()), NullLogger<AiAssistantCoordinator>.Instance);
 
         Assert.True(await coordinator.ProcessNextAsync(caller.Token));
@@ -48,7 +48,7 @@ public sealed class AiAssistantDocumentCoordinatorTests
         var fixture = new AiAssistantProposalCoordinatorFixture(clock, null, read: true)
             { ProviderError = failure == "content" ? AiAssistantErrors.ContentUnavailable : AiAssistantErrors.ProviderUncertain };
         await using var provider = Services(fixture);
-        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), clock,
+        var coordinator = new AiAssistantCoordinator(provider.GetRequiredService<IServiceScopeFactory>(), MatchingKeyRing.Instance, clock,
             Options.Create(new AiAssistantOptions()), NullLogger<AiAssistantCoordinator>.Instance);
 
         Assert.True(await coordinator.ProcessNextAsync(TestContext.Current.CancellationToken));

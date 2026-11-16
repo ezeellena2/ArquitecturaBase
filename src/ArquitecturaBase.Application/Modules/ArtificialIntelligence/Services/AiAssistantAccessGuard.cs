@@ -25,6 +25,9 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
         return profile.IsSuccess && !credentials.CanReveal(connection) ? AiAssistantErrors.Unavailable : profile;
     }
 
+    // I17, review: whether this copy's key ring matches the other copies'; the channels' availability and every acceptance ask it first.
+    public Task<bool> KeyRingMatchesAsync(CancellationToken ct) => credentials.KeyRingMatchesAsync(ct);
+
     // Whether this installation reads documents (ReadDocument): Home's documents route and its bootstrap ask it.
     public bool ReadsDocuments(AiConnectionRow connection) => technical.ReadsDocuments(connection) && credentials.CanReveal(connection);
 

@@ -53,6 +53,28 @@ public sealed class AiAssistantOperationsTests
         Assert.Equal(0, fixture.Work.Commits);
     }
 
+    // I17, review: a copy whose key ring does not match the other copies' (or could not verify it yet) offers nothing to the channels and
+    // accepts nothing, before any lock or decryption: it would encrypt with a key the others do not have, and its worker takes no turn.
+    [Fact]
+    public async Task A_key_ring_that_does_not_match_is_not_available_and_accepts_nothing()
+    {
+        var fixture = new AssistantOperationsFixture(audioQualified: true, documentQualified: true);
+        fixture.KeyRing.Matches = false;
+
+        var unavailable = await fixture.Service.GetAvailabilityAsync(Ct);
+        Assert.Equal(("notConfigured", false), (unavailable.State, unavailable.ReadsDocuments));
+        var request = fixture.Request();
+        var audio = request with { Text = "", Context = request.Context with { SubjectUserId = null, RequiredPermissions = new(["fictional.channel.read"], []),
+            AllowedCapabilities = [], AllowedTerminals = [] },
+            Audio = new("audio/private-object", "audio.ogg", "audio/ogg; codecs=opus", 42, new string('a', 64), request.ContentExpiresAtUtc) };
+        foreach (var submitted in new[] { request, audio, AiAssistantDocumentOperationsTests.DocumentRequest(fixture) })
+            Assert.Equal(AiAssistantErrors.Unavailable, (await fixture.Service.SubmitAsync(submitted, Ct)).Error);
+        Assert.Empty(fixture.Store.Turns);
+        Assert.Empty(fixture.Store.Receipts);
+        Assert.Equal(0, fixture.Work.Commits);
+        Assert.Equal(0, fixture.Secrets.Probes);
+    }
+
     // I7, review: the checks in memory go before decrypting the saved key, and a request probes it once even when the assistant and the
     // documents both need it.
     [Fact]
