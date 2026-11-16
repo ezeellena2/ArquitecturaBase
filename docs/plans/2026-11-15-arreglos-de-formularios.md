@@ -51,13 +51,10 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 
 En orden de peso; cada tarea lo repite.
 
-1. **El front del estado «No aplica»** (F2 y tarea 10). El backend ya marca así al aviso que no puede salir porque la ventana de
-   24 horas está cerrada y a quien dejó el rol, pero el front no lo conoce (`recipientStates` en `workflow.ts`, validado con un
-   objeto estricto): el historial de una respuesta con un aviso así no pasaría la validación. Va primero, con su texto y su test.
+1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro, el contador para quien
-   administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F19, que el detalle muestre quién pidió el último
-   reintento o la consulta; de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 8, 10, 11 y 25.
-3. **El resto de la etapa 6:** F8, F15, F16 y F37, sin empezar.
+   administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 8, 10, 11 y 25.
+3. **El resto de la etapa 6:** F8, sin empezar.
 4. **La etapa 7:** F29, F30 y F25.
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
    «No aplica» se empieza a escribir en la misma versión que lo trae, contra la regla de la [guía de migración](../guides/migracion.md)
@@ -114,14 +111,14 @@ En orden de peso; cada tarea lo repite.
    puede salir porque la ventana de 24 horas está cerrada queda «No aplica» para esa persona, con su motivo, y no frena lo que
    sigue. Cambian las reglas del motor de acciones en [formularios](../features/formularios.md). Tests con `FakeTimeProvider`: un
    PDF en duda se confirma solo sin volver a generarse, y un aviso con la ventana cerrada deja seguir la regla. Mediano.
-   Hecha en parte el 2026-11-15 en `4dc53b94`: consulta sola con espera creciente y aviso «No aplica» por la ventana de 24 horas cerrada. Faltan la marca «Con acciones por resolver» de la planilla (con su filtro y el contador para quien administra reglas, que cambian el contrato y el front) y el aviso a quien cargó cuando su regla se frena. Falta también el front del estado «No aplica», que va primero.
+   Hecha en parte el 2026-11-15 en `4dc53b94`: consulta sola con espera creciente y aviso «No aplica» por la ventana de 24 horas cerrada. Faltan la marca «Con acciones por resolver» de la planilla (con su filtro y el contador para quien administra reglas, que cambian el contrato y el front) y el aviso a quien cargó cuando su regla se frena. El front del estado «No aplica» quedó hecho el 2026-11-16 en `511b6800` del front (`recipientStates`, su texto en es y en, tono neutro y su motivo).
 8. **F28. El worker reserva sólo los tipos de acción que conoce.** Filtro de tipos en la búsqueda de trabajo y un `switch` de
    efectos sin rama por defecto, con un test que recorre los tipos que acepta el editor de reglas y otro donde un tipo desconocido
    sigue esperando. Chico.
    Hecha el 2026-11-15 en `4dc53b94` (el worker reserva sólo los tipos que conoce, `FormActionKinds`, y el `switch` sin rama por defecto; el test recorre la reserva de un tipo desconocido, no los tipos del editor uno por uno). Falta ese test.
 9. **F19. Queda quién pidió reintentar o consultar.** El run guarda quién y cuándo pidió el reintento, el reintento por persona y
    la consulta, y el detalle de la respuesta lo muestra. Chico.
-   Hecha el 2026-11-15 en `760fee98` (columnas en la migración de `4dc53b94`). Falta que el detalle del front muestre quién pidió el último reintento o la consulta.
+   Hecha el 2026-11-15 en `760fee98` (columnas en la migración de `4dc53b94`). El historial del front muestra quién pidió el último reintento o la consulta (`lastRequest`), hecho el 2026-11-16 en `511b6800` del front.
 10. **Tres reglas escritas** (decisión 4). Las horas del PDF van en la zona de la cuenta de quien cargó, con su nombre, en lugar de
     UTC (cambia `formularios.md:425` y los textos de `Pdf.resx`); el aviso a un rol saltea al mandar, como «No aplica», a quien ya
     no es del rol (cambia `formularios.md:271`); y ante un toque viejo en «¿La emito?», quien cargó recibe una vez «Esa respuesta
@@ -192,9 +189,10 @@ En orden de peso; cada tarea lo repite.
 28. **F12. La planilla que se infla no pasa.** Se cuentan también los estilos y los textos compartidos, o baja el tope descomprimido,
     y hay un tope global de importaciones a la vez por copia; antes, medir el pico con una planilla de casi 100 MiB. Chico. Hecha el 2026-11-15 en `2760dc30`.
 29. **F15. Los campos históricos de catálogo, en una tabla chica.** La unión de campos por formulario, catálogo y campo se escribe
-    al capturar, nunca al leer, se rellena con lo existente en la misma migración y la planilla la lee por índice. Mediano. Sin empezar.
+    al capturar, nunca al leer, se rellena con lo existente en la misma migración y la planilla la lee por índice. Mediano. Hecha el 2026-11-16 en `5fd3972d` (`BusinessFormRecordCatalogFields`; suma la tabla a la guía para quitar Formularios).
 30. **F16. Una regla no nombra una opción que no existe.** Guardar una regla, un filtro o una sugerencia comprueba que sus opciones
-    existen, y borrar opciones toma antes el lock de definiciones. Chico. Sin empezar.
+    existen, y borrar opciones toma antes el lock de definiciones. Chico.
+    Hecha el 2026-11-16 (`Forms.Rule.OptionUnavailable`; `FormConditionChoicePolicy.FindUnavailableAsync` comprueba las condiciones de reglas y sugerencias contra sus catálogos de opciones propias, y el borrado de opciones toma antes `LockDefinitionsAsync`). El filtro fijo de un borrador ya lo comprobaba la publicación.
 31. **F21. «Agregar» un estándar resuelve sus catálogos dentro del guardado.** Por clave, después del lock, usando el que ya
     apareció; un doble clic devuelve el mismo borrador. Chico. Hecha el 2026-11-15 en `fe6ed930`.
 32. **F22. El canal dice por qué no pudo crear un borrador.** WhatsApp traduce el nombre repetido, el catálogo no disponible y la
@@ -202,7 +200,7 @@ En orden de peso; cada tarea lo repite.
 33. **F24. Crear un catálogo es idempotente.** Un id de pedido en la creación, como los borradores. Chico. Hecha el 2026-11-15 en `fb0545a0` (backend) y `133b4686` (front). El id de pedido quedó opcional, porque unos 69 tests crean catálogos sin él; el front siempre lo manda.
 34. **F33. El índice por fecha de las respuestas.** Por formulario y fecha de recepción, sobre las vigentes; lo demás de F33 queda
     para gran escala. Trivial. Hecha el 2026-11-16 en `38b8db06` (`IX_BusinessFormRecords_Current_DefinitionId_SubmittedAtUtc`).
-35. **F37. La captura revisa las opciones elegidas por lote.** Una consulta por catálogo que conserva el orden del rechazo. Chico. Sin empezar.
+35. **F37. La captura revisa las opciones elegidas por lote.** Una consulta por catálogo que conserva el orden del rechazo. Chico. Hecha el 2026-11-16 en `23573b08` (`IFormRecordRepository.ListInactiveCatalogItemIdsAsync`; el rechazo nombra la primera opción inactiva en el orden de las respuestas).
 36. **F47. El menú arma el índice de carpetas una vez.** Y las carpetas suman un tope, con su error. Chico. Hecha el 2026-11-15 en `64874daf`.
 
 ### Etapa 7: versiones y documentación

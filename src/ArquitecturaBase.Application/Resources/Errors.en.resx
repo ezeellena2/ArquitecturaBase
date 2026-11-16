@@ -378,6 +378,7 @@
   <data name="Forms.Rule.RevisionNotFound" xml:space="preserve"><value>The rule revision was not found.</value></data>
   <data name="Forms.Rule.RoleWithoutMembers" xml:space="preserve"><value>The selected role has no active people who can decide. Add someone to the role and retry.</value></data>
   <data name="Forms.Rule.RoleUnavailable" xml:space="preserve"><value>The selected role is no longer available.</value></data>
+  <data name="Forms.Rule.OptionUnavailable" xml:space="preserve"><value>One of the chosen options no longer exists. Reload the page and choose again.</value></data>
   <data name="Forms.Rule.PlaceholderInvalid" xml:space="preserve"><value>Use the number, reason or exact question name between braces.</value></data>
   <data name="Forms.Record.StateConflict" xml:space="preserve"><value>The response state changed. Reload before continuing.</value></data>
   <data name="Forms.Action.StateConflict" xml:space="preserve"><value>The action changed. Refresh before retrying.</value></data>

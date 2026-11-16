@@ -378,6 +378,7 @@
   <data name="Forms.Rule.RevisionNotFound" xml:space="preserve"><value>No encontramos esa revisión de reglas.</value></data>
   <data name="Forms.Rule.RoleWithoutMembers" xml:space="preserve"><value>El rol elegido no tiene personas activas que puedan decidir. Sumá a alguien al rol y reintentá.</value></data>
   <data name="Forms.Rule.RoleUnavailable" xml:space="preserve"><value>El rol elegido ya no está disponible.</value></data>
+  <data name="Forms.Rule.OptionUnavailable" xml:space="preserve"><value>Una de las opciones elegidas ya no existe. Recargá la pantalla y elegí de nuevo.</value></data>
   <data name="Forms.Rule.PlaceholderInvalid" xml:space="preserve"><value>Usá el número, el motivo o el nombre exacto de una pregunta entre llaves.</value></data>
   <data name="Forms.Record.StateConflict" xml:space="preserve"><value>La respuesta cambió de estado. Recargá antes de continuar.</value></data>
   <data name="Forms.Action.StateConflict" xml:space="preserve"><value>La acción cambió. Actualizá antes de reintentar.</value></data>

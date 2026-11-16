@@ -558,6 +558,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   `FormDashboardService.cs:28`). La regla decide qué se muestra (`formularios.md:947`), no el costo.
 - **Arreglo:** guardar la unión histórica de campos por formulario, catálogo y campo en una tabla chica, escrita al capturar (nunca
   al leer) y rellenada con lo existente en la misma migración, y leerla por índice. Mediano.
+- **Arreglado el 2026-11-16** en `5fd3972d`.
 
 #### F16. Una regla puede nombrar una opción de catálogo que no existe, y nunca se cumple
 
@@ -574,6 +575,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   (`FormRuleService.cs:59`) y valida la opción sólo como un id no vacío (`FormRulePolicy.cs:29`, `FormRecordFilterPolicy.cs:41-42`).
 - **Arreglo:** comprobar al guardar una regla, un filtro o una sugerencia que las opciones que nombra existan, y que el borrado de
   opciones tome antes el lock de definiciones, en el mismo orden que la captura. Chico.
+- **Arreglado el 2026-11-16** (`Forms.Rule.OptionUnavailable` al guardar reglas y sugerencias; el borrado de opciones toma antes el lock de definiciones; el filtro fijo de un borrador ya lo comprobaba la publicación).
 
 #### F17. La vista oficial hace unas diez llamadas a Meta por clic, sin límite propio
 
@@ -918,6 +920,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
 - **Arreglo:** una consulta por catálogo que devuelva cuáles de las opciones elegidas no están activas, conservando el orden para
   que el rechazo nombre la misma pregunta y el mismo ítem. Chico. Lo que destraba el lock es
   [WhatsApp H32](2026-11-12-arquitectura-whatsapp.md).
+- **Arreglado el 2026-11-16** en `23573b08`.
 
 #### F38. La bandeja y el número del menú recorren todos los documentos en cada vista
 
