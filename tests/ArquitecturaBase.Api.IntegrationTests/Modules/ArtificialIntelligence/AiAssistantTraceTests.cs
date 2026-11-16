@@ -113,6 +113,41 @@ public sealed class AiAssistantTraceTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Checking_for_a_cancellation_while_the_provider_answers_stays_out_of_the_turns_trace()
+    {
+        var stopped = new ConcurrentQueue<Activity>();
+        using var listener = Listen(stopped.Enqueue, "Npgsql");
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary");
+        var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answer = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        scenario.Handler.BeforeAnswer = async call =>
+        {
+            if (call != 1) return;
+            called.SetResult();
+            await answer.Task;
+        };
+        var trace = ActivityTraceId.CreateRandom();
+        await SubmitAsync(scenario, Guid.NewGuid(), trace);
+
+        var processing = scenario.ProcessNextAsync();
+        Activity[] checks;
+        try
+        {
+            await called.Task.WaitAsync(Ct);
+            var held = stopped.Count;
+            await WaitForChecksAsync(stopped, held, 3);
+            checks = TurnQueries(stopped.Skip(held)).ToArray();
+        }
+        finally { answer.TrySetResult(); }
+        Assert.True(await processing);
+
+        // Every half second the coordinator asks the database, and a turn of a minute and a half would bury the call to the provider.
+        Assert.DoesNotContain(checks, item => item.TraceId == trace);
+        // The turn's own queries, such as reserving its step and closing it, stay in its trace.
+        Assert.Contains(stopped, item => item.Source.Name == "Npgsql" && item.TraceId == trace);
+    }
+
+    [Fact]
     public async Task A_stored_trace_that_cannot_be_read_never_holds_the_turn_back()
     {
         var stopped = new ConcurrentBag<Activity>();
@@ -164,17 +199,38 @@ public sealed class AiAssistantTraceTests(ApiFactory factory)
         Assert.Equal(round, (await FindAsync(scenario, traced.RequestId)).TraceParent);
     }
 
-    private static ActivityListener Listen(ConcurrentBag<Activity> stopped)
+    private static ActivityListener Listen(ConcurrentBag<Activity> stopped) => Listen(stopped.Add, "Microsoft.AspNetCore");
+
+    private static ActivityListener Listen(Action<Activity> stopped, string otherSource)
     {
         var listener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name is AiAssistantTracing.SourceName or "Microsoft.AspNetCore",
+            ShouldListenTo = source => source.Name == AiAssistantTracing.SourceName || source.Name == otherSource,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = stopped.Add,
+            ActivityStopped = stopped,
         };
         ActivitySource.AddActivityListener(listener);
         return listener;
     }
+
+    // While the provider answers, the clock moves half a second at a time until the coordinator has asked this many times whether the
+    // turn was canceled.
+    private async Task WaitForChecksAsync(ConcurrentQueue<Activity> stopped, int from, int checks)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        while (TurnQueries(stopped.Skip(from)).Count() < checks)
+        {
+            var seen = TurnQueries(stopped.Skip(from)).Count();
+            factory.Clock.Advance(TimeSpan.FromMilliseconds(500));
+            for (var wait = 0; wait < 50 && TurnQueries(stopped.Skip(from)).Count() == seen; wait++)
+                await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
+        }
+    }
+
+    // A query that reads the turns' table, whatever trace it runs in.
+    private static IEnumerable<Activity> TurnQueries(IEnumerable<Activity> activities) => activities.Where(item => item.Source.Name == "Npgsql" &&
+        item.TagObjects.Any(tag => tag.Value is string text && text.Contains("\"AiAssistantTurns\"", StringComparison.Ordinal)));
 
     private static async Task SubmitAsync(AiAssistantExecutionScenario scenario, Guid requestId, ActivityTraceId trace)
     {

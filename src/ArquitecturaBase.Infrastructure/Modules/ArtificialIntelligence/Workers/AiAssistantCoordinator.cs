@@ -139,6 +139,9 @@ internal sealed partial class AiAssistantCoordinator(
 
     private async Task ObserveCancellationAsync(AiAssistantClaimResponse claim, CancellationTokenSource execution, CancellationToken cancellationToken)
     {
+        // I10: the check runs outside the turn's activity (only inside this method), or its queries every half second would bury the
+        // capabilities and the call to the provider in the turn's trace.
+        Activity.Current = null;
         while (!cancellationToken.IsCancellationRequested)
         {
             try
