@@ -19,7 +19,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 /// <summary>
 /// Nunca se registra el token, el código, la URL del enlace ni el número completo (sección 9 del spec y reglas del
-/// plan). Corre la registración real, con la resiliencia de ServiceDefaults y todos los niveles de log, para que
+/// plan). Corre la registración real, con resiliencia en todos los clientes y todos los niveles de log, para que
 /// también cuenten los logs del HttpClient y de la resiliencia.
 /// </summary>
 public sealed class WhatsAppLogPrivacyTests
@@ -125,7 +125,8 @@ public sealed class WhatsAppLogPrivacyTests
         services.AddSingleton(clock);
         services.AddSingleton<IPhoneNumberParser, LibPhoneNumberParser>();
 
-        // Lo mismo que ServiceDefaults le pone a todos los HttpClient.
+        // Una resiliencia estándar en todos los clientes, aunque ServiceDefaults ya no la ponga (N18): si un cliente la
+        // conservara, sus logs también tendrían que salir limpios.
         services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
         services.AddSingleton<IWhatsAppDispatchCoordinator, ImmediateCoordinator>();

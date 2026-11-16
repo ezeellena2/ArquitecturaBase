@@ -221,8 +221,8 @@ public sealed class WhatsAppRegistrationTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// ServiceDefaults le pone la resiliencia estándar a todos los HttpClient, y esa reintenta un 500. Un reintento de
-    /// un POST a Meta puede duplicar el mensaje: este cliente no reintenta, reintenta la cola (sección 9 del spec).
+    /// La resiliencia estándar de este cliente reintenta un 500 sólo en los métodos seguros. Un reintento de un POST a
+    /// Meta puede duplicar el mensaje: este cliente no reintenta, reintenta la cola (sección 9 del spec).
     /// </summary>
     [Fact]
     public async Task The_registered_client_does_not_retry_a_post_that_fails()

@@ -41,7 +41,7 @@
     <PackageReference Include="libphonenumber-csharp" />
     <!-- El robot de delegación de ARCA (ADR 0026): maneja la página de ARCA con Chromium, que va en la imagen sólo donde se prende. -->
     <PackageReference Include="Microsoft.Playwright" />
-    <!-- El cliente de WhatsApp reemplaza la resiliencia estándar de ServiceDefaults por una que no reintenta los POST. -->
+    <!-- Los clientes de WhatsApp, ARCA e IA declaran su resiliencia, sin reintentar los POST, o la quitan. -->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
   </ItemGroup>
 

@@ -10,8 +10,10 @@ using OpenTelemetry.Trace;
 
 namespace Microsoft.Extensions.Hosting;
 
-// Servicios comunes de Aspire: service discovery, resiliencia, health checks y OpenTelemetry.
-// Basado en la plantilla aspire-servicedefaults 13.5.4: https://aka.ms/aspire/service-defaults
+// Servicios comunes de Aspire: service discovery, health checks y OpenTelemetry.
+// Basado en la plantilla aspire-servicedefaults 13.5.4: https://aka.ms/aspire/service-defaults. A diferencia de la
+// plantilla, los HttpClient no reciben la resiliencia estándar (N18): reintenta un POST ante un 5xx o un plazo vencido, y
+// eso duplica un efecto en el proveedor. Cada cliente declara la suya.
 public static class Extensions
 {
     public const string HealthEndpointPath = "/health";
@@ -26,11 +28,7 @@ public static class Extensions
 
         builder.Services.AddServiceDiscovery();
 
-        builder.Services.ConfigureHttpClientDefaults(http =>
-        {
-            http.AddStandardResilienceHandler();
-            http.AddServiceDiscovery();
-        });
+        builder.Services.ConfigureHttpClientDefaults(http => http.AddServiceDiscovery());
 
         return builder;
     }

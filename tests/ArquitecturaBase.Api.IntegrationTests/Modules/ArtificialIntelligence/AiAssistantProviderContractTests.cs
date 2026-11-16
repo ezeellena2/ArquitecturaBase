@@ -227,7 +227,7 @@ public sealed partial class AiAssistantProviderContractTests
 
     // I6: a canceled request with a TimeoutException inside is read as the handler's connect timeout (nothing left) only because the
     // HttpClient of every assistant client has no timeout of its own, which would throw the same shape after sending; and nothing in
-    // between retries or hedges a billable POST. Both with the service defaults, which add the standard resilience to every client.
+    // between retries or hedges a billable POST. Both with the service defaults, as the app composes them.
     [Fact]
     public void Every_assistant_provider_client_has_the_connect_timeout_without_its_own_timeout_redirects_or_retries()
     {

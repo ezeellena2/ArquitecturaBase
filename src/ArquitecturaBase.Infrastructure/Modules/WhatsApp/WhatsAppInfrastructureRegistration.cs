@@ -150,10 +150,9 @@ public static class WhatsAppInfrastructureRegistration
             // tal cual. El resultado de cada envío lo registra la cola, con el número enmascarado.
             .RemoveAllLoggers()
 
-            // ServiceDefaults le pone a todos los HttpClient la resiliencia estándar, que reintenta los 5xx y los
-            // timeouts. Un POST a Meta reintentado puede llegar dos veces: acá se reemplaza por la misma resiliencia
-            // sin reintentos para los métodos que no son seguros, con sus timeouts y su circuit breaker. Los
-            // reintentos los hace la cola.
+            // La resiliencia estándar reintenta los 5xx y los timeouts, y un POST a Meta reintentado puede llegar dos
+            // veces: este cliente la usa sin reintentos para los métodos que no son seguros, con sus timeouts y su
+            // circuit breaker. Los reintentos los hace la cola. ServiceDefaults no le pone ninguna (N18).
             .RemoveAllResilienceHandlers()
             .AddStandardResilienceHandler(resilience => resilience.Retry.DisableForUnsafeHttpMethods());
 
