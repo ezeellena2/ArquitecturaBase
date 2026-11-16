@@ -58,7 +58,7 @@ tarea, y al verificarla aparecieron dos regresiones, también corregidas (F6-1 y
 3. **El cierre:** la corrida completa con Docker y los controles del front. Es la primera corrida entera de `FormDraftEndpointsTests`
    desde el 15/11 (los agentes la cortaron por larga) y confirma, con `MigrationsTests`, que las nueve migraciones de Formularios de
    los días 15 y 16, hechas por agentes distintos (`20261115163541`, `20261115172029`, `20261115181009`, `20261115182249`, `20261115192350`, `20261116104400`, `20261116111033`, `20261116114811` y `20261116122853`), dejaron coherentes el modelo y el snapshot.
-   Además: exportar las cohortes del front, entre ellas `forms-missing-requests-http`, y, con la sesión del núcleo, los tests de
+   Además: exportar las cohortes del front, entre ellas `forms-missing-requests-http` (el exportador `export-responses-http.ps1` corre la suite entera y escribe sólo en verde, con las 25 cohortes de una misma corrida: conviene que la corrida completa del backend sea el exportador, desde una copia de HEAD con un front falso, y copiar después las 25 juntas al front; hasta entonces los dos tests de `missingRequestsHttpContract` fallan a sabiendas), y, con la sesión del núcleo, los tests de
    `FormDraftEndpointsTests` que reciben 403 en `PUT /api/roles` desde N1 (`Roles.Role.PermissionsNotHeld`). Varios agentes
    commitearon a la vez sobre copias distintas y se pisaron (el texto de F5, anotaciones de este plan): antes de cerrar, revisar que
    cada archivo compartido conserve lo de todos.
