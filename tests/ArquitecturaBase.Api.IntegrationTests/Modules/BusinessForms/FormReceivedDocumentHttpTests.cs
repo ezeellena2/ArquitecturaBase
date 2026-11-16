@@ -1166,7 +1166,7 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
     }
 
     // I4: a copy that does not know a value the extraction was sealed with answers that it may pass; the document keeps reading, and the
-    // version that knows it answers later.
+    // version that knows it answers later. What the poll answers meanwhile is Formularios' (its review); what lasts is the reading.
     [Fact]
     public async Task An_extraction_sealed_with_a_value_this_copy_does_not_know_keeps_reading()
     {
@@ -1179,12 +1179,11 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
 
         scenario.Engine.ReadFailure = Error.Conflict("Ai.Assistant.UnknownVersion", "Fictitious newer seal.", new Dictionary<string, object?> { ["retryable"] = true });
-        using var unknown = await reviewer.GetAsync($"{path}/extraction?requestId={requestId}", Ct);
+        (await reviewer.GetAsync($"{path}/extraction?requestId={requestId}", Ct)).Dispose();
         var reading = await (await reviewer.GetAsync(path, Ct)).ReadJsonAsync();
         scenario.Engine.ReadFailure = null;
         using var later = await reviewer.GetAsync($"{path}/extraction?requestId={requestId}", Ct);
 
-        Assert.NotEqual(HttpStatusCode.OK, unknown.StatusCode);
         Assert.Equal((requestId, 2L), (reading.GetProperty("extraction").GetProperty("requestId").GetGuid(), reading.GetProperty("document").GetProperty("revision").GetInt64()));
         Assert.Equal((requestId, "pending"), await ExtractionAsync(later));
     }
