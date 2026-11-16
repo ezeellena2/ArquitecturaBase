@@ -346,3 +346,13 @@ WhatsApp en verde.
     PostgreSQL: con miles de turnos purgados, el plan de la purga no recorre la tabla. Chico.
 29. **I19, el claim. El claim cuenta sólo lo que está en curso.** El claim deja de contar los recibos del día y cuenta sólo
     los turnos en curso, que es lo único que usa. Test: con la capacidad llena, el claim no cuenta recibos. Trivial.
+
+**Hecha el 2026-11-16:** la 27 en 9e1e2cbc, la 28 en 9bbbf02c y la 29 en faf6381f. La revisión adversarial de la 28, que
+cambia qué elige la purga, comparó la consulta vieja con la nueva sobre 45.000 turnos con topes de 1 a 5000: eligen los
+mismos turnos en el mismo orden. Sus correcciones son 888f4113 (un test que fija el orden entre motivos con un lote chico),
+6f937b59 (el `EXPLAIN` corre con `enable_seqscan` apagado para no depender de las estadísticas de la base compartida) y
+e4fc3671 y 83bc2748 (texto). Partir la purga en una consulta por motivo no acorta el tiempo bajo el candado: lo que saca la
+historia es el índice parcial, y la partición evita recorrer todas las conversaciones. La parte activa de las conversaciones a
+borrar todavía revisa cada conversación activa por índice; evitarlo pide cambiar el esquema y queda con el resto de gran
+escala. Build sin advertencias, Domain 1190, Application 6342 y Architecture 229 enteros; integración del bootstrap (23), de
+la retención y la purga (28, y 24 cinco veces seguidas después de las correcciones) y del claim (13) en verde.

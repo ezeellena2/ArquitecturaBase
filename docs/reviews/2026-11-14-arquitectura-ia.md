@@ -729,6 +729,10 @@ Los límites de pedidos y los semáforos de la prueba y de lugares son de cada c
   que está en curso y mirando primero si hay un pendiente; y, para destrabar capacidad, contadores por día en lugar de contar
   recibos. Mediano; no destraba capacidad mientras los cuatro en curso sigan fijos, pero acorta el tiempo bajo el candado,
   que es lo que deja sin guardar una respuesta pagada.
+- **El claim, arreglado el 2026-11-16 en faf6381f:** el claim cuenta sólo los turnos en curso, con el índice por estado, sin
+  contar los recibos del día; el cupo del día sigue en la aceptación. El resto (autorizar, descifrar y armar el catálogo
+  antes de los candados, la conexión compartida, los pasos sin el candado de presupuesto y los contadores por día) queda para
+  cuando haya volumen real que medir.
 
 #### I20. La limpieza, la medición y cada apertura de Inicio recorren toda la historia
 
@@ -755,6 +759,14 @@ Los límites de pedidos y los semáforos de la prueba y de lugares son de cada c
   usen; las herramientas y los dueños del lote en una consulta; la purga sin el candado de presupuesto, que no cambia conteos;
   el bootstrap con un conteo de pendientes; un índice por canal y pedido para la retención de documentos, con el comentario y
   la regla corregidos. Chico cada uno. El plazo de la metadata de Inicio es la decisión de I3.
+- **El bootstrap y los índices, arreglados el 2026-11-16 en 9e1e2cbc y 9bbbf02c, con su revisión en 888f4113, 6f937b59,
+  e4fc3671 y 83bc2748:** abrir Inicio cuenta sólo los pendientes. La purga, la medición y las conversaciones a borrar hacen
+  una consulta por motivo sobre los índices parciales nuevos: los turnos con contenido por (`ContentExpiresAtUtc`, `Id`) y
+  las conversaciones retiradas. Los recibos tienen índice por (`ConversationId`, `ExpiresAtUtc`). Eligen lo mismo que la
+  condición única, y un test de PostgreSQL comprueba con `EXPLAIN` que ninguna recorre en secuencia los turnos ni los
+  recibos. Quedan para cuando haya volumen real: las herramientas y los dueños del lote en una consulta, la purga sin el
+  candado de presupuesto, el índice de la retención de documentos y la parte activa de las conversaciones a borrar, que
+  todavía revisa cada conversación activa por índice.
 
 ### Observaciones menores
 
