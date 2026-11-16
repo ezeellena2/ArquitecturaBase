@@ -34,9 +34,14 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var turn = await repository.GetTurnAsync(receipt.TurnId, ct);
         if (turn is null || conversation?.ChannelId != context.ChannelId || turn.ChannelId != context.ChannelId)
             return AiAssistantErrors.NotFound;
-        // I4: a value this version does not know is not «not found»: the version that knows it can cancel it.
+        // I4: a value this version does not know is not «not found». With the channel and the person compared in clear, the cancellation
+        // is recorded without the seal, which reveals nothing, so the version that knows it never runs it (I4, review).
         var captured = guard.ReadSeal(turn.ExecutionProfileJson);
-        if (AiAssistantAccessGuard.IsUnknown(captured)) return captured.Error;
+        if (AiAssistantAccessGuard.IsUnknown(captured))
+        {
+            turn.RequestCancellation(responsePolicy.ServerNowUtc);
+            return Result.Success();
+        }
         if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, turn.OwnerUserId, context.ChannelId, turn.Culture, turn.TimeZoneId) ||
             !guard.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
         turn.RequestCancellation(responsePolicy.ServerNowUtc);
@@ -237,7 +242,9 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var previous = await repository.GetTurnAsync(receipt.TurnId, ct);
         if (conversation is null || previous is null || conversation.ChannelId != context.ChannelId || previous.State != AiAssistantTurnState.Completed)
             return AiAssistantErrors.NotFound;
+        // I4, review: a value this version does not know is not «not found»; the capabilities do not matter, the new turn seals its own.
         var captured = AiAssistantChannelPolicy.Read(previous.ExecutionProfileJson);
+        if (AiAssistantAccessGuard.IsUnknown(captured)) return captured.Error;
         if (captured.IsFailure || captured.Value.Purpose != AiAssistantPurpose.Interpret ||
             !AiAssistantChannelPolicy.SameConversation(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
         if (previous.ContentExpiresAtUtc <= nowUtc || previous.ProtectedQuestion is null) return AiAssistantErrors.Expired;

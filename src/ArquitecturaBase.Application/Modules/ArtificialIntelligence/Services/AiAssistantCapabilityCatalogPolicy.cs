@@ -12,6 +12,7 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 internal sealed class AiAssistantCapabilityCatalogPolicy
 {
     private readonly Dictionary<AssistantCapabilityReference, (AssistantCapabilityDefinition Definition, IAssistantCapabilitySource Source)> registry = [];
+    private readonly Dictionary<string, int> highest;
     private readonly IPermissionService permissions;
 
     public AiAssistantCapabilityCatalogPolicy(IEnumerable<IAssistantCapabilitySource> sources, IPermissionService permissions)
@@ -26,6 +27,8 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             }
         Definitions = registry.Values.Select(entry => entry.Definition).OrderBy(definition => definition.Id, StringComparer.Ordinal)
             .ThenBy(definition => definition.Version).ToArray();
+        highest = Definitions.GroupBy(definition => definition.Id, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Max(definition => definition.Version), StringComparer.Ordinal);
         OfferedInHome = Definitions.Where(definition => definition.OfferedInHome && definition.RequiredPermissions.Subject.Count == 0)
             .Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)).ToArray();
     }
@@ -38,9 +41,20 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
     public AssistantCapabilityDefinition? Find(AssistantCapabilityReference capability) =>
         registry.TryGetValue(capability, out var entry) ? entry.Definition : null;
 
-    // I4: whether this version knows every capability a seal names, offered or preloaded; one it does not was sealed by a newer version.
-    public bool Knows(AssistantChannelContext context) =>
-        context.AllowedCapabilities.Concat(context.PreloadedCapabilities ?? []).All(registry.ContainsKey);
+    // I4: whether this version knows every capability a seal names, offered or preloaded (null). One above the highest version it registers
+    // for its Id was sealed by a newer version (UnknownVersion); a lower one it no longer registers, or an Id it does not have, was retired or
+    // is damaged (ContentUnavailable), which wins.
+    public Error? Classify(AssistantChannelContext context)
+    {
+        Error? verdict = null;
+        foreach (var reference in context.AllowedCapabilities.Concat(context.PreloadedCapabilities ?? []))
+        {
+            if (reference is not null && registry.ContainsKey(reference)) continue;
+            if (reference?.Id is null || !highest.TryGetValue(reference.Id, out var top) || reference.Version <= top) return AiAssistantErrors.ContentUnavailable;
+            verdict = AiAssistantErrors.UnknownVersion;
+        }
+        return verdict;
+    }
 
     // I4: what a channel asks now, with the sealed version of each capability it names while this version still knows it: a module that
     // raises a version keeps the earlier one registered, so what was in flight is compared and replayed as it was sealed.
@@ -123,9 +137,17 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
         catch (JsonException) { return false; }
     }
 
-    // assistant_answer@2 also closes on one observed proposal of the turn; assistant_proposal@1 selects one, and @2 up to three.
-    public static bool KnownTerminal(AssistantTerminalReference terminal) =>
-        terminal is { Id: "assistant_answer", Version: 1 or 2 } or { Id: "assistant_proposal", Version: 1 or 2 };
+    // assistant_answer@2 also closes on one observed proposal of the turn; assistant_proposal@1 selects one, and @2 up to three. Every
+    // version up to the highest of each terminal is still read.
+    private static readonly Dictionary<string, int> HighestTerminals = new(StringComparer.Ordinal) { ["assistant_answer"] = 2, ["assistant_proposal"] = 2 };
+
+    public static bool KnownTerminal(AssistantTerminalReference terminal) => ClassifyTerminal(terminal) is null;
+
+    // I4: a terminal above the highest version of its Id was sealed by a newer version; a null one, an Id this version does not have or a
+    // version below 1 is damaged or retired.
+    public static Error? ClassifyTerminal(AssistantTerminalReference? terminal) =>
+        terminal?.Id is null || !HighestTerminals.TryGetValue(terminal.Id, out var top) || terminal.Version <= 0 ? AiAssistantErrors.ContentUnavailable
+        : terminal.Version > top ? AiAssistantErrors.UnknownVersion : null;
 
     private static bool ValidContext(AssistantChannelContext context)
     {

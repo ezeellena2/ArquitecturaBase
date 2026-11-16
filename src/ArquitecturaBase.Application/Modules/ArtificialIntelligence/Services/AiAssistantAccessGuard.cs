@@ -51,11 +51,7 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
 
     // I4: the seal as this version reads it, the capabilities included: a value it does not know yet is UnknownVersion, which may pass once
     // the version that knows it answers; a damaged one, ContentUnavailable.
-    public Result<AiAssistantExecutionProfileSnapshot> ReadSeal(string? json)
-    {
-        var profile = AiAssistantChannelPolicy.Read(json);
-        return profile.IsSuccess && !catalog.Knows(profile.Value.ChannelContext) ? AiAssistantErrors.UnknownVersion : profile;
-    }
+    public Result<AiAssistantExecutionProfileSnapshot> ReadSeal(string? json) => AiAssistantChannelPolicy.Read(json, catalog.Classify);
 
     public static bool IsUnknown(Result<AiAssistantExecutionProfileSnapshot> seal) => seal.IsFailure && seal.Error == AiAssistantErrors.UnknownVersion;
 

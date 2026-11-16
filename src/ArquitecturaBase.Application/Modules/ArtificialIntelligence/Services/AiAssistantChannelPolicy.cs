@@ -32,34 +32,51 @@ internal static class AiAssistantChannelPolicy
                 .Concat(offeredInHome.Where(reference => !IsHomeQuery(reference.Id)).OrderBy(reference => reference.Id, StringComparer.Ordinal)).ToArray(),
             [HomeTerminal]);
 
-    // I4: a value this version does not know (a purpose, a kind of file, a mode, instructions or a terminal) was sealed by a newer one, and
-    // is UnknownVersion; what no version wrote is damaged, ContentUnavailable. The capabilities need the catalog: AiAssistantAccessGuard.ReadSeal.
-    public static Result<AiAssistantExecutionProfileSnapshot> Read(string? json)
+    public static Result<AiAssistantExecutionProfileSnapshot> Read(string? json) => Read(json, null);
+
+    // I4: a value above the highest this version knows (a purpose, a kind of file or a mode past the last one, or a version of instructions or
+    // of a terminal past the highest of its Id) was sealed by a newer one, and is UnknownVersion. A lower one it no longer knows was retired
+    // and, like what no version writes (a negative value, empty instructions, a null terminal or capability), is ContentUnavailable, which
+    // wins. The capabilities need the catalog (AiAssistantAccessGuard.ReadSeal).
+    public static Result<AiAssistantExecutionProfileSnapshot> Read(string? json, Func<AssistantChannelContext, Error?>? capabilities)
     {
         if (string.IsNullOrWhiteSpace(json) || json.Length > 16384) return AiAssistantErrors.ContentUnavailable;
         try
         {
             var profile = JsonSerializer.Deserialize<AiAssistantExecutionProfileSnapshot>(json, AiAssistantResponsePolicy.JsonOptions);
-            if (profile?.ChannelContext is not { AllowedCapabilities: not null, AllowedTerminals: not null } context || profile.ModelProfileVersion <= 0)
+            if (profile?.ChannelContext is not { AllowedCapabilities: not null, AllowedTerminals: not null } context || profile.ModelProfileVersion <= 0 ||
+                context.AllowedCapabilities.Concat(context.PreloadedCapabilities ?? []).Any(capability => capability is null))
                 return AiAssistantErrors.ContentUnavailable;
-            if (!Enum.IsDefined(context.InteractionMode) || !Enum.IsDefined(profile.Purpose) || !Enum.IsDefined(profile.Attachment) ||
-                !context.AllowedTerminals.All(AiAssistantCapabilityCatalogPolicy.KnownTerminal) || !KnownInstructions(profile)) return AiAssistantErrors.UnknownVersion;
+            Error?[] verdicts = [Classify(context.InteractionMode), Classify(profile.Purpose), Classify(profile.Attachment), ClassifyInstructions(profile),
+                .. context.AllowedTerminals.Select(AiAssistantCapabilityCatalogPolicy.ClassifyTerminal), capabilities?.Invoke(context)];
+            if (verdicts.Contains(AiAssistantErrors.ContentUnavailable)) return AiAssistantErrors.ContentUnavailable;
+            if (verdicts.Contains(AiAssistantErrors.UnknownVersion)) return AiAssistantErrors.UnknownVersion;
             return !IsTechnical(profile.Purpose) || context.ChannelId != "home" && context.AllowedCapabilities.Count == 0 && context.AllowedTerminals.Count == 0
                 ? profile : AiAssistantErrors.ContentUnavailable;
         }
         catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
     }
 
+    private static Error? Classify<TEnum>(TEnum value) where TEnum : struct, Enum =>
+        Enum.IsDefined(value) ? null : Comparer<TEnum>.Default.Compare(value, Enum.GetValues<TEnum>().Max()) > 0
+            ? AiAssistantErrors.UnknownVersion : AiAssistantErrors.ContentUnavailable;
+
     // The technical purposes (audio and documents) never offer capabilities, terminals or history, and always open their own conversation.
     public static bool IsTechnical(AiAssistantPurpose purpose) => purpose is AiAssistantPurpose.NormalizeAudio or AiAssistantPurpose.ReadDocument;
 
-    private static bool KnownInstructions(AiAssistantExecutionProfileSnapshot profile) => profile.Purpose switch
+    // Every version up to the highest of each instructions Id is still read; a purpose this version does not know decides by itself.
+    private static Error? ClassifyInstructions(AiAssistantExecutionProfileSnapshot profile) => profile.Purpose switch
     {
-        AiAssistantPurpose.NormalizeAudio => profile.InstructionsId == "audio-none-v1" && profile.InstructionsVersion == 1,
-        AiAssistantPurpose.ReadDocument => profile.InstructionsId == AiAssistantDocumentPolicy.InstructionsId &&
-            profile.InstructionsVersion == AiAssistantDocumentPolicy.InstructionsVersion,
-        _ => KnownInstructions(profile.InstructionsId, profile.InstructionsVersion),
+        AiAssistantPurpose.NormalizeAudio => ClassifyInstructions(profile, "audio-none-v1", 1),
+        AiAssistantPurpose.ReadDocument => ClassifyInstructions(profile, AiAssistantDocumentPolicy.InstructionsId, AiAssistantDocumentPolicy.InstructionsVersion),
+        AiAssistantPurpose.Interpret => ClassifyInstructions(profile, profile.InstructionsId == "home-system" ? "home-system" : "capabilities-v1",
+            profile.InstructionsId == "home-system" ? HomeInstructionsVersion : 1),
+        _ => null,
     };
+
+    private static Error? ClassifyInstructions(AiAssistantExecutionProfileSnapshot profile, string id, int highest) =>
+        profile.InstructionsId != id || profile.InstructionsVersion <= 0 ? AiAssistantErrors.ContentUnavailable
+        : profile.InstructionsVersion > highest ? AiAssistantErrors.UnknownVersion : null;
 
     public static bool KnownInstructions(string instructionsId, int version) =>
         instructionsId == "home-system" && version is 1 or HomeInstructionsVersion || instructionsId == "capabilities-v1" && version == 1;

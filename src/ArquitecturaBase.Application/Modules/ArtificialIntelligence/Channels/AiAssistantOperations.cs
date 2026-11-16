@@ -42,9 +42,12 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             ArgumentNullException.ThrowIfNull(context);
             var row = await reader.FindTurnByRequestAsync(context.ActorUserId, requestId, cancellationToken);
             if (row is null || row.ChannelId == "home" || row.ChannelId != context.ChannelId) return AiAssistantErrors.NotFound;
-            // I4: a value this version does not know is not «not found»: the version that knows it answers, and the channel waits for it.
+            // I4: a value this version does not know is not «not found»: the version that knows it answers, and the channel waits for it. A
+            // finished operation has nothing left for it, so its state and failure go in clear, without the seal (I4, review).
             var captured = guard.ReadSeal(row.ExecutionProfileJson);
-            if (AiAssistantAccessGuard.IsUnknown(captured)) return captured.Error;
+            if (AiAssistantAccessGuard.IsUnknown(captured))
+                return row.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running or AiAssistantTurnState.Completed ? captured.Error
+                    : new AssistantOperationResponse(requestId, AiAssistantResponsePolicy.State(row.State), null, null, row.FailureCode);
             if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, row.OwnerUserId, row.ChannelId, row.Culture, row.TimeZoneId) ||
                 !guard.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
             var access = await guard.AuthorizeCapturedAsync(captured.Value.ChannelContext, cancellationToken);

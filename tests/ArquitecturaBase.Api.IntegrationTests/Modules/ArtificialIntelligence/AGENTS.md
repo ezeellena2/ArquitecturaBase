@@ -48,7 +48,7 @@ AiAssistantUploadConcurrencyTests (I9) prueba los lugares de subida con un lecto
 
 AiAssistantHomeCatalogTests cuenta lo que ofrece Inicio con los módulos del host, para una cuenta con todos los permisos: con formularios, 12 definiciones sin planilla, 13 con ella y 12 con un documento (`propose-catalog@2` y `propose-form@2`, nunca la 1, y `propose-import@1` sólo con planilla). Sin el módulo de formularios se omite, como las composiciones de WhatsApp.
 
-AiAssistantUnknownSealTests (I4) sella en PostgreSQL un turno con una terminal futura: el claim toma el siguiente y lo deja pendiente, Get y Cancel dan `UnknownVersion`, y vence sin un intento y sin gastar la cuota.
+AiAssistantUnknownSealTests (I4) sella en PostgreSQL un turno con una terminal futura: el claim toma el siguiente y lo deja pendiente, Get da `UnknownVersion`, y vence sin un intento y devuelve la cuota (con el cupo justo, un pedido más entra recién entonces); vencido, Get da su estado en claro y Cancel no lo cambia.
 
 AiAssistantSealedVersionTests (I4) sella en PostgreSQL una extracción de Formularios y un turno de WhatsApp, con sus ids y sin importar los módulos, con la versión 1 de una capacidad y los recupera con el contexto de una 2 ficticia (`RaisedVersionAssistantSource`): la consulta, el replay, el claim y la cancelación.
 

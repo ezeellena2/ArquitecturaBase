@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Channels;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
@@ -30,7 +31,36 @@ public sealed class AiAssistantUnknownSealTests
             case "instructions": seal["instructionsVersion"] = 2; break;
             case "terminal": context["allowedTerminals"] = new JsonArray(new JsonObject { ["id"] = "assistant_proposal", ["version"] = 9 }); break;
             case "capability": context["allowedCapabilities"]![0]!["version"] = 9; break;
-            case "preload": context["preloadedCapabilities"] = new JsonArray(new JsonObject { ["id"] = "fixture.future-read", ["version"] = 1 }); break;
+            case "preload": context["preloadedCapabilities"] = new JsonArray(new JsonObject { ["id"] = "fixture.proposal", ["version"] = 9 }); break;
+        }
+        Reseal(turn, seal.ToJsonString());
+    }
+
+    // I4, review: what no version writes (a negative value, empty instructions, a null terminal or capability) and what this version
+    // retired or never had (an Id it does not register) are not newer: they close or deny as before.
+    public static TheoryData<string> RetiredOrDamagedValues => ["purpose", "attachment", "mode", "instructions-empty", "instructions-null",
+        "instructions-version", "instructions-removed", "terminal-null", "terminal-version", "terminal-removed", "capability-null",
+        "capability-removed", "preload-removed"];
+
+    private static void SealRetiredOrDamaged(AiAssistantTurn turn, string value)
+    {
+        var seal = JsonNode.Parse(turn.ExecutionProfileJson!)!.AsObject();
+        var context = seal["channelContext"]!.AsObject();
+        switch (value)
+        {
+            case "purpose": seal["purpose"] = -1; break;
+            case "attachment": seal["attachment"] = -1; break;
+            case "mode": context["interactionMode"] = -1; break;
+            case "instructions-empty": seal["instructionsId"] = ""; break;
+            case "instructions-null": seal.Remove("instructionsId"); break;
+            case "instructions-version": seal["instructionsVersion"] = 0; break;
+            case "instructions-removed": seal["instructionsId"] = "fixture-retired"; break;
+            case "terminal-null": context["allowedTerminals"] = new JsonArray((JsonNode?)null); break;
+            case "terminal-version": context["allowedTerminals"] = new JsonArray(new JsonObject { ["id"] = "assistant_proposal", ["version"] = 0 }); break;
+            case "terminal-removed": context["allowedTerminals"] = new JsonArray(new JsonObject { ["id"] = "fixture_retired", ["version"] = 1 }); break;
+            case "capability-null": context["allowedCapabilities"] = new JsonArray((JsonNode?)null); break;
+            case "capability-removed": context["allowedCapabilities"]![0]!["id"] = "fixture.retired"; break;
+            case "preload-removed": context["preloadedCapabilities"] = new JsonArray(new JsonObject { ["id"] = "fixture.retired", ["version"] = 1 }); break;
         }
         Reseal(turn, seal.ToJsonString());
     }
@@ -105,23 +135,107 @@ public sealed class AiAssistantUnknownSealTests
         Assert.Equal((AiAssistantTurnState.Pending, (string?)null, 0), (future.State, future.FailureCode, future.ProviderSteps));
     }
 
+    // I4, review: the cancellation is recorded without the seal, after the channel and the person in clear, so a copy that understands the
+    // turn never runs one already cancelled; it reveals nothing.
     [Theory]
     [MemberData(nameof(FutureValues))]
-    public async Task Getting_or_canceling_an_operation_with_a_future_value_answers_that_it_may_pass_not_that_it_does_not_exist(string value)
+    public async Task Getting_an_operation_with_a_future_value_answers_that_it_may_pass_and_canceling_it_is_recorded(string value)
     {
         var f = new AssistantOperationsFixture();
         var requestId = Guid.NewGuid();
         var turn = await SubmitAsync(f, requestId);
         SealFuture(turn, value);
+        var other = f.Context with { ChannelId = "fixture-other" };
 
+        // Another channel still does not learn that it exists, nor cancels it.
+        Assert.Equal(AiAssistantErrors.NotFound, (await f.Service.GetAsync(other, requestId, Ct)).Error);
+        Assert.Equal(AiAssistantErrors.NotFound, (await f.Service.CancelAsync(other, requestId, Ct)).Error);
         var found = await f.Service.GetAsync(f.Context, requestId, Ct);
         var canceled = await f.Service.CancelAsync(f.Context, requestId, Ct);
 
         Assert.Equal(AiAssistantErrors.UnknownVersion, found.Error);
-        Assert.Equal(AiAssistantErrors.UnknownVersion, canceled.Error);
-        Assert.Equal(AiAssistantTurnState.Pending, turn.State);
-        // Another channel still does not learn that it exists.
+        Assert.True(canceled.IsSuccess, canceled.IsFailure ? canceled.Error.Code : null);
+        Assert.Equal((AiAssistantTurnState.Canceled, AiAssistantErrors.Canceled.Code), (turn.State, turn.FailureCode));
+    }
+
+    // I4, review: a finished operation has nothing left for the version that knows the seal, so its state and failure go in clear, after the
+    // channel and the person; otherwise a channel would hear «it may pass» until the receipt expires.
+    public static TheoryData<string> FinishedStates => ["expired", "failed", "canceled"];
+
+    [Theory]
+    [MemberData(nameof(FinishedStates))]
+    public async Task A_finished_operation_with_a_future_value_answers_its_state_in_clear(string state)
+    {
+        var f = new AssistantOperationsFixture();
+        var requestId = Guid.NewGuid();
+        var turn = await SubmitAsync(f, requestId);
+        SealFuture(turn, "terminal");
+        var now = f.Clock.GetUtcNow().UtcDateTime;
+        switch (state)
+        {
+            case "expired": turn.Reconcile(now.AddSeconds(f.Limits.PendingSeconds), f.Limits.PendingSeconds, f.Limits.LeaseGraceSeconds); break;
+            case "failed":
+                Assert.True(turn.Claim(Guid.NewGuid(), now.AddSeconds(f.Limits.RunningSeconds)).IsSuccess);
+                turn.Fail(turn.Fence, AiAssistantErrors.Unavailable.Code, false, now);
+                break;
+            case "canceled": turn.RequestCancellation(now); break;
+        }
+
+        var found = await f.Service.GetAsync(f.Context, requestId, Ct);
+
+        Assert.True(found.IsSuccess, found.IsFailure ? found.Error.Code : null);
+        Assert.NotNull(turn.FailureCode);
+        Assert.Equal((requestId, state, turn.FailureCode), (found.Value.RequestId, found.Value.State, found.Value.FailureCode));
+        Assert.Null(found.Value.Provenance);
+        Assert.Equal(0, f.Protector.Reads);
         Assert.Equal(AiAssistantErrors.NotFound, (await f.Service.GetAsync(f.Context with { ChannelId = "fixture-other" }, requestId, Ct)).Error);
+    }
+
+    [Theory]
+    [MemberData(nameof(RetiredOrDamagedValues))]
+    public async Task A_retired_or_damaged_value_is_unavailable_content_and_the_claim_closes_the_turn(string value)
+    {
+        var f = new AssistantOperationsFixture();
+        var requestId = Guid.NewGuid();
+        var turn = await SubmitAsync(f, requestId);
+        SealRetiredOrDamaged(turn, value);
+
+        Assert.Equal(AiAssistantErrors.ContentUnavailable, f.Guard.ReadSeal(turn.ExecutionProfileJson).Error);
+        Assert.Equal(AiAssistantErrors.NotFound, (await f.Service.GetAsync(f.Context, requestId, Ct)).Error);
+        Assert.Null((await Dispatch(f).ClaimAsync(Ct)).Value);
+        Assert.Equal(AiAssistantTurnState.Failed, turn.State);
+    }
+
+    // A module keeps an earlier version registered while work sealed with it lasts: a version above the highest it registers is newer, and
+    // one below that it no longer registers was retired.
+    [Fact]
+    public void A_capability_version_is_newer_only_above_the_highest_registered_for_its_id()
+    {
+        var f = new AssistantOperationsFixture();
+        var definition = f.Source.Definitions[0];
+        var catalog = new AiAssistantCapabilityCatalogPolicy(
+            [new PreparedAssistantCapabilitySource([definition with { Version = 2 }, definition with { Version = 4 }])], f.Permissions);
+        AssistantChannelContext Sealed(int version) => f.Context with { AllowedCapabilities = [new(definition.Id, version)] };
+
+        Assert.Equal([null, null, AiAssistantErrors.UnknownVersion, AiAssistantErrors.ContentUnavailable, AiAssistantErrors.ContentUnavailable],
+            new[] { catalog.Classify(Sealed(2)), catalog.Classify(Sealed(4)), catalog.Classify(Sealed(5)), catalog.Classify(Sealed(3)), catalog.Classify(Sealed(1)) });
+    }
+
+    // I4, review: continuing an operation whose seal this version does not know answers that it may pass, not that it does not exist.
+    [Theory]
+    [InlineData("purpose")]
+    [InlineData("instructions")]
+    [InlineData("terminal")]
+    public async Task Continuing_an_operation_with_a_future_value_answers_that_it_may_pass(string value)
+    {
+        var f = new AssistantOperationsFixture();
+        var (turn, _, _) = f.SeedCompleted();
+        SealFuture(turn, value);
+
+        var continued = await f.Service.SubmitAsync(f.Request(Guid.NewGuid()) with { PreviousRequestId = turn.RequestId }, Ct);
+
+        Assert.Equal(AiAssistantErrors.UnknownVersion, continued.Error);
+        Assert.Single(f.Store.Turns);
     }
 
     [Theory]

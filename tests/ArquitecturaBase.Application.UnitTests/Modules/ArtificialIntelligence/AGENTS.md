@@ -44,7 +44,7 @@ HomeDocument (Etapa 3) prueba la clave, la subida (permiso, cuota de lectura ago
 
 StoredCopy (I9) compara la copia por bloques, leída de a pocos bytes y sin largo, y descarta la del mismo tamaño con otros bytes, más larga o más corta, también en las tres políticas de Inicio.
 
-UnknownSeal (I4) sella con un valor futuro cada parte del sello (propósito, archivo, modo, instrucciones, terminal, capacidad y precarga): la lectura lo distingue de un sello dañado, el claim lo deja pendiente y toma el siguiente, y Get, Cancel y la búsqueda de una propuesta dan `UnknownVersion`, sin descifrar; un sello dañado cierra con `ContentUnavailable`, no con `ContentBlocked`.
+UnknownSeal (I4) sella con un valor futuro cada parte del sello (propósito, archivo, modo, instrucciones, terminal, capacidad y precarga): la lectura lo distingue de un sello dañado, el claim lo deja pendiente y toma el siguiente con una sola consulta, Get, la búsqueda de una propuesta y la continuación dan `UnknownVersion`, sin descifrar, y Cancel lo cancela; terminado (vencido, fallido o cancelado), Get da su estado en claro. Lo retirado o dañado (un valor negativo, instrucciones vacías, un elemento nulo, un Id que no se registra o una versión menor que ya no está) es `ContentUnavailable` y el claim lo cierra, nunca con `ContentBlocked`.
 
 SealedVersion (I4) sella con la versión anterior de una capacidad y consulta, repite y cancela con el contexto de la versión subida (ficticia): se encuentra, el replay devuelve la misma aceptación y otra capacidad sigue fuera; el catálogo toma la versión sellada sólo si la conoce. ConnectionUnsupportedProvider: una conexión con un proveedor desconocido se muestra vacía y pausada con su revisión, y el claim deja su turno pendiente y toma el siguiente.
 
