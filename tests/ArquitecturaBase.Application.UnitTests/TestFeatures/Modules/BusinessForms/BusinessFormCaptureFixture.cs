@@ -153,6 +153,10 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
         return Task.FromResult<IReadOnlySet<Guid>>(itemIds.Where(itemId => !ItemActive || InactiveItems.Contains(itemId)).ToHashSet());
     }
     public void Add(BusinessFormRecordReference reference) => References.Add(reference);
+    public List<BusinessFormRecordCatalogField> CatalogFieldHistory { get; } = [];
+    public Task<IReadOnlyList<BusinessFormRecordCatalogField>> ListCatalogFieldHistoryAsync(Guid definitionId, IReadOnlyCollection<Guid> catalogIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<BusinessFormRecordCatalogField>>(CatalogFieldHistory.Where(value => value.DefinitionId == definitionId && catalogIds.Contains(value.CatalogId)).ToArray());
+    public void Add(BusinessFormRecordCatalogField field) => CatalogFieldHistory.Add(field);
     public List<BusinessFormRecord> Records { get; } = [];
     public List<BusinessFormRecordValue> Values { get; } = [];
     private readonly List<BusinessFormCaptureReceipt> _receipts = [];

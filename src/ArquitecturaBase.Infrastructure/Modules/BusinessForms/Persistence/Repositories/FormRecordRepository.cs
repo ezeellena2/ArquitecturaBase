@@ -23,6 +23,9 @@ internal sealed class FormRecordRepository(ApplicationDbContext dbContext) : IFo
     public Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormPublicationOperation>().AnyAsync(value => value.VersionId == versionId
             && value.State == FormPublicationState.Published, cancellationToken);
+    public async Task<IReadOnlyList<BusinessFormRecordCatalogField>> ListCatalogFieldHistoryAsync(Guid definitionId, IReadOnlyCollection<Guid> catalogIds, CancellationToken cancellationToken) =>
+        await dbContext.Set<BusinessFormRecordCatalogField>().Where(value => value.DefinitionId == definitionId && catalogIds.Contains(value.CatalogId)).ToListAsync(cancellationToken);
+    public void Add(BusinessFormRecordCatalogField field) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormRecordCatalogField>().Add(field); }
     public Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync([FormAdvisoryLockKeys.Catalog(catalogId)], cancellationToken);
     public async Task<IReadOnlySet<Guid>> ListInactiveCatalogItemIdsAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken)

@@ -30,18 +30,12 @@ internal sealed partial class FormResponseReader
         public int Position { get; init; }
     }
 
-    private IQueryable<HistoricalCatalogFieldRow> FindHistoricalCatalogFields(Guid definitionId) =>
-        dbContext.Database.SqlQueryRaw<HistoricalCatalogFieldRow>("""
-            SELECT DISTINCT ON (reference."CatalogId", entry.value ->> 'id')
-                reference."CatalogId", (entry.value ->> 'id')::uuid AS "Id", entry.value ->> 'key' AS "Key",
-                (entry.value -> 'name')::text AS "NameJson", entry.value ->> 'type' AS "Type", entry.value ->> 'role' AS "Role",
-                entry.position::integer AS "Position"
-            FROM "BusinessFormRecordReferences" AS reference
-            JOIN "BusinessFormRecords" AS record ON record."Id" = reference."RecordId" AND record."DefinitionId" = reference."DefinitionId"
-            CROSS JOIN LATERAL jsonb_array_elements(reference."FieldValuesJson") WITH ORDINALITY AS entry(value, position)
-            WHERE reference."DefinitionId" = {0} AND reference."FieldValuesJson" IS NOT NULL
-            ORDER BY reference."CatalogId", entry.value ->> 'id', record."Number" DESC, reference."Id" DESC
-            """.ReplaceLineEndings("\n"), definitionId);
+    // The union of the fields the responses sealed is kept by the capture; reading it is an index lookup.
+    private IQueryable<HistoricalCatalogFieldRow> FindHistoricalCatalogFields(Guid definitionId, Guid[] catalogIds) =>
+        dbContext.Set<BusinessFormRecordCatalogField>().AsNoTracking()
+            .Where(field => field.DefinitionId == definitionId && catalogIds.Contains(field.CatalogId))
+            .Select(field => new HistoricalCatalogFieldRow { CatalogId = field.CatalogId, Id = field.FieldId, Key = field.Key,
+                NameJson = field.NameJson, Type = field.Type, Role = field.Role, Position = field.Position });
 
     private static Dictionary<Guid, IReadOnlyList<FormResponseCatalogFieldRow>> ReadCatalogFields(CatalogMetadataRow[] catalogs,
         HistoricalCatalogFieldRow[] historical)

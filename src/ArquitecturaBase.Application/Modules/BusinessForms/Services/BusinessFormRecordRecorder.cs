@@ -244,6 +244,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             records.Add(BusinessFormRecordReference.Create(reference.RecordId, definition.Id, reference.FieldId, reference.CatalogId,
                 reference.CatalogRevision, reference.ItemId, reference.Text, reference.Detail, reference.CatalogName, reference.TranslationsJson,
                 reference.Value, reference.ValueType, reference.FieldValuesJson, reference.Row));
+        await FormCatalogFieldHistoryPolicy.RecordAsync(records, definition.Id, record.Number, references, ct);
         var fileRows = fileRecorder.Record(record, files, kept);
         var stored = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix,
             version.Id, version.Number, version.NameJson ?? throw new InvalidOperationException("The captured form presentation is missing."),

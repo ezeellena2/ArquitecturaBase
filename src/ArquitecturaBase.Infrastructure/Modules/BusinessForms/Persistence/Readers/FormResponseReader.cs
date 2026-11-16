@@ -28,7 +28,7 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
             : await dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalogIds.Contains(catalog.Id))
                 .Select(catalog => new CatalogMetadataRow { Id = catalog.Id, ValueType = catalog.ValueType.ToString(), FieldsJson = catalog.FieldsJson, NameJson = catalog.NameJson })
                 .ToArrayAsync(cancellationToken);
-        var historical = catalogIds.Length == 0 ? [] : await FindHistoricalCatalogFields(id).ToArrayAsync(cancellationToken);
+        var historical = catalogIds.Length == 0 ? [] : await FindHistoricalCatalogFields(id, catalogIds).ToArrayAsync(cancellationToken);
         var catalogFields = ReadCatalogFields(catalogs, historical);
         return result with { CatalogValueTypes = catalogs.ToDictionary(catalog => catalog.Id, catalog => catalog.ValueType), CatalogFields = catalogFields,
             CatalogNames = catalogs.ToDictionary(catalog => catalog.Id, catalog => (IReadOnlyDictionary<string, string>)ReadCatalogName(catalog.NameJson)),

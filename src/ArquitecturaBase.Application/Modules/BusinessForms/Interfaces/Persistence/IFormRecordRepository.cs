@@ -12,6 +12,9 @@ public interface IFormRecordRepository
     Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken);
     Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken);
+    /// <summary>The followed rows of the history of catalog fields of a form, for the catalogs given.</summary>
+    Task<IReadOnlyList<BusinessFormRecordCatalogField>> ListCatalogFieldHistoryAsync(Guid definitionId, IReadOnlyCollection<Guid> catalogIds, CancellationToken cancellationToken);
+    void Add(BusinessFormRecordCatalogField field);
     /// <summary>Which of the options of a catalog are not active (or do not exist): one query for all of them.</summary>
     Task<IReadOnlySet<Guid>> ListInactiveCatalogItemIdsAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> ListCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken);

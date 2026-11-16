@@ -1,7 +1,7 @@
 # Quitar el módulo de formularios
 
 Para un derivado que no usa formularios (`BusinessForms`). No apagues opciones para simular la retirada: quitá
-código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 26 tablas del módulo
+código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 27 tablas del módulo
 (definiciones, borradores, carpetas, versiones, catálogos, respuestas y sus resultados, reglas, diseños de PDF, sugerencias y
 datos de personas):
 respaldá la base antes.
