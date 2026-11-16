@@ -578,6 +578,14 @@ cambiarla lo decidís vos.
 - **Arreglo:** al apagarse, dejar de tomar turnos y darle al paso en curso un plazo para terminar; lo que no reservó un paso
   vuelve a pendiente en vez de cancelarse. Chico, con el plazo de apagado de N17. **Decidido el 2026-11-14:** así
   ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16 en 680e88b5, con su revisión en 8c2661ad, c3863530, 08733beb y 0aa4fc03:**
+  - al apagarse, la copia deja de tomar turnos;
+  - un turno sin paso reservado vuelve a pendiente con el mismo fence, sin intento ni falla, y lo toma otra copia; uno
+    vencido o cancelado se cierra como tal;
+  - uno con paso sigue mientras dure el vaciado, que es el apagado del host (25 s, N17) menos el margen para cerrarlo;
+  - al vencer el vaciado, el turno se corta con `Ai.Assistant.Interrupted`: incierto si el paso estaba en vuelo, fallido si
+    no, y nunca «cancelado», salvo que lo haya cancelado su persona;
+  - desde N8 el host frena todos los servicios a la vez, así que el vaciado no demora a los demás workers.
 
 #### I13. El mismo audio dos veces casi a la vez da «conflicto»
 
@@ -1003,9 +1011,10 @@ es una versión nueva de las instrucciones, que se califica; y el máximo diario
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
 - **El plan:** anexado el 2026-11-14 al del asistente de Inicio, como
   [arreglos de la revisión de arquitectura](../plans/2026-10-04-panel-conversaciones-inicio.md#arreglos-de-la-revisión-de-arquitectura):
-  29 tareas en siete etapas, sin programar; las reglas que cambien van a su fuente con cada arreglo. I18 va antes de pasar
-  de una réplica; el resto de gran escala, cuando haya volumen real que medir.
+  29 tareas en siete etapas, programadas entre el 15 y el 16/11, cada una anotada en su etapa con sus commits; las reglas
+  cambiaron con cada arreglo. Quedan afuera I18, que va antes de pasar de una réplica, el resto de gran escala de I19 e I20,
+  para cuando haya volumen real que medir, y las observaciones O1 a O14.
 - **Para otras sesiones:** I4 extiende al motor la regla de N27, que `42d8f47f` aplicó a la cola durable y a WhatsApp; lo que
   se vio del lado de Formularios quedó para su revisión.
-- **Lo que ya estaba anotado:** la traza de WhatsApp (H19), que I10 extiende al motor; el plazo de apagado (N17), que necesita
-  I12; y la exportación de telemetría (N10).
+- **Lo que ya estaba anotado:** la traza de WhatsApp (H19), que I10 extiende al motor; el plazo de apagado (N17), que I12 usa
+  desde el 16/11; y la exportación de telemetría (N10).

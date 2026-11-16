@@ -295,7 +295,7 @@ front, tsc, lint y vitest de la feature (259).
     consumir cuando no hubo paso. Va con el plazo de apagado de N17, que se fija en el núcleo. Tests: con el host
     deteniéndose durante un paso, el paso termina; sin paso, el turno vuelve a pendiente. Chico.
 
-**Hecha el 2026-11-16, salvo la 24:** la 19 en 446350e1; la 20 en 5e730587, 8a0faa3f, 8b85cac4, 04365ea6 y 4fb2eb12
+**Hecha el 2026-11-16:** la 19 en 446350e1; la 20 en 5e730587, 8a0faa3f, 8b85cac4, 04365ea6 y 4fb2eb12
 (front 033d8d28); la 21 en ef2d920a, 03a375f4, 80636878, 930b8779, 4d37d8f2 y c8ae6370; la 22 en 2a3bbda2, 612ab9b1 y
 668f6684 (front 35f3ba7c y 15e8c94e); y la 23 en el front, en bcea09bb. Los commits después del primero de cada una corrigen
 lo que encontró su revisión adversarial: sólo una versión mayor que la más alta conocida espera a otra copia, y lo retirado o
@@ -306,9 +306,20 @@ su lugar del tope hasta vencer. Quedan para las revisiones de Formularios y What
 búsqueda de una propuesta en 404 o en 500, aplica el tope de la extracción sólo a un «no existe» y relee los 20 más viejos;
 los botones de WhatsApp contestan «no se pudo» ante cualquier falla de la consulta; y quienes leen el resultado (`Handles`,
 `FormDocumentAuthoringPolicy`, `WhatsAppAssistantReplyPolicy`) comparan la versión exacta, que la regla pide cambiar con la
-primera suba. La 24 (I12) espera el plazo de apagado de N17, que el núcleo todavía no programó. Build sin advertencias,
-Domain 1184, Application 6282 y Architecture 229 enteros en una copia de HEAD; integración de IA (49) y de WhatsApp y
-Formularios (100) en verde; en el front, tsc, lint y vitest de la feature (264).
+primera suba. Build sin advertencias, Domain 1184, Application 6282 y Architecture 229 enteros en una copia de HEAD;
+integración de IA (49) y de WhatsApp y Formularios (100) en verde; en el front, tsc, lint y vitest de la feature (264).
+
+La 24 se hizo después, en 680e88b5, cuando N17 fijó el apagado del host en 25 s. Las correcciones de su revisión
+adversarial son 8c2661ad, c3863530, 08733beb y 0aa4fc03:
+- la devolución se cuenta sólo si el turno volvió a pendiente;
+- la parada no deja un Warning;
+- el claim no lo corta la parada;
+- después del vaciado toda falla lleva `Interrupted`, salvo el turno que canceló su persona.
+
+El vaciado es el apagado del host menos el margen para cerrar el turno (hoy 18 s). Desde N8 (e7ce1bbc) el host frena todos
+los servicios a la vez, así que no demora a los demás workers. Build sin advertencias, Domain 1191, Application 6352 y
+Architecture 239 enteros; integración del apagado, la traza, la recuperación, la ejecución y los coordinadores (50) y de
+WhatsApp (116 con la primera versión) en verde.
 
 ### Etapa 6: la traza y el anillo
 
