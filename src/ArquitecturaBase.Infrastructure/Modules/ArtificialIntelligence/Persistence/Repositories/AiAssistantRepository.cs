@@ -51,6 +51,12 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .OrderByDescending(turn => turn.Ordinal)
             .Select(turn => new AiAssistantAttachmentRow(turn.Id, turn.PayloadRevision, turn.ContentExpiresAtUtc, turn.AttachmentKey!, turn.ProtectedAttachment))
             .FirstOrDefaultAsync(cancellationToken);
+    // I2: a projection of the conversation's turns that named a recording or have a file; the profile only for these, which seals the reading.
+    public async Task<IReadOnlyList<AiAssistantNamedSourceRow>> ListNamedSourcesAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) =>
+        await dbContext.Set<AiAssistantTurn>().Where(turn => turn.ConversationId == conversationId && turn.OwnerUserId == ownerUserId
+                && (turn.AudioRequestId != null || turn.AttachmentKey != null))
+            .Select(turn => new AiAssistantNamedSourceRow(turn.AudioRequestId, turn.AttachmentKey == null ? null : turn.ExecutionProfileJson))
+            .ToArrayAsync(cancellationToken);
 
     public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument,
         CancellationToken cancellationToken)
@@ -82,11 +88,25 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .OrderBy(turn => turn.SubmittedAtUtc).ThenBy(turn => turn.Id).Take(limit).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
-        await dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Where(turn => turn.ProtectedQuestion != null
+    // I2: a Home recording or reading that no turn of an active conversation named goes once it is old enough, like an orphan copy: a turn
+    // names a recording by its request and holds the copy of a reading, whose key names the reading's request. The naming turns keep the
+    // filter, so one of a removed conversation no longer holds it. No index of its own: the lookup runs only for technical turns past the cut.
+    public async Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(unnamed);
+        var naming = dbContext.Set<AiAssistantTurn>();
+        return await dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Where(turn => turn.ProtectedQuestion != null
             && (turn.ContentExpiresAtUtc <= nowUtc || turn.Conversation.State == AiConversationState.Removed
-                || dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == turn.OwnerUserId && user.IsDeleted)))
+                || dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == turn.OwnerUserId && user.IsDeleted)
+                || (turn.SubmittedAtUtc <= unnamed.SubmittedBeforeUtc
+                    && ((turn.ChannelId == unnamed.AudioChannelId
+                            && !naming.Any(named => named.OwnerUserId == turn.OwnerUserId && named.AudioRequestId == turn.RequestId))
+                        || (turn.ChannelId == unnamed.DocumentChannelId && !naming.Any(named => named.OwnerUserId == turn.OwnerUserId
+                            && named.AttachmentKey != null
+                            && named.AttachmentKey.StartsWith(unnamed.DocumentKeyPrefix + turn.RequestId.ToString().Replace("-", "") + ".")))))))
             .OrderBy(turn => turn.ContentExpiresAtUtc).ThenBy(turn => turn.Id).Take(limit).ToListAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
         await dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.ExpiresAtUtc <= nowUtc)

@@ -65,18 +65,43 @@ internal sealed class AiAssistantService(IAiAssistantRepository repository, IUni
             {
                 await repository.LockBudgetAsync(ct);
                 await repository.LockActorAsync(userId, ct);
-                await repository.LockConversationAsync(conversationId, ct);
                 var actor = await guard.AuthorizeAsync(userId, ct);
                 if (actor.IsFailure) return Result.Failure(actor.Error);
+                // I2: the readings and normalizations its turns named go with it. Under the budget lock no turn is added or claimed, so
+                // they are read first and every conversation is locked in the house order, sorted, as the purge does.
+                var sources = await NamedSourcesAsync(userId, conversationId, ct);
+                foreach (var locked in sources.Select(source => source.ConversationId).Append(conversationId).Distinct().Order())
+                    await repository.LockConversationAsync(locked, ct);
                 var conversation = await repository.GetConversationAsync(userId, conversationId, ct);
                 if (conversation is null || conversation.ChannelId != "home") return Result.Failure(AiAssistantErrors.NotFound);
                 var now = timeProvider.GetUtcNow().UtcDateTime;
                 var active = await repository.GetActiveForConversationAsync(conversationId, ct);
                 active?.RequestCancellation(now);
                 conversation.Remove(now);
+                // Another conversation that took the same reading or transcript keeps the copy sealed in its turn.
+                foreach (var source in sources)
+                    if ((await repository.GetConversationAsync(userId, source.ConversationId, ct))?.ChannelId == source.ChannelId
+                        && await repository.GetTurnAsync(source.TurnId, ct) is { ProtectedQuestion: not null } named && named.OwnerUserId == userId)
+                        named.PurgeContent();
                 return Result.Success();
             }, CommitPolicy.OnSuccess, cancellationToken);
         });
 
+    // What the turns of the conversation named, by its receipt: a recording by its request and a reading by the one sealed in the profile.
+    private async Task<IReadOnlyList<(Guid ConversationId, Guid TurnId, string ChannelId)>> NamedSourcesAsync(Guid userId, Guid conversationId,
+        CancellationToken ct)
+    {
+        var named = new HashSet<(Guid RequestId, string ChannelId)>();
+        foreach (var row in await repository.ListNamedSourcesAsync(userId, conversationId, ct))
+        {
+            if (row.AudioRequestId is { } audio) named.Add((audio, AiAssistantChannelPolicy.HomeAudioChannelId));
+            if (row.ExecutionProfileJson is not null && AiAssistantChannelPolicy.Read(row.ExecutionProfileJson) is { IsSuccess: true } profile
+                && profile.Value.DocumentRequestId is { } document) named.Add((document, AiAssistantChannelPolicy.HomeDocumentChannelId));
+        }
+        var sources = new List<(Guid, Guid, string)>(named.Count);
+        foreach (var (requestId, channelId) in named)
+            if (await repository.GetReceiptAsync(userId, requestId, ct) is { } receipt) sources.Add((receipt.ConversationId, receipt.TurnId, channelId));
+        return sources;
+    }
 
 }

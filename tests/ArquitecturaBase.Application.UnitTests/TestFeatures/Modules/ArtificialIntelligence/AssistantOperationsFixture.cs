@@ -300,7 +300,8 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     // The bootstrap only asks whether Home is at capacity: here nothing is ever waiting for a worker.
     public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => Task.FromResult(new AiAssistantWorkloadRow(0, 0, 0, null, null));
     public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime now, int pending, int grace, int limit, CancellationToken ct) => throw new NotSupportedException();
-    public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();
+    public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime now, AiAssistantUnnamedSources unnamed, int limit, CancellationToken ct) => throw new NotSupportedException();
+    public Task<IReadOnlyList<AiAssistantNamedSourceRow>> ListNamedSourcesAsync(Guid owner, Guid conversation, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turn, CancellationToken ct) => Task.FromResult<IReadOnlyList<AiAssistantToolExecution>>(Tools.Where(item => item.TurnId == turn).ToArray());

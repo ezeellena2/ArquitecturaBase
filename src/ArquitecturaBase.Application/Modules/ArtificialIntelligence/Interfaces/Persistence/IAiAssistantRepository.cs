@@ -18,6 +18,8 @@ public interface IAiAssistantRepository
     Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken);
     /// <summary>The spreadsheet of the latest turn of the conversation that has one, own or inherited, even once its content was purged.</summary>
     Task<AiAssistantAttachmentRow?> FindLatestAttachmentAsync(Guid conversationId, CancellationToken cancellationToken);
+    /// <summary>The turns of the person's conversation that named a recording or have a file, with the profile of those with a file (I2).</summary>
+    Task<IReadOnlyList<AiAssistantNamedSourceRow>> ListNamedSourcesAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken);
     /// <summary>
     /// The day's acceptances and the active work. Document readings count apart: with <paramref name="isDocument"/>, the actor's in every
     /// channel and the installation's; without it, those of interpretations and audio (by channel and kind when both are given), never readings.
@@ -25,7 +27,11 @@ public interface IAiAssistantRepository
     /// </summary>
     Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken);
-    Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
+    /// <summary>
+    /// Turns whose content goes: expired, of a removed conversation or of a deleted account, and a Home recording or reading submitted
+    /// before <see cref="AiAssistantUnnamedSources.SubmittedBeforeUtc"/> that no turn of an active conversation named (I2).
+    /// </summary>
+    Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turnId, CancellationToken cancellationToken);

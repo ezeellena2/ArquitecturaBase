@@ -229,10 +229,12 @@ public sealed partial class AiAssistantDispatchServiceTests
             Task.FromResult(ActiveForConversation is { } active && active.ConversationId == conversationId ? active : null);
         public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantAttachmentRow?> FindLatestAttachmentAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<AiAssistantNamedSourceRow>> ListNamedSourcesAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AiAssistantNamedSourceRow>>([]);
         public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>([]);
-        public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>(Purgeable ? [Turn] : []);
         public Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiConversation>>(Removable ? [Conversation] : []);

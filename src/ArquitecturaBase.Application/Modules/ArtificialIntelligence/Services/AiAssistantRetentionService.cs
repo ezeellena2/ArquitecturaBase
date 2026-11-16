@@ -12,6 +12,9 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
     AiAssistantLimits limits, TimeProvider timeProvider, ILogger<AiAssistantRetentionService> logger,
     IUserReader users) : IAiAssistantRetentionService
 {
+    // I2: a Home recording or reading that no turn named lasts a day, like an orphan copy of the private storage.
+    private const int UnnamedSourceHours = 24;
+
     // A poll (I10): it runs every second, so it does not go through OperationLog; the scheduler logs a failure in Warning.
     public Task<Result<int>> ReconcileExpiredBatchAsync(CancellationToken cancellationToken) =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
@@ -31,7 +34,8 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
         {
             await repository.LockBudgetAsync(ct);
             var now = timeProvider.GetUtcNow().UtcDateTime;
-            var turns = await repository.ListPurgeableAsync(now, limits.MaintenanceBatchSize, ct);
+            var turns = await repository.ListPurgeableAsync(now, new(now.AddHours(-UnnamedSourceHours), AiAssistantChannelPolicy.HomeAudioChannelId,
+                AiAssistantChannelPolicy.HomeDocumentChannelId, AiAssistantHomeDocumentPolicy.Prefix), limits.MaintenanceBatchSize, ct);
             var conversations = await repository.ListRemovableConversationsAsync(now, limits.MaintenanceBatchSize - turns.Count, ct);
             foreach (var owner in turns.Select(t => t.OwnerUserId).Concat(conversations.Select(c => c.OwnerUserId)).Distinct().Order())
                 await repository.LockActorAsync(owner, ct);

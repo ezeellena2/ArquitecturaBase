@@ -41,6 +41,12 @@ public sealed record AiAssistantAttachmentRow(Guid TurnId, long PayloadRevision,
 {
     public override string ToString() => "AiAssistantAttachmentRow { content: [REDACTED] }";
 }
+/// <summary>What a turn named before it was accepted, for removing its conversation (I2): its recording and, for a turn with a file, the
+/// profile that seals which reading it named.</summary>
+public sealed record AiAssistantNamedSourceRow(Guid? AudioRequestId, string? ExecutionProfileJson);
+/// <summary>How the purge tells a Home recording or reading no turn named (I2): a turn names a recording by its request and holds the copy
+/// of a reading, whose key names the reading's request.</summary>
+public sealed record AiAssistantUnnamedSources(DateTime SubmittedBeforeUtc, string AudioChannelId, string DocumentChannelId, string DocumentKeyPrefix);
 public sealed record AiAssistantBudgetCounts(int ActorAccepted, int InstallationAccepted, int Pending, int Running);
 public sealed record AiAssistantWorkloadRow(int Pending, int Running, int ExpiredRunning,
     DateTime? OldestPendingAtUtc, DateTime? OldestOverdueContentAtUtc, int AcceptedToday = 0);

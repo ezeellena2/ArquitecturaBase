@@ -18,7 +18,8 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 internal sealed class AiAssistantHomeDocumentPolicy(IPrivateFileStore files, IStructuredAttachmentReader reader, AiAssistantAccessGuard guard,
     IAiConnectionReader connections)
 {
-    private const string Prefix = "ai/assistant/documents/";
+    // The purge tells a reading no turn named by this prefix (I2).
+    public const string Prefix = "ai/assistant/documents/";
 
     public static string Key(Guid requestId, string mediaType) => $"{Prefix}{requestId:N}{Extension(mediaType)}";
 
