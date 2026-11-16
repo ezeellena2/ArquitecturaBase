@@ -72,6 +72,7 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
 
     [HttpPost("file-turns")]
     [EnableRateLimiting(ArtificialIntelligenceApiRegistration.AssistantSubmitPolicy)]
+    [AiAssistantUploadSlot]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaximumFileTurnRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaximumFileTurnRequestBytes)]
@@ -89,6 +90,7 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
 
     [HttpPost("audio")]
     [EnableRateLimiting(ArtificialIntelligenceApiRegistration.AssistantSubmitPolicy)]
+    [AiAssistantUploadSlot]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaximumAudioRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaximumAudioRequestBytes)]
@@ -118,6 +120,7 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
 
     [HttpPost("documents")]
     [EnableRateLimiting(ArtificialIntelligenceApiRegistration.AssistantSubmitPolicy)]
+    [AiAssistantUploadSlot]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaximumDocumentRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaximumDocumentRequestBytes)]

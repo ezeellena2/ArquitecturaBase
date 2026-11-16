@@ -38,17 +38,23 @@ seguí [su configuración](configurar-google-places.md). No usa la clave ni el p
 | `ArtificialIntelligence:RateLimiting:ReadPermitLimit` | 120/min por operador/réplica |
 | `ArtificialIntelligence:RateLimiting:WritePermitLimit` | 20/min por operador/réplica |
 | `ArtificialIntelligence:RateLimiting:TestPermitLimit` | 4/min por operador/réplica |
-| `ArtificialIntelligence:RateLimiting:UploadConcurrencyLimit` | 4 subidas de Inicio a la vez por réplica (`file-turns`, audio y documentos), de cualquier persona |
+| `ArtificialIntelligence:RateLimiting:UploadConcurrencyLimit` | 4 subidas de Inicio a la vez por réplica (`file-turns`, audio y documentos), además de una por persona |
 | `ArtificialIntelligence:RateLimiting:UploadQueueLimit` | 8 en espera por réplica; con la cola llena, 429 con `retryAfter` |
+| `ArtificialIntelligence:RateLimiting:UploadBodySeconds` | 120 s para recibir el cuerpo de una subida con su lugar tomado; rango 1–3600 |
 
 Los límites HTTP aceptan 1–100000 (la cola de subidas, 0–100000). No son contabilidad ni presupuesto distribuido. No hay
 URL, timeout, tope ni prompt configurables por el administrador funcional. El startup
 rechaza opciones inválidas, sin incluir sus valores sensibles en el diagnóstico.
 
-Las subidas de Inicio son un dato del piloto (I9): cada una tiene su archivo, de hasta 10 MiB, una sola vez en memoria, más lo
-que use el lector del dueño, y su lugar dura también lo que tarda en llegar el cuerpo, así que una conexión lenta lo retiene.
-Con 4 a la vez son unos 40 MiB de archivos; subilo en una réplica con más memoria o si el piloto ve 429 frecuentes con poca
-carga, y bajalo si una réplica chica se queda sin memoria. La cola espera sin plazo propio, hasta que el pedido se corta.
+Las subidas de Inicio son un dato del piloto (I9). Sólo ocupa lugar una subida con sesión, `ai.assistant.use` y su ventana de
+envíos (`AssistantSubmitPermitLimit`) disponible: sin sesión, sin el permiso o con la ventana agotada, el pedido recibe su 401, 403
+o 429 sin tomar lugar ni cola, y el turno JSON no cuenta. Cada persona tiene un solo lugar, sin cola: su segunda subida a la vez
+recibe 429 enseguida. Con el lugar tomado, el cuerpo tiene `UploadBodySeconds` para llegar (120 s alcanzan para 10 MiB a unos
+90 KB/s); vencido, el pedido se corta y el lugar se libera, como al terminar, con un error o cuando el cliente corta. La cola
+espera a que se libere un lugar, sin plazo propio. Cada subida tiene su archivo, de hasta 10 MiB, una sola vez en memoria, más lo
+que use el lector del dueño, que puede decodificar una foto de hasta 32 Mpx (unos 128 MiB): con 4 a la vez son unos 40 MiB de
+archivos, y hasta unos 550 MiB si todas son fotos grandes. Calibrá `UploadConcurrencyLimit` con la memoria de la réplica: bajalo
+si una réplica chica se queda sin memoria, y subilo en una con más o si el piloto ve 429 frecuentes con poca carga.
 
 En **una instalación local nueva**, desde la raíz backend, PowerShell 7:
 

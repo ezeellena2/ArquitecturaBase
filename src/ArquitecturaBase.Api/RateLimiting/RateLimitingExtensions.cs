@@ -61,14 +61,19 @@ internal static class RateLimitingExtensions
                 QueueLimit = 0,
             });
 
-    // Mismo formato que los demás errores, con retryAfter en segundos (encabezado y cuerpo).
-    private static async ValueTask WriteRejectionAsync(OnRejectedContext context, CancellationToken cancellationToken)
+    private static async ValueTask WriteRejectionAsync(OnRejectedContext context, CancellationToken cancellationToken) =>
+        await WriteRejectionAsync(context.HttpContext, context.Lease);
+
+    /// <summary>
+    /// El rechazo común: mismo formato que los demás errores, con retryAfter en segundos (encabezado y cuerpo). Lo usa también
+    /// un límite que se toma fuera del middleware, como las subidas de un módulo.
+    /// </summary>
+    internal static async Task WriteRejectionAsync(HttpContext httpContext, RateLimitLease lease)
     {
-        var httpContext = context.HttpContext;
         var problem = ProblemDetailsMapper.Create(
             ErrorType.TooManyRequests, ApiErrorCodes.TooManyRequests, ErrorMessages.Get(ApiErrorCodes.TooManyRequests));
 
-        var seconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
+        var seconds = lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
             ? Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)) : 1;
         httpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
         problem.Extensions[LoginCodeErrors.RetryAfterKey] = seconds;

@@ -115,6 +115,15 @@ internal sealed class AiAssistantExecutionScenario(WebApplicationFactory<Program
 
     public WebApplicationFactory<Program> CreateAdditionalHost() => host.WithWebHostBuilder(_ => { });
 
+    // Another client of the same host: as that person, or without a session when null.
+    public HttpClient CreateClient(Guid? userId)
+    {
+        var client = host.CreateClient();
+        if (userId is { } id)
+            client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, id.ToString());
+        return client;
+    }
+
     public Task<bool> ProcessNextAsync() => host.Services.GetRequiredService<AiAssistantCoordinator>().ProcessNextAsync(Ct);
 
     public async Task<T> ScopeAsync<T>(Func<IServiceProvider, Task<T>> work)
