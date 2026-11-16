@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -232,6 +233,67 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
             Assert.Equal(AiConversationState.Removed, channel.State);
             Assert.Equal(2, await db.Set<AiAssistantRequestReceipt>().CountAsync(row => row.OwnerUserId == owner, Ct));
         });
+    }
+
+    // I20: the purge asks each reason apart, with the batch's order and limit, and keeps the first of their union in that order. One turn
+    // per reason, interleaved by expiry (two tied, which the Id breaks) and created backwards, so their Ids do not follow it: a small
+    // limit takes exactly the first ones. Its instants come before anything the other tests leave, which never takes those places.
+    [Fact]
+    public async Task A_small_purge_batch_takes_the_first_turns_of_every_reason_in_expiry_order()
+    {
+        var nowUtc = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var submitted = nowUtc.AddDays(-2);
+        var deleted = await CreateUserAsync("purge-order-deleted");
+        var rows = new List<object>();
+        var conversations = new List<Guid>();
+        AiAssistantTurn Add(Guid owner, string channel, DateTime contentExpiresAtUtc, bool retired = false)
+        {
+            var conversation = AiConversation.Create(owner, submitted, channel);
+            var turn = AiAssistantTurn.Create(owner, conversation.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC",
+                AiProvider.OpenAI, "fictional-model", 1, submitted, contentExpiresAtUtc, channel);
+            turn.RequestCancellation(submitted);
+            if (retired) conversation.Remove(submitted);
+            rows.AddRange([conversation, turn]);
+            conversations.Add(conversation.Id);
+            return turn;
+        }
+        var unnamedReading = Add(Guid.NewGuid(), "home-document", nowUtc.AddHours(3));
+        var deletedOwner = Add(deleted, "home", nowUtc.AddHours(3));
+        var removed = Add(Guid.NewGuid(), "home", nowUtc.AddHours(2), retired: true);
+        var unnamedRecording = Add(Guid.NewGuid(), "home-audio", nowUtc.AddHours(1));
+        var expired = Add(Guid.NewGuid(), "home", nowUtc.AddDays(-1));
+        // PostgreSQL compares a uuid by its bytes, which is the order of its text.
+        Guid[] expected = [expired.Id, unnamedRecording.Id, removed.Id,
+            .. new[] { deletedOwner.Id, unnamedReading.Id }.OrderBy(id => id.ToString(), StringComparer.Ordinal)];
+        try
+        {
+            await factory.InTransactionAsync(services =>
+            {
+                services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(rows);
+                return Task.CompletedTask;
+            });
+            await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().DeleteAsync(deleted, Ct));
+
+            for (var limit = 1; limit <= expected.Length; limit++)
+            {
+                var batch = limit;
+                var purgeable = await factory.ExecuteScopeAsync(async services => (await services.GetRequiredService<IAiAssistantRepository>()
+                    .ListPurgeableAsync(nowUtc, new(nowUtc.AddDays(-1), "home-audio", "home-document", "ai/assistant/documents/",
+                        [".pdf", ".jpg", ".png"]), batch, Ct)).Select(turn => turn.Id).ToArray());
+                Assert.Equal(expected[..limit], purgeable);
+            }
+        }
+        finally
+        {
+            await factory.ExecuteDbContextAsync(async db =>
+            {
+                db.Set<AiAssistantTurn>().RemoveRange(await db.Set<AiAssistantTurn>()
+                    .IgnoreQueryFilters().Where(row => conversations.Contains(row.ConversationId)).ToArrayAsync(CancellationToken.None));
+                db.Set<AiConversation>().RemoveRange(await db.Set<AiConversation>()
+                    .IgnoreQueryFilters().Where(row => conversations.Contains(row.Id)).ToArrayAsync(CancellationToken.None));
+                await db.SaveChangesAsync(CancellationToken.None);
+            });
+        }
     }
 
     private Task<Guid> CreateUserAsync(string prefix) => factory.InTransactionAsync(async services =>
