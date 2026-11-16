@@ -567,6 +567,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** guardar la unión histórica de campos por formulario, catálogo y campo en una tabla chica, escrita al capturar (nunca
   al leer) y rellenada con lo existente en la misma migración, y leerla por índice. Mediano.
 - **Arreglado el 2026-11-16** en `5fd3972d`.
+- Después: la migración normaliza los saltos de línea de su SQL (`8dadf004`) y el test de los campos sellados siembra la tabla como la captura (`83eebf76`).
 
 #### F16. Una regla puede nombrar una opción de catálogo que no existe, y nunca se cumple
 

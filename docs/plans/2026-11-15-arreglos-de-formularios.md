@@ -1,6 +1,6 @@
 # Arreglos de la revisión de arquitectura de Formularios
 
-Decididos el 2026-11-14; el 2026-11-15 se programó una parte y lo que falta está en [qué falta](#qué-falta-al-2026-11-15). Salen de la [revisión de arquitectura de Formularios](../reviews/2026-11-14-arquitectura-formularios.md),
+Decididos el 2026-11-14; se programaron el 2026-11-15 y el 2026-11-16, y lo que falta está en [qué falta](#qué-falta-al-2026-11-16). Salen de la [revisión de arquitectura de Formularios](../reviews/2026-11-14-arquitectura-formularios.md),
 que tiene el escenario, la evidencia (archivo y línea en `a9f57202`) y el esfuerzo de cada hallazgo, y de las
 [decisiones del usuario](../reviews/2026-11-14-arquitectura-formularios.md#decisiones-del-2026-11-14), que eligió las ocho
 recomendadas y no se vuelven a preguntar. Va aparte del [índice de etapas de formularios](formularios/README.md), como el plan
@@ -21,10 +21,9 @@ del núcleo.
   contra el código. La primera tarea de cada etapa relee el código de sus hallazgos y corrige el plan si hace falta.
 - **Sin datos que convertir:** no hay producción. Lo que se agrega a filas existentes (el estado de revisión de los temas, el
   plazo de los documentos propuestos) se completa en la misma migración con los datos de desarrollo.
-- **Cuándo:** todas las etapas van antes de la prueba integral, por decisión del usuario del 2026-11-15 («Todo antes»). Ese día,
-  con el cupo semanal hasta el 95 %, se hicieron las etapas 1, 2, 4 y 5 y parte de la 3 y de la 6; lo que falta sigue después del
-  reinicio del cupo (17/11, 23:59), en una sesión nueva (la revisión y este plan alcanzan como brief), mirando el cupo antes de
-  cada etapa. La prueba integral espera a que termine.
+- **Cuándo:** todas las etapas van antes de la prueba integral, por decisión del usuario del 2026-11-15 («Todo antes»). El 15 y el
+  16, con el cupo semanal hasta el 96 %, se hicieron las siete etapas y dos revisiones adversariales; lo que falta está en
+  [qué falta](#qué-falta-al-2026-11-16), y la prueba integral espera al cierre.
 
 **Cómo se trabaja.** Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): el test en rojo primero y las suites
 rápidas del área. La revisión adversarial va completa en lo que toca permisos, datos de personas o efectos fuera del sistema
@@ -47,34 +46,29 @@ los controles del front, va una sola vez, al cerrar el desarrollo. Además:
 
 Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la 6 y la 7, donde son independientes.
 
-### Qué falta al 2026-11-15
+### Qué falta al 2026-11-16
 
-En orden de peso; cada tarea lo repite.
+Lo demás del plan está hecho. La segunda revisión adversarial (2026-11-16) cubrió F4, F5, F20, la etapa 3, F9, F13, F31, F40, la
+etapa 6, el aviso de F2 y F8; sus serios (el aviso de F2 con la ventana cerrada y la cita de respuestas de F5) están corregidos en su
+tarea, y al verificarla aparecieron dos regresiones, también corregidas (F6-1 y el test de F15). Queda, en orden:
 
-1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
-2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro y el contador para quien
-   administra reglas (el aviso a quien cargó, que esperaba ARCA H11, quedó hecho el 2026-11-16).
-3. **El resto de la etapa 6:** nada.
-4. **La etapa 7:** nada, salvo repetir la prueba de quitar Formularios (F25).
-6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
-   «No aplica» se empieza a escribir en la misma versión que lo trae, contra la regla de la [guía de migración](../guides/migracion.md)
-   que cita «Al día».
-7. **El cierre:** la corrida completa con Docker y los controles del front, que confirma además que las cinco migraciones del
-   2026-11-15, hechas en paralelo (`20261115163541`, `20261115172029`, `20261115181009`, `20261115182249` y `20261115192350`),
-   dejaron coherentes el modelo y el snapshot; exportar las cohortes del front, entre ellas `forms-missing-requests-http`; el error de `tsc -b` en
-   `src/test/visual/missingRequestFixtures.ts` del front; y, con la sesión del núcleo, los dos tests de `FormDraftEndpointsTests`
-   que reciben 403 en `PUT /api/roles` desde N1 (`Roles.Role.PermissionsNotHeld`). Varios agentes commitearon a la vez sobre
-   copias distintas, y uno borró así el texto de F5: antes de cerrar, revisar que cada archivo compartido conserve lo de todos.
-
-8. **Menores pendientes de la revisión adversarial 2** (no se programan; una línea cada uno):
+1. **La marca de la planilla de F2** («Con acciones por resolver», con su filtro y el contador para quien administra reglas): cambia
+   una pantalla, así que antes se dibuja en el tablero y la elige el usuario.
+2. **Repetir la prueba de quitar Formularios** en una copia, como dice su guía (F25; la última fue el 2026-11-04).
+3. **El cierre:** la corrida completa con Docker y los controles del front. Es la primera corrida entera de `FormDraftEndpointsTests`
+   desde el 15/11 (los agentes la cortaron por larga) y confirma, con `MigrationsTests`, que las nueve migraciones de Formularios de
+   los días 15 y 16, hechas por agentes distintos (`20261115163541`, `20261115172029`, `20261115181009`, `20261115182249`, `20261115192350`, `20261116104400`, `20261116111033`, `20261116114811` y `20261116122853`), dejaron coherentes el modelo y el snapshot.
+   Además: exportar las cohortes del front, entre ellas `forms-missing-requests-http`, y, con la sesión del núcleo, los tests de
+   `FormDraftEndpointsTests` que reciben 403 en `PUT /api/roles` desde N1 (`Roles.Role.PermissionsNotHeld`). Varios agentes
+   commitearon a la vez sobre copias distintas y se pisaron (el texto de F5, anotaciones de este plan): antes de cerrar, revisar que
+   cada archivo compartido conserve lo de todos.
+4. **Menores de la revisión adversarial 2 (2026-11-16)**, sin programar, una línea cada uno:
    - 2b-1 (F15): con nodos viejos escribiendo durante el despliegue, un campo sellado sólo por una captura vieja no entra a `BusinessFormRecordCatalogFields` hasta que una captura nueva lo vuelva a sellar; falta un relleno idempotente en el despliegue siguiente o dejarlo documentado.
-   - 2b-2 (F15, migración 20261116111033): el INSERT usa `entry.value -> 'name'` y `->> 'key'` contra columnas NOT NULL; un `FieldValuesJson` viejo sin `name` o `key` aborta la migración (COALESCE o filtrar `entry.value ? 'key'`, o verificar con datos reales).
+   - 2b-2 (F15, migración 20261116111033): el INSERT usa `entry.value -> 'name'` y `->> 'key'` contra columnas NOT NULL; un `FieldValuesJson` viejo sin `name` o `key` aborta la migración (COALESCE o filtrar `entry.value ? 'key'`, o verificar con datos reales). Comprobado el 2026-11-16: la base de desarrollo (`appdb`) tiene 85 campos sellados y ninguno sin `key` ni `name`.
    - 2b-3 (F31): un «no encontrado» del motor deja la extracción en `pending` hasta siete días y el revisor ve «leyendo»; acotar a un plazo menor si molesta.
    - 2b-5 (migración 20261116114811): marca como avisadas todas las corridas Failed/Uncertain existentes; las que un nodo viejo deje en Failed después quedan sin marca y el nodo nuevo las anuncia (esperable).
    - 2c-5 (F11): el limitador global sólo cubre endpoints con `ExportPolicy`; dos pedidos lentos de un usuario con permiso bloquean las exportaciones de todos (aceptado por diseño).
    - 2c-6 (F47): el tope de 500 carpetas sólo se aplica al crear (`FormFolderTree.cs:22`); las carpetas de sistema del Agregar no lo cuentan.
-
-8. **Menores pendientes de la revisión adversarial 2 (2026-11-16)**, sin programar (los serios, F2, F5, F4 y B3, ya están corregidos):
    - F4, cadena de correcciones: `ExistsValuesSetByAsync` y `SetValuesBy` miran sólo `CorrectedByUserId` de la respuesta de la tarea; quien corrigió una versión anterior (y el `ReviewedByUserId` de un documento que no es el directo) puede aprobar valores que incluyen los suyos; falta recorrer `ReplacesRecordId` o guardar el conjunto en la tarea.
    - F2, la auto-consulta de la primera pasada: una excepción de `channel.GetAsync` sin nada enviado se reconsulta con `ReconciliationOnly`, no encola, y `NotFound` acaba como «destinatario no disponible» reintentable a mano; debería reintentar el envío (no hubo efecto) o dejarse «En duda».
    - Convivencia de versiones: `StructuredRecordActionState.NotApplicable` (valor numérico nuevo en `OutcomeJson`) lo ve como desconocido una copia vieja, que en el reintento de otra persona de un aviso a un rol no lo toma por terminal y encola al que se fue del rol; ventana chica de despliegue, para aceptar (ADR 0018) o sellar el estado en el run.
@@ -102,7 +96,7 @@ En orden de peso; cada tarea lo repite.
    integración: quien corrige una respuesta ajena, o pasa un documento, y es del rol que aprueba recibe 403. Chico. Hecha el 2026-11-15 en `054a3566` (la decisión, la bandeja, su conteo y la continuación; la guarda del borrador pide cuenta activa) y `3207e2b4` (el resumen y el árbol).
 3. **F5. Guardar una regla que cita respuestas pide «Ver respuestas»** (decisión 3). `FormRuleAccessGuard` pide `formrecords.read`
    cuando un aviso usa datos de preguntas, y lo dicen la descripción del permiso (`Permissions.resx:26`) y la regla del dominio.
-   El editor de reglas muestra el rechazo con su texto. Test: sin «Ver respuestas», guardar esa regla da 403. Chico. Hecha el 2026-11-15 en `a765080f` (el código `Forms.Rule.RecordsReadRequired` tiene su texto en `Errors.resx`; falta mirar en el editor del front que lo muestre). El texto lo borró `6ff85b99` al sumar el de F13, armado sobre una copia anterior, y volvió en `974fea7c`.
+   El editor de reglas muestra el rechazo con su texto. Test: sin «Ver respuestas», guardar esa regla da 403. Chico. Hecha el 2026-11-15 en `a765080f` (el código `Forms.Rule.RecordsReadRequired` tiene su texto en `Errors.resx`; el editor del front lo muestra desde `3e000326` del front). El texto lo borró `6ff85b99` al sumar el de F13, armado sobre una copia anterior, y volvió en `974fea7c`. Tras la revisión adversarial del 2026-11-16, adjuntar el PDF (`IncludePdf`) o mandar una copia (`SendCopy`) también pide «Ver respuestas» (`b9344a0c`).
 4. **F7 y F14. Los temas de «Formularios que faltan» se revisan antes de ofrecerse** (decisión 7). El tema suma un estado de
    revisión: uno nuevo, o uno descartado que reabre otro pedido, no entra en la lectura de candidatas de otras personas hasta que
    lo revisa alguien con «Diseñar formularios», y los que ya existen quedan sin revisar. El asistente recibe sólo el nombre, sin la
@@ -178,7 +172,7 @@ En orden de peso; cada tarea lo repite.
     cada lectura tiene un plazo que contesta «ilegible» y libera su lugar de `PdfGate`; el worker de WhatsApp cuenta los intentos de
     un mensaje y lo deja ilegible en lugar de tomarlo para siempre; Inicio decide por los bytes, sin abrir, si la ruta admite un
     PDF; y una falta de memoria no se informa como archivo ilegible sin log. Tests con una bomba en la tabla de referencias y en un
-    flujo de objetos, y con un PDF lento. Mediano. Hecha el 2026-11-15 en `7a30c616`. Lo que encontró la revisión adversarial, corregido en `97a6dbe2` y `ca730ae4`; F6-4, menor, queda anotado en la revisión.
+    flujo de objetos, y con un PDF lento. Mediano. Hecha el 2026-11-15 en `7a30c616`. Lo que encontró la revisión adversarial, corregido en `97a6dbe2` y `ca730ae4`; F6-4, menor, queda anotado en la revisión. El arreglo de `97a6dbe2` dejaba «Protegido» todo PDF con `/Encrypt`, también el que sólo restringe permisos y se abre sin contraseña: desde `6dcaef6f` el escáner lo descifra con la contraseña vacía y lo mide como al resto.
 19. **F9. El documento propuesto vence** (decisión 6). Un documento propuesto que nadie revisa, o uno descartado que alguien
     reabre, pasa a descartado con motivo «venció» a los 90 días (desde que vence su envío, o desde que se reabrió) y sigue la purga.
     Cambia la regla de los documentos recibidos (la decisión 9 de su plan, en [formularios](../features/formularios.md)). Test con
@@ -206,7 +200,7 @@ En orden de peso; cada tarea lo repite.
 28. **F12. La planilla que se infla no pasa.** Se cuentan también los estilos y los textos compartidos, o baja el tope descomprimido,
     y hay un tope global de importaciones a la vez por copia; antes, medir el pico con una planilla de casi 100 MiB. Chico. Hecha el 2026-11-15 en `2760dc30`.
 29. **F15. Los campos históricos de catálogo, en una tabla chica.** La unión de campos por formulario, catálogo y campo se escribe
-    al capturar, nunca al leer, se rellena con lo existente en la misma migración y la planilla la lee por índice. Mediano. Hecha el 2026-11-16 en `5fd3972d` (`BusinessFormRecordCatalogFields`; suma la tabla a la guía para quitar Formularios).
+    al capturar, nunca al leer, se rellena con lo existente en la misma migración y la planilla la lee por índice. Mediano. Hecha el 2026-11-16 en `5fd3972d` (`BusinessFormRecordCatalogFields`; suma la tabla a la guía para quitar Formularios). La migración normaliza los saltos de línea de su SQL desde `8dadf004`, y el test de los campos sellados, que siembra sin pasar por la captura, escribe también la tabla desde `83eebf76`.
 30. **F16. Una regla no nombra una opción que no existe.** Guardar una regla, un filtro o una sugerencia comprueba que sus opciones
     existen, y borrar opciones toma antes el lock de definiciones. Chico.
     Hecha el 2026-11-16 (`Forms.Rule.OptionUnavailable`; `FormConditionChoicePolicy.FindUnavailableAsync` comprueba las condiciones de reglas y sugerencias contra sus catálogos de opciones propias, y el borrado de opciones toma antes `LockDefinitionsAsync`). El filtro fijo de un borrador ya lo comprobaba la publicación.
