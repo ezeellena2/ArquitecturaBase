@@ -14,6 +14,18 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 [Collection(ApiTestGroup.Name)]
 public sealed class AiAssistantEndpointsTests(ApiFactory factory)
 {
+    // I4, review: a recording or a reading sealed by a newer version answers a 409 that may pass (UnknownVersion), and the document says so.
+    [Theory]
+    [InlineData("/api/ai/assistant/audio/{requestId}")]
+    [InlineData("/api/ai/assistant/documents/{requestId}")]
+    public async Task Reading_a_recording_or_a_document_documents_its_conflict(string path)
+    {
+        var document = await OpenApiTests.ReadDocumentAsync(factory);
+        var responses = document.GetProperty("paths").GetProperty(path).GetProperty("get").GetProperty("responses");
+        Assert.Equal("#/components/schemas/ProblemDetails", responses.GetProperty("409").GetProperty("content").GetProperty("application/problem+json")
+            .GetProperty("schema").GetProperty("$ref").GetString());
+    }
+
     [Fact]
     public async Task Public_presentation_advertises_the_installed_assistant_module()
     {

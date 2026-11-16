@@ -106,6 +106,8 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
 
     [HttpGet("audio/{requestId:guid}")]
     [ProducesResponseType<AiAssistantAudioResponse>(StatusCodes.Status200OK)]
+    // I4, review: one sealed by a newer version answers UnknownVersion, which may pass.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> GetAudio([FromRoute] Guid requestId, CancellationToken cancellationToken) =>
         (await audio.GetAsync(requestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, cancellationToken)).ToActionResult(this);
 
@@ -136,6 +138,8 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
 
     [HttpGet("documents/{requestId:guid}")]
     [ProducesResponseType<AiAssistantDocumentResponse>(StatusCodes.Status200OK)]
+    // I4, review: one sealed by a newer version answers UnknownVersion, which may pass.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> GetDocument([FromRoute] Guid requestId, CancellationToken cancellationToken) =>
         (await documents.GetAsync(requestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, cancellationToken)).ToActionResult(this);
 
