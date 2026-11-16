@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -100,6 +101,34 @@ public sealed class FormActionStallNoticeTests
     }
 
     [Fact]
+    public async Task A_notice_the_closed_window_refuses_is_marked_resolved_without_telling_anyone_and_is_not_asked_again()
+    {
+        var (fixture, service, run) = await Stopped(reachable: true, answer: new(StructuredRecordActionState.Failed, "WhatsApp.FormAction.WindowClosed", true));
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Empty(fixture.Channel.Messages);
+        Assert.NotNull(run.StallNoticedAtUtc);
+        Assert.False(run.NeedsStallNotice);
+        var reads = fixture.Channel.Reads.Count;
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Equal(reads, fixture.Channel.Reads.Count);
+    }
+
+    [Fact]
+    public async Task A_notice_the_channel_refuses_for_any_other_reason_leaves_the_run_unmarked_and_comes_back_when_it_can()
+    {
+        var (fixture, service, run) = await Stopped(reachable: true, answer: new(StructuredRecordActionState.Failed, "WhatsApp.FormAction.NotLinked", true));
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Empty(fixture.Channel.Messages);
+        Assert.Null(run.StallNoticedAtUtc);
+        Assert.True(run.NeedsStallNotice);
+        fixture.Channel.EnqueueAnswer = null;
+        fixture.Clock.Advance(TimeSpan.FromSeconds(2));
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Single(fixture.Channel.Messages);
+        Assert.NotNull(run.StallNoticedAtUtc);
+    }
+
+    [Fact]
     public async Task An_issuance_waiting_for_its_author_to_confirm_it_is_a_question_not_a_stop()
     {
         var fixture = new FormActionFixture();
@@ -112,9 +141,10 @@ public sealed class FormActionStallNoticeTests
         Assert.False(run.NeedsStallNotice);
     }
 
-    private static async Task<(FormActionFixture Fixture, WorkerPass Service, BusinessFormActionRun Run)> Stopped(bool reachable)
+    private static async Task<(FormActionFixture Fixture, WorkerPass Service, BusinessFormActionRun Run)> Stopped(bool reachable, StructuredRecordActionResponse? answer = null)
     {
         var fixture = new FormActionFixture();
+        fixture.Channel.EnqueueAnswer = answer;
         var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action("GeneratePdf"), FormActionFixture.Action()])]);
         if (reachable) fixture.Channel.Reachable.Add(record.ActorUserId);
         await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);

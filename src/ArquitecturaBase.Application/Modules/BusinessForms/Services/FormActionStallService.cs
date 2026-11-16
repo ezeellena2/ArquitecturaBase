@@ -24,6 +24,8 @@ internal sealed partial class FormActionStallService(IFormActionRunRepository ru
     IEnumerable<IStructuredRecordActionChannel> channels, IFormActionRecipientReader recipients, IUnitOfWork unitOfWork,
     TimeProvider timeProvider, ILogger<FormActionStallService> logger) : IFormActionStallService
 {
+    private const string WindowClosedCode = "WhatsApp.FormAction.WindowClosed";
+
     public async Task NotifyAsync(Guid runId, CancellationToken cancellationToken)
     {
         var run = await runs.GetAsync(runId, cancellationToken);
@@ -39,8 +41,16 @@ internal sealed partial class FormActionStallService(IFormActionRunRepository ru
                 if ((await channel.GetAsync(messageId, author, cancellationToken)).State == StructuredRecordActionState.NotFound)
                 {
                     var culture = (await recipients.FindAsync(author, cancellationToken))?.Culture is "en" ? "en" : "es";
-                    await channel.EnqueueAsync(new StructuredRecordActionMessage(messageId, author, Text(stored.Record, culture)), cancellationToken);
-                    LogNoticed(logger, run.Id);
+                    var queued = await channel.EnqueueAsync(new StructuredRecordActionMessage(messageId, author, Text(stored.Record, culture)), cancellationToken);
+                    if (queued.State == StructuredRecordActionState.Failed && queued.FailureCode == WindowClosedCode)
+                        LogWindowClosed(logger, run.Id);
+                    else if (queued.State is not (StructuredRecordActionState.Pending or StructuredRecordActionState.Sending or StructuredRecordActionState.Accepted))
+                    {
+                        // The channel did not keep the notice: nothing is marked and the worker brings the run back on its next round.
+                        LogNotQueued(logger, run.Id);
+                        return;
+                    }
+                    else LogNoticed(logger, run.Id);
                 }
                 break;
             }
@@ -61,6 +71,12 @@ internal sealed partial class FormActionStallService(IFormActionRunRepository ru
         var reply = FormRecordPresentationPolicy.Project(row, culture, FormDraftPolicy.Read<Models.FormVersionSchema>(row.SchemaJson), false);
         return DisplayNumbers.Format(culture, FormResponseTexts.Get("Action.Stalled", culture), reply.Number, reply.Name);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Form action {RunId} stopped its rule but its author cannot be told: the 24-hour window is closed, so the notice does not apply.")]
+    private static partial void LogWindowClosed(ILogger logger, Guid runId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The channel did not keep the notice of form action {RunId}; it is tried again on the next round.")]
+    private static partial void LogNotQueued(ILogger logger, Guid runId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Form action {RunId} stopped its rule and its author was told.")]
     private static partial void LogNoticed(ILogger logger, Guid runId);

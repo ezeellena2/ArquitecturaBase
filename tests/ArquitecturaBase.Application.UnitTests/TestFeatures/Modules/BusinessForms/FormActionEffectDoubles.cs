@@ -12,6 +12,8 @@ internal sealed class FakeFormActionChannel:IStructuredRecordActionChannel
     public List<Guid> Reads { get; }=[];public List<StructuredRecordActionMessage> Messages { get; }=[];public List<Guid> Retries { get; }=[];public List<long> ControlRevisions { get; }=[];
     public List<IReadOnlyList<StructuredRecordActionObservationRequest>> ObservationBatches { get; }=[];
     public Action? BeforeObservation { get; set; }
+    /// <summary>When set, what an enqueue answers instead of accepting (nothing is stored), as a channel that refuses does.</summary>
+    public StructuredRecordActionResponse? EnqueueAnswer { get; set; }
     public Task<IReadOnlyList<StructuredRecordActionObservationResponse>> ObserveAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken ct)
     {
         ObservationBatches.Add(requests.ToArray());BeforeObservation?.Invoke();
@@ -25,6 +27,7 @@ internal sealed class FakeFormActionChannel:IStructuredRecordActionChannel
     }
     public Task<StructuredRecordActionResponse> EnqueueAsync(StructuredRecordActionMessage message,CancellationToken cancellationToken)
     {
+        if(EnqueueAnswer is {} answer)return Task.FromResult(answer);
         Messages.Add(message);return Task.FromResult(Statuses[message.RecipientUserId]=new(StructuredRecordActionState.Accepted));
     }
     public List<(Guid RecipientUserId,StructuredRecordActionReview Review)> Reviews { get; }=[];
