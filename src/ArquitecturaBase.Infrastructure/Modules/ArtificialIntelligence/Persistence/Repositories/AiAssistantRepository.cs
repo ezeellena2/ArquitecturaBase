@@ -98,8 +98,8 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     // AudioRequestId and AttachmentKey. It runs under the budget lock, so each naming lookup is an equality that a filtered index answers:
     // AudioRequestId, or AttachmentKey with one whole key per extension. Only technical turns past the cut get there.
     // I20: one condition with every reason read the whole history. Each reason is its own query over the turns that still have content (a
-    // filtered index), with the batch's order and limit, and the batch is the first of their union in that order, which PostgreSQL sorts
-    // again: the same turns as the one condition.
+    // filtered index), with the batch's order and limit; the repository joins their Ids and the final query sorts them and cuts the limit:
+    // the same turns as the one condition.
     public async Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit,
         CancellationToken cancellationToken)
     {
@@ -136,8 +136,8 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
         await dbContext.Set<AiConversation>().Where(conversation => conversation.State == AiConversationState.Active
                 && dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == conversation.OwnerUserId && user.IsDeleted))
             .OrderBy(conversation => conversation.Id).Take(limit).ToListAsync(cancellationToken);
-    // I20: the removed ones by their filtered index, in its order, and the active ones apart; the batch is the first of both in the same
-    // order, which PostgreSQL sorts again.
+    // I20: the removed ones by their filtered index, in its order, and the active ones apart; the repository joins their Ids and the final
+    // query sorts them in the same order and cuts the limit.
     public async Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken)
     {
         var ids = new HashSet<Guid>();
