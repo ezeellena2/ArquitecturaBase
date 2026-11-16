@@ -340,8 +340,8 @@
   <data name="Forms.Preview.Expired" xml:space="preserve"><value>El preview oficial venció. Volvé a abrirlo.</value></data>
   <data name="Forms.Preview.CultureInvalid" xml:space="preserve"><value>Elegí es o en para la vista previa.</value></data>
   <data name="Forms.Record.InvalidResponse" xml:space="preserve"><value>La respuesta no coincide con el formulario publicado.</value></data>
-  <data name="Forms.Record.ReplayConflict" xml:space="preserve"><value>Esta sesión ya se usó con otra respuesta.</value></data>
-  <data name="Forms.Record.AuthorizationChanged" xml:space="preserve"><value>La cuenta vinculada ya no puede responder este formulario.</value></data>
+  <data name="Forms.Record.ReplayConflict" xml:space="preserve"><value>Este envío ya se usó con otra respuesta.</value></data>
+  <data name="Forms.Record.AuthorizationChanged" xml:space="preserve"><value>Esta cuenta ya no puede responder este formulario.</value></data>
   <data name="Forms.Catalog.NotFound" xml:space="preserve"><value>No se encontró el catálogo.</value></data>
   <data name="Forms.Catalog.RevisionConflict" xml:space="preserve"><value>El catálogo cambió. Recargalo e intentá de nuevo.</value></data>
   <data name="Forms.Catalog.Inactive" xml:space="preserve"><value>El catálogo está dado de baja.</value></data>

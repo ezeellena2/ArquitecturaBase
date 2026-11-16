@@ -261,8 +261,10 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
     private Result<StructuredRecordCaptureResponse> Reject(StructuredRecordCaptureRequest request, string fingerprint, string code,
         Guid? rejectedFieldId = null, int? rejectedRow = null, bool fixedValidation = false, StructuredRecordRepetition? repetition = null)
     {
-        records.Add(BusinessFormCaptureReceipt.Reject(request.SourceReceiptId, request.DefinitionId, request.VersionId,
-            fingerprint, code, timeProvider.GetUtcNow().UtcDateTime, rejectedFieldId, rejectedRow, fixedValidation, repetition?.RecordNumber, repetition?.AtUtc));
+        // F8: a rejection that can stop being true (a permission lost in a race) leaves no receipt, so repeating the same request is decided again.
+        if (code != FormRecordErrors.AuthorizationChanged.Code && code != FormDefinitionErrors.Forbidden.Code)
+            records.Add(BusinessFormCaptureReceipt.Reject(request.SourceReceiptId, request.DefinitionId, request.VersionId,
+                fingerprint, code, timeProvider.GetUtcNow().UtcDateTime, rejectedFieldId, rejectedRow, fixedValidation, repetition?.RecordNumber, repetition?.AtUtc));
         return new StructuredRecordCaptureResponse("Rejected", null, null, code, rejectedFieldId, rejectedRow)
         { FixedValidation = fixedValidation ? true : null, Repetition = repetition };
     }

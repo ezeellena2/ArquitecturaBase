@@ -176,7 +176,23 @@ public sealed class BusinessFormRecordSinkTests
         Assert.Equal(FormRecordErrors.AuthorizationChanged.Code, result.ErrorCode);
         Assert.Equal(0, fixture.Definition.LastRecordNumber);
         Assert.Empty(fixture.Repository.Records);
-        Assert.Single(fixture.Repository.Receipts);
+        Assert.Empty(fixture.Repository.Receipts);
+    }
+
+    [Fact]
+    public async Task Repeating_the_same_request_after_a_passing_permission_loss_is_accepted()
+    {
+        var fixture = new BusinessFormCaptureFixture("shortText", required: false);
+        fixture.Permission.RevokeOnSecondCheck = true;
+        var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = "answer" });
+        var first = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+        fixture.Permission.RevokeOnSecondCheck = false;
+
+        var again = await fixture.Sink.CaptureAsync(request, CancellationToken.None);
+
+        Assert.Equal(FormRecordErrors.AuthorizationChanged.Code, first.ErrorCode);
+        Assert.Equal("Completed", again.State);
+        Assert.Single(fixture.Repository.Records);
     }
 
     [Theory]
