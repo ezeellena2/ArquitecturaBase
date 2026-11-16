@@ -180,9 +180,10 @@ Se conservan estos pendientes del registro original para revisar antes de incorp
   y tokens OpenIddict, y copias de correos en Enviados de Gmail. ARCA se suma (H25): los comprobantes, su pedido y su PDF se
   conservan durante el plazo fiscal que fija el negocio con su contador, y un pedido de borrado no los alcanza dentro de ese
   plazo; la purga al vencer queda para después.
-- [ ] Plazos y retención de `LoginCodes`, `LoginLinks`, `LoginAudits` (IP y user agent), tokens,
-  contactos, cuentas borradas y `UserInvitations`; reflejarlos en la política y el procedimiento.
-  El cuerpo de mensajes ya se limpia a los 90 días mientras la Api corre; no implica limpieza al estar apagada.
+- [ ] Plazos y retención de los contactos y de las cuentas borradas; reflejar en la política y el procedimiento los que
+  ya rigen. Los de `LoginCodes`, `LoginLinks`, `LoginAudits` (IP, navegador y lo escrito en un fallido), `UserInvitations` y los tokens de
+  OpenIddict los aplica la retención de N16 ([identidad](../features/identidad.md#retención-de-los-datos-del-ingreso-n16-2026-11-16)).
+  El cuerpo de mensajes ya se limpia a los 90 días mientras la Api corre; ninguna de las dos limpia con la Api apagada.
 - [ ] Revisión profesional de transferencias internacionales, registro de la base, domicilio del
   responsable y plazos prometidos. Es una consulta pendiente heredada, no asesoramiento jurídico.
 - [ ] Alinear nombre del negocio en web/correos/orientación de acceso y política; enlazarla desde

@@ -74,6 +74,7 @@ public sealed partial class TransactionBoundaryTests
     private static readonly string[] LockKeyPrefixes =
     [
         "login-code:", "login-link:", "user-invitation:", "external-login:", "seed:", "users:", "delivery:", "delivery-retention:",
+        "identity-retention:",
     ];
 
     private static readonly string[] BulkMethods = ["ExecuteUpdate", "ExecuteUpdateAsync", "ExecuteDelete", "ExecuteDeleteAsync"];
@@ -224,7 +225,8 @@ public sealed partial class TransactionBoundaryTests
         AddModuleLockKeyOwners(moduleOwners);
 
         var sqlOwners = Literals
-            .Where(literal => literal.Value.Contains("pg_advisory", StringComparison.Ordinal))
+            .Where(literal => literal.Value.Contains("pg_advisory", StringComparison.Ordinal)
+                || literal.Value.Contains("pg_try_advisory", StringComparison.Ordinal))
             .Select(literal => literal.Owner)
             .Distinct(StringComparer.Ordinal)
             .ToArray();

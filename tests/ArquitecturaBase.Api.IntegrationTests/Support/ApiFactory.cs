@@ -225,6 +225,9 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("Email:DailyProfileCodeLimitPerAccount", "1000000");
         builder.UseSetting("Email:DailyInvitationLimitPerAdministrator", "1000000");
 
+        // N16: la retención la corren los tests que la prueban; sola, borraría lo viejo de otros tests.
+        builder.UseSetting("IdentityRetention:RunInBackground", "false");
+
         builder.UseSetting("Seed:AdminEmail", AdminEmail);
 
         // El arnés arranca abierto: casi todos los tests de las fases 1 a 3 ingresan con un correo nuevo y esperan

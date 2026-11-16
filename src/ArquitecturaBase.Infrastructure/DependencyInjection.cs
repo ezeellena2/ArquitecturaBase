@@ -40,6 +40,10 @@ public static class DependencyInjection
 
         services.AddScoped<IOpenIddictTokenRevoker, OpenIddictTokenRevoker>();
 
+        // N16: la retención de los datos del ingreso, con la poda de OpenIddict.
+        services.AddScoped<IOpenIddictPruner, OpenIddictPruner>();
+        services.AddHostedService<IdentityRetentionBackgroundService>();
+
         services.AddOptions<LoginCodeHashOptions>()
             .BindConfiguration(LoginCodeHashOptions.SectionName)
             .ValidateDataAnnotations()

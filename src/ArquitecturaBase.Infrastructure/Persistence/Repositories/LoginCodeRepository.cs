@@ -64,8 +64,8 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
             .ToListAsync(cancellationToken);
 
     // La consultan el tope diario de WhatsApp, en cada pedido de un código por teléfono, y el de todos del correo (N7), en
-    // cada código o invitación por correo. Va por el índice parcial (Channel, SentAtUtc) WHERE SentAtUtc IS NOT NULL que
-    // suma N31 con la purga de N16 (tarea 21 del plan del núcleo); hasta entonces recorre la tabla.
+    // cada código o invitación por correo. Va por el índice parcial (Channel, SentAtUtc) WHERE SentAtUtc IS NOT NULL de
+    // N31 (LoginCodeConfiguration), y la retención de N16 deja la tabla en 30 días.
     public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
         LoginCodeChannel channel,
         DateTime sinceUtc,
@@ -78,8 +78,8 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
             .Take(count)
             .ToListAsync(cancellationToken);
 
-    // Los topes por cuenta de los códigos del perfil, el de WhatsApp y el del correo (N7). Va por el índice de
-    // RequestedByUserId que suma N31 (tarea 21 del plan del núcleo); hasta entonces recorre la tabla.
+    // Los topes por cuenta de los códigos del perfil, el de WhatsApp y el del correo (N7). Va por el índice parcial
+    // (RequestedByUserId, Channel, SentAtUtc) de N31 (LoginCodeConfiguration).
     public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesByRequesterAsync(
         LoginCodeChannel channel,
         Guid requestedByUserId,

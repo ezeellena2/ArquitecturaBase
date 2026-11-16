@@ -11,6 +11,7 @@ Antes de tocar esto, leé [`docs/features/identidad.md`](../../../docs/features/
 - UserManager y RoleManager usan el contexto scoped del límite. Los lectores y repositorios encapsulan consultas de negocio.
 - `PermissionService` (scoped) lee los permisos de la base sin caché, una consulta por persona y por pedido con el contexto del pedido, y los memoriza en ese scope ([ADR 0032](../../../docs/decisions/0032-sin-redis-la-app-sigue.md)). No agregarle caché ni otra conexión: adentro de un límite lee en su transacción.
 - No registrar claims sensibles, códigos ni tokens. Una falla del proveedor conserva el tratamiento técnico del borde.
+- `IdentityRetentionBackgroundService` corre la retención de los datos del ingreso (N16) al arrancar y cada `IdentityRetention:IntervalHours`, de a lotes en scopes nuevos; `OpenIddict/OpenIddictPruner` poda con `PruneAsync` de a tramos de un día, cada uno en su transacción ([identidad](../../../docs/features/identidad.md)).
 - Los cambios de sesión requieren probar revocación, bloqueo, deshabilitado y cambios de roles.
 
 ## Verificación y ejemplos

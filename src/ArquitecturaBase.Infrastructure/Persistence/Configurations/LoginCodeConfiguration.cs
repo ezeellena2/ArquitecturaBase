@@ -34,5 +34,15 @@ internal sealed class LoginCodeConfiguration : IEntityTypeConfiguration<LoginCod
         // pedido recorrería la tabla. Los códigos sin dirección conocida no se buscan por ella.
         builder.HasIndex(code => new { code.RequestedFromAddress, code.CreatedAtUtc })
             .HasFilter("\"RequestedFromAddress\" IS NOT NULL");
+
+        // N31: el tope diario de todos, el de WhatsApp y el del correo (N7), cuenta los envíos de un canal en las últimas
+        // 24 horas en cada pedido de un código. Sin el índice recorrería la tabla entera; solo entran los que salieron.
+        builder.HasIndex(code => new { code.Channel, code.SentAtUtc })
+            .HasFilter("\"SentAtUtc\" IS NOT NULL");
+
+        // N31: y los de una cuenta, los que pidió desde su perfil en un canal. Los códigos de ingreso no tienen cuenta y no
+        // entran.
+        builder.HasIndex(code => new { code.RequestedByUserId, code.Channel, code.SentAtUtc })
+            .HasFilter("\"RequestedByUserId\" IS NOT NULL");
     }
 }

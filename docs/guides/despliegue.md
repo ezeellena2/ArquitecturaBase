@@ -183,6 +183,23 @@ códigos por correo hasta que se libere (las invitaciones siguen con su reserva)
 un proveedor transaccional con su cupo medido lo saca. En `InviteOnly`, el mismo abuso, con un único lugar libre, deja ver
 si un correo tiene cuenta, también un costo aceptado ([identidad](../features/identidad.md)).
 
+## Retención de los datos del ingreso
+
+La Api borra o limpia sola los datos del ingreso, al arrancar y cada `IdentityRetention:IntervalHours`, en todas las
+réplicas: la que encuentra tomado el lock de la retención termina su corrida sin esperar, porque otra ya está en eso ([identidad](../features/identidad.md#retención-de-los-datos-del-ingreso-n16-2026-11-16)).
+Los valores por defecto son los decididos el 2026-11-14; un valor fuera de rango no arranca (validación de opciones). Antes
+de cambiar un plazo, cambiá la política de privacidad que lo promete.
+
+| Clave | Por defecto | Qué fija |
+|---|---|---|
+| `IdentityRetention:LoginCodeDays` | 30 | a los cuántos días se borran los códigos y los enlaces de ingreso (con su destino y la dirección de quien los pidió). Como mínimo 1: los límites leen 24 horas |
+| `IdentityRetention:LoginAuditMonths` | 12 | a los cuántos meses un registro de ingreso queda sin la IP y sin el navegador |
+| `IdentityRetention:InvitationDays` | 30 | a los cuántos días se borran las invitaciones que ya no son la última de su cuenta. Como mínimo 7: la entrega de una invitación vive un día |
+| `IdentityRetention:SessionDaysAfterExpiry` | 14 | cuántos días después de vencer se podan las autorizaciones y los tokens de OpenIddict |
+| `IdentityRetention:BatchSize` | 500 | cuántas filas de cada tabla borra o limpia un lote, en su transacción. Como mucho 1000: los enlaces toman un lock por cuenta |
+| `IdentityRetention:IntervalHours` | 24 | cada cuántas horas corre |
+| `IdentityRetention:RunInBackground` | `true` | si corre sola. Sólo la apagan los tests de integración |
+
 ## Certificados de OpenIddict
 
 Fuera de Development y Testing, OpenIddict firma y cifra los tokens con dos PFX propios: no son certificados TLS, pueden ser autofirmados y de larga duración, y se pasan en base64 como secretos, sin archivos en el contenedor. Con varias réplicas tienen que ser los mismos en todas. Cómo generarlos y cargarlos: [azure-setup.md, "Certificados de OpenIddict"](../deploy/azure-setup.md#certificados-de-openiddict). Si se pierden y se regeneran, todos los tokens emitidos dejan de valer y las sesiones abiertas se caen.

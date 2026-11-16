@@ -37,4 +37,24 @@ internal static class AdvisoryLockExtensions
                 $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
         }
     }
+
+    /// <summary>
+    /// Como <see cref="AcquireAdvisoryLocksAsync"/> con una sola clave, pero sin esperar: pg_try_advisory_xact_lock. True si
+    /// lo tomó, y entonces dura lo que la transacción; false si otra transacción lo tiene. Para un trabajo de fondo que,
+    /// si encuentra a otra copia en lo mismo, no tiene nada que hacer (N16).
+    /// </summary>
+    public static async Task<bool> TryAcquireAdvisoryLockAsync(
+        this DbContext dbContext,
+        string key,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        dbContext.RequireTransaction();
+
+        var acquired = await dbContext.Database
+            .SqlQuery<bool>($"SELECT pg_try_advisory_xact_lock(hashtextextended({key}, 0)) AS \"Value\"")
+            .ToListAsync(cancellationToken);
+
+        return acquired.Single();
+    }
 }

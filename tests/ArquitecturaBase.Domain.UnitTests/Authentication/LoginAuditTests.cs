@@ -57,4 +57,37 @@ public sealed class LoginAuditTests
 
         Assert.Equal(LoginAudit.MaxUserAgentLength, audit.UserAgent!.Length);
     }
+
+    [Fact]
+    public void Forgetting_the_request_info_clears_the_ip_and_the_browser_and_keeps_the_sign_in()
+    {
+        var userId = Guid.CreateVersion7();
+        var audit = LoginAudit.Success("ana@example.com", userId, LoginMethod.Code, "10.0.0.1", "Firefox", Now);
+
+        audit.ForgetRequestInfo();
+
+        Assert.Null(audit.IpAddress);
+        Assert.Null(audit.UserAgent);
+        Assert.True(audit.Succeeded);
+        Assert.Equal(userId, audit.UserId);
+        Assert.Equal("ana@example.com", audit.Identifier);
+        Assert.Equal(LoginMethod.Code, audit.Method);
+        Assert.Equal(Now, audit.OccurredAtUtc);
+    }
+
+    [Fact]
+    public void Forgetting_the_request_info_of_a_failure_also_clears_what_the_person_wrote()
+    {
+        // Lo escrito en un intento fallido puede ser el correo o el número de otra persona.
+        var audit = LoginAudit.Failure("otra@example.com", null, LoginMethod.Code, "Auth.LoginCode.Invalid", "10.0.0.1", "Firefox", Now);
+
+        audit.ForgetRequestInfo();
+
+        Assert.Null(audit.Identifier);
+        Assert.Null(audit.IpAddress);
+        Assert.Null(audit.UserAgent);
+        Assert.False(audit.Succeeded);
+        Assert.Equal("Auth.LoginCode.Invalid", audit.FailureReason);
+        Assert.Equal(Now, audit.OccurredAtUtc);
+    }
 }

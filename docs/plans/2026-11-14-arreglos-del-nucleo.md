@@ -257,10 +257,13 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 
 ### Etapa 5: datos, archivos y retención
 
-21. **N16 y N31. Los datos del ingreso se purgan** (decisión 8). Un worker de retención con lease, que borra por lotes,
-    porque el núcleo no usa `ExecuteDelete`:
+21. **N16 y N31. Los datos del ingreso se purgan** (decisión 8). Un worker de retención que borra por lotes, porque el
+    núcleo no usa `ExecuteDelete`, cada lote en su transacción con un lock que no espera (`pg_try_advisory_xact_lock`):
+    la copia que lo encuentra tomado termina su corrida. La poda de OpenIddict, que borra con su propio `DELETE … LIMIT`,
+    va de a tramos de un día, cada uno en su transacción:
     - los códigos y los enlaces, a los 30 días, que cubren las 24 horas que leen los límites;
-    - los `LoginAudits` quedan sin la IP a los 12 meses, sin perder el último ingreso de cada cuenta;
+    - los `LoginAudits` quedan sin la IP a los 12 meses, sin perder el último ingreso de cada cuenta, y los fallidos también
+      sin el identificador escrito;
     - las autorizaciones y tokens de OpenIddict se podan a los 14 días de vencidos;
     - las invitaciones (`UserInvitations`), que la decisión no nombró, siguen el plazo más simple que no le quite datos a
       una pantalla.

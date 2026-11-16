@@ -33,7 +33,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("Identifier")
-                        .IsRequired()
                         .HasMaxLength(254)
                         .HasColumnType("character varying(254)");
 
@@ -64,6 +63,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("OccurredAtUtc");
 
                     b.HasIndex("UserId", "OccurredAtUtc");
+
+                    b.HasIndex(new[] { "OccurredAtUtc" }, "IX_LoginAudits_OccurredAtUtc_RequestInfo")
+                        .HasFilter("\"IpAddress\" IS NOT NULL OR \"UserAgent\" IS NOT NULL OR (NOT \"Succeeded\" AND \"Identifier\" IS NOT NULL)");
 
                     b.ToTable("LoginAudits");
                 });
@@ -124,10 +126,16 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Channel", "SentAtUtc")
+                        .HasFilter("\"SentAtUtc\" IS NOT NULL");
+
                     b.HasIndex("Destination", "CreatedAtUtc");
 
                     b.HasIndex("RequestedFromAddress", "CreatedAtUtc")
                         .HasFilter("\"RequestedFromAddress\" IS NOT NULL");
+
+                    b.HasIndex("RequestedByUserId", "Channel", "SentAtUtc")
+                        .HasFilter("\"RequestedByUserId\" IS NOT NULL");
 
                     b.ToTable("LoginCodes");
                 });

@@ -51,4 +51,11 @@ public sealed class AdvisoryLockKeysTests
         // la Api, tienen que contar de a uno.
         Assert.Equal("users:admins", AdvisoryLockKeys.Admins);
     }
+
+    [Fact]
+    public void The_identity_retention_key_is_fixed()
+    {
+        // N16: lo comparten todas las copias y versiones de la Api, para que nunca corran un lote de la retención a la vez.
+        Assert.Equal("identity-retention:run", AdvisoryLockKeys.IdentityRetention);
+    }
 }

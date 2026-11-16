@@ -16,8 +16,12 @@ public sealed partial class MigrationCoexistenceTests
     /// <summary>The last migration applied before the rule existed: later ones are checked.</summary>
     private const string BaselineMigration = "20261116130834";
 
-    /// <summary>Migration id, then why the previous version still works. Empty on purpose: the next deployment is the way.</summary>
-    private static readonly Dictionary<string, string> Acknowledged = [];
+    /// <summary>Migration id, then why the previous version still works. Only when it really does: the next deployment is the way.</summary>
+    private static readonly Dictionary<string, string> Acknowledged = new(StringComparer.Ordinal)
+    {
+        // N16: LoginAudits.Identifier starts accepting nulls, and only the retention of this version writes them.
+        ["20261116224600_AddIdentityRetentionIndexes"] = "The previous version never reads LoginAudits.Identifier (the last sign-in projects OccurredAtUtc), and EF reads a null into a string without throwing.",
+    };
 
     [Fact]
     public void Migrations_after_the_baseline_tolerate_the_previous_version()

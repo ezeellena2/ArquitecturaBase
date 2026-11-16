@@ -51,7 +51,7 @@ internal static class OpenIddictRegistration
                 options
                     .SetAuthorizationCodeLifetime(TimeSpan.FromMinutes(5))
                     .SetAccessTokenLifetime(TimeSpan.FromMinutes(15))
-                    .SetRefreshTokenLifetime(TimeSpan.FromDays(30))
+                    .SetRefreshTokenLifetime(AuthServerDefaults.RefreshTokenLifetime)
                     .SetRefreshTokenReuseLeeway(null);
 
                 // El issuer es el origen que ve el navegador (sección 5.1). En desarrollo, el de Vite; si no se

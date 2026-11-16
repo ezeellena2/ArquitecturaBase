@@ -24,5 +24,11 @@ internal sealed class LoginAuditConfiguration : IEntityTypeConfiguration<LoginAu
         // El último ingreso de la sesión (GET /api/me) busca por persona y fecha. Sólo con la fecha, recorre los ingresos
         // de todos desde el último de esa persona.
         builder.HasIndex(audit => new { audit.UserId, audit.OccurredAtUtc });
+
+        // N16: la retención busca los ingresos viejos que todavía guardan la IP, el navegador o, los fallidos, lo que la
+        // persona escribió. Las filas que ya limpió salen del índice, así cada corrida no recorre todos los años anteriores.
+        // El filtro es el mismo que el de IdentityRetentionRepository: si no, PostgreSQL no puede usar el índice.
+        builder.HasIndex(audit => audit.OccurredAtUtc, "IX_LoginAudits_OccurredAtUtc_RequestInfo")
+            .HasFilter("\"IpAddress\" IS NOT NULL OR \"UserAgent\" IS NOT NULL OR (NOT \"Succeeded\" AND \"Identifier\" IS NOT NULL)");
     }
 }

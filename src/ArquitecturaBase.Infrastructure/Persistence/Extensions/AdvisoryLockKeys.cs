@@ -18,6 +18,14 @@ internal static class AdvisoryLockKeys
 {
     public static string Delivery(string channel) => "delivery:" + channel;
     public static string DeliveryRetention => "delivery-retention:expired";
+
+    /// <summary>
+    /// "identity-retention:run" (N16). Lo toma solo la retención de los datos del ingreso, primero en cada lote y en cada
+    /// tramo de la poda de OpenIddict, sin esperar: la copia de la Api que lo encuentra tomado termina su corrida, porque
+    /// otra ya está en eso. Después pide los login-link: de las cuentas del lote, que nadie más toma de a varios, así no
+    /// hay ciclo.
+    /// </summary>
+    public static string IdentityRetention => "identity-retention:run";
     /// <summary>"login-code:" + LoginCodeDestination.Value: el correo normalizado (Email.Value) o el E.164 con el 9.</summary>
     public static string LoginCode(LoginCodeDestination destination)
     {

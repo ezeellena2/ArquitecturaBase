@@ -26,6 +26,12 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // N16: los plazos de la retención de los datos del ingreso; el worker de Infrastructure lee la misma sección.
+        services.AddOptions<IdentityRetentionOptions>()
+            .BindConfiguration(IdentityRetentionOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // N7: los topes diarios del correo, de la sección Email que Infrastructure lee para mandarlos.
         services.AddOptions<EmailQuotaOptions>()
             .BindConfiguration(EmailQuotaOptions.SectionName)
@@ -67,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<PermissionDelegationGuard>();
         services.AddScoped<ProfileEmailLinker>();
         services.AddScoped<IDeliveryQueueService, DeliveryQueueService>();
+        services.AddScoped<IIdentityRetentionService, IdentityRetentionService>();
         services.AddScoped<IEmailDeliveryService, EmailDeliveryService>();
         services.AddScoped<DestinationCodeIssuer>();
         services.AddScoped<DestinationCodeVerifier>();
