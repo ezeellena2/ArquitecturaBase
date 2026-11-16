@@ -120,7 +120,8 @@ Para rotar cifrado:
 5. Conservá las claves anteriores mientras las necesiten la fila, comprobantes de 30 días
    o **cualquier backup retenido**. No basta con esperar 30 días si la fila sigue con la antigua.
    Un reintento cuyo comprobante usó una clave que ya salió del anillo no se puede verificar: recibe el 409 de un pedido
-   distinto. El control de esa clave queda en `AiKeyRingControls` y no se compara.
+   distinto, salvo en Inicio el audio y los documentos, que recuperan su operación si es el mismo archivo del mismo
+   dueño. El control de esa clave queda en `AiKeyRingControls` y no se compara.
 
 Los comprobantes de Información del negocio comparten este anillo, con otro propósito de HKDF.
 La rotación conserva su keyId original y la ventana de 30 días. Los hechos no están cifrados con

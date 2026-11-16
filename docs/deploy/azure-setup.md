@@ -169,7 +169,7 @@ puerto acepta conexiones, aunque PostgreSQL o Redis no respondan.
 |---|---|---|
 | Startup | `/alive` | Da tiempo al arranque: la Api no escucha hasta validar opciones, comprobar migraciones y sembrar, y el seed puede esperar su lock hasta 30 s. Liveness y Readiness esperan a que pase. |
 | Liveness | `/alive` | Reinicia el contenedor si el proceso queda colgado. No consulta PostgreSQL ni Redis a propósito: si lo hiciera, una caída de esas dependencias reiniciaría los contenedores en cadena sin arreglar nada. |
-| Readiness | `/health` | Saca la réplica del tráfico mientras PostgreSQL o Redis no responden. El check de WhatsApp queda en Degraded, que responde 200: un token vencido no corta el tráfico. |
+| Readiness | `/health` | Saca la réplica del tráfico mientras PostgreSQL o Redis no responden, y también si su anillo de claves de IA no coincide con el de las demás (`ai-key-ring`, [configurar IA](../guides/configurar-ia.md)): reiniciar no lo arregla. El check de WhatsApp queda en Degraded, que responde 200: un token vencido no corta el tráfico. |
 
 Los probes no se configuran por parámetros de la CLI: hay que exportar el YAML de la
 aplicación, agregarlos y volver a aplicarlo.

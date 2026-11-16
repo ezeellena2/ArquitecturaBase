@@ -3,9 +3,12 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
@@ -25,6 +28,16 @@ public sealed class AiKeyRingControlServiceTests
             host.Store.Controls.OrderBy(control => control.KeyId, StringComparer.Ordinal).Select(control => (control.KeyId, control.Control)));
         Assert.True(host.Store.LockedInTransaction);
         Assert.Equal(1, host.Work.Commits);
+    }
+
+    // I17, review: a public service method that returns a Result logs its operation (backend.md), also this one: it runs until the copy
+    // keeps a verdict, once per process when the database answers.
+    [Fact]
+    public async Task The_check_is_logged_as_an_operation()
+    {
+        using var host = new Host(new() { ["one"] = "control-one" });
+        await host.Service.CheckAsync(Ct);
+        Assert.Equal(["Handling CheckAiKeyRing", "Handled CheckAiKeyRing"], host.Log.Collector.GetSnapshot().Select(record => record.Message));
     }
 
     [Fact]
@@ -96,6 +109,7 @@ public sealed class AiKeyRingControlServiceTests
     private sealed class Host : IDisposable
     {
         public FakeUnitOfWork Work { get; } = new();
+        public FakeLogger<AiKeyRingControlService> Log { get; } = new();
         public Store Store { get; }
         private ServiceProvider Provider { get; }
         public IAiKeyRingControlService Service => Provider.GetRequiredService<IAiKeyRingControlService>();
@@ -104,6 +118,7 @@ public sealed class AiKeyRingControlServiceTests
             Store = store ?? new Store();
             var services = new ServiceCollection().AddLogging().AddApplication().AddArtificialIntelligenceApplication();
             services.AddSingleton<IUnitOfWork>(Work);
+            services.AddSingleton<ILogger<AiKeyRingControlService>>(Log);
             services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
             services.AddSingleton<IAiKeyRingControlRepository>(Store);
             services.AddSingleton<IAiKeyRingControl>(new Ring(ring, active ?? ring.Keys.Order(StringComparer.Ordinal).First()));
