@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Models.Files;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
-using ArquitecturaBase.Domain.Files;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
@@ -29,7 +29,7 @@ internal sealed class WhatsAppDocumentProbe : IPrivateFileStore, IWhatsAppMediaC
         if (Failures > 0)
         {
             Failures--;
-            return Task.FromResult(Result.Failure<WhatsAppMediaContent>(FileErrors.Unavailable));
+            return Task.FromResult(Result.Failure<WhatsAppMediaContent>(WhatsAppMediaErrors.Unavailable));
         }
         return Task.FromResult(Result.Success(new WhatsAppMediaContent(Bytes)));
     }

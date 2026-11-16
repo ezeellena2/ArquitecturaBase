@@ -5,7 +5,6 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
-using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
@@ -54,7 +53,7 @@ internal sealed partial class WhatsAppSpreadsheetDispatchService(IWhatsAppSpread
             }
             if (acquired.IsFailure)
             {
-                if (acquired.Error == FileErrors.Unavailable) message.RegisterSpreadsheetFailure(clock.GetUtcNow().UtcDateTime, acquired.Error.Code);
+                if (WhatsAppMediaErrors.MayPass(acquired.Error)) message.RegisterSpreadsheetFailure(clock.GetUtcNow().UtcDateTime, acquired.Error.Code);
                 else message.SetSpreadsheetUnavailable(acquired.Error.Code);
                 return Result.Success();
             }
@@ -78,7 +77,7 @@ internal sealed partial class WhatsAppSpreadsheetDispatchService(IWhatsAppSpread
         catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             LogAcquisitionFailed(logger, exception);
-            return FileErrors.Unavailable;
+            return WhatsAppMediaErrors.Unavailable;
         }
     }
 

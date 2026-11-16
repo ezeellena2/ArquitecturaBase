@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Files;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
@@ -30,7 +31,7 @@ public sealed class WhatsAppMediaClientTests
         var result = await client.DownloadAsync("123", "application/pdf", Convert.ToBase64String(SHA256.HashData([1])), WhatsAppMediaContent.MaximumBytes,
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(FileErrors.Unavailable, result.Error);
+        Assert.Equal(WhatsAppMediaErrors.Unavailable, result.Error);
         var entry = Assert.Single(logger.Collector.GetSnapshot());
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains(reason, entry.Message, StringComparison.Ordinal);
@@ -72,7 +73,7 @@ public sealed class WhatsAppMediaClientTests
         using var handler = new StubFlowHttpHandler(_ => Metadata(url, 2, hash));
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
         var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance);
-        Assert.Equal(FileErrors.Unavailable, (await client.DownloadAsync("123", "application/pdf", hash, WhatsAppMediaContent.MaximumBytes, TestContext.Current.CancellationToken)).Error);
+        Assert.Equal(WhatsAppMediaErrors.Unavailable, (await client.DownloadAsync("123", "application/pdf", hash, WhatsAppMediaContent.MaximumBytes, TestContext.Current.CancellationToken)).Error);
         Assert.Single(handler.Requests);
     }
     [Theory]

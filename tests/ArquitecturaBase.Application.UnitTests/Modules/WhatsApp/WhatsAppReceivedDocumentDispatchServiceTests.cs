@@ -465,7 +465,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         };
 
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
-        Assert.Equal((WhatsAppDocumentState.Pending, 1, FileErrors.Unavailable.Code),
+        Assert.Equal((WhatsAppDocumentState.Pending, 1, FileErrors.StorageUnavailable.Code),
             (f.Message.DocumentState, f.Message.DocumentFailureCount, f.Message.DocumentFailureCode));
         Assert.Empty(f.Replies);
         f.RegistrationReply = null;
@@ -605,7 +605,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
     [Fact]
     public async Task A_download_that_fails_is_retried_and_ends_unavailable_after_five_failures_and_a_day()
     {
-        var f = new WhatsAppReceivedDocumentFixture { DownloadError = FileErrors.Unavailable };
+        var f = new WhatsAppReceivedDocumentFixture { DownloadError = WhatsAppMediaErrors.Unavailable };
 
         for (var attempt = 0; attempt < 5; attempt++)
         {
@@ -615,7 +615,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         }
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
 
-        Assert.Equal((WhatsAppDocumentState.Unavailable, FileErrors.Unavailable.Code), (f.Message.DocumentState, f.Message.DocumentFailureCode));
+        Assert.Equal((WhatsAppDocumentState.Unavailable, WhatsAppMediaErrors.Unavailable.Code), (f.Message.DocumentState, f.Message.DocumentFailureCode));
         Assert.Equal(6, f.Downloads);
         Assert.Empty(f.Replies);
     }
@@ -627,7 +627,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
 
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
 
-        Assert.Equal((WhatsAppDocumentState.Pending, 1, FileErrors.Unavailable.Code),
+        Assert.Equal((WhatsAppDocumentState.Pending, 1, WhatsAppMediaErrors.Unavailable.Code),
             (f.Message.DocumentState, f.Message.DocumentFailureCount, f.Message.DocumentFailureCode));
     }
 

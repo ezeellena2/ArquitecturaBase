@@ -21,7 +21,7 @@ internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileCon
     {
         var files = request.Files ?? [];
         if (files.Count == 0) return Array.Empty<PreparedFormFile>();
-        if (!store.IsAvailable) return FileErrors.Unavailable;
+        if (!store.IsAvailable) return FileErrors.StorageUnavailable;
         if (files.Count > 10 || files.Sum(file => file.Content?.LongLength ?? 0) > 100L * 1024 * 1024) return FileErrors.TooLarge;
         if (files.GroupBy(file => file.FieldId).Any(group => !group.Select(file => file.Position).Order().SequenceEqual(Enumerable.Range(0, group.Count()))))
             return FileErrors.InvalidMetadata;

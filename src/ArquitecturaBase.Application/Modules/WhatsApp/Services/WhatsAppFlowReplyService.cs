@@ -216,7 +216,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                         : await mediaClient.DownloadAsync(file.SourceId, file.ContentType, file.Sha256, cancellationToken);
                     if (content.IsFailure)
                     {
-                        if (content.Error == ArquitecturaBase.Domain.Files.FileErrors.Unavailable)
+                        if (WhatsAppMediaErrors.MayPass(content.Error))
                             await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken, content.Error.Code, WhatsAppFlowMediaPolicy.QuestionLabel(projection, file.FieldId));
                         else
                             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected, null, null, content.Error.Code, cancellationToken, WhatsAppFlowMediaPolicy.QuestionLabel(projection, file.FieldId));

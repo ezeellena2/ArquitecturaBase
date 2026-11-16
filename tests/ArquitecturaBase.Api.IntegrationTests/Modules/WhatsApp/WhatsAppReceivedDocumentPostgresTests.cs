@@ -342,7 +342,7 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
         await using var host = await CreateAsync(new WhatsAppDocumentProbe(), new CapturingStructuredDocumentChannel());
         var person = await host.ContactAsync(Ct, automatic: true);
         var now = host.Clock.GetUtcNow().UtcDateTime;
-        var failed = await AddDocumentAsync(host, person.ContactId, now, message => message.RegisterDocumentFailure(now, "Files.Content.Unavailable"));
+        var failed = await AddDocumentAsync(host, person.ContactId, now, message => message.RegisterDocumentFailure(now, "WhatsApp.Media.Unavailable"));
 
         Assert.False(await PendingAsync(host, person.ContactId, now));
         Assert.True(await PendingAsync(host, person.ContactId, now.AddSeconds(30)));
@@ -351,7 +351,7 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
         await host.InTransactionAsync(async services =>
         {
             (await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().SingleAsync(row => row.Id == failed, Ct))
-                .SetDocumentUnavailable("Files.Content.Unavailable");
+                .SetDocumentUnavailable("WhatsApp.Media.Unavailable");
             return true;
         }, Ct);
         Assert.False(await PendingAsync(host, person.ContactId, now.AddMinutes(1)));

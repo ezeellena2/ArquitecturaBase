@@ -195,7 +195,7 @@ public sealed class AiAssistantHomeAudioTests
         var host = new ServiceHost(storage: false);
         host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeAudioChannelId, host.Now, new AiAssistantLimits().ActorDailyQuota, isAudio: true);
         var error = (await host.Service.SubmitAsync(new(Guid.NewGuid(), "es", Webm), TestContext.Current.CancellationToken)).Error;
-        Assert.Equal(FileErrors.Unavailable, error);
+        Assert.Equal(FileErrors.StorageUnavailable, error);
         Assert.Empty(host.Operations.Submitted);
     }
 

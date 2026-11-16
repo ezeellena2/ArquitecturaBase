@@ -96,24 +96,24 @@ public sealed class WhatsAppMessageAudioTests
     public void Acquisition_failures_keep_counting_and_keep_retrying_for_a_day()
     {
         var message=Message();message.SetAudioDescriptor("123","audio/ogg",new string('a',64));
-        for(var i=0;i<8;i++)Assert.False(message.RegisterAudioFailure(Now,"Files.Content.Unavailable"));
+        for(var i=0;i<8;i++)Assert.False(message.RegisterAudioFailure(Now,"WhatsApp.Media.Unavailable"));
         Assert.Equal(8,message.AudioFailureCount);Assert.Equal(Now,message.AudioFirstFailureAtUtc);Assert.Equal(WhatsAppAudioState.Pending,message.AudioState);
-        Assert.False(message.RegisterAudioFailure(Now.AddMinutes(15),"Files.Content.Unavailable"));Assert.Equal(WhatsAppAudioState.Pending,message.AudioState);
-        Assert.True(message.RegisterAudioFailure(Now.AddDays(1),"Files.Content.Unavailable"));Assert.Equal(WhatsAppAudioState.Unavailable,message.AudioState);Assert.Equal(10,message.AudioFailureCount);
+        Assert.False(message.RegisterAudioFailure(Now.AddMinutes(15),"WhatsApp.Media.Unavailable"));Assert.Equal(WhatsAppAudioState.Pending,message.AudioState);
+        Assert.True(message.RegisterAudioFailure(Now.AddDays(1),"WhatsApp.Media.Unavailable"));Assert.Equal(WhatsAppAudioState.Unavailable,message.AudioState);Assert.Equal(10,message.AudioFailureCount);
     }
     [Fact]
     public void Acquisition_retries_need_both_the_count_and_the_age_limits()
     {
         var message=Message();message.SetAudioDescriptor("123","audio/ogg",new string('a',64));
-        Assert.False(message.RegisterAudioFailure(Now,"Files.Content.Unavailable"));
-        for(var i=0;i<3;i++)Assert.False(message.RegisterAudioFailure(Now.AddDays(2),"Files.Content.Unavailable"));
-        Assert.True(message.RegisterAudioFailure(Now.AddDays(2),"Files.Content.Unavailable"));Assert.Equal(5,message.AudioFailureCount);
+        Assert.False(message.RegisterAudioFailure(Now,"WhatsApp.Media.Unavailable"));
+        for(var i=0;i<3;i++)Assert.False(message.RegisterAudioFailure(Now.AddDays(2),"WhatsApp.Media.Unavailable"));
+        Assert.True(message.RegisterAudioFailure(Now.AddDays(2),"WhatsApp.Media.Unavailable"));Assert.Equal(5,message.AudioFailureCount);
     }
     [Fact]
     public void Terminal_audio_does_not_restart_acquisition_or_advance_failure_metadata()
     {
         var message=Message();message.SetAudioDescriptor("123","audio/ogg",new string('a',64));message.SetAudioState(WhatsAppAudioState.Uncertain);
-        Assert.False(message.RegisterAudioFailure(Now,"Files.Content.Unavailable"));Assert.Equal(0,message.AudioFailureCount);Assert.Null(message.AudioFirstFailureAtUtc);
+        Assert.False(message.RegisterAudioFailure(Now,"WhatsApp.Media.Unavailable"));Assert.Equal(0,message.AudioFailureCount);Assert.Null(message.AudioFirstFailureAtUtc);
     }
 
     [Theory]
@@ -124,7 +124,7 @@ public sealed class WhatsAppMessageAudioTests
         var message = Message();
         Assert.True(message.SetAudioDescriptor("123", "audio/ogg", new string('a', 64)));
         if (alreadyStored) Assert.True(message.StoreAudio("private/audio", 47).IsSuccess);
-        for (var i = 0; i < 3; i++) Assert.False(message.RegisterAudioFailure(Now, "Files.Content.Unavailable"));
+        for (var i = 0; i < 3; i++) Assert.False(message.RegisterAudioFailure(Now, "WhatsApp.Media.Unavailable"));
         Assert.Equal(3, message.AudioFailureCount);
 
         Assert.True(message.StoreAudio("private/audio", 47).IsSuccess);
@@ -132,7 +132,7 @@ public sealed class WhatsAppMessageAudioTests
         Assert.Equal(0, message.AudioFailureCount);
         Assert.Null(message.AudioFirstFailureAtUtc);
         Assert.Null(message.AudioFailureCode);
-        Assert.False(message.RegisterAudioFailure(Now.AddHours(1), "Files.Content.Unavailable"));
+        Assert.False(message.RegisterAudioFailure(Now.AddHours(1), "WhatsApp.Media.Unavailable"));
         Assert.Equal(1, message.AudioFailureCount);
         Assert.Equal(Now.AddHours(1), message.AudioFirstFailureAtUtc);
     }
@@ -143,12 +143,12 @@ public sealed class WhatsAppMessageAudioTests
         var message = Message();
         Assert.True(message.SetAudioDescriptor("123", "audio/ogg", new string('a', 64)));
         Assert.True(message.StoreAudio("private/audio", 47).IsSuccess);
-        Assert.False(message.RegisterAudioFailure(Now, "Files.Content.Unavailable"));
+        Assert.False(message.RegisterAudioFailure(Now, "WhatsApp.Media.Unavailable"));
 
         Assert.True(message.StoreAudio("private/another-audio", 47).IsFailure);
 
         Assert.Equal(1, message.AudioFailureCount);
         Assert.Equal(Now, message.AudioFirstFailureAtUtc);
-        Assert.Equal("Files.Content.Unavailable", message.AudioFailureCode);
+        Assert.Equal("WhatsApp.Media.Unavailable", message.AudioFailureCode);
     }
 }

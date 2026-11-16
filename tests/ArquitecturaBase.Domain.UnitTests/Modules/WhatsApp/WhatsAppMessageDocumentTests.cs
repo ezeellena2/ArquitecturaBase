@@ -124,7 +124,7 @@ public sealed class WhatsAppMessageDocumentTests
     public void Storing_the_copy_keeps_its_size_hash_and_pages_once_and_clears_the_failures()
     {
         var message = Described();
-        message.RegisterDocumentFailure(Now, "Files.Content.Unavailable");
+        message.RegisterDocumentFailure(Now, "WhatsApp.Media.Unavailable");
         var key = $"whatsapp/documents/{message.Id:N}.pdf";
 
         Assert.True(message.StoreDocument(key, 42, new string('b', 64), 3, null).IsSuccess);
@@ -203,14 +203,14 @@ public sealed class WhatsAppMessageDocumentTests
     {
         var message = Described();
 
-        for (var attempt = 0; attempt < 6; attempt++) Assert.False(message.RegisterDocumentFailure(Now.AddMinutes(attempt), "Files.Content.Unavailable"));
+        for (var attempt = 0; attempt < 6; attempt++) Assert.False(message.RegisterDocumentFailure(Now.AddMinutes(attempt), "WhatsApp.Media.Unavailable"));
 
         Assert.Equal((6, (DateTime?)Now, WhatsAppDocumentState.Pending),
             (message.DocumentFailureCount, message.DocumentFirstFailureAtUtc, message.DocumentState));
-        Assert.False(message.RegisterDocumentFailure(Now.AddMinutes(15), "Files.Content.Unavailable"));
-        Assert.True(message.RegisterDocumentFailure(Now.AddDays(1), "Files.Content.Unavailable"));
-        Assert.Equal((WhatsAppDocumentState.Unavailable, "Files.Content.Unavailable"), (message.DocumentState, message.DocumentFailureCode));
-        Assert.False(message.RegisterDocumentFailure(Now.AddDays(2), "Files.Content.Unavailable"));
+        Assert.False(message.RegisterDocumentFailure(Now.AddMinutes(15), "WhatsApp.Media.Unavailable"));
+        Assert.True(message.RegisterDocumentFailure(Now.AddDays(1), "WhatsApp.Media.Unavailable"));
+        Assert.Equal((WhatsAppDocumentState.Unavailable, "WhatsApp.Media.Unavailable"), (message.DocumentState, message.DocumentFailureCode));
+        Assert.False(message.RegisterDocumentFailure(Now.AddDays(2), "WhatsApp.Media.Unavailable"));
     }
 
     // F6: a reading that never comes back (it hangs, or ends the process) leaves only the count of the times the document was taken.

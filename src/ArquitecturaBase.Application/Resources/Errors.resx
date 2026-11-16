@@ -94,6 +94,7 @@
   <data name="WhatsApp.Send.PermissionMissing" xml:space="preserve"><value>A la conexión con WhatsApp le falta un permiso para enviar.</value></data>
   <data name="WhatsApp.Send.Unavailable" xml:space="preserve"><value>No se pudo llegar a WhatsApp, ni con los reintentos. Probá de nuevo en un rato.</value></data>
   <data name="WhatsApp.Send.Rejected" xml:space="preserve"><value>WhatsApp rechazó el mensaje.</value></data>
+  <data name="WhatsApp.Media.Unavailable" xml:space="preserve"><value>No pudimos bajar los archivos de WhatsApp.</value></data>
   <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Revisá el proveedor y el modelo de la conexión.</value></data>
   <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configurá una clave para usar o probar la conexión.</value></data>
   <data name="Ai.Connection.ProviderChanged" xml:space="preserve"><value>Al cambiar de proveedor, reemplazá o quitá la clave.</value></data>
@@ -367,13 +368,14 @@
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>No pudimos guardar la respuesta después de varios intentos. Podés mandar el formulario de nuevo.</value></data>
   <data name="Forms.Publication.TooManyFiles" xml:space="preserve"><value>El formulario admite hasta 10 archivos. Bajá el máximo de alguna pregunta.</value></data>
   <data name="Forms.Publication.FileStorageUnavailable" xml:space="preserve"><value>Configurá el almacenamiento privado antes de publicar preguntas con archivos.</value></data>
-  <data name="Files.Content.HashMismatch" xml:space="preserve"><value>El archivo no coincide con el que entregó WhatsApp. La respuesta no se guardó.</value></data>
+  <data name="Files.Content.HashMismatch" xml:space="preserve"><value>El archivo no coincide con el que se mandó. La respuesta no se guardó.</value></data>
   <data name="Files.Content.InvalidType" xml:space="preserve"><value>El archivo no es del tipo que indica o no se admite. La respuesta no se guardó.</value></data>
   <data name="Files.Content.TooLarge" xml:space="preserve"><value>Un archivo o la respuesta supera el tamaño permitido. La respuesta no se guardó.</value></data>
   <data name="Files.Content.InvalidMetadata" xml:space="preserve"><value>Los datos del archivo no son válidos. La respuesta no se guardó.</value></data>
-  <data name="Files.Content.Unavailable" xml:space="preserve"><value>No pudimos bajar los archivos de WhatsApp. La respuesta no se guardó.</value></data>
+  <data name="Files.Storage.Unavailable" xml:space="preserve"><value>El almacenamiento de archivos no está disponible.</value></data>
 <data name="Forms.Record.ExportTooManyRows" xml:space="preserve"><value>El Excel tendría más de 100.000 filas, una por ítem. Acotá los filtros o sacá el bloque de las columnas.</value></data>
   <data name="Files.Content.NotFound" xml:space="preserve"><value>El archivo no pertenece a esta respuesta.</value></data>
+  <data name="Files.Content.Missing" xml:space="preserve"><value>No encontramos la copia guardada del archivo.</value></data>
   <data name="Forms.Record.NotFound" xml:space="preserve"><value>No encontramos esa respuesta o no está disponible.</value></data>
   <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Revisá los filtros: el campo, el operador y el valor deben corresponder a ese formulario.</value></data>
   <data name="Forms.Record.PeriodInvalid" xml:space="preserve"><value>Elegí cómo agrupar el tablero: por día, por semana o por mes.</value></data>

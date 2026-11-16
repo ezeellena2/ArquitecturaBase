@@ -175,7 +175,7 @@ public sealed class WhatsAppSpreadsheetPostgresTests(ApiFactory factory)
         await using var host = await CreateAsync(new WhatsAppDocumentProbe());
         var person = await host.ContactAsync(Ct, automatic: true);
         var now = host.Clock.GetUtcNow().UtcDateTime;
-        var messageId = await AddSpreadsheetAsync(host, person.ContactId, now, message => message.RegisterSpreadsheetFailure(now, "Files.Content.Unavailable"));
+        var messageId = await AddSpreadsheetAsync(host, person.ContactId, now, message => message.RegisterSpreadsheetFailure(now, "WhatsApp.Media.Unavailable"));
 
         Assert.False(await PendingAsync(host, person.ContactId, now));
         Assert.False(await PendingAsync(host, person.ContactId, now.AddSeconds(29)));
@@ -184,7 +184,7 @@ public sealed class WhatsAppSpreadsheetPostgresTests(ApiFactory factory)
         await host.InTransactionAsync(async services =>
         {
             (await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().SingleAsync(row => row.Id == messageId, Ct))
-                .SetSpreadsheetUnavailable("Files.Content.Unavailable");
+                .SetSpreadsheetUnavailable("WhatsApp.Media.Unavailable");
             return true;
         }, Ct);
         Assert.False(await PendingAsync(host, person.ContactId, now.AddMinutes(1)));

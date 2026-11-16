@@ -3,6 +3,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Files;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,7 +18,7 @@ internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<What
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
         if (string.IsNullOrEmpty(options.Value.PhoneNumberId) || string.IsNullOrEmpty(options.Value.AccessToken)
-            || string.IsNullOrEmpty(mediaId) || mediaId.Length > 128 || mediaId.Any(character => character is < '0' or > '9')) return FileErrors.Unavailable;
+            || string.IsNullOrEmpty(mediaId) || mediaId.Length > 128 || mediaId.Any(character => character is < '0' or > '9')) return WhatsAppMediaErrors.Unavailable;
         // The size Meta declares is checked before downloading, and the bytes read are bounded by the same limit.
         var maximum = (int)Math.Min(maximumBytes, WhatsAppMediaContent.MaximumBytes);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30), timeProvider);
@@ -31,7 +32,7 @@ internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<What
             health.Observe(metadataResponse.StatusCode, WhatsAppTokenUse.Messaging);
             if (!metadataResponse.IsSuccessStatusCode) return Unavailable(metadataResponse.StatusCode, "metadata");
             var metadataBytes = await ReadAsync(metadataResponse.Content, 8192, ct);
-            if (metadataBytes is null) return FileErrors.Unavailable;
+            if (metadataBytes is null) return WhatsAppMediaErrors.Unavailable;
             using var metadata = JsonDocument.Parse(metadataBytes);
             var root = metadata.RootElement;
             if (Text(root, "id") != mediaId || !SameContentType(Text(root, "mime_type"), contentType) || Text(root, "sha256") is not { } expectedHash)
@@ -41,7 +42,7 @@ internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<What
             if (size > maximum) return FileErrors.TooLarge;
             if (!Uri.TryCreate(Text(root, "url"), UriKind.Absolute, out var url) || url.Scheme != Uri.UriSchemeHttps
                 || url.Port != 443 || url.UserInfo.Length != 0 || url.Fragment.Length != 0
-                || url.Host is not ("lookaside.fbsbx.com" or "mmg.whatsapp.net")) return FileErrors.Unavailable;
+                || url.Host is not ("lookaside.fbsbx.com" or "mmg.whatsapp.net")) return WhatsAppMediaErrors.Unavailable;
             // Bearer is only attached after validating the provider URL. Redirects are disabled in registration.
             using var contentRequest = Request(url);
             using var contentResponse = await http.SendAsync(contentRequest, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -54,7 +55,7 @@ internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<What
         catch (Exception exception) when (exception is HttpRequestException or IOException or JsonException
             || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            return FileErrors.Unavailable;
+            return WhatsAppMediaErrors.Unavailable;
         }
     }
     // H11: a 401 is the token and a 403 a permission, apart in the log and with the request Meta refused (its metadata in Graph or
@@ -63,7 +64,7 @@ internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<What
     {
         if (status == System.Net.HttpStatusCode.Unauthorized) LogInvalidToken(logger, step);
         else if (status == System.Net.HttpStatusCode.Forbidden) LogMissingPermission(logger, step);
-        return FileErrors.Unavailable;
+        return WhatsAppMediaErrors.Unavailable;
     }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "A WhatsApp media download ({Step}) was refused because the access token is not valid (401)")]

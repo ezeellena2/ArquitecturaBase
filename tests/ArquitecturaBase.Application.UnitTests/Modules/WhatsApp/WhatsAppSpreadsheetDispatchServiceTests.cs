@@ -195,7 +195,7 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
     [Fact]
     public async Task A_download_that_fails_is_retried_and_ends_unavailable_after_five_failures_and_a_day()
     {
-        var f = new WhatsAppSpreadsheetFixture { DownloadError = FileErrors.Unavailable };
+        var f = new WhatsAppSpreadsheetFixture { DownloadError = WhatsAppMediaErrors.Unavailable };
 
         for (var attempt = 0; attempt < 5; attempt++)
         {
@@ -203,11 +203,25 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
             Assert.Equal(WhatsAppSpreadsheetState.Pending, f.Message.SpreadsheetState);
             f.Host.Context.Clock.Advance(TimeSpan.FromHours(5));
         }
-        Assert.Equal((5, FileErrors.Unavailable.Code), (f.Message.SpreadsheetFailureCount, f.Message.SpreadsheetFailureCode));
+        Assert.Equal((5, WhatsAppMediaErrors.Unavailable.Code), (f.Message.SpreadsheetFailureCount, f.Message.SpreadsheetFailureCode));
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
 
         Assert.Equal(WhatsAppSpreadsheetState.Unavailable, f.Message.SpreadsheetState);
         Assert.Equal(6, f.Downloads);
+        Assert.Empty(f.Replies);
+    }
+
+    // N22: a copy the private storage did not keep says so with the core's code, not as a download from WhatsApp, and it may pass.
+    [Fact]
+    public async Task A_copy_the_storage_did_not_keep_is_retried_with_the_storage_code()
+    {
+        var f = new WhatsAppSpreadsheetFixture();
+        f.Files.BeforeRead = () => { foreach (var key in f.Files.Modified.Keys.ToList()) f.Files.DeleteAsync(key, Ct).GetAwaiter().GetResult(); };
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal((WhatsAppSpreadsheetState.Pending, 1, FileErrors.StorageUnavailable.Code),
+            (f.Message.SpreadsheetState, f.Message.SpreadsheetFailureCount, f.Message.SpreadsheetFailureCode));
         Assert.Empty(f.Replies);
     }
 
@@ -272,7 +286,7 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
             Assert.Equal(WhatsAppSpreadsheetState.Pending, f.Message.SpreadsheetState);
             f.Host.Context.Clock.Advance(TimeSpan.FromHours(5));
         }
-        Assert.Equal((5, FileErrors.Unavailable.Code), (f.Message.SpreadsheetFailureCount, f.Message.SpreadsheetFailureCode));
+        Assert.Equal((5, WhatsAppMediaErrors.Unavailable.Code), (f.Message.SpreadsheetFailureCount, f.Message.SpreadsheetFailureCode));
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
 
         Assert.Equal(WhatsAppSpreadsheetState.Unavailable, f.Message.SpreadsheetState);

@@ -35,16 +35,16 @@ internal sealed class AiAssistantHomeAudioPolicy(IPrivateFileStore files, IAiAss
         && descriptor.Sha256 == Convert.ToHexStringLower(SHA256.HashData(content));
 
     // Without private storage no recording is kept: said before the checks of the acceptance (I14).
-    public Error? Check() => files.IsAvailable ? null : FileErrors.Unavailable;
+    public Error? Check() => files.IsAvailable ? null : FileErrors.StorageUnavailable;
 
     public async Task<Result<AssistantAudioInput>> StoreAsync(Guid requestId, byte[] content, string mediaType, DateTime expiresAtUtc, CancellationToken ct)
     {
-        if (!files.IsAvailable) return FileErrors.Unavailable;
+        if (!files.IsAvailable) return FileErrors.StorageUnavailable;
         var key = Key(requestId, mediaType);
         var sha256 = Convert.ToHexStringLower(SHA256.HashData(content));
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(key, stream, mediaType, ct);
         await using var stored = await files.OpenReadAsync(key, ct);
-        if (stored is null) return FileErrors.Unavailable;
+        if (stored is null) return FileErrors.StorageUnavailable;
         if (!await AiAssistantStoredCopyPolicy.MatchesAsync(stored, content.LongLength, sha256, ct)) return AiAssistantErrors.RequestReused;
         return new AssistantAudioInput(key, $"audio_{requestId:N}{AiAssistantAudioPolicy.Extension(mediaType)}", mediaType, content.Length, sha256, expiresAtUtc);
     }
@@ -52,7 +52,7 @@ internal sealed class AiAssistantHomeAudioPolicy(IPrivateFileStore files, IAiAss
     // Only this person's recording, while the normalization keeps its content; the descriptor names the exact private copy.
     public async Task<Result<AiAssistantAudioFileResponse>> OpenAsync(Guid owner, Guid requestId, CancellationToken ct)
     {
-        if (!files.IsAvailable) return FileErrors.Unavailable;
+        if (!files.IsAvailable) return FileErrors.StorageUnavailable;
         var receipt = await repository.GetReceiptAsync(owner, requestId, ct);
         if (receipt is null) return AiAssistantErrors.NotFound;
         var conversation = await repository.GetConversationAsync(owner, receipt.ConversationId, ct);

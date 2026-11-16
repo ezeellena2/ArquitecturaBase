@@ -174,7 +174,7 @@ internal sealed class WhatsAppReceivedDocumentPreparationPolicy(IWhatsAppMediaCl
             NotRead = StructuredDocumentNotRead.Rejected, Rejection = rejection,
             File = copy is null ? new StructuredDocumentFile(source.FileName ?? WhatsAppMessage.DocumentName(null, declared), declared, size) : null,
         }, ct);
-        if (registered.Kind == StructuredDocumentReplyKind.Unavailable && plan.CanLoad) return FileErrors.Unavailable;
+        if (registered.Kind == StructuredDocumentReplyKind.Unavailable && plan.CanLoad) return FileErrors.StorageUnavailable;
         return WhatsAppPreparedDocument.Rejected(rejection, fileKind);
     }
 
@@ -218,7 +218,7 @@ internal sealed class WhatsAppReceivedDocumentPreparationPolicy(IWhatsAppMediaCl
     {
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(key, stream, mediaType, ct);
         await using var stored = await files.OpenReadAsync(key, ct);
-        if (stored is null) return FileErrors.Unavailable;
+        if (stored is null) return FileErrors.StorageUnavailable;
         var copy = await ReadBoundedAsync(stored, ct);
         return copy is not null && Sha256(copy) == sha256 ? key : FileErrors.HashMismatch;
     }

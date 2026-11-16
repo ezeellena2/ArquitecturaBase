@@ -42,7 +42,7 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             if(acquired is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             if(acquired.IsFailure)
             {
-                if(acquired.Error==FileErrors.Unavailable)message.RegisterAudioFailure(presentation.NowUtc,acquired.Error.Code);
+                if(WhatsAppMediaErrors.MayPass(acquired.Error))message.RegisterAudioFailure(presentation.NowUtc,acquired.Error.Code);
                 else message.SetAudioState(WhatsAppAudioState.Unavailable,acquired.Error.Code);
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }

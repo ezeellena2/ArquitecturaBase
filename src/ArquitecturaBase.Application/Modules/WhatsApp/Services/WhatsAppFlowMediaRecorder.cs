@@ -15,9 +15,9 @@ internal sealed class WhatsAppFlowMediaRecorder(IWhatsAppMediaClient client, Tim
     /// </summary>
     public async Task<Result<WhatsAppMediaContent>> ReadServerFileAsync(WhatsAppFlowServerFile file, CancellationToken cancellationToken)
     {
-        if (!files.IsAvailable) return FileErrors.Unavailable;
+        if (!files.IsAvailable) return FileErrors.StorageUnavailable;
         await using var stored = await files.OpenReadAsync(file.StorageKey, cancellationToken);
-        if (stored is null) return FileErrors.Unavailable;
+        if (stored is null) return FileErrors.StorageUnavailable;
         using var buffer = new MemoryStream();
         var chunk = new byte[81920];
         while (true)

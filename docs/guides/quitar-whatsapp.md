@@ -86,7 +86,7 @@ Todo se corre desde la raíz del repo, en un commit propio, con Git Bash (en Win
 
 3. **Sacá la configuración y los textos de error.** En `src/ArquitecturaBase.Api/appsettings.json`, la sección `"WhatsApp"` entera y las claves `WhatsAppWebhook*` y `WhatsAppChat*` de `"RateLimiting"`, si están declaradas. En `src/ArquitecturaBase.Api/appsettings.Development.json`, la sección `"WhatsApp"`. Ajustá las comas y verificá que ambos JSON sigan siendo válidos. El núcleo no lee ninguna de esas claves; una que quede no rompe nada, pero confunde. `Authentication:LoginLink` **no** es del módulo: se queda (ver [Lo que queda](#lo-que-queda-con-whatsapp-en-el-nombre-a-propósito)).
 
-   Los textos de los errores del módulo viven en `src/ArquitecturaBase.Application/Resources/Errors.resx` y `Errors.en.resx`. Borrá las 48 claves `WhatsApp.*` y `Auth.WhatsApp.CountryNotSupported`, que también declara `WhatsAppErrors`. Si queda una, `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
+   Los textos de los errores del módulo viven en `src/ArquitecturaBase.Application/Resources/Errors.resx` y `Errors.en.resx`. Borrá las claves `WhatsApp.*` y `Auth.WhatsApp.CountryNotSupported`, que también declara `WhatsAppErrors`. Si queda una, `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
 
 4. **Compilá:**
 

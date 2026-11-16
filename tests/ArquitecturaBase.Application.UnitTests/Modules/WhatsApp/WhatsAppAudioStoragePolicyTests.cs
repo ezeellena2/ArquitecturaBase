@@ -66,7 +66,13 @@ public sealed class WhatsAppAudioStoragePolicyTests
     public async Task Disabled_storage_is_not_a_missing_object()
     {
         var result = await new WhatsAppAudioStoragePolicy(new MemoryPrivateFileStore(false)).FindAsync(Guid.NewGuid(), Hash(Audio()), TestContext.Current.CancellationToken);
-        Assert.True(result.IsFailure); Assert.Equal(FileErrors.Unavailable, result.Error);
+        Assert.True(result.IsFailure); Assert.Equal(FileErrors.StorageUnavailable, result.Error);
+    }
+    [Fact]
+    public async Task Opening_a_copy_that_is_gone_says_the_file_is_missing()
+    {
+        var result = await new WhatsAppAudioStoragePolicy(new MemoryPrivateFileStore()).OpenAsync(Guid.NewGuid(), Hash(Audio()), TestContext.Current.CancellationToken);
+        Assert.True(result.IsFailure); Assert.Equal(FileErrors.Missing, result.Error);
     }
     [Fact]
     public async Task Repeated_save_preserves_the_first_object()

@@ -37,7 +37,7 @@ internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivate
         bool reconciliationOnly, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormPdfActionOutcomeResponse>>(logger, "ExecuteFormPdfAction", async () =>
         {
-            if (!store.IsAvailable) return new FormPdfActionOutcomeResponse(FormPdfActionState.Failed, [], FileErrors.Unavailable.Code);
+            if (!store.IsAvailable) return new FormPdfActionOutcomeResponse(FormPdfActionState.Failed, [], FileErrors.StorageUnavailable.Code);
             var record = await records.FindRecordAsync(recordId, cancellationToken);
             if (record is null) return FormRecordErrors.NotFound;
             record = record with { Actor = snapshot.Author };

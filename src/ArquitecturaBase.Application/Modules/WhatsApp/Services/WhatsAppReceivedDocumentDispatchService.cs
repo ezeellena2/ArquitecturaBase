@@ -101,7 +101,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         if (decided != plan || acquired is null) return Nothing;
         if (acquired.IsFailure)
         {
-            if (acquired.Error == FileErrors.Unavailable) message.RegisterDocumentFailure(reading.NowUtc, acquired.Error.Code);
+            if (WhatsAppMediaErrors.MayPass(acquired.Error)) message.RegisterDocumentFailure(reading.NowUtc, acquired.Error.Code);
             else message.SetDocumentUnavailable(acquired.Error.Code);
             return Nothing;
         }
@@ -247,7 +247,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             LogAcquisitionFailed(logger, exception);
-            return FileErrors.Unavailable;
+            return WhatsAppMediaErrors.Unavailable;
         }
     }
 

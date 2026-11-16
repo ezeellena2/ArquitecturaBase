@@ -92,7 +92,7 @@ internal sealed class WhatsAppSpreadsheetPreparationPolicy(IWhatsAppMediaClient 
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(key, stream, spreadsheet.MediaType, ct);
         // Another host, or an attempt that did not commit, may have written it first: the copy is read back, never assumed ours.
         await using var stored = await files.OpenReadAsync(key, ct);
-        if (stored is null) return FileErrors.Unavailable;
+        if (stored is null) return FileErrors.StorageUnavailable;
         var copy = await ReadBoundedAsync(stored, ct);
         return copy is not null && Sha256(copy) == sha256
             ? WhatsAppPreparedSpreadsheet.Stored(key, content.LongLength, sha256, spreadsheet) : FileErrors.HashMismatch;

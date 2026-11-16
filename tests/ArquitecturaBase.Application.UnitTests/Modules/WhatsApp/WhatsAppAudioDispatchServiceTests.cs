@@ -104,14 +104,17 @@ public sealed class WhatsAppAudioDispatchServiceTests
         Assert.Null(f.Message.Body);
     }
 
-    [Fact]
-    public async Task Unavailable_media_retries_the_new_audio_copy_before_recording_the_missing_subject()
+    // N22: the download from WhatsApp and the private storage keep their own codes; both may pass.
+    [Theory]
+    [InlineData("WhatsApp.Media.Unavailable")]
+    [InlineData("Files.Storage.Unavailable")]
+    public async Task Unavailable_media_retries_the_new_audio_copy_before_recording_the_missing_subject(string code)
     {
         var ct = TestContext.Current.CancellationToken;
         var f = new WhatsAppAudioFixture();
         f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         f.Contact.UnlinkUser();
-        f.DownloadError = FileErrors.Unavailable;
+        f.DownloadError = code == WhatsAppMediaErrors.Unavailable.Code ? WhatsAppMediaErrors.Unavailable : FileErrors.StorageUnavailable;
 
         var first = await f.Dispatch.PrepareAsync(f.Contact.Id, ct);
 
@@ -119,6 +122,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
         Assert.Null(first.Value);
         Assert.Equal(WhatsAppAudioState.Pending, f.Message.AudioState);
         Assert.Equal(1, f.Message.AudioFailureCount);
+        Assert.Equal(code, f.Message.AudioFailureCode);
         Assert.Equal(1, f.Downloads);
         Assert.Equal(0, f.Files.WriteCount);
         Assert.Null(f.Message.AudioStorageKey);

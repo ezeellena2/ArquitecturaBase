@@ -421,11 +421,15 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         Assert.Equal(new byte[] { 1, 2, 3 }, Assert.Single(request.Files!).Content);
     }
 
-    [Fact]
-    public async Task An_unavailable_media_file_retries_then_rejects_without_any_call_to_the_sink()
+    // N22: a download from WhatsApp and the private storage say apart why the file is missing; both may pass, so both retry.
+    [Theory]
+    [InlineData("WhatsApp.Media.Unavailable")]
+    [InlineData("Files.Storage.Unavailable")]
+    public async Task An_unavailable_media_file_retries_then_rejects_without_any_call_to_the_sink(string code)
     {
         var fixture = new Fixture(media: true);
-        fixture.Media.Result = ArquitecturaBase.Domain.Files.FileErrors.Unavailable;
+        var error = code == WhatsAppMediaErrors.Unavailable.Code ? WhatsAppMediaErrors.Unavailable : ArquitecturaBase.Domain.Files.FileErrors.StorageUnavailable;
+        fixture.Media.Result = error;
         var message = fixture.AddFileReply("wamid.media.failed");
         await fixture.Service.ProcessPendingAsync(CancellationToken.None);
         Assert.Null(message.ProcessedAtUtc);
@@ -436,7 +440,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         fixture.Clock.Advance(TimeSpan.FromDays(1));
         await fixture.Service.ProcessPendingAsync(CancellationToken.None);
         Assert.Equal(WhatsAppFlowCaptureState.Rejected, message.FlowCaptureState);
-        Assert.Equal(ArquitecturaBase.Domain.Files.FileErrors.Unavailable.Code, message.FlowCaptureErrorCode);
+        Assert.Equal(code, message.FlowCaptureErrorCode);
         Assert.Equal(0, fixture.Sink.CaptureCount);
     }
 

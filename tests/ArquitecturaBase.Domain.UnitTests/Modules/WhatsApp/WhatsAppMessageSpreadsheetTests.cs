@@ -110,7 +110,7 @@ public sealed class WhatsAppMessageSpreadsheetTests
     public void Storing_the_copy_keeps_what_was_prepared_once_and_clears_the_failures()
     {
         var message = Described();
-        message.RegisterSpreadsheetFailure(Now, "Files.Content.Unavailable");
+        message.RegisterSpreadsheetFailure(Now, "WhatsApp.Media.Unavailable");
 
         Assert.True(message.StoreSpreadsheet("whatsapp/documents/a.csv", 42, new string('b', 64), "{\"rowCount\":3}").IsSuccess);
 
@@ -190,13 +190,13 @@ public sealed class WhatsAppMessageSpreadsheetTests
     {
         var message = Described();
 
-        for (var attempt = 0; attempt < 6; attempt++) Assert.False(message.RegisterSpreadsheetFailure(Now.AddMinutes(attempt), "Files.Content.Unavailable"));
+        for (var attempt = 0; attempt < 6; attempt++) Assert.False(message.RegisterSpreadsheetFailure(Now.AddMinutes(attempt), "WhatsApp.Media.Unavailable"));
 
         Assert.Equal((6, (DateTime?)Now, WhatsAppSpreadsheetState.Pending),
             (message.SpreadsheetFailureCount, message.SpreadsheetFirstFailureAtUtc, message.SpreadsheetState));
-        Assert.False(message.RegisterSpreadsheetFailure(Now.AddMinutes(15), "Files.Content.Unavailable"));
-        Assert.True(message.RegisterSpreadsheetFailure(Now.AddDays(1), "Files.Content.Unavailable"));
-        Assert.Equal((WhatsAppSpreadsheetState.Unavailable, "Files.Content.Unavailable"), (message.SpreadsheetState, message.SpreadsheetFailureCode));
-        Assert.False(message.RegisterSpreadsheetFailure(Now.AddDays(2), "Files.Content.Unavailable"));
+        Assert.False(message.RegisterSpreadsheetFailure(Now.AddMinutes(15), "WhatsApp.Media.Unavailable"));
+        Assert.True(message.RegisterSpreadsheetFailure(Now.AddDays(1), "WhatsApp.Media.Unavailable"));
+        Assert.Equal((WhatsAppSpreadsheetState.Unavailable, "WhatsApp.Media.Unavailable"), (message.SpreadsheetState, message.SpreadsheetFailureCode));
+        Assert.False(message.RegisterSpreadsheetFailure(Now.AddDays(2), "WhatsApp.Media.Unavailable"));
     }
 }

@@ -13,7 +13,7 @@ internal sealed class WhatsAppAudioStoragePolicy(IPrivateFileStore store)
 
     public async Task<Result<WhatsAppStoredAudio?>> FindAsync(Guid messageId, string sha256, CancellationToken ct)
     {
-        if (!store.IsAvailable) return FileErrors.Unavailable;
+        if (!store.IsAvailable) return FileErrors.StorageUnavailable;
         await using var stream = await store.OpenReadAsync(Key(messageId), ct);
         if (stream is null) return Result.Success<WhatsAppStoredAudio?>(null);
         var bytes = await ReadBoundedAsync(stream, ct);
@@ -23,7 +23,7 @@ internal sealed class WhatsAppAudioStoragePolicy(IPrivateFileStore store)
     }
     public async Task<Result<WhatsAppStoredAudio>> SaveAsync(Guid messageId, byte[] bytes, string sha256, CancellationToken ct)
     {
-        if (!store.IsAvailable) return FileErrors.Unavailable;
+        if (!store.IsAvailable) return FileErrors.StorageUnavailable;
         if (Validate(bytes, sha256) is { } error) return error;
         var existing = await FindAsync(messageId, sha256, ct);
         if (existing.IsFailure) return existing.Error;
@@ -32,13 +32,13 @@ internal sealed class WhatsAppAudioStoragePolicy(IPrivateFileStore store)
         await store.WriteOnceAsync(Key(messageId), content, "audio/ogg", ct);
         // A concurrent host may have won WriteOnce. Re-read the preserved object, never assume it is ours.
         var verified = await FindAsync(messageId, sha256, ct);
-        return verified.IsFailure ? verified.Error : verified.Value is { } value ? value : FileErrors.Unavailable;
+        return verified.IsFailure ? verified.Error : verified.Value is { } value ? value : FileErrors.StorageUnavailable;
     }
     public async Task<Result<Stream>> OpenAsync(Guid messageId, string sha256, CancellationToken ct)
     {
-        if (!store.IsAvailable) return FileErrors.Unavailable;
+        if (!store.IsAvailable) return FileErrors.StorageUnavailable;
         await using var stream = await store.OpenReadAsync(Key(messageId), ct);
-        if (stream is null) return FileErrors.NotFound;
+        if (stream is null) return FileErrors.Missing;
         var bytes = await ReadBoundedAsync(stream, ct);
         if (bytes.IsFailure) return bytes.Error;
         if (Validate(bytes.Value, sha256) is { } error) return error;

@@ -93,6 +93,7 @@
   <data name="WhatsApp.Send.PermissionMissing" xml:space="preserve"><value>The WhatsApp connection lacks a permission to send.</value></data>
   <data name="WhatsApp.Send.Unavailable" xml:space="preserve"><value>WhatsApp could not be reached, not even with the retries. Try again in a while.</value></data>
   <data name="WhatsApp.Send.Rejected" xml:space="preserve"><value>WhatsApp refused the message.</value></data>
+  <data name="WhatsApp.Media.Unavailable" xml:space="preserve"><value>We could not download the files from WhatsApp.</value></data>
   <data name="WhatsApp.Chat.ReadPositionInvalid" xml:space="preserve"><value>The read position is outside the stored history.</value></data>
   <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Review the connection provider and model.</value></data>
   <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configure a key to use or test the connection.</value></data>
@@ -367,13 +368,14 @@
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>We could not save the response after several attempts. You can send the form again.</value></data>
   <data name="Forms.Publication.TooManyFiles" xml:space="preserve"><value>A form allows up to 10 files. Reduce the maximum for a question.</value></data>
   <data name="Forms.Publication.FileStorageUnavailable" xml:space="preserve"><value>Configure private storage before publishing file questions.</value></data>
-  <data name="Files.Content.HashMismatch" xml:space="preserve"><value>The file does not match what WhatsApp delivered. The response was not saved.</value></data>
+  <data name="Files.Content.HashMismatch" xml:space="preserve"><value>The file does not match the one that was sent. The response was not saved.</value></data>
   <data name="Files.Content.InvalidType" xml:space="preserve"><value>The actual file type is not allowed or does not match. The response was not saved.</value></data>
   <data name="Files.Content.TooLarge" xml:space="preserve"><value>A file or the response exceeds the allowed size. The response was not saved.</value></data>
   <data name="Files.Content.InvalidMetadata" xml:space="preserve"><value>The file metadata is invalid. The response was not saved.</value></data>
-  <data name="Files.Content.Unavailable" xml:space="preserve"><value>We could not download the files from WhatsApp. The response was not saved.</value></data>
+  <data name="Files.Storage.Unavailable" xml:space="preserve"><value>File storage is not available.</value></data>
 <data name="Forms.Record.ExportTooManyRows" xml:space="preserve"><value>The Excel file would have more than 100,000 rows, one per item. Narrow the filters or remove the block from the columns.</value></data>
   <data name="Files.Content.NotFound" xml:space="preserve"><value>The file does not belong to this response.</value></data>
+  <data name="Files.Content.Missing" xml:space="preserve"><value>The stored copy of the file was not found.</value></data>
   <data name="Forms.Record.NotFound" xml:space="preserve"><value>The response could not be found or is unavailable.</value></data>
   <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Check the filters: the field, operator and value must match the form.</value></data>
   <data name="Forms.Record.PeriodInvalid" xml:space="preserve"><value>Choose how to group the dashboard: by day, by week or by month.</value></data>

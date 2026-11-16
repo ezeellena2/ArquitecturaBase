@@ -143,7 +143,7 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
             var code when code == FileErrors.InvalidType.Code => FileErrors.InvalidType,
             var code when code == FileErrors.HashMismatch.Code => FileErrors.HashMismatch,
             var code when code == FileErrors.InvalidMetadata.Code => FileErrors.InvalidMetadata,
-            var code when code == FileErrors.Unavailable.Code => FileErrors.Unavailable,
+            var code when code == FileErrors.StorageUnavailable.Code => FileErrors.StorageUnavailable,
             _ => FormRecordErrors.InvalidResponse,
         };
         if (captured.RejectedFieldId is not { } fieldId || error.Type != ErrorType.Validation) return error;

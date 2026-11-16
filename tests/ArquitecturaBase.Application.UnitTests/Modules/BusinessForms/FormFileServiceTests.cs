@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
@@ -60,7 +61,8 @@ public sealed class FormFileServiceTests
         await setup.Store.DeleteAsync(setup.File.StorageKey, CancellationToken.None);
         var result = await setup.Service.OpenAsync(setup.RecordId, setup.File.Id, false, false, CancellationToken.None);
         Assert.True(result.IsFailure);
-        Assert.Equal(FileErrors.NotFound, result.Error);
+        Assert.Equal(FileErrors.Missing, result.Error);
+        Assert.Equal(ErrorType.NotFound, result.Error.Type);
     }
     private static async Task<(FormFileService Service, MemoryPrivateFileStore Store, FakePermissionService Permissions, FakeCurrentUser User, Guid RecordId, StoredFile File, FakeFormResponseReader Records)> CreateAsync(bool photo)
     {

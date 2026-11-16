@@ -198,7 +198,7 @@ public sealed partial class WhatsAppFormSendingTests
         await store.DeleteAsync(missingKey, Ct);
         using var missing = await reader.GetAsync($"/api/forms/records/{keptRecord}/files/{keptFile}/content", Ct);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Equal("Files.Content.NotFound", (await missing.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.Equal("Files.Content.Missing", (await missing.ReadJsonAsync()).GetProperty("code").GetString());
         static async Task ExportFilesAsync(string name,JsonElement body)
         {
             var output=Environment.GetEnvironmentVariable("FORM_FILES_HTTP_OUTPUT");if(string.IsNullOrWhiteSpace(output))return;Directory.CreateDirectory(output);
