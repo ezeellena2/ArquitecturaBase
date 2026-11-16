@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissionService permissions, ICurrentUser currentUser,
     IWhatsAppFormRecipientReader recipients, WhatsAppFormActionPolicy recipientGuard, ISystemSettingsReader settings, TimeProvider clock,
-    IWhatsAppAssistantAgentReader agents)
+    WhatsAppAssistantCapabilityPolicy capabilities)
 {
     public async Task<Result<UserAccount>> RequireOperatorAsync(CancellationToken ct)
     {
@@ -56,7 +56,8 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         if(automatic)context=context with {AllowedCapabilities=[..context.AllowedCapabilities,new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1),
             new("forms.authoring.forms",1),new("forms.authoring.catalogs",1),new("forms.authoring.propose-form",2),new("forms.authoring.propose-catalog",2),
             new("forms.authoring.propose-import",1),new("forms.authoring.decline",1)]};
-        if (await agents.FindMainAsync(ct) is not null) context = WithAgent(context, automatic);
+        // With a saved agent, its capabilities; and B5: without Formularios only what is installed, or the engine rejects every turn.
+        context = await capabilities.ForConversationAsync(context, automatic, ct);
         return new WhatsAppAssistantContextResponse(context, WhatsAppFormRecipientRevision.Create(actorUserId, recipient));
     }
 

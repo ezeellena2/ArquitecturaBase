@@ -33,7 +33,7 @@ public sealed class WhatsAppAssistantAgentTestPolicyTests
     public async Task A_test_preloads_the_agent_like_a_conversation_and_closes_on_up_to_three_proposals()
     {
         var fixture = new WhatsAppAssistantContextFixture();
-        var policy = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(), new WhatsAppAssistantPresentationFixture.RecordSource());
+        var policy = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(), new WhatsAppAssistantPresentationFixture.RecordSource(), fixture.Capabilities);
         var context = (await policy.ContextAsync(fixture.Operator.Id, fixture.Contact.Id, Ct)).Value;
         Assert.Equal(new AssistantCapabilityReference[] { new(WhatsAppAssistantAgentCapabilitySource.AgentId, 1), new("forms.assistant-candidates", 1),
             new(WhatsAppAssistantAgentCapabilitySource.HistoryId, 1) }, context.PreloadedCapabilities);
@@ -45,7 +45,7 @@ public sealed class WhatsAppAssistantAgentTestPolicyTests
     public async Task Several_actions_are_shown_in_order_and_a_form_mixed_with_them_shows_the_handoff()
     {
         var fixture = new WhatsAppAssistantContextFixture();
-        var policy = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(), new WhatsAppAssistantPresentationFixture.RecordSource());
+        var policy = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(), new WhatsAppAssistantPresentationFixture.RecordSource(), fixture.Capabilities);
         var context = (await policy.ContextAsync(fixture.Operator.Id, fixture.Contact.Id, Ct)).Value;
 
         var replies = await policy.ActionsAsync(Operation((WhatsAppAssistantAgentCapabilitySource.ReplyId, ExactHours),
@@ -64,7 +64,7 @@ public sealed class WhatsAppAssistantAgentTestPolicyTests
     public async Task A_test_reads_the_real_chat_only_for_someone_who_reads_whatsapp_chats()
     {
         var fixture = new WhatsAppAssistantContextFixture();
-        var policy = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(), new WhatsAppAssistantPresentationFixture.RecordSource());
+        var policy = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(), new WhatsAppAssistantPresentationFixture.RecordSource(), fixture.Capabilities);
 
         var context = (await policy.ContextAsync(fixture.Operator.Id, fixture.Contact.Id, Ct)).Value;
 
@@ -102,7 +102,7 @@ public sealed class WhatsAppAssistantAgentTestPolicyTests
     {
         var fixture = new WhatsAppAssistantContextFixture();
         var records = new ActorRecords(readsRecords ? fixture.Operator.Id : Guid.CreateVersion7());
-        var policy = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(), records);
+        var policy = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(), records, fixture.Capabilities);
         var context = (await policy.ContextAsync(fixture.Operator.Id, fixture.Contact.Id, Ct)).Value;
 
         var action = Assert.Single(await policy.ActionsAsync(Operation((WhatsAppAssistantAgentCapabilitySource.ReplyId, ExactHours)), Agent(), context, Ct));

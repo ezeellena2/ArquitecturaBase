@@ -49,7 +49,7 @@ public sealed class WhatsAppAssistantDraftContextTests
                 return (await fixture.Policy.CaptureAsync(fixture.Contact, fixture.Operator.Id, Ct)).Value.Context;
             default:
                 var test = new WhatsAppAssistantAgentTestPolicy(fixture.Recipients, fixture.Settings, new FakeAssistantForms(),
-                    new WhatsAppAssistantPresentationFixture.RecordSource());
+                    new WhatsAppAssistantPresentationFixture.RecordSource(), fixture.Capabilities);
                 return (await test.ContextAsync(fixture.Operator.Id, fixture.Contact.Id, Ct)).Value;
         }
     }

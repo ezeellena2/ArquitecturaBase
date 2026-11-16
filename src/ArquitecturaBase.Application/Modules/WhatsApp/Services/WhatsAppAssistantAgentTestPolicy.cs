@@ -14,7 +14,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// proposals, checked like a conversation checks them (without spending its daily limit).
 /// </summary>
 internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings, IStructuredFormSource forms,
-    IStructuredRecordSource records)
+    IStructuredRecordSource records, WhatsAppAssistantCapabilityPolicy capabilities)
 {
     public const string ChannelId = "whatsapp-assistant-test";
 
@@ -41,9 +41,10 @@ internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientRea
         if (recipient?.UserId is not { } subject || !recipient.IsActive || recipient.Culture is not ("es" or "en")) return WhatsAppChatErrors.NotFound;
         var presentation = await settings.FindPresentationAsync(ct);
         if (!TimeZoneInfo.TryFindSystemTimeZoneById(presentation.DefaultTimeZoneId, out _)) return WhatsAppAssistantErrors.Unavailable;
-        return new AssistantChannelContext(ChannelId, actorUserId, subject, recipient.Culture, presentation.DefaultTimeZoneId,
+        // B5: without Formularios, Probar asks only for what is installed, like the conversation.
+        return capabilities.Installed(new AssistantChannelContext(ChannelId, actorUserId, subject, recipient.Culture, presentation.DefaultTimeZoneId,
             new([WhatsAppPermissions.ConfigureAssistant, WhatsAppPermissions.Read], []), Capabilities, [new("assistant_proposal", 2)])
-        { InteractionMode = AssistantInteractionMode.Assistant, ChannelConversationId = contactId, PreloadedCapabilities = Preloaded };
+        { InteractionMode = AssistantInteractionMode.Assistant, ChannelConversationId = contactId, PreloadedCapabilities = Preloaded });
     }
 
     /// <summary>

@@ -6,20 +6,16 @@ código, configuración y rutas, y generá la migración del modelo nuevo. Esa m
 de personas, la bandeja «Documentos recibidos» con sus eventos y las propuestas de «Armar formulario con la IA», DOC6):
 respaldá la base antes.
 
-WhatsApp e IA siguen andando, con una salvedad, y ARCA queda sin emisor. Sin el módulo, el núcleo usa sus versiones apagadas de los puertos de formularios
+WhatsApp e IA siguen andando y ARCA queda sin emisor. Sin el módulo, el núcleo usa sus versiones apagadas de los puertos de formularios
 (`DisabledStructuredFormSource`, `UnavailableStructuredRecordSink` y las demás de `Application/Channels`): WhatsApp no
-encuentra formularios para mandar y el asistente pierde las capacidades de formularios. Con
+encuentra formularios para mandar y el asistente pierde las capacidades de formularios: el de WhatsApp (la conversación en
+Asistente, Atención manual y Probar) pide las `forms.*` sólo si un dueño instalado las declara
+(`WhatsAppAssistantCapabilityPolicy`, B5 del núcleo), así el motor no rechaza sus turnos y contesta con lo suyo. Con
 `UnavailableStructuredAttachmentReader` nadie puede adjuntar una planilla: Inicio no muestra el clip (el bootstrap da
 `attachments` en false) y una planilla que llega por WhatsApp queda No disponible, sin bajarse. Con `UnavailableStructuredDocumentChannel` y
 `UnavailableStructuredDocumentRowsChannel` los documentos que llegan por WhatsApp no pasan a la bandeja ni a una carga por filas.
 Las tablas `WhatsAppFlow*` son del otro módulo y se quedan.
 
-- **El asistente de WhatsApp (B5 del núcleo).** El contexto del asistente de WhatsApp pide siempre capacidades `forms.*`
-  (`WhatsAppAssistantAccessPolicy`) y el catálogo del motor rechaza el contexto entero si falta una: sin Formularios, ninguna
-  conversación en modo Asistente recibe respuesta mientras no esté hecha la tarea 26 del
-  [plan del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md) (WhatsApp pide esas capacidades sólo si están instaladas, con un
-  test que compone WhatsApp e IA sin el módulo). Antes de quitar Formularios, comprobá que esté hecha; si no, el chat manual
-  sigue y el automático no.
 - **ARCA.** ARCA no tiene una ruta propia para emitir: registra para Formularios el emisor (`IStructuredRecordIssuer`), la
   consulta del padrón, los catálogos «ARCA» y el estándar «Factura» (`ArcaApplicationRegistration`), puertos del núcleo que sólo
   consume el módulo. Sin Formularios compila y arranca, pero nadie los llama: la conexión, el padrón y los comprobantes ya

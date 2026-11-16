@@ -25,3 +25,5 @@ WhatsAppSpreadsheetFixture monta una planilla sobre el fixture de la conversaci�
 FakeWhatsAppAssistantAgentSources dobla el agente guardado (o ninguno), las cuentas de Probar y un historial ficticio con las respuestas del día y el inicio de la ráfaga; `WhatsAppAssistantAcceptanceFixture.CreateReply` arma la política de respuestas con ellos y la derivación real.
 
 WhatsAppReceivedDocumentFixture monta un documento recibido sobre el mismo fixture: Meta, el lector del dueño, la copia y el puerto de la bandeja afirman correr fuera de la UoW; los rechazos y la derivación pasan por las políticas reales.
+
+FakeInstalledAssistantCapabilities declara, sin ejecutarlas, las capacidades `forms.*` que pide el asistente, como si Formularios estuviera instalado (B5); `WhatsAppAssistantContextFixture(withForms: false)` arma los contextos sin ellas.

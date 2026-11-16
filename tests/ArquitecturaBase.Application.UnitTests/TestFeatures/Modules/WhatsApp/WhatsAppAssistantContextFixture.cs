@@ -24,7 +24,9 @@ internal sealed class WhatsAppAssistantContextFixture
     public IWhatsAppFormRecipientReader Recipients { get; }
     public WhatsAppAssistantAccessPolicy Policy { get; }
     public FakeWhatsAppAssistantAgentReader Agents { get; } = new();
-    public WhatsAppAssistantContextFixture()
+    /// <summary>The saved agent and the owners installed with WhatsApp (B5): Formularios by default; a test without it passes none.</summary>
+    public WhatsAppAssistantCapabilityPolicy Capabilities { get; }
+    public WhatsAppAssistantContextFixture(bool withForms = true)
     {
         Subject = Users.AddUser("assistant-subject@example.test",phoneNumber:"+5493413654813");
         Operator = Users.AddUser("assistant-operator@example.test");
@@ -32,8 +34,9 @@ internal sealed class WhatsAppAssistantContextFixture
         Permissions.Permissions[Operator.Id] = [WhatsAppPermissions.Read,WhatsAppPermissions.Send];
         Settings.Presentation = Settings.Presentation with { DefaultTimeZoneId = "America/New_York" };
         Recipients = new Recipient(this);
+        Capabilities = new(Agents, withForms ? [new FakeInstalledAssistantCapabilities(FakeInstalledAssistantCapabilities.Forms)] : []);
         Policy = new(Users,Permissions,Current,Recipients,
-            new WhatsAppFormActionPolicy(Users,new FakePhoneNumberParser(),new FakeWhatsAppAvailability(true,true),Clock),Settings,Clock,Agents);
+            new WhatsAppFormActionPolicy(Users,new FakePhoneNumberParser(),new FakeWhatsAppAvailability(true,true),Clock),Settings,Clock,Capabilities);
     }
     private sealed class Recipient(WhatsAppAssistantContextFixture host) : IWhatsAppFormRecipientReader
     {
