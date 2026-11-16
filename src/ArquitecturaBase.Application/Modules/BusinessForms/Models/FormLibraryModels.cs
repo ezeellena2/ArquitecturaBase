@@ -46,6 +46,9 @@ public sealed record FormDraftStandardOrigin(string Key, int Version, IReadOnlyD
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Func<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition, FormIdentityMap, CancellationToken, Task<ArquitecturaBase.Domain.Results.Result>>? RecordAsync { get; init; }
+    /// <summary>The folder «Agregar» was asked to put the copy in: part of what a repeated request must match (F21).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Guid? FolderId { get; init; }
     public override string ToString() => "FormDraftStandardOrigin { Content = [REDACTED] }";
 }
 /// <summary>A catalog a standard names, by Key: whether it is active.</summary>

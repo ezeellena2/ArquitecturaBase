@@ -138,7 +138,7 @@ internal sealed class FormLibraryService : IFormLibraryService
             return await _drafts.CreateAsync(new SaveFormDraftRequest(request.RequestId, request.Name, request.Prefix, coded.Value)
             {
                 Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings)
-                    { RecordAsync = _copies.Prepare(created, createdItems, rules.Value, request.FolderId, standard.Folder) },
+                    { FolderId = request.FolderId, RecordAsync = _copies.Prepare(created, createdItems, rules.Value, request.FolderId, standard.Folder) },
             }, cancellationToken);
     }
 

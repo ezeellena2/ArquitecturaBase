@@ -41,10 +41,13 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
     private async Task<Result<FormDraftCommitResponse>> SaveAsync(Guid? id, SaveFormDraftRequest request, Guid actor, CancellationToken ct)
     {
         var kind = id.HasValue ? "Update" : "Create";
-        // F21: a copy of a library standard is the same request by its standard, name and prefix: the ids of the catalogs it creates
-        // or finds depend on who saved first, so they are not part of what a repeated request must match.
+        // F21: a copy of a library standard is the same request by its standard, name, prefix and folder: the ids of the catalogs it creates
+        // or finds depend on who saved first, so they are not part of what a repeated request must match. The folder joins only when
+        // there is one, so a result saved before it did (always without a folder) still matches its repeat.
         var canonicalRequest = FormDraftPolicy.Serialize(request.Standard is { } copied
-            ? new { kind, definitionId = id, request = (object)new { request.RequestId, request.Name, request.Prefix, standard = new { copied.Key, copied.Version } } }
+            ? new { kind, definitionId = id, request = copied.FolderId is { } folderId
+                ? (object)new { request.RequestId, request.Name, request.Prefix, standard = new { copied.Key, copied.Version }, folderId }
+                : new { request.RequestId, request.Name, request.Prefix, standard = new { copied.Key, copied.Version } } }
             : new { kind, definitionId = id, request = (object)request });
         await repository.LockRequestAsync(actor, request.RequestId, ct);
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;

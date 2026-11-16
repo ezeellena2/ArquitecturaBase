@@ -199,6 +199,29 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Forms.Folder.NotFound", (await gone.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
+    // F21: the folder is part of what a repeated «Agregar» must match.
+    [Fact]
+    public async Task A_repeated_add_with_another_folder_is_a_conflict()
+    {
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]);
+        string Prefix() => "C" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        async Task<Guid> FolderAsync()
+        {
+            using var folder = await designer.PostAsJsonAsync("/api/forms/folders", new { name = "Remitos " + Prefix() }, Ct);
+            Assert.Equal(HttpStatusCode.OK, folder.StatusCode);
+            return (await folder.ReadJsonAsync()).GetProperty("id").GetGuid();
+        }
+        var (first, second, requestId, prefix) = (await FolderAsync(), await FolderAsync(), Guid.NewGuid(), Prefix());
+        var path = $"/api/forms/library/{TestFormStandardSource.Key}/copies";
+        object Body(Guid folderId) => new { requestId, name = new { es = "Remito en carpeta" }, prefix, folderId };
+        using var added = await designer.PostAsJsonAsync(path, Body(first), Ct);
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        using var same = await designer.PostAsJsonAsync(path, Body(first), Ct);
+        Assert.Equal(HttpStatusCode.Created, same.StatusCode);
+        using var other = await designer.PostAsJsonAsync(path, Body(second), Ct);
+        Assert.Equal(HttpStatusCode.Conflict, other.StatusCode);
+    }
+
     [Fact]
     public async Task A_standard_with_rules_is_added_with_them_as_the_first_revision_of_its_rules_once_per_request()
     {
