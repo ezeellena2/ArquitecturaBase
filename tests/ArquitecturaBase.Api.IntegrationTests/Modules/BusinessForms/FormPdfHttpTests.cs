@@ -112,6 +112,8 @@ public sealed partial class FormDraftEndpointsTests
         var generate = new FormRuleAction(Guid.NewGuid(), "GeneratePdf", null, null, false);
         var rules = new[] { new FormRule(Guid.NewGuid(), "Received", [], [requestApproval]), new FormRule(Guid.NewGuid(), "Approved", [], [generate]) };
         using var rulesSaved = await designer.PostAsJsonAsync("/api/forms/definitions/" + sheet.Id + "/rules", new { expectedRevision = 0, rules }, Ct); Assert.Equal(HttpStatusCode.Created, rulesSaved.StatusCode);
+        // Decision 4: the hours of the copy go in the zone of the account of whoever loaded the response, sealed in the run with the rest of its request.
+        await factory.ExecuteDbContextAsync(db => db.Users.Where(user => user.Id == authorId).ExecuteUpdateAsync(set => set.SetProperty(user => user.TimeZoneId, "Europe/Madrid"), Ct));
         var captured = await InActionScopeAsync(host.Services, services => services.GetRequiredService<IBusinessFormRecordCaptureService>().CaptureAsync(
             new StructuredRecordCaptureRequest(Guid.NewGuid(), sheet.Id, versionId, authorId, factory.Clock.GetUtcNow().UtcDateTime,
                 new Dictionary<string,string> { [sheet.Fields[1].Key] = "Visita original" }), Ct));
@@ -125,6 +127,7 @@ public sealed partial class FormDraftEndpointsTests
         using var designChanged = await designer.PostAsJsonAsync(designRoute, new { expectedRevision = 1, design = changed }, Ct); Assert.Equal(HttpStatusCode.Created, designChanged.StatusCode);
         var pdfRun = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().Where(run => run.RecordId == recordId && run.Kind == "GeneratePdf").Select(run => new { run.Id, run.SnapshotJson }).SingleAsync(Ct));
         var fixedSnapshot = FormDraftPolicy.Read<FormActionSnapshot>(pdfRun.SnapshotJson); Assert.Equal(1, fixedSnapshot.Pdf!.DesignRevision); Assert.Equal("Constancia original", fixedSnapshot.Pdf.Design.Name["es"]);
+        Assert.Equal("Europe/Madrid", fixedSnapshot.Pdf.TimeZoneId);
         var reservation = await InActionScopeAsync(host.Services, services => services.GetRequiredService<IFormActionDispatchService>().ReserveAsync(pdfRun.Id, Ct));
         Assert.True(reservation.IsSuccess); Assert.NotNull(reservation.Value); var work = reservation.Value;
         var outcome = await InActionScopeAsync(host.Services, services => services.GetRequiredService<IFormActionEffectService>().ExecuteAsync(work, Ct)); Assert.Equal(FormActionRunState.Completed, outcome.State);

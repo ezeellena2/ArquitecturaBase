@@ -53,7 +53,7 @@ En orden de peso; cada tarea lo repite.
 
 1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro y el contador para quien
-   administra reglas (el aviso a quien cargó, que esperaba ARCA H11, quedó hecho el 2026-11-16); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 10 y 11.
+   administra reglas (el aviso a quien cargó, que esperaba ARCA H11, quedó hecho el 2026-11-16); de F18, la fuente de trazas.
 3. **El resto de la etapa 6:** nada.
 4. **La etapa 7:** F29, F30 y F25.
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
@@ -124,10 +124,10 @@ En orden de peso; cada tarea lo repite.
     no es del rol (cambia `formularios.md:271`); y ante un toque viejo en «¿La emito?», quien cargó recibe una vez «Esa respuesta
     ya no se puede emitir», en su idioma, mientras lo ajeno se sigue ignorando (cambia `formularios.md:1199-1204`; toca la
     respuesta del canal de WhatsApp). Chico cada una.
-    Hechas el 2026-11-15 en `312898b2` (horas del PDF en la zona de quien cargó, aviso a un rol que saltea a quien se fue y toque viejo de «¿La emito?»; el front y los ejemplos exportados no cambian). Faltan los tests de integración del toque viejo y del PDF con la hora en la zona de quien cargó.
+    Hechas el 2026-11-15 en `312898b2` (horas del PDF en la zona de quien cargó, aviso a un rol que saltea a quien se fue y toque viejo de «¿La emito?»; el front y los ejemplos exportados no cambian). Hechos el 2026-11-16 los tests de integración del toque viejo (`An_old_tap_of_the_question_on_a_response_voided_in_the_app_is_answered_to_its_author_and_ignored_for_others`) y de la hora del PDF en la zona de quien cargó (el pedido sellado lleva la zona de su cuenta, en `Approval_issues_a_fixed_pdf_from_the_saved_run…`).
 11. **B1. El «¿La emito?» que se vuelve a preguntar no ignora el toque.** Al retomar se reusa la vista previa guardada, que se
     guarda antes de mandar, o el id del mensaje sale de su contenido. Chico.
-    Hecha el 2026-11-15 en `9fd3bfbc` (reusa la vista previa guardada; queda el caso de la reserva perdida antes de guardar el resultado). Falta su test de integración.
+    Hecha el 2026-11-15 en `9fd3bfbc` (reusa la vista previa guardada; queda el caso de la reserva perdida antes de guardar el resultado). Test de integración hecho el 2026-11-16 (`A_question_taken_again_keeps_its_saved_summary_and_the_buttons_of_its_message_still_apply`: una consulta retoma la pregunta, conserva el resumen fallado y el botón del mensaje sigue decidiendo).
 12. **B3. «Pedir aprobación» a un rol sin miembros se avisa.** El editor de reglas lo advierte, o la acción falla con un motivo
     propio. Chico.
     Hecha el 2026-11-15 en `84e22c2f` (la acción falla con `Forms.Rule.RoleWithoutMembers`; el editor no advierte).

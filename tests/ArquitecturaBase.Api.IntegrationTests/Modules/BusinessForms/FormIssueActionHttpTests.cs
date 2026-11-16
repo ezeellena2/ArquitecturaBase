@@ -266,6 +266,69 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Empty(issuer.Requests);
     }
 
+    // Decision 4: an old tap of «¿La emito?» on a response voided in the app while it waited is answered to whoever loaded it, once per tap,
+    // that it can no longer be issued; the tap of someone else stays ignored, and nothing is issued.
+    [Fact]
+    public async Task An_old_tap_of_the_question_on_a_response_voided_in_the_app_is_answered_to_its_author_and_ignored_for_others()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsAmend, BusinessFormsPermissions.ApprovalsDecide]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var managing = InHost(host, manager);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+        var (recordId, runId) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await worker.ProcessNextAsync(runId, Ct);
+        var definitionId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().Where(record => record.Id == recordId)
+            .Select(record => record.DefinitionId).SingleAsync(Ct));
+        using var voided = await managing.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/records/{recordId}/void", new { reason = "Se cargó mal" }, Ct);
+        Assert.True(voided.IsSuccessStatusCode, voided.StatusCode.ToString());
+        var reversalId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().Where(run => run.RecordId == recordId && run.Event == "Voided")
+            .Select(run => run.Id).SingleAsync(Ct));
+        await worker.ProcessNextAsync(reversalId, Ct);
+        await worker.ProcessNextAsync(runId, Ct);
+        Assert.Equal(FormRecordState.Voided, await RecordStateAsync(recordId));
+        var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var managerId = Guid.Parse(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var answer = new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, "Esa respuesta ya no se puede emitir.");
+
+        Assert.Equal(answer, await ReplyAsync(host, runId, authorId, "issue"));
+        Assert.Equal(answer, await ReplyAsync(host, runId, authorId, "skip"));
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored), await ReplyAsync(host, runId, managerId, "issue"));
+        Assert.Empty(issuer.Requests);
+    }
+
+    // B1: «¿La emito?» taken again (here by a consult of the run) shows and keeps the summary it saved, the one its message went out with,
+    // although the issuer would now answer another: the buttons of that message still decide, and nothing is issued.
+    [Fact]
+    public async Task A_question_taken_again_keeps_its_saved_summary_and_the_buttons_of_its_message_still_apply()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var loading = InHost(host, author);
+        using var managing = InHost(host, manager);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+        var good = issuer.Preview;
+        issuer.Preview = new(null, null, null, FormActionErrors.IssueDataUnavailable.Code);
+        var (recordId, runId) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await worker.ProcessNextAsync(runId, Ct);
+        Assert.Equal(FormActionErrors.IssueDataUnavailable.Code, (await ConfirmationAsync(loading, recordId)).GetProperty("failureCode").GetString());
+
+        issuer.Preview = good;
+        using var consulted = await managing.PostAsJsonAsync($"/api/forms/records/{recordId}/actions/{runId}/consult", new { }, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, consulted.StatusCode);
+        await worker.ProcessNextAsync(runId, Ct);
+
+        var kept = await ConfirmationAsync(loading, recordId);
+        Assert.Equal((FormActionErrors.IssueDataUnavailable.Code, System.Text.Json.JsonValueKind.Null), (kept.GetProperty("failureCode").GetString(), kept.GetProperty("document").ValueKind));
+        Assert.Equal((FormActionRunState.Uncertain, "Forms.Action.AwaitingConfirmation"), ((await RunAsync(runId)).State, (await RunAsync(runId)).FailureCode));
+        var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied), await ReplyAsync(host, runId, authorId, "retry"));
+        Assert.Empty(issuer.Requests);
+    }
+
     [Fact]
     public async Task A_response_with_an_issued_document_is_not_corrected_and_is_voided_when_its_reversal_is_issued()
     {
