@@ -145,35 +145,47 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
         }
     }
 
-    // I3: a deleted account is left without conversations even once its turns have no content to purge. Three months after its last use,
-    // the purge already took the content and the receipts expired, while the conversation kept its metadata.
+    // I3: a deleted account is left without conversations even once its turns have no content to purge. A channel's content expires with
+    // the channel's window, before the receipt: such a conversation is kept by its receipt, and only the account's deletion retires it.
+    // A living account, with the same conversation, keeps its own in the same purge.
     [Fact]
-    public async Task A_deleted_account_three_months_after_its_last_use_is_left_without_conversations()
+    public async Task A_deleted_account_is_left_without_conversations_whose_content_expired_while_a_living_one_keeps_its_own()
     {
-        var owner = await CreateUserAsync("deleted-three-months");
+        var deleted = await CreateUserAsync("deleted-expired-content");
+        var living = await CreateUserAsync("living-expired-content");
         var now = factory.Clock.GetUtcNow().UtcDateTime;
-        var lastUse = now.AddDays(-92);
-        var conversation = AiConversation.Create(owner, lastUse);
-        var turn = AiAssistantTurn.Create(owner, conversation.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC",
-            AiProvider.OpenAI, "fictional-model", 1, lastUse, lastUse.AddDays(30));
-        turn.RequestCancellation(lastUse);
-        turn.PurgeContent();
-        var receipt = AiAssistantRequestReceipt.Create(owner, turn.RequestId, "fingerprint", "test", conversation.Id, turn.Id, lastUse,
-            lastUse.AddDays(30), conversation.ChannelId, false);
+        var lastUse = now.AddDays(-20);
+        var rows = new List<object>();
+        var conversations = new Dictionary<Guid, Guid>();
+        foreach (var owner in new[] { deleted, living })
+        {
+            var conversation = AiConversation.Create(owner, lastUse, "whatsapp-assistant");
+            var turn = AiAssistantTurn.Create(owner, conversation.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC",
+                AiProvider.OpenAI, "fictional-model", 1, lastUse, lastUse.AddDays(1), conversation.ChannelId);
+            turn.RequestCancellation(lastUse);
+            turn.PurgeContent();
+            rows.AddRange([conversation, turn, AiAssistantRequestReceipt.Create(owner, turn.RequestId, "fingerprint", "test", conversation.Id,
+                turn.Id, lastUse, lastUse.AddDays(30), conversation.ChannelId, false)]);
+            conversations[owner] = conversation.Id;
+        }
         await factory.InTransactionAsync(services =>
         {
-            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(conversation, turn, receipt);
+            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(rows);
             return Task.CompletedTask;
         });
-        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().DeleteAsync(owner, Ct));
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().DeleteAsync(deleted, Ct));
 
         await PurgeAllAsync();
 
         await factory.ExecuteDbContextAsync(async db =>
         {
-            Assert.False(await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.OwnerUserId == owner, Ct));
-            Assert.False(await db.Set<AiAssistantTurn>().IgnoreQueryFilters().AnyAsync(row => row.OwnerUserId == owner, Ct));
-            Assert.False(await db.Set<AiAssistantRequestReceipt>().AnyAsync(row => row.OwnerUserId == owner, Ct));
+            Assert.False(await db.Set<AiConversation>().AnyAsync(row => row.OwnerUserId == deleted, Ct));
+            var retired = await db.Set<AiConversation>().IgnoreQueryFilters().SingleAsync(row => row.Id == conversations[deleted], Ct);
+            Assert.Equal(AiConversationState.Removed, retired.State);
+            var kept = await db.Set<AiConversation>().SingleAsync(row => row.OwnerUserId == living, Ct);
+            Assert.Equal(conversations[living], kept.Id);
+            Assert.Equal(AiConversationState.Active, kept.State);
+            Assert.Equal(2, await db.Set<AiAssistantRequestReceipt>().CountAsync(row => row.OwnerUserId == deleted || row.OwnerUserId == living, Ct));
         });
     }
 

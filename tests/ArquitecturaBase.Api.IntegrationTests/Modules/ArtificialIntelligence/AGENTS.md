@@ -7,7 +7,7 @@ los recibos conservan cuotas tras retirada/purga. Recovery usa fuentes de usuari
 base del arnés y un proveedor ficticio, falla una confirmación y verifica que sólo se repite
 persistencia. El reloj de retry se despierta explícitamente con FakeTimeProvider. Retención
 comprueba filtros propios, payloads retirados, purga física de metadata vencida con recibos
-independientes, también de Inicio sin retirada, la cuenta borrada que retira las suyas aun sin contenido (I3) y
+independientes, también de Inicio sin retirada, la cuenta borrada que retira las suyas aun sin contenido mientras una viva conserva la suya (I3) y
 Running incierto sin regeneración. Workload cuenta aceptaciones confirmadas
 una sola vez aunque se repita el UUID o se retire su conversación. ChannelQuota recorre con el reloj falso una tanda de turnos
 de 80 s en cuatro carriles: los que vencen sin intentarse devuelven la cuota y siguen deduplicando, el que reservó un paso y
