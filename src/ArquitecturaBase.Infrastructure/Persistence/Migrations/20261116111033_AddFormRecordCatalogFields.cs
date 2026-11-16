@@ -67,7 +67,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 CROSS JOIN LATERAL jsonb_array_elements(reference."FieldValuesJson") WITH ORDINALITY AS entry(value, position)
                 WHERE reference."FieldValuesJson" IS NOT NULL
                 ORDER BY reference."DefinitionId", reference."CatalogId", entry.value ->> 'id', record."Number" DESC, reference."Id" DESC
-                """);
+                """.ReplaceLineEndings("\n"));
         }
 
         /// <inheritdoc />
