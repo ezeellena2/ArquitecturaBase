@@ -92,13 +92,29 @@ public sealed class AiAssistantHomeAudioTests
     {
         var kept = Guid.NewGuid();
         var gone = Guid.NewGuid();
-        var reader = new RetainedReader([kept]);
+        var reader = new RetainedReader([kept], [kept, gone]);
         var keys = new[] { AiAssistantHomeAudioPolicy.Key(kept, "audio/webm"), AiAssistantHomeAudioPolicy.Key(gone, "audio/mp4"),
             $"whatsapp/audio/{kept:N}.ogg", "forms/pdf/fictional.pdf" };
         var referenced = await new AiAssistantAudioRetentionSource(reader).ListReferencedKeysAsync(keys, TestContext.Current.CancellationToken);
         Assert.Equal([keys[0]], referenced);
         Assert.Equal(new[] { kept, gone }.Order(), reader.Asked.Order());
         Assert.Empty(await new AiAssistantAudioRetentionSource(reader).ListReferencedKeysAsync(["forms/pdf/fictional.pdf"], TestContext.Current.CancellationToken));
+    }
+
+    // I2, review: a recording nobody can listen to any more goes. Its normalization lost its content (its conversation was removed), so
+    // the copy is released although another conversation's turn still names it; that turn keeps its sealed transcript.
+    [Fact]
+    public async Task Retention_releases_a_recording_whose_normalization_lost_its_content_even_if_a_turn_names_it()
+    {
+        var heard = Guid.NewGuid();
+        var purged = Guid.NewGuid();
+        var reader = new RetainedReader([heard, purged], [heard]);
+        var keys = new[] { AiAssistantHomeAudioPolicy.Key(heard, "audio/webm"), AiAssistantHomeAudioPolicy.Key(purged, "audio/webm") };
+
+        var referenced = await new AiAssistantAudioRetentionSource(reader).ListReferencedKeysAsync(keys, TestContext.Current.CancellationToken);
+
+        Assert.Equal([keys[0]], referenced);
+        Assert.Equal(AiAssistantChannelPolicy.HomeAudioChannelId, reader.Channel);
     }
 
     [Fact]
@@ -457,16 +473,20 @@ public sealed class AiAssistantHomeAudioTests
         }
     }
 
-    private sealed class RetainedReader(IReadOnlyCollection<Guid> retained) : IAiAssistantReader
+    // Named: the recordings a turn with content names; heard: the normalizations that keep their content.
+    private sealed class RetainedReader(IReadOnlyCollection<Guid> named, IReadOnlyCollection<Guid> heard) : IAiAssistantReader
     {
         public List<Guid> Asked { get; } = [];
-        public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken)
-        {
-            Asked.AddRange(audioRequestIds);
-            return Task.FromResult<IReadOnlyList<Guid>>(audioRequestIds.Where(retained.Contains).ToArray());
-        }
+        public string? Channel { get; private set; }
+        public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>(audioRequestIds.Where(named.Contains).ToArray());
         public Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<IReadOnlyList<Guid>> ListRetainedRequestIdsAsync(string channelId, IReadOnlyCollection<Guid> requestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> ListRetainedRequestIdsAsync(string channelId, IReadOnlyCollection<Guid> requestIds, CancellationToken cancellationToken)
+        {
+            Channel = channelId;
+            Asked.AddRange(requestIds);
+            return Task.FromResult<IReadOnlyList<Guid>>(requestIds.Where(heard.Contains).ToArray());
+        }
         public Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> turnIds, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiConversationRow?> FindConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();

@@ -131,6 +131,31 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         Assert.Empty(await RetainedAsync(scenario, photoKey, audioKey));
     }
 
+    // I2, review: two conversations name the same recording. Removing one purges its normalization, so nobody can listen to the recording
+    // any more: the cleanup releases it although the other one names it, and that one keeps its sealed transcript.
+    [Fact]
+    public async Task Removing_one_of_two_conversations_that_name_a_recording_releases_it_and_the_other_keeps_its_transcript()
+    {
+        using var provider = DocumentReadingHandler.Json(DocumentReadingHandler.Completed(DocumentReadingHandler.Reading()));
+        await using var scenario = await CreateAsync(provider);
+        var (audioRequestId, audioKey) = await NormalizeAsync(scenario);
+        var removedId = (await SubmitAsync(scenario, Guid.NewGuid(), null, audioRequestId)).GetProperty("conversationId").GetGuid();
+        Assert.True(await scenario.ProcessNextAsync());
+        var keptTurn = Guid.NewGuid();
+        await SubmitAsync(scenario, keptTurn, null, audioRequestId);
+        Assert.True(await scenario.ProcessNextAsync());
+        Assert.Equal([audioKey], await RetainedAsync(scenario, audioKey));
+
+        using (var removed = await scenario.Client.DeleteAsync($"/api/ai/assistant/conversations/{removedId}", Ct))
+            Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+
+        Assert.Empty(await RetainedAsync(scenario, audioKey));
+        using var kept = await scenario.Client.GetAsync($"/api/ai/assistant/turns/{keptTurn}", Ct);
+        var audio = (await kept.ReadJsonAsync()).GetProperty("audio");
+        Assert.Equal(audioRequestId, audio.GetProperty("requestId").GetGuid());
+        Assert.False(string.IsNullOrEmpty(audio.GetProperty("transcript").GetString()));
+    }
+
     // I2, review: the purge runs under the budget lock, so it finds a turn that names a reading by its whole key, an equality the filtered
     // AttachmentKey index answers, never by a prefix of the column.
     [Fact]
