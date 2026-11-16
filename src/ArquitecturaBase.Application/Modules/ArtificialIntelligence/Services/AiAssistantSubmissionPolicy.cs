@@ -80,10 +80,11 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         return null;
     }
 
-    // I4: a channel that rebuilds the request after a deployment that raised a capability's version replays it with the sealed one.
+    // I4: a channel that rebuilds the request after a deployment that raised a version replays it with the sealed one, and with the
+    // registered ones of what the seal left out (I4, review).
     private bool MatchesSealed(AssistantOperationRequest operation, AiAssistantTurn? existing, AiAssistantRequestReceipt receipt) =>
-        guard.ReadSeal(existing?.ExecutionProfileJson) is { IsSuccess: true } captured && fingerprint.Matches(
-            operation with { Context = guard.AsSealed(operation.Context, captured.Value.ChannelContext) }, receipt.KeyId, receipt.Fingerprint);
+        guard.ReadSeal(existing?.ExecutionProfileJson) is { IsSuccess: true } captured && guard.Replays(operation.Context, captured.Value.ChannelContext)
+            .Any(context => fingerprint.Matches(operation with { Context = context }, receipt.KeyId, receipt.Fingerprint));
 
     // I14: before a Home file is read or kept, the acceptance's refusals that need neither the file nor a lock (the person's and the
     // installation's quotas and the capacity), with the same error and retryAfter. It only saves work: the acceptance still decides.

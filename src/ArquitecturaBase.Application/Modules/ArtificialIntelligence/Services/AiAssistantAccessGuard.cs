@@ -59,7 +59,7 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
     public bool SameScope(AssistantChannelContext requested, AssistantChannelContext captured) =>
         AiAssistantChannelPolicy.SameScope(catalog.AsSealed(requested, captured), captured);
 
-    public AssistantChannelContext AsSealed(AssistantChannelContext requested, AssistantChannelContext captured) => catalog.AsSealed(requested, captured);
+    public IEnumerable<AssistantChannelContext> Replays(AssistantChannelContext requested, AssistantChannelContext captured) => catalog.Replays(requested, captured);
 
     public Guid? CurrentUserId => currentUser.UserId;
     public async Task<Result<UserAccount>> AuthorizeAsync(Guid userId, CancellationToken ct)

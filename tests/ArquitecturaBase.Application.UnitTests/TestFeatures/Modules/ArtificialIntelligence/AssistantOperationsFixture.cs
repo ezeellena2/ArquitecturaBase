@@ -47,7 +47,9 @@ internal sealed class AssistantOperationsFixture
     // I7, review: the saved key's probes, one per request and after the checks in memory.
     public FictionalCredentials.Protector Secrets { get; } = new();
 
-    public AssistantOperationsFixture(bool qualified = true, bool audioQualified = false, bool documentQualified = false, AiAssistantLimits? limits = null)
+    // extraCapabilities: other definitions the catalog registers next to Source, such as two versions of one Id (I4).
+    public AssistantOperationsFixture(bool qualified = true, bool audioQualified = false, bool documentQualified = false, AiAssistantLimits? limits = null,
+        IReadOnlyList<AssistantCapabilityDefinition>? extraCapabilities = null)
     {
         var actor = Users.AddUser("operator-operations@example.test");
         var subject = Users.AddUser("subject-operations@example.test");
@@ -61,7 +63,8 @@ internal sealed class AssistantOperationsFixture
         AudioProfiles = audioQualified ? [new(AiProvider.OpenAI, "audio-model", "fixture-audio", 2, ["audio/ogg"], 25000000)] : [];
         DocumentProfiles = documentQualified
             ? [new(AiProvider.OpenAI, "vision-model", "fixture-document", 4, ["application/pdf", "image/jpeg", "image/png"], 10 * 1024 * 1024, 10)] : [];
-        var catalog = Catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
+        var catalog = Catalog = new AiAssistantCapabilityCatalogPolicy(
+            extraCapabilities is null ? [Source] : [Source, new PreparedAssistantCapabilitySource(extraCapabilities)], Permissions);
         var guard = Guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
             new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), new AiConnectionCandidatePolicy(Secrets));
         var responses = Responses = new AiAssistantResponsePolicy(Protector, Clock, catalog, ResponseLog);

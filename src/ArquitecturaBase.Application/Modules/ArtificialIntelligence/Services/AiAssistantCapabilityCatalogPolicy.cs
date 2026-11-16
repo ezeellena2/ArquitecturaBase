@@ -70,6 +70,27 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             AllowedTerminals = requested.AllowedTerminals.Select(terminal => sealedTerminals.FirstOrDefault(known => known.Id == terminal.Id) ?? terminal).ToArray() };
     }
 
+    // I4, review: the fingerprint has every capability the channel asked, also one the seal left out (filtered by permission or file), at
+    // the version asked then. For each of those the replay also tries every version its Id registers, first the one asked now; the
+    // combinations are few, because a module keeps an earlier version only while work sealed with it lasts, and capped.
+    public IEnumerable<AssistantChannelContext> Replays(AssistantChannelContext requested, AssistantChannelContext captured)
+    {
+        var aligned = AsSealed(requested, captured);
+        var sealedIds = captured.AllowedCapabilities.Concat(captured.PreloadedCapabilities ?? []).Select(reference => reference.Id).ToHashSet(StringComparer.Ordinal);
+        IEnumerable<AssistantCapabilityReference[]> Options(IReadOnlyList<AssistantCapabilityReference> references) =>
+            references.Aggregate<AssistantCapabilityReference, IEnumerable<AssistantCapabilityReference[]>>([[]], (prefixes, reference) =>
+                prefixes.SelectMany(prefix => (sealedIds.Contains(reference.Id) ? [reference] : Definitions.Where(definition => definition.Id == reference.Id)
+                    .Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)).Prepend(reference).Distinct())
+                    .Select(option => (AssistantCapabilityReference[])[.. prefix, option])));
+        IEnumerable<AssistantCapabilityReference[]?> preloadOptions = [null];
+        if (aligned.PreloadedCapabilities is { } preloads) preloadOptions = Options(preloads);
+        return (from allowed in Options(aligned.AllowedCapabilities)
+                from preloaded in preloadOptions
+                select aligned with { AllowedCapabilities = allowed, PreloadedCapabilities = preloaded }).Take(MaximumReplays);
+    }
+
+    private const int MaximumReplays = 64;
+
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
         registry.TryGetValue(capability, out var entry) ? entry.Source.ParseOutput(capability, outputJson) : AiAssistantErrors.ToolRejected;
 

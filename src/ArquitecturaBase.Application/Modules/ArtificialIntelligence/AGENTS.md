@@ -24,13 +24,13 @@ revocación aunque un worker muera entre leer una fuente y
 registrar su resultado. Nunca publicar texto libre: assistant_answer exige schema cerrado e
 IDs de evidencia de ese turno. Las filas críticas se proyectan desde evidencia, no del texto LLM.
 Historia anterior a un hueco vencido no se envía; no resumirla con otra llamada.
-El prompt versión 1 y la descripción terminal viven en Assistant.resx/en y se resuelven
-con la cultura capturada del turno. Retención cancela y oculta conversaciones de cuentas
+El prompt v1 y la descripción terminal viven en Assistant.resx/en, con la cultura
+capturada del turno. Retención cancela y oculta conversaciones de cuentas
 eliminadas aun sin contenido, purga contenido y herramientas, y elimina físicamente toda conversación sin turnos activos, contenido ni recibos vigentes, sin retirada (I3);
 Inicio con Removed no espera recibos. Los comprobantes son independientes;
 un lote distribuye su límite total entre contenido, conversaciones y comprobantes.
-Registrar también resultados de fuentes sin evidencia (p. ej. notConnected): conservar
-estado, CallId, observación UTC y resultado cifrado, sin inventar IDs de evidencia. Una lectura
+Registrar también resultados sin evidencia (p. ej. notConnected): estado, CallId,
+observación UTC y resultado cifrado, sin inventar IDs. Una lectura
 recuperablemente fallida queda unavailable y permite otras lecturas sin acreditar propuestas ni
 ausencia; validación, autorización y cancelación permanecen terminales.
 
@@ -38,7 +38,7 @@ Títulos de historial: ReadPolicy autoriza con permisos actuales; ResponsePolicy
 
 El motor único consume IAssistantCapabilitySource y un catálogo de pares ID/versión exactos. Inicio conserva sus cinco consultas y suma sólo las capacidades que su dueño marca `OfferedInHome`, sin nombrarlas; cierra con assistant_answer@2, que puede nombrar una propuesta observada del turno, e instrucciones home-system@2, genéricas. Los turnos con home-system@1 y assistant_answer@1 se siguen leyendo. Cada turno acepta ChannelId neutral, Actor/Subject explícitos, cultura/zona, perfil e instrucciones versionados y requisitos por identidad. No prestar permisos entre identidades ni exigir AssistantUse a otro canal. ContextPolicy y DispatchGuard revalidan el sello antes de descifrar, reservar cada paso y publicar. La reserva conserva sólo permisos de capacidades ofrecidas.
 
-I4: un valor nuevo del sello (propósito, archivo, modo, instrucciones, capacidad o terminal) o del proveedor se escribe un despliegue después del que ya lo lee. Uno mayor que el más alto de su Id es UnknownVersion (reintentable), no NotFound; uno retirado o dañado, ContentUnavailable. Terminado, Get da su estado en claro; Cancel no lee el sello. Get, Cancel y el replay toman la versión sellada de una capacidad o terminal que el catálogo conoce (`AsSealed`). Un proveedor desconocido (`AiProviders.Unsupported`) pausa la conexión.
+I4: un valor nuevo del sello (propósito, archivo, modo, instrucciones, capacidad o terminal) o del proveedor se escribe un despliegue después del que ya lo lee. Uno mayor que el más alto de su Id es UnknownVersion (reintentable), no NotFound; uno retirado o dañado, ContentUnavailable. Terminado, Get da su estado en claro; Cancel no lee el sello. Get, Cancel y el replay toman la versión sellada de una capacidad o terminal que el catálogo conoce (`AsSealed`); el replay, también las registradas de lo que el sello no admitió. Un proveedor desconocido (`AiProviders.Unsupported`) pausa la conexión.
 
 Proposal sólo selecciona una propuesta observada del mismo turno. Sus datos pasan por el codec exacto del dueño; las lecturas autorizantes se confirmaron en un paso anterior (no en el mismo batch). El resultado protegido referencia ordinales de tools existentes; no duplica snapshots. El HTTP de Inicio muestra la propuesta del turno (Id, capacidad, versión y contenido del dueño), nunca sus lecturas, y la historia lleva el contenido de la última propuesta para ajustarla. Una respuesta `rejected` de una capacidad de propuesta vuelve al modelo con sus motivos y sin Id: nunca se elige. Con el dueño quitado, la explicación de Inicio se lee sin la tarjeta. Answer y Proposal usan el mismo coordinador y cierre con fence; el decoder identifica el terminal persistido. Las fuentes no tienen escritores, transporte ni ServiceProvider.
 

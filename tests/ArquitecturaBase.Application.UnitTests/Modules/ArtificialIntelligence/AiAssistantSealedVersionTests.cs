@@ -93,4 +93,25 @@ public sealed class AiAssistantSealedVersionTests
         Assert.True(canceled.IsSuccess);
         Assert.Equal(AiAssistantTurnState.Canceled, Assert.Single(f.Store.Turns).State);
     }
+
+    // I4, review: the fingerprint has every capability the channel asked, also one the seal left out because the catalog filtered it (here,
+    // by a permission nobody has). After raising that one, the replay tries the versions its Id still registers.
+    [Fact]
+    public async Task The_replay_matches_a_capability_asked_but_left_out_of_the_seal_after_raising_it()
+    {
+        var gated = new RoundtripAssistantSource().Definitions[0] with { Id = "fixture.gated", RequiredPermissions = new(["fictional.missing.permission"], []) };
+        var f = new AssistantOperationsFixture(extraCapabilities: [gated, gated with { Version = 2 }]);
+        var request = f.Request() with { Context = f.Context with { AllowedCapabilities = [.. f.Context.AllowedCapabilities, new(gated.Id, 1)] } };
+        Assert.True((await f.Service.SubmitAsync(request, Ct)).IsSuccess);
+        Assert.Equal(f.Context.AllowedCapabilities, f.Guard.ReadSeal(Assert.Single(f.Store.Turns).ExecutionProfileJson).Value.ChannelContext.AllowedCapabilities);
+        var raised = request.Context with { AllowedCapabilities = [.. f.Context.AllowedCapabilities, new(gated.Id, 2)] };
+
+        var replayed = await f.Service.SubmitAsync(request with { Context = raised }, Ct);
+        var other = await f.Service.SubmitAsync(request with { Context = request.Context with { AllowedCapabilities = [.. f.Context.AllowedCapabilities, new("fixture.other", 1)] } }, Ct);
+
+        Assert.True(replayed.IsSuccess, replayed.IsFailure ? replayed.Error.Code : null);
+        Assert.Equal(request.RequestId, replayed.Value.RequestId);
+        Assert.Equal(AiAssistantErrors.RequestReused, other.Error);
+        Assert.Single(f.Store.Turns);
+    }
 }
