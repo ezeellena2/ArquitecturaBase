@@ -116,19 +116,19 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         return new FormCatalogSaveResponse(detail, recorded.Value.IdentityMap, fields.Value.IdentityMap);
     }
 
-    // F24: the catalog a repeated creation made before, with the identities its items and fields took, matched to the request by order.
+    // F24: the catalog a repeated creation made before, with the identities its items and fields took (an option by its code, a field by
+    // its key). It answers only a request the catalog still matches; any other content under the same id is a conflict.
     private async Task<Result<FormCatalogSaveResponse>> ReplayAsync(BusinessFormCatalog existing, CreateManualCatalogRequest request, CancellationToken ct)
     {
+        var items = await repository.ListItemsAsync(existing.Id, ct);
+        if (!FormCatalogCreationReplayPolicy.Matches(existing, items, request)) return FormDefinitionErrors.RequestConflict;
         var detail = await GetAsync(existing.Id, ct);
         if (detail.IsFailure) return detail.Error;
-        var items = (await repository.ListItemsAsync(existing.Id, ct)).OrderBy(item => item.Position).ToArray();
-        var fields = FormCatalogFieldPolicy.ReadFields(existing.FieldsJson).ToArray();
-        var sentItems = request.Items ?? [];
-        var sentFields = request.Fields ?? [];
-        if (items.Length != sentItems.Count || fields.Length != sentFields.Count) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "requestId");
+        var byCode = items.ToDictionary(item => item.Code, StringComparer.OrdinalIgnoreCase);
+        var byKey = FormCatalogFieldPolicy.ReadFields(existing.FieldsJson).ToDictionary(field => field.Key, StringComparer.Ordinal);
         return new FormCatalogSaveResponse(detail.Value,
-            sentItems.Zip(items, (sent, item) => (sent!.LocalId!, item.Id)).ToDictionary(pair => pair.Item1, pair => pair.Id),
-            sentFields.Zip(fields, (sent, field) => (sent!.LocalId!, field.Id)).ToDictionary(pair => pair.Item1, pair => pair.Id));
+            request.Items!.ToDictionary(sent => sent!.LocalId!, sent => byCode[sent!.Code!.Trim()].Id, StringComparer.Ordinal),
+            (request.Fields ?? []).ToDictionary(sent => sent!.LocalId!, sent => byKey[sent!.Key!].Id, StringComparer.Ordinal));
     }
 
     private async Task<Result<FormCatalogSaveResponse>> UpdateCoreAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken ct)

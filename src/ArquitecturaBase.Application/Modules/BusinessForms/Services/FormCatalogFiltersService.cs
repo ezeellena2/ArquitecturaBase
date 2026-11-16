@@ -77,7 +77,13 @@ internal sealed class FormCatalogFiltersService(
             {
                 await repository.LockKeyAsync("request:" + requestId.ToString("N"), ct);
                 if (await repository.GetByCreationRequestAsync(access.Value, requestId, ct) is { } existing)
-                    return Result<FormCatalogSaveResponse>.Success(new FormCatalogSaveResponse(Map(existing, request.Filters!, canReadForms ? 0 : null), EmptyIdentityMap()));
+                {
+                    // The request id made another kind of catalog: it is not this request.
+                    if (existing.Kind != BusinessFormCatalogKind.Filters || existing.FiltersJson is null)
+                        return FormDefinitionErrors.RequestConflict;
+                    var saved = JsonSerializer.Deserialize<FormCatalogFilterDefinition>(existing.FiltersJson, JsonSerializerOptions.Web)!;
+                    return Result<FormCatalogSaveResponse>.Success(new FormCatalogSaveResponse(Map(existing, saved, canReadForms ? 0 : null), EmptyIdentityMap()));
+                }
                 catalog.AssignCreationRequest(requestId);
             }
             await repository.LockAsync(catalog.Id, ct);
