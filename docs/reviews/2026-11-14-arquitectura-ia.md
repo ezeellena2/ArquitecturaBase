@@ -536,6 +536,12 @@ cambiarla lo decidís vos.
   sin `OperationLog` y los comandos de EF en Warning (trivial).
 - **El sondeo, arreglado el 2026-11-15 en 7d97d88d:** el claim y la reconciliación ya no pasan por `OperationLog` y los
   comandos de EF van en Warning fuera de Development. La traza es la tarea 25 del plan.
+- **La traza, arreglada el 2026-11-16 en 4a98eab1, con su revisión en 58bbcf9a, aa7ba2e2, ae1744f3 y 20ffb4b7:** el turno guarda
+  al aceptar el contexto de traza de quien lo pidió (por WhatsApp, el de su vuelta; en Inicio, el del pedido). El coordinador
+  abre con él la actividad `ai.assistant.turn` de la fuente `ArquitecturaBase.ArtificialIntelligence`, con el proveedor, el
+  canal, el propósito y las capacidades. La actividad queda como error con el código del turno si termina fallido, también
+  cuando lo cierra el propio motor. El sondeo de cancelación corre fuera de la traza, y cada log del worker lleva el turno en
+  su scope.
 
 #### I11. Una pestaña de Inicio abierta durante un despliegue deja de mostrar las respuestas
 
@@ -665,6 +671,14 @@ cambiarla lo decidís vos.
   se detecte una copia desalineada.
 - **Arreglo:** un valor de control por clave guardado en la base: la primera copia lo escribe y cada copia que arranca lo
   recalcula; si no coincide, falla readiness con un log claro. Sin descifrar datos ni llamar al proveedor. Chico a mediano.
+- **Arreglado el 2026-11-16 en 321eeb8e, con su revisión en 3f70b320, 9f9d6cc6, a0d451f3, 005f10ee, 53164b17 y 14030ad4:**
+  cada clave del anillo tiene un valor de control en `AiKeyRingControls`: un HMAC con una clave derivada por HKDF y el
+  `InstallationId` como sal, que no revela la clave. Con la tabla vacía, la primera copia escribe los suyos. Con controles
+  guardados, una copia queda lista sólo si su clave activa ya tiene control y coincide, y coinciden todas las que comparte;
+  si no, no escribe nada. El veredicto se calcula una vez por proceso y se reintenta si la base no responde. Lo consultan el
+  chequeo `ai-key-ring` de readiness, el claim del coordinador, la disponibilidad y la aceptación, así que una copia
+  desalineada no recibe tráfico, no toma turnos y no acepta por ningún canal. Las tres huellas tratan una clave ausente como
+  «no coincide» (409) y no como un 500. La guía de rotación pide que el paso 2 llegue a la readiness antes del paso 3.
 
 #### I18. Una copia vieja que sigue viva más de un día borra los archivos de los tipos nuevos
 

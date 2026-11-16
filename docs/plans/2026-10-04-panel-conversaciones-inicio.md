@@ -324,6 +324,17 @@ Formularios (100) en verde; en el front, tsc, lint y vitest de la feature (264).
     [quitar IA](../guides/quitar-ia.md) nombra. Test de integración: una copia con otro `InstallationId` sobre una base con
     el control escrito no queda lista. Chico a mediano.
 
+**Hecha el 2026-11-16:** la 25 en 4a98eab1, y la 26 en 321eeb8e. Los commits que siguen corrigen lo que encontró la revisión
+adversarial de cada una: los de la 25 son 58bbcf9a, aa7ba2e2, ae1744f3 y 20ffb4b7; los de la 26, 3f70b320, 9f9d6cc6,
+005f10ee, 53164b17 y 14030ad4 (a0d451f3 sacó de 9f9d6cc6 un párrafo ajeno). La traza marca como error todo turno que
+termina fallido, también los que cierra el propio motor, y el sondeo de cancelación corre fuera de ella. Con controles
+guardados, una copia queda lista sólo si su clave activa ya tiene control y coincide, y coinciden todas las que comparte con
+la base. El veredicto vive en la copia y lo consultan la readiness, el claim, la disponibilidad y la aceptación: una copia
+desalineada tampoco toma turnos ni acepta por WhatsApp o Formularios. El bootstrap de Inicio y el chequeo previo a subir un
+documento no lo consultan, pero la aceptación igual rechaza. Build sin advertencias, Domain 1190, Application 6342 y
+Architecture 229 enteros; integración de la traza (37), del anillo, del coordinador, de la salud y del motor que usan
+WhatsApp en verde.
+
 ### Etapa 7: lo trivial de gran escala
 
 27. **I20, el bootstrap. Abrir Inicio no mide toda la tabla.** El bootstrap pide sólo la cantidad de pendientes, que resuelve
