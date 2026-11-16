@@ -72,10 +72,10 @@ encuentra formularios para mandar y el asistente pierde las capacidades de formu
 
    `dotnet ef` lee el proyecto antes de compilarlo: en un clon sin `obj`, sin el `restore` no lo encuentra.
 
-   `Up` suelta primero las claves foráneas entre tablas del módulo y después borra sólo sus 26 tablas:
-   `FormDefinitions`, `FormDraftChanges`, `FormFolders`, `FormFolderMemberships` y las 22 `BusinessForm*` (`ActionRuns`,
+   `Up` suelta primero las claves foráneas entre tablas del módulo y después borra sólo sus 27 tablas:
+   `FormDefinitions`, `FormDraftChanges`, `FormFolders`, `FormFolderMemberships` y las 23 `BusinessForm*` (`ActionRuns`,
    `CaptureReceipts`, `CatalogItems`, `Catalogs`, `Documents`, `Fields`, `MissingRequests`, `MissingTopics`, `PdfDesigns`,
-   `PersonAttributes`, `PersonData`, `PublicationOperations`, `RecordFiles`, `RecordReferences`, `RecordResults`,
+   `PersonAttributes`, `PersonData`, `PublicationOperations`, `RecordCatalogFields`, `RecordFiles`, `RecordReferences`, `RecordResults`,
    `RecordValues`, `Records`, `RetiredIdentities`, `RuleSets`, `Suggestions`, `Tasks` y `Versions`). Si aparece otra
    tabla, algo se borró de más.
 

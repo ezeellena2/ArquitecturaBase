@@ -54,7 +54,7 @@ En orden de peso; cada tarea lo repite.
 1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro, el contador para quien
    administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 8, 10, 11 y 25.
-3. **El resto de la etapa 6:** F8, F15 y F16, sin empezar.
+3. **El resto de la etapa 6:** F8 y F16, sin empezar.
 4. **La etapa 7:** F29, F30 y F25.
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
    «No aplica» se empieza a escribir en la misma versión que lo trae, contra la regla de la [guía de migración](../guides/migracion.md)
@@ -189,7 +189,7 @@ En orden de peso; cada tarea lo repite.
 28. **F12. La planilla que se infla no pasa.** Se cuentan también los estilos y los textos compartidos, o baja el tope descomprimido,
     y hay un tope global de importaciones a la vez por copia; antes, medir el pico con una planilla de casi 100 MiB. Chico. Hecha el 2026-11-15 en `2760dc30`.
 29. **F15. Los campos históricos de catálogo, en una tabla chica.** La unión de campos por formulario, catálogo y campo se escribe
-    al capturar, nunca al leer, se rellena con lo existente en la misma migración y la planilla la lee por índice. Mediano. Sin empezar.
+    al capturar, nunca al leer, se rellena con lo existente en la misma migración y la planilla la lee por índice. Mediano. Hecha el 2026-11-16 en `5fd3972d` (`BusinessFormRecordCatalogFields`; suma la tabla a la guía para quitar Formularios).
 30. **F16. Una regla no nombra una opción que no existe.** Guardar una regla, un filtro o una sugerencia comprueba que sus opciones
     existen, y borrar opciones toma antes el lock de definiciones. Chico. Sin empezar.
 31. **F21. «Agregar» un estándar resuelve sus catálogos dentro del guardado.** Por clave, después del lock, usando el que ya

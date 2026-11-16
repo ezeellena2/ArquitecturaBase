@@ -558,6 +558,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   `FormDashboardService.cs:28`). La regla decide qué se muestra (`formularios.md:947`), no el costo.
 - **Arreglo:** guardar la unión histórica de campos por formulario, catálogo y campo en una tabla chica, escrita al capturar (nunca
   al leer) y rellenada con lo existente en la misma migración, y leerla por índice. Mediano.
+- **Arreglado el 2026-11-16** en `5fd3972d`.
 
 #### F16. Una regla puede nombrar una opción de catálogo que no existe, y nunca se cumple
 
