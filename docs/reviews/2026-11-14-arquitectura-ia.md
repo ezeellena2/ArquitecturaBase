@@ -312,6 +312,11 @@ cambiarla lo decidís vos.
   sus turnos (las otras conversaciones que las usaron tienen su propia copia sellada); ajustar el aviso y escribir la regla.
   Chico. **Decidido el 2026-11-14:** borrar una conversación purga sus lecturas y transcripciones, y lo que nunca llegó a un
   turno vence a las 24 horas ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15 en 9f428c5c, 85c81ed0, 0632052f, 6be1683c, d5002755 y 80e36028 (front 6385f9fa y a4903420):**
+  borrar una conversación de Inicio purga, en la misma unidad y con los locks en el orden de la casa, las lecturas y
+  normalizaciones que nombraron sus turnos (la lectura, por la clave de su copia); la grabación se suelta cuando su
+  normalización pierde el contenido; lo que ningún turno de una conversación activa nombra vence a las 24 horas, buscado
+  por clave entera; el aviso de borrar lo dice, y un borrador cuya fuente venció la vuelve a subir.
 
 #### I3. La metadata de Inicio no vence, tampoco la de una cuenta borrada
 
@@ -331,6 +336,10 @@ cambiarla lo decidís vos.
 - **Arreglo:** retirar las conversaciones de una cuenta borrada aunque ya no tengan contenido, con una prueba de tres meses
   después del último uso. Chico. **Decidido el 2026-11-14:** una conversación de Inicio se borra cuando venció todo su
   contenido y sus recibos ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15 en 1fc155d9, 55588405, b0b675a8, bf29a75c y 1e1c8ed1 (front e4278753):** la purga borra una
+  conversación de Inicio como las de los canales, sin turnos activos, con todo el contenido y los recibos vencidos; las de una
+  cuenta borrada se retiran aunque ya no tengan contenido y no vuelven si se la restaura; Inicio tiene salida cuando la
+  conversación ya no existe.
 
 #### I4. Cada despliegue que suma un valor al motor hace fallar trabajo ajeno, y otros módulos lo guardan como definitivo
 

@@ -256,6 +256,15 @@ tsc, lint y vitest de la feature (253).
     borrada tres meses después de su último uso queda sin conversaciones; cambia el caso `home` de
     `AiAssistantRetentionTests`. Cambian `inteligencia-artificial.md:217` y `:221` y el punto de partida de este plan. Chico.
 
+**Hecha el 2026-11-15:** I2 en 9f428c5c, 85c81ed0, 0632052f, 6be1683c, d5002755 y 80e36028 (front 6385f9fa y a4903420), e
+I3 en 1fc155d9, 55588405, b0b675a8, bf29a75c y 1e1c8ed1 (front e4278753); los commits después del primero de cada una
+corrigen lo que encontró su revisión adversarial: lo que sólo nombró una conversación retirada también vence a las 24 horas,
+la lectura se encuentra por la clave de su copia, la grabación se suelta con su normalización, e Inicio tiene salida cuando la
+purga ya borró la conversación. Va a la tarea 28 el costo de la purga bajo el lock global (los recibos sin índice por
+conversación). Build sin advertencias, Domain 1184, Application 6216 y Architecture 229 enteros en una copia de HEAD;
+integración de borrado, retención, historial, endpoints e Inicio con audio, documento y planilla (51 y 43) en verde; en el
+front, tsc, lint y vitest de la feature (259).
+
 ### Etapa 5: versiones y apagado
 
 19. **I4, la regla. Un valor nuevo del motor, un despliegue después** (decisión 4). [Inteligencia artificial](../features/inteligencia-artificial.md)
