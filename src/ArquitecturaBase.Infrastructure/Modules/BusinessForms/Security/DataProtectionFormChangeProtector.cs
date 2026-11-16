@@ -8,12 +8,12 @@ using Microsoft.AspNetCore.DataProtection;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
 internal sealed class DataProtectionFormChangeProtector(IDataProtectionProvider protection) : IFormChangeProtector
 {
-    // This JSON is encrypted binary data, never embedded in HTML. UTF-8 avoids inflating valid localized drafts.
+    // This JSON is encrypted binary data, never embedded in HTML. UTF-8 avoids inflating valid localized drafts. Members this version does not
+    // know are skipped: a receipt sealed by a newer version with one more member must still open here while two versions run side by side.
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         MaxDepth = 32,
-        UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow,
     };
     public byte[] Protect(FormChangeProtectionContext context, string canonicalRequest, FormDraftCommitResponse response)
     {

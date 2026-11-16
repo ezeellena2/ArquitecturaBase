@@ -777,6 +777,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   de las 53 migraciones ata una columna nueva a una que escribe la versión vieja.
 - **Arreglo:** un CHECK así se agrega en el despliegue siguiente, cuando ya no corre la versión vieja; escribirlo en
   [migración](../guides/migracion.md) y controlarlo con un test. Chico.
+- **Arreglado el 2026-11-16**.
 
 #### F30. La versión vieja tampoco lee otras cosas que escribe la nueva: nulos nuevos, estados nuevos y comprobantes sellados
 
@@ -800,6 +801,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   es chico. Es la regla común de
   [WhatsApp H25](2026-11-12-arquitectura-whatsapp.md) y [núcleo N27](2026-11-14-arquitectura-nucleo.md); F27, F28 y F31
   son otros casos de Formularios.
+- **Arreglado el 2026-11-16** (la regla y su control, la lista de enumeraciones y el comprobante abierto; `NotApplicable` queda como excepción conocida).
 
 #### F31. Las extracciones de documentos en curso fallan en un despliegue, o con un «no encontrado» del motor
 
