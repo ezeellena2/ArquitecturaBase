@@ -365,17 +365,15 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var user = await CreateAccountAsync(email: TestEmails.Unique("cambia"), phone: previousPhone, phoneConfirmed: false);
 
         await ArrangeHistoricalContactAsync(client, previousPhone);
-        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, user.Id);
 
         using var replace = await ConfirmAsync(client, user, newPhone, await RequestCodeAsync(client, user, newPhone));
-        using var redeem = await RedeemAsync(client, token);
 
         Assert.Equal(HttpStatusCode.NoContent, replace.StatusCode);
         Assert.Equal(newPhone.Value, (await AccountAsync(user.Id)).PhoneNumber);
 
         // Para el número anterior es lo mismo que desvincularlo: su chat puede no ser más de esta persona.
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     [Fact]
@@ -450,14 +448,13 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("mismo"), phone: phone);
         await ArrangeHistoricalContactAsync(client, phone);
-        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, user.Id);
 
         using var confirm = await ConfirmAsync(client, user, phone, await RequestCodeAsync(client, user, phone));
-        using var redeem = await RedeemAsync(client, token);
 
         // El chat es el mismo: no hay número que soltar.
         Assert.Equal(HttpStatusCode.NoContent, confirm.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, redeem.StatusCode);
+        Assert.True(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     [Fact]
@@ -469,7 +466,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var bsuid = await ArrangeHistoricalContactAsync(client, previousPhone);
         var code = await RequestCodeAsync(client, user, newPhone);
         var emailCode = await LinkEmailCodeAsync(user, newPhone);
-        var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, user.Id);
         var sentBefore = factory.WhatsApp.CountFor(previousPhone);
 
         await SayHelloAsync(client, previousPhone, bsuid);
@@ -481,8 +478,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(sentBefore, factory.WhatsApp.CountFor(previousPhone));
-        using var redeem = await RedeemAsync(client, pendingToken);
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
         Assert.Equal(newPhone.Value, (await AccountAsync(user.Id)).PhoneNumber);
         Assert.Null((await ContactAsync(bsuid)).UserId);
     }
@@ -515,7 +511,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var phone = TestPhones.Unique();
         var user = await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().CreateAsync(
             Email.Create(TestEmails.Unique("verifican")).Value, phone, phoneConfirmed: false, displayName: null, "es", Ct));
-        var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, user.Id);
         var code = await RequestCodeAsync(client, user, phone);
         var emailCode = await LinkEmailCodeAsync(user, phone);
         var bsuid = MetaWebhook.UniqueBsuid();
@@ -535,8 +531,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.True(account.PhoneNumberConfirmed);
         Assert.Equal(user.Id, (await ContactAsync(bsuid)).UserId);
 
-        using var redeem = await RedeemAsync(client, pendingToken);
-        Assert.Equal(HttpStatusCode.NoContent, redeem.StatusCode);
+        Assert.True(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     [Fact]
@@ -746,7 +741,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         });
 
         var bsuid = await ArrangeHistoricalContactAsync(client, phone);
-        var link = await TestLoginLinks.IssueUrlAsync(client, userId);
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, userId);
         Assert.Equal(userId, (await ContactAsync(bsuid)).UserId);
         var previous = factory.EmailSender.CountFor(email);
         using var ask = await client.SendWithTokenAsync(
@@ -757,7 +752,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         using var response = await client.SendWithTokenAsync(HttpMethod.Delete, LinkUrl, tokens.AccessToken, new { code });
         using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var profile = await me.ReadJsonAsync();
-        using var redeem = await client.PostJsonAsync("/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
@@ -767,8 +761,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.False(profile.GetProperty("phoneNumberConfirmed").GetBoolean());
         Assert.Null((await ContactAsync(bsuid)).UserId);
 
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     [Fact]
@@ -778,7 +771,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("cruza"), phone: phone);
         var bsuid = await ArrangeHistoricalContactAsync(client, phone);
-        var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, user.Id);
         var sentBefore = factory.WhatsApp.CountFor(phone);
 
         await SayHelloAsync(client, phone, bsuid);
@@ -790,8 +783,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(sentBefore, factory.WhatsApp.CountFor(phone));
-        using var redeem = await RedeemAsync(client, pendingToken);
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
         Assert.Null((await AccountAsync(user.Id)).PhoneNumber);
         Assert.Null((await ContactAsync(bsuid)).UserId);
     }
@@ -808,7 +800,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         {
             await services.GetRequiredService<IUserRepository>().SetPhoneAsync(user.Id, phone, confirmed: false, Ct);
         });
-        var pendingToken = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, user.Id);
         var sentBefore = factory.WhatsApp.CountFor(phone);
 
         await SayHelloAsync(client, phone, bsuid);
@@ -820,8 +812,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(sentBefore, factory.WhatsApp.CountFor(phone));
-        using var redeem = await RedeemAsync(client, pendingToken);
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
         Assert.Null((await AccountAsync(user.Id)).PhoneNumber);
         Assert.Null((await ContactAsync(bsuid)).UserId);
     }
@@ -873,20 +864,18 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         var phone = TestPhones.Unique();
         var user = await CreateAccountAsync(email: TestEmails.Unique("residuo"), phone: phone);
         var bsuid = await ArrangeHistoricalContactAsync(client, phone);
-        var token = TestLoginLinks.TokenOf(await TestLoginLinks.IssueUrlAsync(client, user.Id));
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, user.Id);
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().RemovePhoneAsync(user.Id, Ct);
         });
 
         using var response = await UnlinkAsync(client, user);
-        using var redeem = await RedeemAsync(client, token);
 
         // Desvincular también lo limpia: si no, la persona no tendría cómo cortar ese chat.
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Null((await ContactAsync(bsuid)).UserId);
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     /// <summary>
@@ -1229,9 +1218,6 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         using var response = await client.SendAsync(request, Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    private static Task<HttpResponseMessage> RedeemAsync(HttpClient client, string token) =>
-        client.PostJsonAsync("/account/login-link/redeem", new { token });
 
     /// <summary>
     /// (<see cref="HeldContactRepository"/>), hasta que el test lo suelta.

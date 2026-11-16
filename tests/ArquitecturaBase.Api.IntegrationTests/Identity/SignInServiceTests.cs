@@ -10,7 +10,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Identity;
 
 /// <summary>
 /// Lo técnico del ingreso sobre Identity y OpenIddict (ISignInService), contra Postgres. La cookie de la aplicación y la
-/// cookie externa necesitan un HttpContext: las cubren por HTTP AuthFlow, LoginLinkTests y ExternalLoginTests. Que cada
+/// cookie externa necesitan un HttpContext: las cubren por HTTP AuthFlow y ExternalLoginTests. Que cada
 /// miembro declare su regla de transacción lo fija UnitOfWorkTransactionTests.
 /// </summary>
 [Collection(ApiTestGroup.Name)]

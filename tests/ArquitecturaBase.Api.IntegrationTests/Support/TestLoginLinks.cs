@@ -1,22 +1,35 @@
-using System.Net;
+using System.Globalization;
+using ArquitecturaBase.Domain.Authentication;
+using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
-/// Los enlaces de ingreso del endpoint de prueba /test/login-links, que usa el mismo emisor que un canal de teléfono: un
-/// test del núcleo tiene un enlace pendiente sin depender de un módulo.
+/// Enlaces de ingreso pendientes, como los que dejó el bot antes de que se retiraran (B4, 2026-11-16): nada los emite ni
+/// los canjea, pero los cambios del número y del acceso de la cuenta todavía los invalidan. Se guardan directo en la base.
 /// </summary>
 internal static class TestLoginLinks
 {
-    /// <summary>Emite un enlace para la cuenta y devuelve su URL, con el token en el fragmento.</summary>
-    public static async Task<string> IssueUrlAsync(HttpClient client, Guid userId)
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    /// <summary>Guarda un enlace activo de la cuenta, emitido en la hora del reloj de los tests, y devuelve su Id.</summary>
+    public static Task<Guid> AddPendingAsync(ApiFactory factory, Guid userId) =>
+        factory.ExecuteDbContextAsync(async db =>
+        {
+            var link = LoginLink.Issue(
+                userId, Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture), factory.Clock.GetUtcNow().UtcDateTime);
+            db.LoginLinks.Add(link);
+            await db.SaveChangesAsync(Ct);
+
+            return link.Id;
+        });
+
+    /// <summary>Si el enlace todavía sirve en la hora del reloj de los tests: ni consumido, ni invalidado, ni vencido.</summary>
+    public static async Task<bool> IsActiveAsync(ApiFactory factory, Guid linkId)
     {
-        using var response = await client.PostJsonAsync("/test/login-links", new { userId });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var nowUtc = factory.Clock.GetUtcNow().UtcDateTime;
+        var link = await factory.ExecuteDbContextAsync(db => db.LoginLinks.AsNoTracking().SingleAsync(link => link.Id == linkId, Ct));
 
-        return (await response.ReadJsonAsync()).GetProperty("url").GetString()!;
+        return link.IsActive(nowUtc);
     }
-
-    /// <summary>El token de la URL de un enlace: lo que sigue a <c>#t=</c>.</summary>
-    public static string TokenOf(string url) => url[(url.IndexOf("#t=", StringComparison.Ordinal) + "#t=".Length)..];
 }

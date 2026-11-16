@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Users;
@@ -59,7 +58,7 @@ public sealed class WhatsAppUpdateUserContactTests(ApiFactory factory)
             await services.GetRequiredService<IUserRepository>().SetPhoneAsync(userId, previousPhone, confirmed: true, Ct);
         });
         var bsuid = await WhatsAppTestConversation.ArrangeHistoricalLinkedContactAsync(factory, person, previousPhone, userId);
-        var link = await TestLoginLinks.IssueUrlAsync(person, userId);
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, userId);
 
         using var adminClient = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, adminClient);
@@ -71,9 +70,7 @@ public sealed class WhatsAppUpdateUserContactTests(ApiFactory factory)
         Assert.False(account.PhoneNumberConfirmed);
         Assert.Null((await WhatsAppTestConversation.ContactAsync(factory, bsuid)).UserId);
 
-        using var redeem = await person.PostJsonAsync("/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
 
         // Las sesiones siguen: cambiar un dato no es cortar el acceso. Para eso está desvincular.
         using var protectedCall = await person.GetWithTokenAsync("/test/protected", tokens.AccessToken);

@@ -85,7 +85,8 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
    cada una deja sus tokens y vuelve al ingreso. Cambia el cierre de sesión en [identidad](../features/identidad.md). Chico.
 8. **B4. Se retira el enlace de ingreso** (decisión 10): el emisor (`LoginLinkIssuer`), las dos rutas de canje con lo que el
    front tenga para ellas, sus tests y su regla (`identidad.md:43`). La tabla `LoginLinks` queda, y la vacía la retención de
-   la tarea 21. Trivial.
+   la tarea 21. Se va también `ISecureTokenGenerator`, que sólo usaba el enlace; quedan el lock `login-link:` por cuenta y la
+   invalidación de los pendientes (`PhoneNumberLinker`, `AccountAccessRevoker`). Trivial.
 
 ### Etapa 2: ediciones simultáneas y su historia
 

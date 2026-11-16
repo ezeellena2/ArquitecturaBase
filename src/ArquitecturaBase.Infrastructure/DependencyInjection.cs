@@ -47,7 +47,6 @@ public static class DependencyInjection
 
         services.AddSingleton<ILoginCodeGenerator, LoginCodeGenerator>();
         services.AddSingleton<ILoginCodeHasher, LoginCodeHasher>();
-        services.AddSingleton<ISecureTokenGenerator, SecureTokenGenerator>();
 
         // Sin estado propio: usa la instancia única de libphonenumber, que carga las reglas de cada país una sola vez.
         services.AddSingleton<IPhoneNumberParser, LibPhoneNumberParser>();
@@ -55,7 +54,7 @@ public static class DependencyInjection
         services.AddIdentityServices(configuration, environment);
         services.AddOpenIddictServer(configuration, environment);
 
-        // El issuer de OpenIddict, para las direcciones que se arman sin un pedido del navegador (el enlace del bot).
+        // El issuer de OpenIddict, para las direcciones que se arman sin un pedido del navegador (el botón de las invitaciones).
         services.AddSingleton<IPublicOrigin, PublicOrigin>();
 
         services.AddEmails(environment);

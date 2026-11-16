@@ -10,7 +10,7 @@ namespace ArquitecturaBase.Application.Models.Auth;
 /// <param name="Google">Si está configurado el ingreso con Google.</param>
 /// <param name="WhatsApp">Si está configurado WhatsApp. Apagado, no hay países ni número.</param>
 /// <param name="WhatsAppCountries">Los países a los que se mandan códigos, en ISO 3166-1 alfa-2.</param>
-/// <param name="WhatsAppNumber">El número del bot, solo con dígitos, para el enlace "Volver a WhatsApp", o null.</param>
+/// <param name="WhatsAppNumber">El número del bot, solo con dígitos, para abrir el chat desde el perfil, o null.</param>
 /// <param name="RegistrationOpen">Si se permite crear una cuenta sin invitación.</param>
 public sealed record LoginMethodsResponse(
     bool Google,

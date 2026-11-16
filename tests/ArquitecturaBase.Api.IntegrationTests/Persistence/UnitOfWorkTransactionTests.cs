@@ -356,20 +356,20 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
         var tokenHash = "uow-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         await factory.ExecuteScopeAsync(async services =>
         {
-            services.GetRequiredService<ILoginLinkRepository>().Add(Link(tokenHash));
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            context.LoginLinks.Add(Link(tokenHash));
 
-            return await services.GetRequiredService<ApplicationDbContext>().SaveChangesAsync(Ct);
+            return await context.SaveChangesAsync(Ct);
         });
         var widgetName = WidgetName();
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var links = scope.ServiceProvider.GetRequiredService<ILoginLinkRepository>();
 
         var exception = await Assert.ThrowsAsync<UniqueConstraintViolationException>(() =>
             unitOfWork.ExecuteInTransactionAsync(_ =>
             {
-                links.Add(Link(tokenHash));
+                db.LoginLinks.Add(Link(tokenHash));
 
                 return Task.FromResult(Result.Success());
             }, CommitPolicy.OnSuccess, Ct));

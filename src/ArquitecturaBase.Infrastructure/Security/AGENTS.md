@@ -1,6 +1,6 @@
 # Security: generación y protección de secretos
 
-Implementa generación segura de tokens y códigos, y su hash con opciones de configuración. El ciclo funcional de emisión y consumo está en Application.
+Implementa generación segura de códigos y su hash con opciones de configuración. El ciclo funcional de emisión y consumo está en Application.
 
 ## Al modificar
 

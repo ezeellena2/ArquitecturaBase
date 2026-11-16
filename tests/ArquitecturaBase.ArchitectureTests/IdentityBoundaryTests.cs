@@ -143,7 +143,7 @@ public sealed partial class IdentityBoundaryTests
 
         // El conjunto exacto: así también prueba que el detector ve las llamadas.
         Assert.Equal(
-            [AuthServices + "ExternalLoginService", AuthServices + "LoginCodeService", AuthServices + "LoginLinkService"],
+            [AuthServices + "ExternalLoginService", AuthServices + "LoginCodeService"],
             owners);
 
         // Y todos son puntos de entrada: la cookie sale del método que abre el límite, después de que confirma.
@@ -160,19 +160,18 @@ public sealed partial class IdentityBoundaryTests
     [Fact]
     public void Only_sign_in_paths_reset_failed_attempts()
     {
-        // Entrar bien pone en cero los intentos fallidos, por cualquiera de los tres ingresos (reglas de identidad), y
-        // nada más los toca. El conjunto exacto: así también prueba que el detector ve las tres llamadas.
+        // Entrar bien pone en cero los intentos fallidos, por cualquiera de los dos ingresos (reglas de identidad), y
+        // nada más los toca. El conjunto exacto: así también prueba que el detector ve las dos llamadas.
         Assert.Equal(
-            [AuthServices + "ExternalLoginService", AuthServices + "LoginCodeVerifier", AuthServices + "LoginLinkVerifier"],
+            [AuthServices + "ExternalLoginService", AuthServices + "LoginCodeVerifier"],
             OwnersOf(nameof(ISignInService.ResetFailedAttemptsAsync)));
     }
 
     [Fact]
     public void Only_the_access_revoker_closes_sessions()
     {
-        // Cerrar las sesiones sin invalidar los enlaces pendientes dejaría servir uno que el bot mandó antes del corte:
-        // AccountAccessRevoker hace las dos cosas, y desactivar, eliminar y desvincular desde la administración pasan por
-        // él. El conjunto exacto: así también prueba que el detector ve la llamada, y cualquier otro dueño la rompe.
+        // AccountAccessRevoker cierra las sesiones e invalida los enlaces pendientes que quedaron de antes de retirarlos
+        // (B4), y desactivar, eliminar y desvincular desde la administración pasan por él. El conjunto exacto: así también prueba que el detector ve la llamada, y cualquier otro dueño la rompe.
         Assert.Equal([AccessRevoker], OwnersOf(nameof(ISignInService.RevokeSessionsAsync)));
     }
 

@@ -106,7 +106,7 @@ public sealed class MePhoneEndpointsTests(ApiFactory factory)
         {
             await services.GetRequiredService<IUserRepository>().SetPhoneAsync(userId, TestPhones.Unique(), confirmed: true, Ct);
         });
-        var url = await TestLoginLinks.IssueUrlAsync(client, userId);
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, userId);
         var previous = factory.EmailSender.CountFor(email);
         using var ask = await client.SendWithTokenAsync(HttpMethod.Post, UnlinkCodeUrl, tokens.AccessToken, new { change = "UnlinkPhone" });
         Assert.Equal(HttpStatusCode.Accepted, ask.StatusCode);
@@ -115,7 +115,6 @@ public sealed class MePhoneEndpointsTests(ApiFactory factory)
         using var response = await client.SendWithTokenAsync(HttpMethod.Delete, LinkUrl, tokens.AccessToken, new { code });
         using var me = await client.GetWithTokenAsync("/api/me", tokens.AccessToken);
         var profile = await me.ReadJsonAsync();
-        using var redeem = await client.PostJsonAsync("/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(url) });
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync(Ct));
@@ -125,8 +124,7 @@ public sealed class MePhoneEndpointsTests(ApiFactory factory)
         using var authorize = await client.AuthorizeAsync(Pkce.ChallengeOf(Pkce.CreateVerifier()));
         Assert.Equal(HttpStatusCode.Redirect, authorize.StatusCode);
         Assert.StartsWith(ApiFactory.WebRedirectUri + "?code=", authorize.Headers.Location?.ToString(), StringComparison.Ordinal);
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     [Fact]

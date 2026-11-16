@@ -191,13 +191,9 @@ public sealed class OpenApiTests(ApiFactory factory)
     {
         var paths = (await ReadDocumentAsync(factory)).GetProperty("paths");
 
-        // Anónimas, pero rechazan una cuenta desactivada (y el código, una sin invitación): 403 sin 401. Las dos tienen
-        // [EnableRateLimiting], así que declaran el 429.
+        // Anónima, pero rechaza una cuenta desactivada o sin invitación: 403 sin 401. Tiene [EnableRateLimiting], así
+        // que declara el 429.
         AssertErrors(paths, "post", "/account/login-code/verify", "400", "403", "429", "500");
-        AssertErrors(paths, "post", "/account/login-link/redeem", "400", "403", "429", "500");
-
-        // La vista previa del enlace no mira la cuenta: tiene rate limit, pero no 403.
-        AssertErrors(paths, "post", "/account/login-link/preview", "400", "429", "500");
 
         // Con sesión y rate limit, pero sin permiso: 429 y el 409 del correo de otra cuenta, sin 403.
         AssertErrors(paths, "put", "/api/me/email", "400", "401", "404", "409", "429", "500");

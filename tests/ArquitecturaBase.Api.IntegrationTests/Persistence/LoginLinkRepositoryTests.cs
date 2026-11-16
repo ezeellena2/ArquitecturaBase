@@ -22,7 +22,6 @@ public sealed class LoginLinkRepositoryTests(ApiFactory factory)
         var active = Issue(accountId, nowUtc);
         var expired = Issue(accountId, nowUtc - LoginLink.Lifetime - TimeSpan.FromSeconds(1));
         var consumed = Issue(accountId, nowUtc);
-        consumed.Redeem(nowUtc);
         var invalidated = Issue(accountId, nowUtc);
         invalidated.Invalidate(nowUtc);
         var anotherAccount = Issue(otherAccountId, nowUtc);
@@ -30,6 +29,9 @@ public sealed class LoginLinkRepositoryTests(ApiFactory factory)
         await factory.ExecuteDbContextAsync(async db =>
         {
             db.LoginLinks.AddRange(active, expired, consumed, invalidated, anotherAccount);
+
+            // Los canjeados quedaron de antes de retirar el canje (B4): nada los consume ya.
+            db.Entry(consumed).Property(link => link.ConsumedAtUtc).CurrentValue = nowUtc;
 
             return await db.SaveChangesAsync(Ct);
         });

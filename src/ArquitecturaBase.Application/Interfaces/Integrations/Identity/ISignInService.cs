@@ -37,8 +37,8 @@ public interface ISignInService
     /// <summary>
     /// Suma un intento fallido; al llegar al máximo (Authentication:LoginCode:LockoutMaxFailedAttempts), Identity bloquea
     /// la cuenta un tiempo. Solo lo suma el ingreso por código, y solo con un código equivocado contra uno activo:
-    /// confirmar un destino desde el perfil no es un ingreso. El bloqueo frena sólo el ingreso por código (y el enlace),
-    /// no Google. Exige la transacción, que el ingreso confirma con <see cref="CommitPolicy.OnAnyResult"/> aunque falle.
+    /// confirmar un destino desde el perfil no es un ingreso. El bloqueo frena sólo el ingreso por código, no
+    /// Google. Exige la transacción, que el ingreso confirma con <see cref="CommitPolicy.OnAnyResult"/> aunque falle.
     /// </summary>
     Task RegisterFailedAttemptAsync(Guid userId, CancellationToken cancellationToken);
 

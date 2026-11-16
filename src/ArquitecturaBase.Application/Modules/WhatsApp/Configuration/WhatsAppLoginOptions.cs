@@ -52,8 +52,8 @@ public sealed class WhatsAppLoginOptions
     public int DailySignInCodeLimitPerAddress { get; init; } = 20;
 
     /// <summary>
-    /// El número del bot con su código de país y solo con dígitos ("15551632662"), para el enlace "Volver a WhatsApp"
-    /// (<c>https://wa.me/…</c>). Sin él, la pantalla no ofrece el enlace.
+    /// El número del bot con su código de país y solo con dígitos ("15551632662"), para abrir el chat desde el perfil
+    /// (<c>https://wa.me/…</c>). Sin él, el perfil no ofrece abrirlo.
     /// </summary>
     [RegularExpression(
         "^[1-9][0-9]{7,14}$",

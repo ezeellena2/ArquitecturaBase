@@ -17,7 +17,6 @@ internal sealed class TestControllerApplicationPart : ApplicationPart, IApplicat
     [
         typeof(TestController).GetTypeInfo(),
         typeof(WidgetsTestController).GetTypeInfo(),
-        typeof(LoginLinkTestController).GetTypeInfo(),
         typeof(ExternalLoginTestController).GetTypeInfo(),
     ];
 }

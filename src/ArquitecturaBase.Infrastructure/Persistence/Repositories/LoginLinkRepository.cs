@@ -10,17 +10,6 @@ internal sealed class LoginLinkRepository(ApplicationDbContext dbContext) : ILog
     public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.LoginLink(userId)], cancellationToken);
 
-    // Proyecta solo el Id, así el enlace no queda seguido en el contexto: si quedara, la lectura de después del lock
-    // (GetByTokenHashAsync) devolvería esta misma instancia, con lo que había antes de que otro canje la consumiera.
-    public Task<Guid?> FindUserIdAsync(string tokenHash, CancellationToken cancellationToken) =>
-        dbContext.LoginLinks
-            .Where(link => link.TokenHash == tokenHash)
-            .Select(link => (Guid?)link.UserId)
-            .SingleOrDefaultAsync(cancellationToken);
-
-    public Task<LoginLink?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken) =>
-        dbContext.LoginLinks.SingleOrDefaultAsync(link => link.TokenHash == tokenHash, cancellationToken);
-
     public async Task<IReadOnlyList<LoginLink>> ListActiveAsync(Guid userId, DateTime nowUtc, CancellationToken cancellationToken)
     {
         var candidates = await dbContext.LoginLinks
@@ -38,16 +27,4 @@ internal sealed class LoginLinkRepository(ApplicationDbContext dbContext) : ILog
         await dbContext.LoginLinks
             .Where(link => link.UserId == userId && link.ConsumedAtUtc == null && link.InvalidatedAtUtc == null)
             .ToListAsync(cancellationToken);
-
-    public async Task<IReadOnlyList<DateTime>> ListIssueTimesSinceAsync(
-        Guid userId,
-        DateTime sinceUtc,
-        CancellationToken cancellationToken) =>
-        await dbContext.LoginLinks
-            .Where(link => link.UserId == userId && link.CreatedAtUtc > sinceUtc)
-            .OrderBy(link => link.CreatedAtUtc)
-            .Select(link => link.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
-
-    public void Add(LoginLink loginLink) => dbContext.LoginLinks.Add(loginLink);
 }

@@ -1,13 +1,12 @@
 using ArquitecturaBase.Domain.Common;
-using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Domain.Authentication;
 
 /// <summary>
-/// Enlace de ingreso de un solo uso, el que manda el bot de WhatsApp al chat (sección 6.4 del spec del ingreso con
-/// WhatsApp). Solo se guarda el hash del token, que viaja en el fragmento de la URL. Vence a los 10 minutos, sirve una
-/// sola vez y queda invalidado cuando se emite otro para la misma cuenta. Vencido, usado o invalidado, responde lo
-/// mismo que un enlace que nunca existió: <see cref="LoginLinkErrors.Invalid"/>.
+/// Enlace de ingreso de un solo uso, el que mandaba el bot de WhatsApp al chat (sección 6.4 del spec del ingreso con
+/// WhatsApp). Se retiró el 2026-11-16 (B4): nada lo emite ni lo canjea, y la tabla queda hasta que la vacíe la
+/// retención. De cada uno se guardó solo el hash del token. Los pendientes se siguen invalidando cuando la cuenta suelta
+/// su número o pierde el acceso.
 /// </summary>
 public sealed class LoginLink : Entity
 {
@@ -28,7 +27,7 @@ public sealed class LoginLink : Entity
         ExpiresAtUtc = createdAtUtc + Lifetime;
     }
 
-    /// <summary>La cuenta con la que entra quien canjea el enlace.</summary>
+    /// <summary>La cuenta con la que entraba quien canjeaba el enlace.</summary>
     public Guid UserId { get; private set; }
 
     /// <summary>El hash del token. El token en claro no se guarda en ningún lado.</summary>
@@ -56,24 +55,9 @@ public sealed class LoginLink : Entity
 
     public bool IsActive(DateTime nowUtc) => ConsumedAtUtc is null && InvalidatedAtUtc is null && nowUtc < ExpiresAtUtc;
 
-    /// <summary>Lo invalida porque se emitió otro para la misma cuenta. Conserva el primer momento de invalidación.</summary>
+    /// <summary>Lo invalida porque la cuenta soltó su número o perdió el acceso. Conserva el primer momento.</summary>
     public void Invalidate(DateTime nowUtc)
     {
         InvalidatedAtUtc ??= nowUtc;
-    }
-
-    /// <summary>
-    /// Lo consume, si todavía sirve. Uno que ya no sirve no cambia, y el error es el mismo sea cual sea el motivo.
-    /// </summary>
-    public Result Redeem(DateTime nowUtc)
-    {
-        if (!IsActive(nowUtc))
-        {
-            return LoginLinkErrors.Invalid;
-        }
-
-        ConsumedAtUtc = nowUtc;
-
-        return Result.Success();
     }
 }

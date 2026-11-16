@@ -3,7 +3,6 @@ using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -34,7 +33,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         await SetPhoneAsync(userId, TestPhones.Unique());
 
         // Un enlace de ingreso pendiente, como el que un canal de teléfono manda al chat.
-        var url = await TestLoginLinks.IssueUrlAsync(person, userId);
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, userId);
 
         using var adminClient = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, adminClient);
@@ -50,10 +49,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Unauthorized, after.StatusCode);
 
         // Y el enlace pendiente tampoco sirve.
-        using var redeem = await person.PostJsonAsync(
-            "/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(url) });
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     [Fact]
@@ -117,7 +113,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         using var client = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, client);
         var withoutPhone = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("sinnumero"), TestPhones.Unique());
-        var url = await TestLoginLinks.IssueUrlAsync(client, withoutPhone.Id);
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, withoutPhone.Id);
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().RemovePhoneAsync(withoutPhone.Id, Ct);
@@ -126,9 +122,7 @@ public sealed class UnlinkUserPhoneEndpointTests(ApiFactory factory)
         using var response = await admin.UnlinkPhoneAsync(withoutPhone.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        using var redeem = await client.PostJsonAsync(
-            "/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(url) });
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     [Fact]

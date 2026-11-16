@@ -14,6 +14,8 @@ public enum LoginMethod
     /// <summary>Código por WhatsApp, pedido desde la web.</summary>
     WhatsAppCode = 3,
 
-    /// <summary>Enlace de ingreso que manda el bot de WhatsApp.</summary>
+    /// <summary>
+    /// Enlace de ingreso que mandaba el bot de WhatsApp. Se retiró el 2026-11-16 (B4); queda por las filas de antes.
+    /// </summary>
     WhatsAppLink = 4,
 }

@@ -26,11 +26,6 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<LoginLinkOptions>()
-            .BindConfiguration(LoginLinkOptions.SectionName)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
         // Los puertos hacia un módulo opcional. El canal telefónico, apagado: un módulo que da el canal lo reemplaza, en
         // cualquier orden. Los canales de invitación, uno por canal: el núcleo trae el correo y cada módulo suma el suyo.
         services.TryAddSingleton<IPhoneChannel, DisabledPhoneChannel>();
@@ -69,8 +64,6 @@ public static class DependencyInjection
         services.AddScoped<SignInCodeIssuer>();
         services.AddScoped<LoginCodeVerifier>();
         services.AddScoped<LoginAuditRecorder>();
-        services.AddScoped<LoginLinkIssuer>();
-        services.AddScoped<LoginLinkVerifier>();
         services.AddScoped<AccountCreationPolicy>();
         services.AddScoped<UserContactLinker>();
         services.AddScoped<UserInvitationIssuer>();
@@ -78,7 +71,6 @@ public static class DependencyInjection
         services.AddScoped<ILoginCodeService, LoginCodeService>();
         services.AddScoped<IConnectService, ConnectService>();
         services.AddScoped<IExternalLoginService, ExternalLoginService>();
-        services.AddScoped<ILoginLinkService, LoginLinkService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IUserQueryService, UserQueryService>();

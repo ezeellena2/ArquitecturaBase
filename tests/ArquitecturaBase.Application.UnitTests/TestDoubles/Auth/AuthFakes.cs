@@ -148,12 +148,6 @@ internal sealed class InMemoryLoginLinkRepository : ILoginLinkRepository
         Events?.Add("login-link:" + userId);
     }
 
-    public Task<Guid?> FindUserIdAsync(string tokenHash, CancellationToken cancellationToken) =>
-        Task.FromResult(Links.SingleOrDefault(link => link.TokenHash == tokenHash)?.UserId);
-
-    public Task<LoginLink?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken) =>
-        Task.FromResult(Links.SingleOrDefault(link => link.TokenHash == tokenHash));
-
     public Task<IReadOnlyList<LoginLink>> ListActiveAsync(Guid userId, DateTime nowUtc, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<LoginLink>>(Links.Where(link => link.UserId == userId && link.IsActive(nowUtc)).ToList());
 
@@ -162,26 +156,8 @@ internal sealed class InMemoryLoginLinkRepository : ILoginLinkRepository
             .Where(link => link.UserId == userId && link.ConsumedAtUtc is null && link.InvalidatedAtUtc is null)
             .ToList());
 
-    public Task<IReadOnlyList<DateTime>> ListIssueTimesSinceAsync(Guid userId, DateTime sinceUtc, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<DateTime>>(Links
-            .Where(link => link.UserId == userId && link.CreatedAtUtc > sinceUtc)
-            .Select(link => link.CreatedAtUtc)
-            .Order()
-            .ToList());
-
+    /// <summary>Agrega un enlace pendiente, como los que dejó el bot antes de retirarse.</summary>
     public void Add(LoginLink loginLink) => Links.Add(loginLink);
-}
-
-/// <summary>Tokens previsibles ("token-1", "token-2"…) y un hash que se reconoce a simple vista.</summary>
-internal sealed class FakeSecureTokenGenerator : ISecureTokenGenerator
-{
-    private int _issued;
-
-    public static string HashOf(string token) => "sha:" + token;
-
-    public string Generate() => "token-" + ++_issued;
-
-    public string Hash(string token) => HashOf(token);
 }
 
 internal sealed record FakePublicOrigin(Uri? Value) : IPublicOrigin;

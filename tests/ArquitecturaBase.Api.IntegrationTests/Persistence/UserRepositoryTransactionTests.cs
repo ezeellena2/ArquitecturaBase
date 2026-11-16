@@ -257,12 +257,6 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken) =>
             inner.LockAccountAsync(userId, cancellationToken);
 
-        public Task<Guid?> FindUserIdAsync(string tokenHash, CancellationToken cancellationToken) =>
-            inner.FindUserIdAsync(tokenHash, cancellationToken);
-
-        public Task<LoginLink?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken) =>
-            inner.GetByTokenHashAsync(tokenHash, cancellationToken);
-
         public Task<IReadOnlyList<LoginLink>> ListActiveAsync(
             Guid userId, DateTime nowUtc, CancellationToken cancellationToken) =>
             inner.ListActiveAsync(userId, nowUtc, cancellationToken);
@@ -277,12 +271,6 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
                 .SingleAsync(cancellationToken));
             throw new ExpectedWriteFailure();
         }
-
-        public Task<IReadOnlyList<DateTime>> ListIssueTimesSinceAsync(
-            Guid userId, DateTime sinceUtc, CancellationToken cancellationToken) =>
-            inner.ListIssueTimesSinceAsync(userId, sinceUtc, cancellationToken);
-
-        public void Add(LoginLink loginLink) => inner.Add(loginLink);
     }
 
     /// <summary>

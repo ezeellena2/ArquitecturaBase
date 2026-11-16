@@ -1,6 +1,5 @@
 using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
-using ArquitecturaBase.Api.IntegrationTests.TestFeatures.LoginLinks;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
@@ -204,12 +203,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("Authentication:LoginCode:ResendCooldownSeconds", "0");
         builder.UseSetting("Authentication:LoginCode:MaxRequestsPerWindow", "100");
 
-        // Lo mismo con los enlaces de ingreso: los tests emiten varios seguidos para la misma cuenta. Los límites se
-        // prueban en LoginLinkIssuerTests.
-        builder.UseSetting("Authentication:LoginLink:ResendCooldownSeconds", "0");
-        builder.UseSetting("Authentication:LoginLink:MaxRequestsPerWindow", "100");
-
-        // El origen público de los enlaces de ingreso y del botón de las invitaciones por correo. Es el mismo que
+        // El origen público del botón de las invitaciones por correo. Es el mismo que
         // OpenIddict ya deducía del pedido (la dirección base del cliente de los tests), así que los tokens no cambian.
         builder.UseSetting("Authentication:Issuer", "https://localhost/");
 
@@ -262,7 +256,6 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
             services.AddApplicationValidatorsFromAssembly(typeof(ApiFactory).Assembly);
             services.AddScoped<IWidgetTestService, WidgetTestService>();
-            services.AddScoped<ILoginLinkTestService, LoginLinkTestService>();
             services.AddControllers().ConfigureApplicationPartManager(parts =>
                 parts.ApplicationParts.Add(new TestControllerApplicationPart()));
 

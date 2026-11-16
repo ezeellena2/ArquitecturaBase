@@ -1,7 +1,6 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -90,7 +89,7 @@ public sealed class UpdateUserContactTests(ApiFactory factory)
         {
             await services.GetRequiredService<IUserRepository>().SetPhoneAsync(userId, previousPhone, confirmed: true, Ct);
         });
-        var url = await TestLoginLinks.IssueUrlAsync(person, userId);
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, userId);
 
         using var adminClient = factory.CreateClient();
         var admin = await AdminUsersApi.SignInAsync(factory, adminClient);
@@ -101,9 +100,7 @@ public sealed class UpdateUserContactTests(ApiFactory factory)
         Assert.Equal(newPhone.Value, account.PhoneNumber);
         Assert.False(account.PhoneNumberConfirmed);
 
-        using var redeem = await person.PostJsonAsync("/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(url) });
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
 
         // Las sesiones siguen: cambiar un dato no es cortar el acceso. Para eso está desvincular.
         using var protectedCall = await person.GetWithTokenAsync("/test/protected", tokens.AccessToken);

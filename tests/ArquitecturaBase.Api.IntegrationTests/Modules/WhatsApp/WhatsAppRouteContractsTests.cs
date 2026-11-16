@@ -82,15 +82,13 @@ public sealed class WhatsAppRouteContractsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Disabling_whatsapp_keeps_profile_unlink_and_login_links_registered()
+    public async Task Disabling_whatsapp_keeps_profile_unlink_and_login_routes_registered()
     {
         await using var api = ConfiguredApi(whatsappEnabled: false, webhookEnabled: false);
         using var client = api.CreateClient();
 
         AssertRouteCount(api, "PUT", "/api/me/whatsapp", 1);
         AssertRouteCount(api, "DELETE", "/api/me/whatsapp", 1);
-        AssertRouteCount(api, "POST", "/account/login-link/preview", 1);
-        AssertRouteCount(api, "POST", "/account/login-link/redeem", 1);
         AssertRouteCount(api, "GET", "/account/login-methods", 1);
         AssertRouteCount(api, "POST", "/account/login-code/verify", 1);
         AssertRouteCount(api, "GET", "/api/me", 1);
@@ -98,8 +96,6 @@ public sealed class WhatsAppRouteContractsTests(ApiFactory factory)
         using var confirm = await client.PutAsJsonAsync(
             "/api/me/whatsapp", new { phone = "+5493515551234", code = "000000" }, Ct);
         using var unlink = await client.DeleteAsync("/api/me/whatsapp", Ct);
-        using var preview = await client.PostJsonAsync("/account/login-link/preview", new { token = "invented" });
-        using var redeem = await client.PostJsonAsync("/account/login-link/redeem", new { token = "invented" });
         using var methods = await client.GetAsync("/account/login-methods", Ct);
         var email = TestEmails.Unique("whatsapp-off-contract");
         var tokens = await client.LoginAsync(factory, email);
@@ -127,8 +123,6 @@ public sealed class WhatsAppRouteContractsTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.Unauthorized, confirm.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, unlink.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, preview.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
         Assert.Equal(HttpStatusCode.OK, methods.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, authenticatedConfirm.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, authenticatedUnlink.StatusCode);

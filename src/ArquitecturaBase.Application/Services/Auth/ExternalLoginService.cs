@@ -147,7 +147,7 @@ internal sealed class ExternalLoginService(
         // El bloqueo por intentos fallidos no se mira acá (N3): es de los códigos y frena a quien los prueba, y si frenara
         // a Google cualquiera le cerraría la entrada a otro mandando códigos equivocados a su correo.
 
-        // Como el código y el enlace: entrar bien pone en cero los intentos fallidos.
+        // Como el código: entrar bien pone en cero los intentos fallidos.
         await signIn.ResetFailedAttemptsAsync(user.Id, cancellationToken);
 
         audits.Succeeded(auditIdentifier, user.Id, LoginMethod.Google);

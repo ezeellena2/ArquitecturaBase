@@ -31,7 +31,7 @@ public sealed partial class IdentityBoundaryTests
         // A real IL control calls the forbidden account reader, so an empty result cannot silently pass.
         Assert.Contains(ForbiddenInboundDependencies(CallSites.TypeUses(typeof(IdentityBoundaryTests).Assembly)),
             use => use.Owner == typeof(InboundIdentityControl).FullName);
-        Assert.Contains(TypeUses, use => use.Owner == AuthServices + "LoginLinkIssuer" && use.Type == typeof(ILoginLinkRepository).FullName);
+        Assert.Contains(TypeUses, use => use.Owner == AccessRevoker && use.Type == typeof(ILoginLinkRepository).FullName);
     }
 
     private static IEnumerable<CallSites.TypeUse> ForbiddenInboundDependencies(IEnumerable<CallSites.TypeUse> uses) =>

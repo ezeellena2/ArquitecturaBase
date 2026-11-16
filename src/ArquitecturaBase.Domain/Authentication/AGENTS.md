@@ -5,7 +5,7 @@ Modela los hechos y las reglas puras del acceso: propósito y destino de código
 ## Lectura obligatoria
 
 Antes de tocar esto, leé [`docs/features/identidad.md`](../../../docs/features/identidad.md).
-El enlace de un solo uso (`LoginLink`) es del núcleo y su regla está en `identidad.md`. Los códigos que se piden por un número, con su tope diario, son del módulo WhatsApp y siguen además [`docs/features/whatsapp.md`](../../../docs/features/whatsapp.md).
+El enlace de ingreso (`LoginLink`) se retiró el 2026-11-16 (B4): la entidad queda por su tabla, que vacía la retención, y por la invalidación de los pendientes (`identidad.md`). Los códigos que se piden por un número, con su tope diario, son del módulo WhatsApp y siguen además [`docs/features/whatsapp.md`](../../../docs/features/whatsapp.md).
 
 ## Al modificar
 

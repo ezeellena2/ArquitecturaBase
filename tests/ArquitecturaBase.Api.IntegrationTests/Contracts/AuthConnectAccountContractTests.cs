@@ -1,13 +1,11 @@
 using System.Net;
 using System.Text;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Integrations.Security;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Contracts;
 
 /// <summary>
-/// La forma HTTP de las rutas de la cuenta (/account/login-code, /account/login-link y las de Google): los cuerpos
+/// La forma HTTP de las rutas de la cuenta (/account/login-code y las de Google): los cuerpos
 /// ilegibles, los que faltan y los de formulario se rechazan como ProblemDetails, y un verbo que no existe responde 405.
 /// Un módulo opcional suma sus rutas de la cuenta en la parte de esta clase que vive en su carpeta
 /// <c>Modules/&lt;M&gt;</c> (con WhatsApp, el pedido del código por WhatsApp).
@@ -18,8 +16,6 @@ public sealed partial class AuthConnectAccountContractTests(ApiFactory factory)
     [Theory]
     [InlineData("/account/login-code")]
     [InlineData("/account/login-code/verify")]
-    [InlineData("/account/login-link/preview")]
-    [InlineData("/account/login-link/redeem")]
     public async Task Json_account_posts_reject_malformed_and_missing_bodies_as_problems(string route)
     {
         using var client = factory.CreateClient();
@@ -97,8 +93,6 @@ public sealed partial class AuthConnectAccountContractTests(ApiFactory factory)
     [InlineData("/account/login-methods", "GET")]
     [InlineData("/account/login-code", "POST")]
     [InlineData("/account/login-code/verify", "POST")]
-    [InlineData("/account/login-link/preview", "POST")]
-    [InlineData("/account/login-link/redeem", "POST")]
     [InlineData("/account/external/google", "GET")]
     [InlineData("/account/external/callback", "GET")]
     public async Task Every_account_route_rejects_an_unmapped_method(string route, string allowedMethod)
@@ -112,24 +106,6 @@ public sealed partial class AuthConnectAccountContractTests(ApiFactory factory)
         Assert.Contains(allowedMethod, response.Content.Headers.Allow);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal("Http.MethodNotAllowed", problem.GetProperty("code").GetString());
-        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
-    }
-
-    [Theory]
-    [InlineData("/account/login-link/preview")]
-    [InlineData("/account/login-link/redeem")]
-    public async Task Login_link_routes_stay_mapped_when_whatsapp_is_off(string route)
-    {
-        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:PhoneNumberId", ""));
-        using var client = api.CreateClient();
-        var token = factory.Services.GetRequiredService<ISecureTokenGenerator>().Generate();
-
-        using var response = await client.PostJsonAsync(route, new { token }, language: "es");
-        var problem = await response.ReadJsonAsync();
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal("Auth.LoginLink.Invalid", problem.GetProperty("code").GetString());
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
     }
 

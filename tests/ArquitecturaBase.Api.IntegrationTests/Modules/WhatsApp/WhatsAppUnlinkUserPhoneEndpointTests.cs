@@ -1,7 +1,6 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,7 +28,7 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory) : I
 
         // El bot le manda un enlace al chat y vincula el contacto a la cuenta.
         var bsuid = await WhatsAppTestConversation.ArrangeHistoricalLinkedContactAsync(factory, person, phone, userId);
-        var link = await TestLoginLinks.IssueUrlAsync(person, userId);
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, userId);
         Assert.Equal(userId, (await WhatsAppTestConversation.ContactAsync(factory, bsuid)).UserId);
 
         using var adminClient = factory.CreateClient();
@@ -47,10 +46,7 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory) : I
         Assert.Equal(HttpStatusCode.Unauthorized, after.StatusCode);
 
         // Y el enlace que ya estaba en el chat tampoco sirve.
-        using var redeem = await person.PostJsonAsync(
-            "/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
-        Assert.Equal(HttpStatusCode.BadRequest, redeem.StatusCode);
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
     }
 
     [Fact]
@@ -61,7 +57,7 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory) : I
         var phone = TestPhones.Unique();
         var withoutPhone = await admin.CreateVerifiedAccountAsync(TestEmails.Unique("sinnumero"), phone);
         var bsuid = await WhatsAppTestConversation.ArrangeHistoricalLinkedContactAsync(factory, client, phone, withoutPhone.Id);
-        var link = await TestLoginLinks.IssueUrlAsync(client, withoutPhone.Id);
+        var pendingLink = await TestLoginLinks.AddPendingAsync(factory, withoutPhone.Id);
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().RemovePhoneAsync(withoutPhone.Id, Ct);
@@ -70,10 +66,8 @@ public sealed class WhatsAppUnlinkUserPhoneEndpointTests(ApiFactory factory) : I
         using var response = await admin.UnlinkPhoneAsync(withoutPhone.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.False(await TestLoginLinks.IsActiveAsync(factory, pendingLink));
         Assert.Null((await WhatsAppTestConversation.ContactAsync(factory, bsuid)).UserId);
-        using var redeem = await client.PostJsonAsync(
-            "/account/login-link/redeem", new { token = TestLoginLinks.TokenOf(link) });
-        Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     private async Task SetPhoneAsync(Guid userId, PhoneNumber phone) =>

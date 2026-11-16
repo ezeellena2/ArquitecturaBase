@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Users;
@@ -54,17 +53,6 @@ public static class ValidationRules
         ruleBuilder
             .Must(country => country is null || (country is { Length: 2 } && country.All(char.IsAsciiLetter)))
             .WithMessage(_ => ValidationMessages.CountryInvalid);
-
-    /// <summary>
-    /// Obligatorio y con la forma de un token de <see cref="ISecureTokenGenerator"/>: 43 caracteres de base64url. Uno
-    /// con esa forma que no existe no es un error de validación, sino el mismo <c>Auth.LoginLink.Invalid</c> de un
-    /// enlace vencido o usado: eso lo decide el caso de uso.
-    /// </summary>
-    public static IRuleBuilderOptions<T, string?> ValidLoginLinkToken<T>(this IRuleBuilderInitial<T, string?> ruleBuilder) =>
-        ruleBuilder
-            .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage(_ => ValidationMessages.Required)
-            .Must(ISecureTokenGenerator.HasTokenFormat).WithMessage(_ => ValidationMessages.LoginLinkTokenFormat);
 
     /// <summary>Todos los permisos pedidos tienen que estar en el catálogo de Domain.</summary>
     public static IRuleBuilderOptions<T, IReadOnlyCollection<string>?> ValidPermissions<T>(

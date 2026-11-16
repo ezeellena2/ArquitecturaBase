@@ -14,7 +14,7 @@ namespace ArquitecturaBase.Application.UnitTests;
 /// <c>Modules/&lt;M&gt;/Services</c>: el módulo es el área) y terminar con uno de los siete sufijos de la tabla (Policy,
 /// Guard, Issuer, Verifier, Linker, Revoker, Recorder). El filtro deja afuera por construcción a los validadores de FluentValidation, a <c>RequestValidator</c>
 /// (vive en <c>Common/Validation</c>), a las opciones y a los tipos que se crean con <c>new</c> o son estáticos
-/// (<c>IssuedLoginCode</c>, <c>IssuedLoginLink</c>, <c>InvitationFields</c>, <c>UserCultures</c>):
+/// (<c>IssuedLoginCode</c>, <c>InvitationFields</c>, <c>UserCultures</c>):
 /// ninguno de ellos queda registrado como servicio o helper. Los helpers de un módulo entran con el gancho
 /// <c>AddModules</c>, que implementa la parte de esta clase en la carpeta del módulo.
 /// </summary>
