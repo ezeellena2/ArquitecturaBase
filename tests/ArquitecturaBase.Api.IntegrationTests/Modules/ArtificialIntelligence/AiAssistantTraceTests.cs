@@ -11,6 +11,8 @@ using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
@@ -63,6 +65,24 @@ public sealed class AiAssistantTraceTests(ApiFactory factory)
         var activity = Assert.Single(stopped, item => item.OperationName == "ai.assistant.turn" && item.TraceId == trace);
         Assert.Equal((ActivityStatusCode.Error, "Ai.Assistant.ProviderCredentialRejected"), (activity.Status, activity.StatusDescription));
         Assert.Equal("Anthropic", activity.GetTagItem("ai.provider"));
+    }
+
+    [Fact]
+    public async Task A_log_of_the_worker_during_a_turn_names_the_turn_in_its_scope()
+    {
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.Anthropic, "users.summary", services =>
+            services.AddLogging(logging => logging.AddFakeLogging().AddFilter<FakeLoggerProvider>(category: null, LogLevel.Trace)));
+        scenario.Handler.FailWith = HttpStatusCode.Unauthorized;
+        var requestId = Guid.NewGuid();
+        await scenario.SubmitAsync(requestId, "How many users are there?");
+        var turn = await FindAsync(scenario, requestId);
+
+        Assert.True(await scenario.ProcessNextAsync());
+
+        var records = await scenario.ScopeAsync(services => Task.FromResult(services.GetFakeLogCollector().GetSnapshot()));
+        var failed = Assert.Single(records, record => record.Id.Name == "LogProviderFailed");
+        Assert.Contains(failed.Scopes.OfType<IEnumerable<KeyValuePair<string, object?>>>().SelectMany(scope => scope),
+            pair => pair.Key == "AssistantTurnId" && Equals(pair.Value, turn.Id));
     }
 
     [Fact]
