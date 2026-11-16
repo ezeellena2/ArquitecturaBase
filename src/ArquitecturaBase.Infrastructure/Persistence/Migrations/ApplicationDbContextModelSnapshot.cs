@@ -1400,6 +1400,33 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("AiConversations", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiKeyRingControl", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Control")
+                        .IsRequired()
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("KeyId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KeyId")
+                        .IsUnique();
+
+                    b.ToTable("AiKeyRingControls", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormActionRun", b =>
                 {
                     b.Property<Guid>("Id")

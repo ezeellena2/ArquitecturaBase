@@ -91,8 +91,23 @@ public sealed class AiSecretProtectionTests
         Assert.False(new HmacAiBusinessInformationFingerprint(new AiKeyRing(Options.Create(Ring(installation: "another-installation"))))
             .Matches(businessRequest, "one", businessFingerprint));
         Assert.NotEqual(Convert.ToBase64String(oldRing.FingerprintKey("one")), Convert.ToBase64String(oldRing.BusinessInformationFingerprintKey("one")));
-        Assert.Throws<InvalidOperationException>(() => new HmacAiBusinessInformationFingerprint(new AiKeyRing(
-            Options.Create(Ring() with { Keys = new Dictionary<string, string>() }))).Matches(businessRequest, "one", businessFingerprint));
         Assert.Null(Protector(Ring() with { Keys = new Dictionary<string, string>() }).Unprotect(AiProvider.OpenAI, encrypted));
+    }
+
+    // I17: a receipt of a key that is no longer in the ring cannot be verified; it does not match, so its caller answers a conflict.
+    [Fact]
+    public void A_receipt_of_a_key_absent_from_the_ring_does_not_match_and_does_not_throw()
+    {
+        var oldRing = new AiKeyRing(Options.Create(Ring()));
+        var withoutOne = new AiKeyRing(Options.Create(Ring("two") with { Keys = new Dictionary<string, string> { ["two"] = Ring().Keys["two"] } }));
+        var connection = new UpdateAiConnectionRequest(AiProvider.OpenAI, "model", AiCredentialChange.Replace, "fictional-key", true, 0, Guid.NewGuid());
+        Assert.False(new HmacAiChangeFingerprint(withoutOne).Matches(connection, "one", new HmacAiChangeFingerprint(oldRing).Create(connection, "one")));
+        var business = new UpdateAiBusinessInformationRequest("Shop", "Repairs", "", "", "", "", "", 0, Guid.NewGuid());
+        Assert.False(new HmacAiBusinessInformationFingerprint(withoutOne).Matches(business, "one",
+            new HmacAiBusinessInformationFingerprint(oldRing).Create(business, "one")));
+        var turn = new SubmitAiAssistantTurnRequest(Guid.NewGuid(), null, 0, 0, "What is open?", "en");
+        var owner = Guid.NewGuid();
+        Assert.False(new HmacAiAssistantRequestFingerprint(withoutOne).Matches(owner, turn, "one",
+            new HmacAiAssistantRequestFingerprint(oldRing).Create(owner, turn, "one")));
     }
 }

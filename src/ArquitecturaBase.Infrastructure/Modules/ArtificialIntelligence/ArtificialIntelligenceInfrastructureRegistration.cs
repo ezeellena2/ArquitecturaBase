@@ -28,6 +28,11 @@ public static class ArtificialIntelligenceInfrastructureRegistration
         services.AddSingleton<IAiSecretProtector, AesGcmAiSecretProtector>();
         services.AddSingleton<IAiChangeFingerprint, HmacAiChangeFingerprint>();
         services.AddSingleton<IAiBusinessInformationFingerprint, HmacAiBusinessInformationFingerprint>();
+        // I17: a copy whose ring does not match the control values in the database is not ready.
+        services.AddSingleton<IAiKeyRingControl, HmacAiKeyRingControl>();
+        services.AddScoped<IAiKeyRingControlRepository, AiKeyRingControlRepository>();
+        services.AddSingleton<AiKeyRingHealthCheck>();
+        services.AddHealthChecks().AddCheck<AiKeyRingHealthCheck>(AiKeyRingHealthCheck.Name);
         services.AddScoped<IAiBusinessInformationRepository, AiBusinessInformationRepository>();
         services.AddScoped<IAiBusinessInformationReader, AiBusinessInformationReader>();
         services.AddScoped<IAiConnectionRepository, AiConnectionRepository>();

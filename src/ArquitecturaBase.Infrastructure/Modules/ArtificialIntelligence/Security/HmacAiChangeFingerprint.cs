@@ -17,6 +17,8 @@ internal sealed class HmacAiChangeFingerprint(AiKeyRing ring) : IAiChangeFingerp
     }
     public bool Matches(UpdateAiConnectionRequest request, string keyId, string fingerprint)
     {
+        // I17: a key absent from the ring cannot verify the receipt: it does not match, and the caller answers a conflict.
+        if (!ring.Contains(keyId)) return false;
         try { return CryptographicOperations.FixedTimeEquals(Convert.FromBase64String(Create(request, keyId)), Convert.FromBase64String(fingerprint)); }
         catch (FormatException) { return false; }
     }

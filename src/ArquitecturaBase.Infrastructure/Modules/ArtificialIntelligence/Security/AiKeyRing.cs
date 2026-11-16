@@ -7,6 +7,10 @@ internal sealed class AiKeyRing(IOptions<AiSecretProtectionOptions> options)
     public string ActiveKeyId => options.Value.ActiveKeyId;
     public string InstallationId => options.Value.InstallationId;
     public byte[]? Find(string keyId) => options.Value.Keys.TryGetValue(keyId, out var value) ? Convert.FromBase64String(value) : null;
+    // I17: a key absent from the ring cannot verify what it signed; the fingerprints treat it as not matching.
+    public bool Contains(string keyId) => options.Value.Keys.ContainsKey(keyId);
+    public IReadOnlyCollection<string> KeyIds => options.Value.Keys.Keys;
+    public byte[] ControlKey(string keyId) => DeriveFingerprintKey(keyId, "ai-key-ring-control:v1");
     public byte[] FingerprintKey(string keyId)
         => DeriveFingerprintKey(keyId, "ai-change-fingerprint:v1");
     public byte[] BusinessInformationFingerprintKey(string keyId)

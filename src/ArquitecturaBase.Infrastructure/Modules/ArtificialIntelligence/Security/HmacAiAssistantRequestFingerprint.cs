@@ -54,6 +54,8 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
 
     public bool Matches(AssistantOperationRequest request, string keyId, string fingerprint)
     {
+        // I17: a key absent from the ring cannot verify the receipt: it does not match, and the caller answers a conflict.
+        if (!ring.Contains(keyId)) return false;
         try { return CryptographicOperations.FixedTimeEquals(Convert.FromBase64String(Create(request, keyId)), Convert.FromBase64String(fingerprint)); }
         catch (FormatException) { return false; }
     }
@@ -81,6 +83,7 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
 
     public bool Matches(Guid ownerUserId, SubmitAiAssistantTurnRequest request, string keyId, string fingerprint)
     {
+        if (!ring.Contains(keyId)) return false;
         try { return CryptographicOperations.FixedTimeEquals(Convert.FromBase64String(Create(ownerUserId, request, keyId)), Convert.FromBase64String(fingerprint)); }
         catch (FormatException) { return false; }
     }

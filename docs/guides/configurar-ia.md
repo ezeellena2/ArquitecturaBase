@@ -12,9 +12,16 @@ seguí [su configuración](configurar-google-places.md). No usa la clave ni el p
 1. Aplicá el bundle de migraciones antes de publicar la API, según [despliegue](despliegue.md).
    `AiConnection` agrega `AiConnections`/`AiConnectionChanges`, y `AddAiBusinessInformation`,
    `AiBusinessInformation`/`AiBusinessInformationChanges`. `AddAiAssistant` agrega conversaciones,
-   turnos, herramientas y comprobantes; no siembra credenciales ni hechos ficticios.
+   turnos, herramientas y comprobantes; no siembra credenciales ni hechos ficticios. `AddAiKeyRingControls` agrega
+   `AiKeyRingControls`, vacía: la llena la primera copia que arranca.
 2. Provisioná el anillo externo antes de arrancar. Cada réplica usa exactamente el mismo
    InstallationId, claves históricas y ActiveKeyId. Un derivado independiente usa ID y claves nuevos.
+   La readiness lo comprueba (I17): la primera copia guarda en `AiKeyRingControls` un valor de control por clave, y una
+   copia con otro InstallationId u otros bytes para el mismo keyId deja `/health` en Unhealthy (chequeo `ai-key-ring`, con
+   un log de error que nombra el keyId) y no recibe tráfico. Cargale el mismo anillo que a las demás y reiniciala: lee el
+   anillo al arrancar. Sólo si el control lo escribió una copia con el anillo equivocado (por ejemplo, la primera de una
+   base nueva), corregila, borrá esa fila (`DELETE FROM "AiKeyRingControls" WHERE "KeyId" = '<keyId>'`) y reiniciá las
+   copias; lo que aquella cifró se lee sólo con su anillo. Nunca la borres para que pase una copia con otro anillo.
 3. Ingresá con `ai.read` + `ai.manage` (Admin los recibe mediante el catálogo compuesto).
 4. Elegí OpenAI o Anthropic/Claude, ingresá un modelo de texto de tu cuenta y la clave de API.
    Probá si querés: es una llamada facturable, acotada y sin datos del negocio. Guardá para
@@ -101,12 +108,15 @@ Para rotar cifrado:
 1. Generá otra clave aleatoria con **otro keyId**; nunca cambies los bytes de un keyId existente.
 2. Agregala al anillo de todas las réplicas manteniendo activa la anterior; reinicialas y
    comprobá su arranque. Las opciones del anillo se validan/cargan al inicio, sin hot reload.
+   La primera réplica que arranca con la clave nueva escribe su control; las demás tienen que coincidir (readiness).
 3. Cambiá ActiveKeyId en todas y reinicialas. Las escrituras nuevas y HMAC nuevos usan la nueva clave;
    lecturas y reintentos de comprobantes usan el keyId original.
 4. Reemplazá la clave del proveedor en el editor si necesitás recifrar la fila con la activa.
    Un guardado `Keep` no recifra: preserva el ciphertext. No hay worker de recifrado.
 5. Conservá las claves anteriores mientras las necesiten la fila, comprobantes de 30 días
    o **cualquier backup retenido**. No basta con esperar 30 días si la fila sigue con la antigua.
+   Un reintento cuyo comprobante usó una clave que ya salió del anillo no se puede verificar: recibe el 409 de un pedido
+   distinto. El control de esa clave queda en `AiKeyRingControls` y no se compara.
 
 Los comprobantes de Información del negocio comparten este anillo, con otro propósito de HKDF.
 La rotación conserva su keyId original y la ventana de 30 días. Los hechos no están cifrados con

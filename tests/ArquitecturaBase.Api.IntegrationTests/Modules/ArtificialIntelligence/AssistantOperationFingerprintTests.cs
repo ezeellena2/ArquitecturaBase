@@ -28,6 +28,8 @@ public sealed class AssistantOperationFingerprintTests
         var reordered = request with { Text = "Fictitious request\nnext", Context = request.Context with
         { RequiredPermissions = new(["fixture.read", "fixture.send"], []), AllowedCapabilities = request.Context.AllowedCapabilities.Reverse().ToArray() } };
         Assert.True(Fingerprint("two").Matches(reordered, "one", fingerprint));
+        // I17: a receipt of a key absent from the ring cannot be verified, so it does not match.
+        Assert.False(Fingerprint().Matches(request, "retired", fingerprint));
     }
 
     [Fact]

@@ -10,14 +10,15 @@ Revision y Fence condicionan los UPDATE, y los índices únicos impiden activos 
 Los filtros propios ocultan conversaciones y turnos retirados; la recuperación por UUID sólo
 proyecta metadata y omite ciphertexts retirados antes de descifrar.
 Mantenimiento sigue entidades y borra tools/recibos sin operaciones bulk. Una conversación
-retirada conserva metadata durante la ventana de sus turnos; cuando todos vencieron y no hay
-activos, se borra físicamente con cascade de turnos/tools. Los recibos no tienen FK al contenido.
+retirada conserva metadata mientras viven sus turnos; vencidos todos y sin activos, se borra
+con cascade de turnos/tools. Los recibos no tienen FK al contenido.
 
 [Workers](Workers/AGENTS.md) coordina scopes nuevos y HTTP sin UoW. Deadline total fijo,
 cancelación cooperativa y reintento exclusivo del cierre ya obtenido; un Running abandonado
 no vuelve a generar. Límites/perfiles explícitos en AiAssistantOptions; un catálogo de modelos
 no acredita compatibilidad. Meters del módulo sin preguntas ni etiquetas de actor/conversación.
 I10: `AddTurn` guarda en `TraceParent` el contexto W3C activo de quien acepta (sin uno, nada), que continúa el coordinador.
+I17: `AiKeyRingHealthCheck` (readiness, sin `live`) compara una vez, por `IAiKeyRingControlService`, el control de cada clave con `AiKeyRingControls` y nombra sólo el keyId. Huella con clave ausente: no coincide.
 
 Los detalles del negocio usan JSONB nullable y ValueComparer para las colecciones; la migración
 aditiva conserva los siete textos, revisión y comprobantes. La huella histórica sin details no
@@ -29,7 +30,7 @@ Leer [configurar Places](../../../../docs/guides/configurar-google-places.md).
 
 Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia artificial](../../../../docs/features/inteligencia-artificial.md); operación y seguridad, [configurar IA](../../../../docs/guides/configurar-ia.md); independencia, [quitar IA](../../../../docs/guides/quitar-ia.md). No importar otros módulos. Actualizar mapa y fuentes con un cambio de responsabilidad.
 
-El listado de conversaciones proyecta sólo ciphertext y contexto mínimo del primer turno mediante LEFT JOIN Ordinal=1, pertenencia compuesta e índice único existente. Mantener conteo y página acotados, sin N+1 ni respuestas/evidencias/tools para títulos. No añadir una tabla/columna de títulos al modificar el panel.
+El listado de conversaciones proyecta sólo ciphertext y contexto mínimo del primer turno (LEFT JOIN Ordinal=1, pertenencia compuesta, índice único existente), con conteo y página acotados, sin N+1, respuestas/evidencias/tools ni tabla/columna de títulos.
 
 Las conversaciones agregan ChannelId; Inicio lista y consulta sólo home. El turno sella una vez ExecutionProfileJson acotado y no sustituye versiones aceptadas por configuración actual. Los perfiles modelan ID y versión exactos. El lector interno adjunta los resultados protegidos de tools por lote para un turno, y el listado de turnos de Inicio los adjunta por página para mostrar una propuesta. Proposal conserva el ordinal seleccionado y referencias a lecturas protegidas existentes; no hay tabla ni copia de observaciones.
 
@@ -37,13 +38,13 @@ I4: un valor nuevo del sello (propósito, archivo, modo, instrucciones, capacida
 
 El adaptador existente de proveedores despacha NormalizeAudio al transporte STT después de la reserva durable. Lee el objeto privado con límite exacto y verifica tamaño/hash/vencimiento antes del único multipart a OpenAI; usa la misma clave de conexión. El cliente STT no agrega cola, semáforo, worker, retries, redirects ni credencial propia. AudioModelProfiles declara formatos/bytes/modelo/ID/versión explícitos y separados de ModelProfiles; sin calificación explícita no hay normalización. AudioSeconds nullable se proyecta como metadata de consumo aunque se purgue el contenido.
 
-El transporte admite hasta dieciséis definiciones en total entre las capacidades aplicables al contexto y sus terminales, independientemente de las invocaciones. Conserva el límite de respuesta ToolCalls+1, seis invocaciones del motor y cinco pasos por turno; agrandar un catálogo no cambia bytes, cuotas ni esos presupuestos.
+El transporte admite hasta dieciséis definiciones entre las capacidades aplicables al contexto y sus terminales, aparte de las invocaciones, y conserva ToolCalls+1, seis invocaciones del motor y cinco pasos por turno: agrandar un catálogo no cambia bytes, cuotas ni esos presupuestos.
 
 Las aceptaciones del actor se cuentan por canal y propósito desde el recibo, no mediante JOIN al contenido borrable. Del turno que nombra sólo se mira si terminó `Expired` (venció sin reservar un paso): ese recibo devuelve la cuota y sigue deduplicando (I1); un turno ya borrado no la devuelve. La cuota de instalación y las capacidades siguen globales. Un legado desconocido cuenta en cada grupo compatible con sus dimensiones conocidas; backfill sólo desde conversación/turno/perfil válidos, sin default Home ni texto.
 
 ReadDocument tiene su cliente (`OpenAiDocumentReadingClient`), que sólo llama el adaptador existente después de leer la copia privada igual que un audio: un POST a `/v1/responses` con el PDF como `input_file` o la foto como `input_image` en detalle alto, salida con esquema estricto y `store:false`, sin redirects, loggers ni reintentos, con su tope de cuerpo (el archivo en base64, sin escapar, más 64 KiB) y `DocumentTimeoutSeconds`. El cuerpo se escribe en una pasada con `Utf8JsonWriter` sobre un arreglo del pool que vuelve limpio, sin pasar el archivo por cadenas, y la lectura vuelve como la escribió el modelo: el idioma lo normaliza el motor. `DocumentModelProfiles` va aparte y vacío por defecto. `IsDocument` parte el cupo del recibo y su CHECK impide uno de audio y de documento a la vez.
 
-NormalizeAudio convierte las excepciones de almacenamiento no canceladas (incluido AggregateException al agotar reintentos, apertura, lectura y cierre del stream) a ContentUnavailable sólo dentro del tramo previo al cliente STT. No transforma en incierto un archivo que no llegó al proveedor; cancelación y errores del POST conservan su clasificación propia.
+NormalizeAudio convierte las excepciones de almacenamiento no canceladas (también AggregateException por reintentos y las de apertura, lectura y cierre del stream) a ContentUnavailable sólo antes del cliente STT: un archivo que no llegó al proveedor no queda incierto; cancelación y errores del POST conservan su clasificación.
 
 Retención física (I3): ninguna conversación, de Inicio o de un canal, necesita retirada cuando vencieron contenido y recibos y no hay turnos activos; una de Inicio retirada no espera los recibos. La consulta usa ConversationId de recibos independientes, sin FK/cascade ni inferencia desde el vencimiento del turno. Las conversaciones de una cuenta borrada se listan por dueño para retirarlas aun sin contenido; como `IgnoreQueryFilters` vale para toda la consulta, el estado activo va explícito.
 

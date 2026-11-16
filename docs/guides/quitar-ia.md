@@ -2,7 +2,7 @@
 
 Para un derivado que no usa IA. No apagar opciones para simular una retirada: quitar
 código/configuración/rutas y generar la migración del modelo nuevo. Conservá backups
-y el anillo externo para restaurar datos históricos; esta operación elimina las ocho tablas del módulo.
+y el anillo externo para restaurar datos históricos; esta operación elimina las nueve tablas del módulo.
 
 ## Antes de quitarlo
 
@@ -89,13 +89,14 @@ dotnet test
 Para diseño fuera de Aspire, declarás conexiones ficticias de `appdb`/`cache` como en la
 guía de migraciones; generar no conecta a esas direcciones. Revisá que Up borre sólo
 AiConnections/AiConnectionChanges/AiBusinessInformation/AiBusinessInformationChanges,
-AiConversations/AiAssistantTurns/AiAssistantToolExecutions/AiAssistantRequestReceipts e índices,
-y Down los reconstruya. Las únicas claves foráneas del módulo son internas (herramientas → turno y
+AiConversations/AiAssistantTurns/AiAssistantToolExecutions/AiAssistantRequestReceipts,
+AiKeyRingControls (los valores de control del anillo, I17) e índices, y Down los reconstruya. Sin el módulo tampoco queda
+su chequeo `ai-key-ring` de la readiness, que se va con su registro. Las únicas claves foráneas del módulo son internas (herramientas → turno y
 turno → conversación, en cascada): ninguna tabla del núcleo ni de otro módulo apunta a las suyas.
 Lo que sumaron migraciones posteriores se va con su tabla: las columnas de la planilla de
 `AiAssistantTurns`, con su índice filtrado, su `TraceParent` (I10), e `IsDocument` de los recibos, con su CHECK y su índice;
-`AddAssistantTurnAttachment`, `AddAssistantTurnAttachmentHashAndSize`, `AddAssistantDocumentReading` y `AddAssistantTurnTrace` se
-quedan, como las demás migraciones. Aplicá con el bundle
+`AddAssistantTurnAttachment`, `AddAssistantTurnAttachmentHashAndSize`, `AddAssistantDocumentReading`, `AddAssistantTurnTrace` y
+`AddAiKeyRingControls` se quedan, como las demás migraciones. Aplicá con el bundle
 antes del nuevo código, después de detener o retirar tráfico de rutas IA de la versión vieja.
 El drop es destructivo: respaldar precede a publicar. Las copias privadas de Inicio (las planillas y los Word en
 `ai/assistant/attachments/…`, los audios en `ai/assistant/audio/…` y las fotos y los PDF en
