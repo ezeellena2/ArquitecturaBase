@@ -18,6 +18,16 @@ public sealed class BusinessFormPublicationOperation : Entity, IAuditable
     public byte[] ProtectedManifest { get; private set; } = [];
     public FormPublicationState State { get; private set; }
     public string Stage { get; private set; } = "Accepted";
+    /// <summary>F18: a W3C traceparent, the only form that fits.</summary>
+    public const int TraceParentLength = 55;
+    /// <summary>F18: the trace context of the request that accepted the publication, which its worker continues; none before F18 or without a trace.</summary>
+    public string? TraceParent { get; private set; }
+    /// <summary>F18: kept once, when the operation is first saved.</summary>
+    public void RecordTrace(string traceParent)
+    {
+        if (traceParent is not { Length: TraceParentLength }) throw new ArgumentException("A trace context is a W3C traceparent.", nameof(traceParent));
+        TraceParent ??= traceParent;
+    }
     public long Fence { get; private set; }
     public DateTime? LeaseExpiresAtUtc { get; private set; }
     public DateTime? NextCheckAtUtc { get; private set; }

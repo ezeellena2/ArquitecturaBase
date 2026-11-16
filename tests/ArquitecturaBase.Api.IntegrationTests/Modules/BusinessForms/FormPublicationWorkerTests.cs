@@ -60,6 +60,52 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
         Assert.Equal(receipt.GetProperty("versionId").GetGuid(), definition.ActiveVersionId);
     }
 
+    // F18: the request that accepts a publication is the trace its worker continues.
+    [Fact]
+    public async Task Publication_worker_continues_the_trace_of_the_request_that_accepted_the_operation()
+    {
+        var stopped = new System.Collections.Concurrent.ConcurrentBag<System.Diagnostics.Activity>();
+        using var listener = new System.Diagnostics.ActivityListener
+        {
+            ShouldListenTo = source => source.Name is ArquitecturaBase.Infrastructure.Modules.BusinessForms.FormsTelemetry.SourceName or "Microsoft.AspNetCore",
+            Sample = (ref System.Diagnostics.ActivityCreationOptions<System.Diagnostics.ActivityContext> _) => System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = stopped.Add,
+        };
+        System.Diagnostics.ActivitySource.AddActivityListener(listener);
+        using var actor = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        var saved = await CreateAsync(actor, Payload("Traced publication"));
+        var definitionId = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var channelDouble = new RetryingStructuredFormChannel { FailuresBeforeAccept = 0 };
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IStructuredFormChannel>();
+            services.AddSingleton<IStructuredFormChannel>(channelDouble);
+        }));
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
+        var attempt = await PublicationAttemptAsync(client, definitionId, saved);
+        var trace = System.Diagnostics.ActivityTraceId.CreateRandom();
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/api/forms/definitions/{definitionId}/publications", UriKind.Relative))
+        {
+            Content = JsonContent.Create(attempt),
+        };
+        request.Headers.Add("traceparent", $"00-{trace.ToHexString()}-{System.Diagnostics.ActivitySpanId.CreateRandom().ToHexString()}-01");
+        using var accepted = await client.SendAsync(request, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        var operationId = (await accepted.ReadJsonAsync()).GetProperty("operationId").GetGuid();
+        var stored = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPublicationOperation>().Where(value => value.Id == operationId)
+            .Select(value => value.TraceParent).SingleAsync(Ct));
+
+        await host.Services.GetRequiredService<FormPublicationBackgroundService>().ProcessNextAsync(operationId, Ct);
+
+        var dispatch = Assert.Single(stopped, activity => activity.OperationName == "forms.publication");
+        Assert.Equal(operationId.ToString(), dispatch.GetTagItem("forms.publication.id"));
+        // The server's span of the request continues the caller's trace; the worker continues that one.
+        Assert.StartsWith($"00-{trace.ToHexString()}-", stored, StringComparison.Ordinal);
+        Assert.Equal(trace, dispatch.TraceId);
+        Assert.Equal(stored!.Split('-')[2], dispatch.ParentSpanId.ToHexString());
+    }
+
     [Fact]
     public async Task Temporary_channel_acceptance_failure_stays_recoverable_and_retries_with_the_same_operation()
     {

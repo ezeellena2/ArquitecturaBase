@@ -5,6 +5,7 @@ using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Reposito
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Security;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Seed;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,9 @@ public static class BusinessFormsInfrastructureRegistration
 {
     public static IServiceCollection AddBusinessFormsInfrastructure(this IServiceCollection services)
     {
+        // F18: its traces, with the context each action run and publication operation keeps.
+        services.AddOpenTelemetry().WithTracing(tracing => tracing.AddSource(FormsTelemetry.SourceName));
+        services.AddScoped<ISaveChangesInterceptor, FormsTraceInterceptor>();
         services.AddOptions<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationWorkerOptions>().BindConfiguration("BusinessForms:PublicationWorker");
         services.AddSingleton<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationBackgroundService>();
         services.AddHostedService(provider => provider.GetRequiredService<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationBackgroundService>());

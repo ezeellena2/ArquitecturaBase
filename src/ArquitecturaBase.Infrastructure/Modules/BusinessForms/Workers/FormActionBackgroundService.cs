@@ -25,6 +25,8 @@ internal sealed partial class FormActionBackgroundService(IServiceScopeFactory s
                     if(result.IsSuccess&&result.Value is null&&reservation.ServiceProvider.GetService<IFormActionStallService>() is {} stalls)await stalls.NotifyAsync(candidate,cancellationToken);
                     if(result.IsFailure||result.Value is null)continue;work=result.Value;
                 }
+                // F18: the run's effect and its result happen inside the trace where the run was created.
+                using var activity=FormsTelemetry.StartAction(work.RunId,work.Kind,work.TraceParent);
                 FormActionOutcomeResponse outcome;
                 await using(var effect=scopes.CreateAsyncScope())outcome=await effect.ServiceProvider.GetRequiredService<IFormActionEffectService>().ExecuteAsync(work,cancellationToken);
                 await using var completion=scopes.CreateAsyncScope();

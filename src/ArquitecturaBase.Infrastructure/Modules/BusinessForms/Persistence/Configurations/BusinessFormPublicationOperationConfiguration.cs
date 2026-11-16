@@ -12,6 +12,7 @@ internal sealed class BusinessFormPublicationOperationConfiguration : IEntityTyp
         builder.Ignore(x => x.IsOpen); builder.Property(x => x.State).HasConversion<string>().HasMaxLength(24);
         builder.Property(x => x.Stage).HasMaxLength(32); builder.Property(x => x.Fence).IsConcurrencyToken();
         builder.Property(x => x.ProtectedManifest).HasColumnType("bytea");
+        builder.Property(x => x.TraceParent).HasMaxLength(BusinessFormPublicationOperation.TraceParentLength);
         builder.HasIndex(x => new { x.OperatorUserId, x.RequestId }).IsUnique();
         builder.HasIndex(x => x.VersionId).IsUnique();
         builder.HasIndex(x => x.DefinitionId).IsUnique().HasFilter("\"State\" NOT IN ('Published', 'Failed')");

@@ -76,6 +76,8 @@ public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind
     Guid? RetryRecipientUserId=null)
 {
     /// <summary>An issuance is queued only while its response stands: not voided nor replaced by a correction.</summary>
+    /// <summary>F18: the trace context the run kept, which the worker continues.</summary>
+    public string? TraceParent { get; init; }
     public bool RecordStands { get; init; } = true;
     /// <summary>A response loaded in the app was confirmed before sending («¿La emito?»); one from a channel waits for it.</summary>
     public bool RecordEnteredInApp { get; init; } = true;

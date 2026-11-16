@@ -70,7 +70,7 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
         var channelRequests = CreateChannelRequests(operation, manifest, schema,
             documentReadingJson is null ? null : FormDraftPolicy.Read<FormDocumentReading>(documentReadingJson));
         return new FormPublicationWorkResponse(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId, reserved.Value,
-            manifest, schema, channelRequests, reconciliationOnly);
+            manifest, schema, channelRequests, reconciliationOnly) { TraceParent = operation.TraceParent };
     }
     private static FormPublicationChannelRequest[] CreateChannelRequests(BusinessFormPublicationOperation operation,
         FormPublicationManifest manifest, FormVersionSchema schema, FormDocumentReading? documentReading)

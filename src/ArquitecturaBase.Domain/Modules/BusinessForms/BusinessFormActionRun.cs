@@ -40,6 +40,16 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     public const int MaxAutoConsults = 8;
     /// <summary>F2: when whoever loaded the response was told that this action stopped its rule (or found without a channel to tell them); once per run.</summary>
     public DateTime? StallNoticedAtUtc { get; private set; }
+    /// <summary>F18: a W3C traceparent, the only form that fits.</summary>
+    public const int TraceParentLength = 55;
+    /// <summary>F18: the trace context where the run was created (the capture's request or the round of a channel), which its worker continues; none before F18 or without a trace.</summary>
+    public string? TraceParent { get; private set; }
+    /// <summary>F18: kept once, when the run is first saved.</summary>
+    public void RecordTrace(string traceParent)
+    {
+        if(traceParent is not { Length: TraceParentLength })throw new ArgumentException("A trace context is a W3C traceparent.",nameof(traceParent));
+        TraceParent??=traceParent;
+    }
     public long Fence { get; private set; }
     public DateTime? LeaseExpiresAtUtc { get; private set; }
     public DateTime? NextCheckAtUtc { get; private set; }

@@ -60,6 +60,8 @@ public sealed record FormPublicationWorkResponse(Guid OperationId, Guid Definiti
     FormPublicationManifest Manifest, FormVersionSchema Schema, IReadOnlyList<FormPublicationChannelRequest> ChannelRequests,
     bool ReconciliationOnly = false)
 {
+    /// <summary>F18: the trace context the operation kept, which the worker continues.</summary>
+    public string? TraceParent { get; init; }
     public override string ToString() => "FormPublicationWorkResponse { Content = [REDACTED] }";
 }
 

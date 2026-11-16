@@ -53,7 +53,7 @@ En orden de peso; cada tarea lo repite.
 
 1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro y el contador para quien
-   administra reglas (el aviso a quien cargó, que esperaba ARCA H11, quedó hecho el 2026-11-16); de F18, la fuente de trazas.
+   administra reglas (el aviso a quien cargó, que esperaba ARCA H11, quedó hecho el 2026-11-16).
 3. **El resto de la etapa 6:** nada.
 4. **La etapa 7:** F29, F30 y F25.
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
@@ -134,7 +134,8 @@ En orden de peso; cada tarea lo repite.
 13. **F18. Se puede seguir una respuesta de la captura al aviso.** Los logs de los workers llevan el id del run, de la respuesta o
     de la operación, y las dos purgas registran sólo el tipo de la excepción (O8). Una fuente de trazas del módulo guarda el
     contexto al crear el run y la operación y lo continúa en el worker, como WhatsApp desde H19. Chico los ids; mediano la traza.
-    Hecha en parte el 2026-11-15 en `032a682d` (ids en los logs de los workers y purgas con sólo el tipo de la excepción, O8); falta la fuente de trazas del módulo.
+    Hecha en parte el 2026-11-15 en `032a682d` (ids en los logs de los workers y purgas con sólo el tipo de la excepción, O8); la fuente de trazas del módulo (`ArquitecturaBase.BusinessForms`, con `TraceParent` en los runs y en las operaciones de publicación) quedó hecha el 2026-11-16.
+    Hecha el 2026-11-16.
 
 ### Etapa 4: publicación
 

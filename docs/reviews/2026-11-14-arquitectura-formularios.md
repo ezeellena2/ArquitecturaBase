@@ -611,7 +611,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** los ids del run, la respuesta o la operación en cada log de los workers, que es chico; y una fuente de trazas del
   módulo que guarde el contexto al crear el run y la operación y lo continúe en el worker, como WhatsApp desde
   [H19](2026-11-12-arquitectura-whatsapp.md), que es mediano.
-- **Arreglado el 2026-11-15** en `032a682d` (los ids de los logs y O8; falta la fuente de trazas).
+- **Arreglado el 2026-11-15** en `032a682d` (los ids de los logs y O8).
+- **Arreglado el 2026-11-16** la fuente de trazas del módulo: el run de una acción y la operación de publicación guardan el contexto al crearse y su worker lo continúa.
 
 #### F19. Quién pidió reintentar o consultar una acción se pierde a los dos segundos
 

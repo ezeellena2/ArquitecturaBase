@@ -30,6 +30,8 @@ internal sealed partial class FormPublicationBackgroundService(IServiceScopeFact
             break;
         }
         if (work is null) return;
+        // F18: the dispatch and its result happen inside the trace of the request that accepted the publication.
+        using var activity = FormsTelemetry.StartPublication(work.OperationId, work.TraceParent);
         try
         {
             IReadOnlyList<FormPublicationChannelProgress> progress;
