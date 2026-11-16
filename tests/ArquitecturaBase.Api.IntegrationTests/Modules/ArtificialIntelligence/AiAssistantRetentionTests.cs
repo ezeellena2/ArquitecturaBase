@@ -30,7 +30,7 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
             db.AddRange(conversation, turn, receipt);
             return Task.CompletedTask;
         });
-        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().PurgeBatchAsync(Ct));
+        await PurgeAllAsync();
         await factory.ExecuteDbContextAsync(async db =>
         {
             Assert.False(await db.Set<AiConversation>().AnyAsync(row => row.Id == conversation.Id, Ct));
@@ -59,7 +59,7 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
             services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(conversation, turn, receipt);
             return Task.CompletedTask;
         });
-        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().PurgeBatchAsync(Ct));
+        await PurgeAllAsync();
         await factory.ExecuteDbContextAsync(async db =>
         {
             Assert.False(await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == conversation.Id, Ct));
