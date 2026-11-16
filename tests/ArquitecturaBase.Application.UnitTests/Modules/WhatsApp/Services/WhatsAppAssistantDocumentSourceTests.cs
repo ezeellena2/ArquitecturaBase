@@ -160,4 +160,18 @@ public sealed class WhatsAppAssistantDocumentSourceTests
         var row = Read(Guid.NewGuid()) with { ReadingJson = "{\"readability\":3}" };
         Assert.Throws<InvalidOperationException>(() => WhatsAppAssistantSourcePolicy.Attachment(row));
     }
+
+    // N27: a reason a newer version writes reads as Other; a readability has no neutral value, so the turn is left for the copy that
+    // knows it instead of reaching the engine without it.
+    [Fact]
+    public void A_readability_a_newer_version_writes_leaves_the_turn_for_the_copy_that_knows_it_and_a_reason_reads_as_other()
+    {
+        var newerReadability = Read(Guid.NewGuid()) with
+        { ReadingJson = "{\"readability\":\"handwritten\",\"language\":\"es\",\"text\":\"Monto\",\"truncated\":false}" };
+        Assert.Throws<InvalidOperationException>(() => WhatsAppAssistantSourcePolicy.Attachment(newerReadability));
+
+        var newerReason = Read(Guid.NewGuid()) with
+        { ReadingJson = "{\"readability\":\"partial\",\"problem\":\"glare\",\"language\":\"es\",\"text\":\"Monto\",\"truncated\":false}" };
+        Assert.Equal(StructuredDocumentProblem.Other, WhatsAppAssistantSourcePolicy.Attachment(newerReason).Document!.Reading!.Problem);
+    }
 }

@@ -231,7 +231,8 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
     {
         var profile = AiAssistantChannelPolicy.Read(row.ExecutionProfileJson);
         if (profile.IsFailure || profile.Value.Purpose != AiAssistantPurpose.ReadDocument) return AiAssistantErrors.ContentUnavailable;
-        return AiAssistantDocumentPolicy.ReadStored(json) is { } reading ? reading : AiAssistantErrors.ContentUnavailable;
+        // N27: one a newer version wrote is left for the copy that knows it.
+        return AiAssistantDocumentPolicy.ReadStored(json) is { } reading ? reading : AiAssistantDocumentPolicy.Unread(json);
     }
 
     // A channel stores only the selected ordinal; Home also keeps the answer that explains the proposal.

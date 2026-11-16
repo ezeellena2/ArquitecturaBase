@@ -314,7 +314,9 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var answer = protector.Unprotect(userId, reading.ConversationId, reading.Id, "answer", reading.PayloadRevision, reading.ProtectedAnswer);
         return descriptor is not null && answer is not null && AiAssistantDocumentPolicy.ReadStored(answer) is { } read
             && AiAssistantHomeDocumentPolicy.Attachment(documentRequestId, descriptor, read, nowUtc.AddDays(limits.RetentionDays)) is { } attachment
-            ? attachment : AiAssistantErrors.ContentUnavailable;
+            ? attachment
+            // N27: a reading a newer version wrote is left for the copy that knows it.
+            : descriptor is not null && answer is not null ? AiAssistantDocumentPolicy.Unread(answer) : AiAssistantErrors.ContentUnavailable;
     }
 
     private AiAssistantTurnAcceptedResponse Accepted(AiAssistantTurn turn, long conversationRevision, DateTime nowUtc) =>

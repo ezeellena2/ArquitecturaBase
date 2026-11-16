@@ -117,7 +117,8 @@ Además:
   Lo que la cola de acceso no descifra o no lee (también un evento de acceso que no conoce) vuelve a la cola con una espera,
   hasta diez veces, como el correo, y cada
   copia reserva sólo los tipos que conoce ([colas](../architecture/backend.md#colas-transaccionales), N27); un motivo de lectura
-  de un documento que no conoce se lee como «Otro». Todavía no: un formulario preparado con otro perfil de Flows queda fallido
+  de un documento que no conoce se lee como «Otro», y una legibilidad que no conoce, que no tiene un valor así, deja la lectura para
+  la copia que la conoce (N27). Todavía no: un formulario preparado con otro perfil de Flows queda fallido
   si lo publica una copia que no lo conoce; una respuesta cuyo envío (el payload sellado o el contenido del asistente) escribió
   otra versión queda sin reconocer; un Flow que preparó otra versión falla al despacharse, y un valor nuevo de otro enum
   guardado como texto (el origen o el estado de una salida, el modo del contacto, el origen, el propósito o el estado de un

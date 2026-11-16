@@ -18,6 +18,7 @@ internal static class AiAssistantDocumentPolicy
     public static IReadOnlyList<string> MediaTypes { get; } = ["application/pdf", "image/jpeg", "image/png"];
 
     private const string StoredKind = "readDocument";
+    private static readonly string[] StoredMembers = ["kind", "language", "problem", "readability", "text", "truncated"];
     private static readonly JsonSerializerOptions Stored = new(JsonSerializerDefaults.Web)
     {
         // N27 and H25: a reason a newer version writes reads as Other.
@@ -79,7 +80,7 @@ internal static class AiAssistantDocumentPolicy
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object || !root.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal)
-                    .SequenceEqual(["kind", "language", "problem", "readability", "text", "truncated"])) return null;
+                    .SequenceEqual(StoredMembers)) return null;
             var stored = root.Deserialize<StoredReading>(Stored);
             if (stored is not { Kind: StoredKind, Text: not null }) return null;
             var reading = new StructuredDocumentReading(stored.Readability, stored.Problem, stored.Language, stored.Text, stored.Truncated);
@@ -87,6 +88,30 @@ internal static class AiAssistantDocumentPolicy
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException) { return null; }
     }
+
+    /// <summary>
+    /// N27: a stored reading whose readability is a name this version does not know was written by a newer one. The readability has
+    /// no neutral value to read it as (the reason has <see cref="StructuredDocumentProblem.Other"/>), so it is left for the copy that
+    /// knows it: UnknownVersion, which may pass, never unavailable. Anything else that does not read is not a reading.
+    /// </summary>
+    public static bool WrittenByNewerVersion(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            return root.ValueKind == JsonValueKind.Object
+                && root.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal).SequenceEqual(StoredMembers)
+                && root.GetProperty("kind").ValueKind == JsonValueKind.String && root.GetProperty("kind").ValueEquals(StoredKind)
+                && root.GetProperty("readability") is { ValueKind: JsonValueKind.String } readability
+                && readability.GetString() is { Length: > 0 } name && char.IsAsciiLetter(name[0]) && name.All(char.IsAsciiLetterOrDigit)
+                && !Enum.GetNames<StructuredDocumentReadability>().Contains(name, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (JsonException) { return false; }
+    }
+
+    /// <summary>Why a stored reading does not read back: written by a newer version (UnknownVersion) or not a reading (ContentUnavailable).</summary>
+    public static Error Unread(string json) => WrittenByNewerVersion(json) ? AiAssistantErrors.UnknownVersion : AiAssistantErrors.ContentUnavailable;
 
     private static string? PrimaryLanguage(string? language)
     {

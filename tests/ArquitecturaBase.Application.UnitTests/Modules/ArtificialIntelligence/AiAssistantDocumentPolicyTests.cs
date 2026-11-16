@@ -154,6 +154,25 @@ public sealed class AiAssistantDocumentPolicyTests
         Assert.Null(AiAssistantDocumentPolicy.ReadStored(json));
     }
 
+    // N27: a readability a newer version writes has no neutral value to read it as; the reading is left for the copy that knows it
+    // (UnknownVersion), never taken as unavailable. Anything else that does not read is not a reading.
+    [Theory]
+    [InlineData("{\"kind\":\"readDocument\",\"readability\":\"legible\",\"problem\":null,\"language\":\"es\",\"text\":\"Monto\",\"truncated\":false}", true)]
+    [InlineData("{\"kind\":\"readDocument\",\"readability\":\"handwritten\",\"problem\":\"other\",\"language\":null,\"text\":\"Monto\",\"truncated\":true}", true)]
+    [InlineData("{\"kind\":\"readDocument\",\"readability\":\"readable\",\"problem\":null,\"language\":\"es\",\"text\":\"Monto\",\"truncated\":false}", false)]
+    [InlineData("{\"kind\":\"readDocument\",\"readability\":0,\"problem\":null,\"language\":\"es\",\"text\":\"Monto\",\"truncated\":false}", false)]
+    [InlineData("{\"kind\":\"readDocument\",\"readability\":\"7\",\"problem\":null,\"language\":\"es\",\"text\":\"Monto\",\"truncated\":false}", false)]
+    [InlineData("{\"kind\":\"normalizedAudio\",\"readability\":\"legible\",\"problem\":null,\"language\":\"es\",\"text\":\"Monto\",\"truncated\":false}", false)]
+    [InlineData("{\"kind\":\"readDocument\",\"readability\":\"legible\",\"problem\":null,\"language\":\"es\",\"text\":\"Monto\"}", false)]
+    [InlineData("[]", false)]
+    [InlineData("{", false)]
+    public void A_stored_reading_with_a_readability_this_version_does_not_know_was_written_by_a_newer_one(string json, bool newer)
+    {
+        Assert.Equal(newer, AiAssistantDocumentPolicy.WrittenByNewerVersion(json));
+        Assert.Equal(newer ? AiAssistantErrors.UnknownVersion : AiAssistantErrors.ContentUnavailable,
+            AiAssistantDocumentPolicy.Unread(json));
+    }
+
     [Theory]
     [InlineData("", null)]
     [InlineData("   ", null)]
