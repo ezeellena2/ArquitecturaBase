@@ -7,6 +7,7 @@ using ArquitecturaBase.Api.Modules.WhatsApp;            // módulo WhatsApp
 using ArquitecturaBase.Api.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Api.Modules.Arca;                 // módulo ARCA
 using ArquitecturaBase.Api.OpenApi;
+using ArquitecturaBase.Api.RateLimiting;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Modules.WhatsApp;    // módulo WhatsApp
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence;
@@ -79,6 +80,10 @@ app.UseRequestLocalization();
 
 // Las respuestas de error sin cuerpo (ruta inexistente, 405, 401/403 de la autorización) salen como ProblemDetails.
 app.UseStatusCodePages();
+
+// Los límites de todos los pedidos (N6): una ventana por IP para lo anónimo sin política propia y un tope de pedidos a la
+// vez. Antes de la autenticación, que ya consulta la base, y después de UseStatusCodePages, para que el 429 sea el común.
+app.UseGlobalRequestLimits();
 
 // Explícitos, y no los que WebApplication agrega solo al principio del pipeline: así quedan dentro de la
 // localización y de UseStatusCodePages, y el 401/403 también sale como ProblemDetails traducido.

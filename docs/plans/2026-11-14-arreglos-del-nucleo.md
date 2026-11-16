@@ -174,11 +174,13 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     invalidación. Cambian lo que los cita: `azure-setup.md:197-199`, `identidad.md:37`, `permiso-nuevo.md:26` y
     `backend.md:125`. Test: Redis caído con la app abierta. Mediano.
 16. **N6. `/health` no agota la base.**
-    - El chequeo de la base usa un `SELECT 1` del pool, y el resultado de `/health` se guarda uno o dos segundos.
+    - El chequeo de la base usa un `SELECT 1` del pool: en Npgsql 10, el `CanConnectAsync` del chequeo de EF ya lo hace, y un
+      test lo fija. El resultado de `/health` se guarda dos segundos, y una ráfaga comparte el cálculo.
     - `Maximum Pool Size` por réplica, sumados los workers, queda por debajo del límite del servidor (unas 50 conexiones en el
       B1ms) y se escribe en [Azure](../deploy/azure-setup.md).
-    - Se suman un limitador global y uno de concurrencia, y un tope de cuerpo global.
-    - Si `/health` pasa a ser interna, el smoke del despliegue mira el `healthState` que ya consulta.
+    - Se suman un limitador global y uno de concurrencia, y un tope de cuerpo global, antes de la autenticación y con sus
+      valores en `RequestLimits` ([despliegue](../guides/despliegue.md)).
+    - `/health` sigue pública: el smoke del despliegue la consulta y no cambia.
 
     Chico.
 17. **N17. El arranque frena la configuración de producción incompleta.** Valida `ForwardedHeaders` fuera de Development y

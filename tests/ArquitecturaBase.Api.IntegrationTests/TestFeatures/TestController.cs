@@ -17,6 +17,20 @@ public sealed class TestController : ControllerBase
     [HttpPost("dates")]
     public IActionResult EchoDate([FromBody] DateEchoRequest request) => Ok(request);
 
+    /// <summary>El tope de la subida de prueba: más que el global de Kestrel, como las rutas que suben archivos.</summary>
+    public const long UploadLimitBytes = 4 * 1024 * 1024;
+
+    // Una subida con su propio tope (N6): [RequestSizeLimit] manda sobre el tope global de Kestrel.
+    [HttpPost("upload")]
+    [RequestSizeLimit(UploadLimitBytes)]
+    public async Task<IActionResult> Upload(CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        await Request.Body.CopyToAsync(buffer, cancellationToken);
+
+        return Ok(new { buffer.Length });
+    }
+
     // Errores que arma el framework, sin pasar por Result: 401/403 de la autorización y respuestas vacías
     // con cualquier código (simulan, por ejemplo, el 429 del rate limiter).
     [Authorize]

@@ -17,3 +17,5 @@
 - [Pruebas OpenAPI](../../tests/ArquitecturaBase.Api.IntegrationTests/OpenApiTests.cs).
 
 El rechazo común del rate limiter siempre devuelve Retry-After y retryAfter de al menos un segundo, incluso si el límite de concurrencia no aporta metadata de espera. Mantener el mismo cuerpo ProblemDetails para todas las políticas.
+
+Los límites de todos los pedidos (`RateLimiting/GlobalRequestLimits.cs`, N6: la ventana por IP de lo anónimo sin política propia, los pedidos a la vez y el tope del cuerpo en Kestrel) van antes de `UseAuthentication`; sus valores y el porqué están en la [guía de despliegue](../../docs/guides/despliegue.md#límites-de-pedidos). Una ruta que sube archivos declara su tope con `[RequestSizeLimit]` y `[RequestFormLimits]`.

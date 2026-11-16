@@ -48,6 +48,7 @@ public static class DependencyInjection
 
         services.AddRequestLocalizationDefaults();
         services.AddRateLimitingPolicies();
+        services.AddGlobalRequestLimits();
         services.AddOpenApiDocumentation();
 
         // Los controllers leen y escriben con las opciones de MVC; los ProblemDetails que se arman fuera de un controller

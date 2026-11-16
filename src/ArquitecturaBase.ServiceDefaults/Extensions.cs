@@ -14,8 +14,8 @@ namespace Microsoft.Extensions.Hosting;
 // Basado en la plantilla aspire-servicedefaults 13.5.4: https://aka.ms/aspire/service-defaults
 public static class Extensions
 {
-    private const string HealthEndpointPath = "/health";
-    private const string AlivenessEndpointPath = "/alive";
+    public const string HealthEndpointPath = "/health";
+    public const string AlivenessEndpointPath = "/alive";
     private static readonly string[] LiveTags = ["live"];
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
@@ -83,6 +83,14 @@ public static class Extensions
     {
         builder.Services.AddHealthChecks()
             .AddCheck("self", () => HealthCheckResult.Healthy(), LiveTags);
+
+        // La readiness se guarda unos segundos (N6): se envuelve el servicio que registró AddHealthChecks. Los AddHealthChecks
+        // que vienen después (la base, Redis, los módulos) suman checks y no lo reemplazan, porque lo registran con TryAdd.
+        var standard = builder.Services.Single(service => service.ServiceType == typeof(HealthCheckService));
+        builder.Services.Remove(standard);
+        builder.Services.AddSingleton<HealthCheckService>(services => new CachedHealthCheckService(
+            (HealthCheckService)ActivatorUtilities.CreateInstance(services, standard.ImplementationType!),
+            services.GetService<TimeProvider>() ?? TimeProvider.System));
 
         return builder;
     }

@@ -16,6 +16,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Caching;
 [Collection(ApiTestGroup.Name)]
 public sealed class RedisFailureTests(ApiFactory factory)
 {
+    private static readonly TimeSpan CachedHealthWindow = TimeSpan.FromSeconds(2);
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
@@ -52,6 +54,8 @@ public sealed class RedisFailureTests(ApiFactory factory)
         recovery.CancelAfter(TimeSpan.FromSeconds(30));
         while (true)
         {
+            // /health guarda su resultado unos segundos (N6), medidos con el reloj del arnés.
+            factory.Clock.Advance(CachedHealthWindow);
             using var health = await client.GetAsync("/health", recovery.Token);
             if (health.IsSuccessStatusCode)
             {

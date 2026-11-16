@@ -108,7 +108,7 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 
 | Clave | Qué pide | Dónde lo exige el código | Si falta |
 |---|---|---|---|
-| `ConnectionStrings:appdb` | la cadena de Postgres | `ArquitecturaBase.Infrastructure/Persistence/PersistenceRegistration.cs` (el nombre, en `DependencyInjection.cs`) | no arranca: lanza al crear el contexto, en el chequeo de migraciones |
+| `ConnectionStrings:appdb` | la cadena de Postgres, con `Maximum Pool Size` por debajo de lo que admite el servidor ([Azure](../deploy/azure-setup.md#6-configuración-de-la-aplicación)) | `ArquitecturaBase.Infrastructure/Persistence/PersistenceRegistration.cs` (el nombre, en `DependencyInjection.cs`) | no arranca: lanza al crear el contexto, en el chequeo de migraciones |
 | `ConnectionStrings:cache` | conexión de Redis, como secreto; TLS y acceso privado en producción | `ArquitecturaBase.Infrastructure/Caching/CachingRegistration.cs` | no arranca sin conexión configurada; Redis inaccesible falla el descarte del seed |
 | `Caching:KeyPrefix` | el prefijo de las claves de Redis: uno por instalación y ambiente, igual en todas las réplicas (por ejemplo `acme:production`) | `ArquitecturaBase.Infrastructure/Caching/CachingRegistration.cs` | no arranca (validación de opciones). Sólo Development y Testing lo derivan de aplicación, ambiente y base |
 | `Authentication:LoginCode:HashKey` | al menos 32 bytes aleatorios en base64 (`openssl rand -base64 48`) | `ArquitecturaBase.Infrastructure/Security/LoginCodeHashOptions.cs`, registrado en `DependencyInjection.cs` | no arranca (validación de opciones) |
@@ -124,7 +124,7 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 | `ForwardedHeaders:TrustAll`, o `:KnownProxies` / `:KnownNetworks` | detrás de un proxy: a quién se le creen `X-Forwarded-For` y `X-Forwarded-Proto`. En Container Apps, `TrustAll=true`, solo porque Kestrel no se alcanza por fuera del ingress | `ArquitecturaBase.Api/Hosting/ForwardedHeadersExtensions.cs` | no arranca (validación de opciones), fuera de Development y Testing; tampoco con una entrada que no sea una IP o una red CIDR. Sin ellos, la IP y el esquema serían los del proxy: OpenIddict rechazaría el ingreso por HTTP y el límite por IP juntaría a todos |
 | `WhatsApp:PhoneNumberId`, `WhatsApp:AccessToken` y, para el webhook, `WhatsApp:AppSecret` con `WhatsApp:VerifyToken` | solo si se prende WhatsApp: `PhoneNumberId` es el interruptor, y el webhook necesita los dos secretos juntos | `ArquitecturaBase.Infrastructure/Modules/WhatsApp/WhatsAppInfrastructureRegistration.cs`, `WhatsAppOptionsValidator.cs` | sin `PhoneNumberId`, WhatsApp queda apagado y la Api arranca; con él y sin token, o con un solo secreto del webhook, no arranca |
 
-`AllowedHosts` queda en `*`: el que filtra por host es el ingress o el proxy, y el porqué está en [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity`) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
+`AllowedHosts` queda en `*`: el que filtra por host es el ingress o el proxy, y el porqué está en [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `RequestLimits:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity`) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
 
 ## Redis
 
@@ -132,7 +132,7 @@ El despliegue actual fuera de Aspire debe provisionar Redis por separado. El App
 
 Redis guarda valores reconstruibles: no requiere persistencia para recuperar el producto. Dimensioná memoria y una política de expulsión para TTLs, y monitoreá las métricas del caché; no guarda tokens, códigos ni claves de Data Protection. Sus datos usan formato de clave `v1`; una revisión del formato en un despliegue debe permitir que las versiones de Api que conviven lean sus propias claves.
 
-`/health` incluye Redis y `/alive` lo excluye. La caída de Redis falla las lecturas que lo usan, con comandos de hasta 3 segundos y sin fallback. Una invalidación fallida después del commit devuelve 500 genérico con `traceId`, aunque PostgreSQL ya guardó. No asumir rollback ni repetir toda la escritura. Los ajustes conservados pueden atrasarse hasta su TTL de 60 segundos; los permisos usan la revisión confirmada del rol y no seleccionan la entrada de una revisión anterior. La receta, las opciones y la coordinación entre réplicas están en [agregar-cache.md](agregar-cache.md).
+`/health` incluye Redis y `/alive` lo excluye; `/health` guarda su resultado 2 s, así que una ráfaga no le pide un comando por pedido. La caída de Redis falla las lecturas que lo usan, con comandos de hasta 3 segundos y sin fallback. Una invalidación fallida después del commit devuelve 500 genérico con `traceId`, aunque PostgreSQL ya guardó. No asumir rollback ni repetir toda la escritura. Los ajustes conservados pueden atrasarse hasta su TTL de 60 segundos; los permisos usan la revisión confirmada del rol y no seleccionan la entrada de una revisión anterior. La receta, las opciones y la coordinación entre réplicas están en [agregar-cache.md](agregar-cache.md).
 
 ## Proxy y encabezados reenviados
 
@@ -140,7 +140,23 @@ La Api procesa `X-Forwarded-For` y `X-Forwarded-Proto` antes del rate limiter, l
 
 `X-Forwarded-Host` no se acepta a propósito: OpenIddict usa `Request.Host` para construir URLs públicas, y confiar ese encabezado sin una lista explícita permitiría que un cliente las manipule. El reverse proxy tiene que conservar el host público en el encabezado HTTP `Host` (en nginx, por ejemplo, `proxy_set_header Host $host`). `AllowedHosts` queda en `*`, porque el filtro por host lo hace el ingress: el de Container Apps sólo le pasa a la app los pedidos dirigidos a su FQDN y a sus dominios propios, y con nginx lo hace un `server_name` con los hosts públicos y un servidor por defecto que corta el resto. Restringirlo en la Api haría fallar los chequeos de Container Apps, que mandan como `Host` la IP de la réplica: recibirían 400 y la revisión nueva nunca quedaría lista.
 
-La Api se toma hasta 25 segundos para apagarse (`HostOptions.ShutdownTimeout`, en `Program.cs`): terminar los pedidos en curso y frenar los workers. El orquestador tiene que darle más antes de matarla; en Container Apps, `terminationGracePeriodSeconds: 60` ([Azure](../deploy/azure-setup.md#probes)), porque con los 30 por defecto quedaría casi sin margen.
+La Api se toma hasta 25 segundos para apagarse (`HostOptions.ShutdownTimeout`, en `Program.cs`): terminar los pedidos en curso y frenar los workers. El orquestador tiene que darle más antes de matarla; en Container Apps, `terminationGracePeriodSeconds: 60` ([Azure](../deploy/azure-setup.md#probes)), porque con los 30 por defecto quedaría casi sin margen. El asistente de IA usa ese plazo, menos el margen para cerrar el turno, para dejar terminar la consulta que ya llegó al proveedor; la que todavía no llegó vuelve a pendiente para otra copia ([IA](../features/inteligencia-artificial.md), I12).
+
+## Límites de pedidos
+
+Además de las políticas de cada ruta (los códigos de ingreso, los módulos), cada réplica pone tres límites a todos los
+pedidos (`ArquitecturaBase.Api/RateLimiting/GlobalRequestLimits.cs`), con sus valores en `RequestLimits`:
+
+| Clave | Por defecto | Qué limita |
+|---|---|---|
+| `AnonymousPermitLimit` y `AnonymousWindowSeconds` | 300 cada 60 s | los pedidos por IP (una IPv6, por su /64) a las rutas que no piden sesión y no tienen política propia: `/connect`, Google, los métodos de ingreso, la presentación y `/health`. No cuentan los archivos del SPA |
+| `ConcurrentRequests` y `QueuedRequests` | 100 y 100 | los pedidos a la vez en la réplica; los que no entran esperan en la cola, y sin lugar en ella, 429. `/health` y `/alive` no cuentan, para que el orquestador no saque ni reinicie una réplica cargada |
+| `MaxRequestBodyBytes` | 1 MiB | el cuerpo que acepta Kestrel; más grande, 413. Una ruta que sube archivos declara el suyo con `[RequestSizeLimit]` y `[RequestFormLimits]`, que manda sobre este |
+
+Corren antes de la autenticación, que ya consulta la base (OpenIddict valida el cliente de `/connect` y la entrada de
+cada token), y responden el 429 de siempre, con `Retry-After`. Cada réplica cuenta los suyos. La IP es la que dejan los
+[encabezados reenviados](#proxy-y-encabezados-reenviados): sin ellos, todos compartirían la del proxy. Una oficina
+detrás de una sola IP comparte la ventana de lo anónimo; si no alcanza, se sube `AnonymousPermitLimit`.
 
 ## Certificados de OpenIddict
 

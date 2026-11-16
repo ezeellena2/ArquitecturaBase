@@ -169,7 +169,7 @@ puerto acepta conexiones, aunque PostgreSQL o Redis no respondan.
 |---|---|---|
 | Startup | `/alive` | Da tiempo al arranque: la Api no escucha hasta validar opciones, comprobar migraciones y sembrar, y el seed puede esperar su lock hasta 30 s. Liveness y Readiness esperan a que pase. |
 | Liveness | `/alive` | Reinicia el contenedor si el proceso queda colgado. No consulta PostgreSQL ni Redis a propósito: si lo hiciera, una caída de esas dependencias reiniciaría los contenedores en cadena sin arreglar nada. |
-| Readiness | `/health` | Saca la réplica del tráfico mientras PostgreSQL o Redis no responden, y también si su anillo de claves de IA no coincide con el de las demás (`ai-key-ring`, [configurar IA](../guides/configurar-ia.md)): reiniciar no lo arregla. El check de WhatsApp queda en Degraded, que responde 200: un token vencido no corta el tráfico. |
+| Readiness | `/health` | Saca la réplica del tráfico mientras PostgreSQL o Redis no responden, y también si su anillo de claves de IA no coincide con el de las demás (`ai-key-ring`, [configurar IA](../guides/configurar-ia.md)): reiniciar no lo arregla. El check de WhatsApp queda en Degraded, que responde 200: un token vencido no corta el tráfico. El resultado se guarda 2 s, así que cada probe ve uno nuevo y una ráfaga no le llega a la base. |
 
 Los probes no se configuran por parámetros de la CLI: hay que exportar el YAML de la
 aplicación, agregarlos y volver a aplicarlo.
@@ -230,8 +230,15 @@ La Api fuera de Aspire no recibe nada automáticamente: hay que darle todo. Los 
 sensibles van como *secrets* de Container Apps y se referencian con `secretref:`.
 
 ```bash
-CONN="Host=$PG.postgres.database.azure.com;Port=5432;Database=appdb;Username=$PG_ADMIN;Password=$PG_PASSWORD;SSL Mode=Require"
+CONN="Host=$PG.postgres.database.azure.com;Port=5432;Database=appdb;Username=$PG_ADMIN;Password=$PG_PASSWORD;SSL Mode=Require;Maximum Pool Size=15"
 ```
+
+`Maximum Pool Size` es el tope de conexiones de cada réplica, y lo comparten los pedidos y los workers, que corren en
+el mismo proceso. Sin él, cada réplica puede abrir hasta 100 (el valor por defecto de Npgsql), y el B1ms del
+[paso 4](#4-postgresql-flexible-server) admite unas 50, de las que Azure se reserva algunas para su monitoreo. Con 15:
+durante un despliegue conviven dos revisiones (30), y queda lugar para el bundle de migraciones y una consola. Al
+subir `--max-replicas` o cambiar el plan de la base, la cuenta es réplicas por el tope, más una revisión de más durante
+el despliegue, por debajo de las conexiones del plan.
 
 ```bash
 az containerapp secret set --resource-group $RG --name $APP --secrets db-connection="$CONN" login-code-hash-key="$(openssl rand -base64 48)"

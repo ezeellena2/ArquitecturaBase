@@ -34,7 +34,8 @@ internal static class PersistenceRegistration
             .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>()));
 
         // Readiness: sin la base no hay nada que responder. Va sin el tag "live" a propósito, para que una base
-        // caída no marque el proceso como muerto y el orquestador lo reinicie en cadena sin arreglar nada.
+        // caída no marque el proceso como muerto y el orquestador lo reinicie en cadena sin arreglar nada. En Npgsql,
+        // CanConnectAsync corre un SELECT 1 con una conexión del pool (N6; lo fija HealthCheckTests).
         services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>("database");
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();

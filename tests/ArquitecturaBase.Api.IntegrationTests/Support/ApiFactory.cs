@@ -213,6 +213,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
         // Bajo TestServer no hay IP remota: todos los tests caen en la misma partición del rate limiter.
         builder.UseSetting("RateLimiting:LoginCodePermitLimit", "100000");
         builder.UseSetting("RateLimiting:LoginVerifyPermitLimit", "100000");
+        builder.UseSetting("RequestLimits:AnonymousPermitLimit", "1000000");
 
         // Sin validación de SMTP: los emails quedan en memoria (EmailSender).
         builder.UseSetting("Email:Delivery", "PickupDirectory");
