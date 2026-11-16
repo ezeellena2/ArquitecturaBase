@@ -528,6 +528,18 @@ public sealed class FormDocumentProposalHttpTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_topic_nobody_reviewed_is_not_a_group()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var designer = await scenario.PersonAsync("Dora Diseña", Designer, Ct);
+        var topic = Topic();
+        for (var index = 0; index < 3; index++) await UnclassifiedAsync(scenario, topic, Ct, reviewed: false);
+        using var client = scenario.Client(designer);
+
+        Assert.Empty(await GroupsAsync(client, scenario.Sender));
+    }
+
+    [Fact]
     public async Task The_notice_shows_the_five_largest_groups_and_a_group_names_its_twenty_newest_documents()
     {
         await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
@@ -627,7 +639,7 @@ public sealed class FormDocumentProposalHttpTests(ApiFactory factory)
     // A document of the scenario's sender proposed for «Pagos», read as that type of document, whose person then chose «Otro»: unclassified,
     // and noted in «Formularios que faltan» with its type as the topic.
     private static async Task<FormReceivedDocumentSent> UnclassifiedAsync(FormReceivedDocumentScenario scenario, string topic, CancellationToken ct,
-        DateTime? receivedAtUtc = null)
+        DateTime? receivedAtUtc = null, bool reviewed = true)
     {
         var proposal = FormReceivedDocumentScenario.Proposal([scenario.Form], scenario.Sender, "sure",
             form => [(form.AmountId, "decimal", "150000", false), (form.OperationId, "shortText", "778899", false)]);
@@ -636,6 +648,16 @@ public sealed class FormDocumentProposalHttpTests(ApiFactory factory)
         var chosen = await scenario.PortAsync(port => port.ChooseOtherAsync(new(sent.Id, FormReceivedDocumentScenario.Channel, sent.Request.SourceId,
             scenario.Sender, "es", scenario.Factory.Clock.GetUtcNow().UtcDateTime), ct));
         Assert.Equal(StructuredDocumentChoiceState.Recorded, chosen);
+        // Only a topic somebody reviewed is a group (F7-1): the others wait in «Formularios que faltan».
+        if (reviewed)
+            await scenario.DbAsync(async db =>
+            {
+                var unreviewed = await db.Set<BusinessFormMissingTopic>().Where(value => value.Name == topic && value.ReviewedAtUtc == null).ToListAsync(ct);
+                foreach (var value in unreviewed)
+                    Assert.True(value.Review(value.Revision, scenario.Reviewer, scenario.Factory.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+                await db.SaveChangesAsync(ct);
+                return 0;
+            });
         return sent;
     }
 

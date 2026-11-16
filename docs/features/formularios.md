@@ -616,8 +616,8 @@ y lo que se leyó en ellos. Está el backend (tarea 14); la página llega con su
   operaciones) se guardan en claro en `SearchText` para buscarlos sin descifrar, y el nombre del archivo y la copia también van en
   claro. Lo que expone de un documento confirmado ya está en claro en la respuesta. El cifrado de las copias de archivos se decide
   con el N15 del núcleo.
-- **El aviso de los parecidos.** La página de la bandeja (`POST api/forms/documents/search`) suma `groups`: los temas pendientes de
-  «Formularios que faltan» que comparten tres o más documentos sin clasificar (los que dejó «Otro»), con todos los filtros de la
+- **El aviso de los parecidos.** La página de la bandeja (`POST api/forms/documents/search`) suma `groups`: los temas pendientes y ya revisados de
+  «Formularios que faltan» (F7-1: uno sin revisar no se ofrece) que comparten tres o más documentos sin clasificar (los que dejó «Otro»), con todos los filtros de la
   página salvo el estado, los más grandes primero y hasta cinco: `{ topic: { id, name }, count, documentIds }`, con el nombre como
   se anotó y los más nuevos primero (hasta 20). No cuentan los documentos de un borrador ya armado ni el tema para el que se armó,
   mientras ese borrador exista: si se elimina, vuelven. Sale en una sola consulta con la página.

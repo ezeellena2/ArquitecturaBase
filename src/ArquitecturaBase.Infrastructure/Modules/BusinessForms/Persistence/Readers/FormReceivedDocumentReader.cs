@@ -163,7 +163,7 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         return new FormReceivedDocumentPageRow(page.Items, page.TotalCount, counts, forms, formsTruncated, senders, sendersTruncated) { Groups = groups };
     }
 
-    // DOC6: the pending topics of «Formularios que faltan» that three or more unclassified documents share (none of an existing draft from
+    // DOC6: the pending, reviewed topics (F7-1) of «Formularios que faltan» that three or more unclassified documents share (none of an existing draft from
     // documents, and no topic one exists for), the largest first, each with how many and the newest of them, up to a request's documents. One
     // query: the largest groups, and each one's newest documents by a lateral join, never a query per group.
     private async Task<IReadOnlyList<FormReceivedDocumentGroupRow>> GroupsAsync(IQueryable<FormReceivedDocument> documents, CancellationToken ct)
@@ -172,7 +172,7 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         var grouped = from document in FormReceivedDocumentQuery.Groupable(dbContext, documents)
                       join request in dbContext.Set<BusinessFormMissingRequest>().AsNoTracking() on document.Id equals request.SourceReceiptId
                       join topic in dbContext.Set<BusinessFormMissingTopic>().AsNoTracking() on request.TopicId equals topic.Id
-                      where topic.State == BusinessFormMissingTopicState.Pending && !drafted.Any(proposal => proposal.TopicId == topic.Id)
+                      where topic.State == BusinessFormMissingTopicState.Pending && topic.ReviewedAtUtc != null && !drafted.Any(proposal => proposal.TopicId == topic.Id)
                       select new { document.Id, document.ReceivedAtUtc, TopicId = topic.Id, topic.Name };
         var largest = grouped.GroupBy(row => new { row.TopicId, row.Name }).Select(group => new { group.Key.TopicId, group.Key.Name, Count = group.Count() })
             .Where(group => group.Count >= MinGroupDocuments).OrderByDescending(group => group.Count).ThenBy(group => group.TopicId).Take(MaxGroups);

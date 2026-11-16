@@ -393,7 +393,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   un flujo de objetos hechos de ceros comprimidos, leído midiendo la memoria, también dentro de un contenedor con 1 GB; y un
   corpus de PDF malformados con un vigilante de 20 segundos.
 - **Arreglado el 2026-11-15** en `7a30c616` (tope de 64 MiB al inflar, plazo de 20 s, intentos del worker, Inicio por los bytes y log de falta de memoria). Quedan sin probar el contenedor de 1 GB y el corpus de PDF malformados.
-- Corregido tras la revisión adversarial el 2026-11-15 en `97a6dbe2` (un PDF con `/Encrypt` es protegido sin abrirlo, la cadena ASCII85 o hexadecimal con Flate se mide en lugar de rechazarse, tope de dos hilos abandonados) y `ca730ae4` (la toma del worker de WhatsApp devuelve su cuenta si el host la corta). Queda anotado: el escáner no ve variantes de sintaxis raras de `stream` o de `/Filter` por referencia (F6-4, menor), y los temas sin revisar siguen apareciendo en los grupos de la bandeja de documentos (F7-1: `FormReceivedDocumentReader.GroupsAsync` necesita `&& topic.ReviewedAtUtc != null`).
+- Corregido tras la revisión adversarial el 2026-11-15 en `97a6dbe2` (un PDF con `/Encrypt` es protegido sin abrirlo, la cadena ASCII85 o hexadecimal con Flate se mide en lugar de rechazarse, tope de dos hilos abandonados) y `ca730ae4` (la toma del worker de WhatsApp devuelve su cuenta si el host la corta). Queda anotado: el escáner no ve variantes de sintaxis raras de `stream` o de `/Filter` por referencia (F6-4, menor), y los temas sin revisar aparecían en los grupos de la bandeja de documentos (F7-1, de F7): `FormReceivedDocumentReader.GroupsAsync` pide ahora `topic.ReviewedAtUtc != null`, con su test. **Arreglado el 2026-11-16.**
 
 #### F7. Los temas de «Formularios que faltan» entran en el asistente de todas las personas, aunque nombren a un tercero
 
@@ -853,7 +853,6 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   administrado; índices de valor por pregunta, con cada condición escrita desde los valores; un conteo acotado («más de
   10.000») en formularios grandes; la navegación por clave; el total de «Formularios» desde un contador; y los conteos de filtros
   con un solo `GROUP BY`. Grande, por partes.
-- **Arreglado el 2026-11-16** en `38b8db06` (en parte: el índice por formulario y fecha de recepción sobre las vigentes; lo demás queda para gran escala).
 
 #### F34. Un aviso a un rol no tiene tope de personas: se arma entero en la captura, bajo el lock global
 

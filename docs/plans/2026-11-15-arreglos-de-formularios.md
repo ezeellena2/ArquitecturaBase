@@ -57,10 +57,8 @@ En orden de peso; cada tarea lo repite.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro, el contador para quien
    administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F19, que el detalle muestre quién pidió el último
    reintento o la consulta; de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 8, 10, 11 y 25.
-3. **El resto de la etapa 6:** F8, F15, F16 y F37, sin empezar.
+3. **El resto de la etapa 6:** F8, F15, F16, F33 y F37, sin empezar.
 4. **La etapa 7:** F29, F30 y F25.
-5. **F7-1**, de la revisión adversarial del 2026-11-15 sobre F3, F6 y F7: la bandeja de documentos agrupa también por temas sin
-   revisar (`FormReceivedDocumentReader.GroupsAsync` tiene que pedir `ReviewedAtUtc`).
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
    «No aplica» se empieza a escribir en la misma versión que lo trae, contra la regla de la [guía de migración](../guides/migracion.md)
    que cita «Al día».
@@ -99,7 +97,7 @@ En orden de peso; cada tarea lo repite.
    y el registro sigue encontrando el tema por su nombre. La pantalla de «Formularios que faltan» muestra los temas sin revisar con
    su acción. Mediano.
    F14 y el nombre solo de F7, hechos el 2026-11-15 en `39812a81`. Hecha el 2026-11-15 en `60e815aa` (estado de revisión,
-   ruta y migración) y `32db5ad9` (front, que ya trae las cohortes de la pantalla a la espera de la exportación del cierre). Falta F7-1, de la revisión adversarial: la bandeja de documentos agrupa también por temas sin revisar.
+   ruta y migración) y `32db5ad9` (front, que ya trae las cohortes de la pantalla a la espera de la exportación del cierre). F7-1, de la revisión adversarial (la bandeja de documentos agrupaba también temas sin revisar), hecho el 2026-11-16.
 5. **F20. El menú muestra sólo lo que la persona puede abrir.** `ListMenuFormsAsync` recibe a la persona y sus permisos y usa el
    mismo filtro de formularios visibles que el árbol, conservando el de los dados de baja; el test del menú suma una cuenta que
    sólo decide aprobaciones. Chico. Hecha el 2026-11-15 en `1b1d5165`.
@@ -203,7 +201,7 @@ En orden de peso; cada tarea lo repite.
     falta de permiso. Chico. Hecha el 2026-11-15 en `ec9d212c`.
 33. **F24. Crear un catálogo es idempotente.** Un id de pedido en la creación, como los borradores. Chico. Hecha el 2026-11-15 en `fb0545a0` (backend) y `133b4686` (front). El id de pedido quedó opcional, porque unos 69 tests crean catálogos sin él; el front siempre lo manda.
 34. **F33. El índice por fecha de las respuestas.** Por formulario y fecha de recepción, sobre las vigentes; lo demás de F33 queda
-    para gran escala. Trivial. Hecha el 2026-11-16 en `38b8db06` (`IX_BusinessFormRecords_Current_DefinitionId_SubmittedAtUtc`).
+    para gran escala. Trivial. Sin empezar.
 35. **F37. La captura revisa las opciones elegidas por lote.** Una consulta por catálogo que conserva el orden del rechazo. Chico. Sin empezar.
 36. **F47. El menú arma el índice de carpetas una vez.** Y las carpetas suman un tope, con su error. Chico. Hecha el 2026-11-15 en `64874daf`.
 
