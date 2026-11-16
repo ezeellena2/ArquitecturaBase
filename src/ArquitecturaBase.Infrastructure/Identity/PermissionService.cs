@@ -1,81 +1,36 @@
-using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Infrastructure.Caching;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Infrastructure.Identity;
 
 /// <summary>
-/// Effective permissions. Membership is read on every request; Redis entries belong to a confirmed role version.
-/// Versions and factories use independent scopes, so uncommitted changes cannot poison a committed cache key.
+/// Permisos efectivos, sin caché (N9 y N33, 2026-11-16): una consulta a la base por persona y por scope, que se memoriza en
+/// ese scope, así las políticas que preguntan varias veces en un pedido no repiten la consulta. Lee con el contexto del
+/// pedido: adentro de un límite usa su conexión y su transacción. Sólo cuentan los permisos del catálogo: el claim de un
+/// módulo quitado no habilita nada.
 /// </summary>
-internal sealed class PermissionService(IPermissionReader reader, IServiceScopeFactory scopes, RedisCache cache, IPermissionCatalog catalog)
-    : IPermissionService, IPermissionCacheInvalidator
+internal sealed class PermissionService(IPermissionReader reader, IPermissionCatalog catalog) : IPermissionService
 {
+    private readonly Dictionary<Guid, IReadOnlyCollection<string>> _byUser = [];
+
     public async Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var roleIds = await reader.ListRoleIdsForUserAsync(userId, cancellationToken);
-        var permissions = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var roleId in roleIds)
+        if (_byUser.TryGetValue(userId, out var known))
         {
-            permissions.UnionWith(await ListRolePermissionsAsync(roleId, cancellationToken));
+            return known;
         }
 
-        return permissions.Where(catalog.Contains).ToArray();
+        IReadOnlyCollection<string> permissions =
+        [
+            .. (await reader.ListPermissionsForUserAsync(userId, cancellationToken))
+                .Where(catalog.Contains)
+                .Order(StringComparer.Ordinal),
+        ];
+
+        _byUser[userId] = permissions;
+        return permissions;
     }
 
     public async Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken) =>
         (await GetPermissionsAsync(userId, cancellationToken)).Contains(permission);
-
-    public async Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken)
-    {
-        var version = await FindConfirmedVersionAsync(roleId, cancellationToken);
-        if (version is not null)
-        {
-            await cache.RemoveAsync(CacheKey(roleId, version), cancellationToken);
-        }
-        // Old versions expire and are never selected by readers of the new committed version.
-    }
-
-    private async Task<string[]> ListRolePermissionsAsync(Guid roleId, CancellationToken cancellationToken)
-    {
-        for (var attempt = 0; attempt < 4; attempt++)
-        {
-            var version = await FindConfirmedVersionAsync(roleId, cancellationToken);
-            if (version is null)
-            {
-                return [];
-            }
-
-            try
-            {
-                var snapshot = await cache.GetOrCreateInOwnScopeAsync<IPermissionReader, (Guid Id, string Version), RolePermissionsRow>(
-                    CacheKey(roleId, version), (roleId, version),
-                    static async (permissionReader, role, token) =>
-                        await permissionReader.FindRolePermissionsAsync(role.Id, role.Version, token)
-                            ?? throw new RoleVersionChangedException(),
-                    TimeSpan.FromHours(1), cancellationToken);
-                return snapshot.Permissions;
-            }
-            catch (RoleVersionChangedException)
-            {
-                // The role changed before the factory ran. Resolve the fresh version and retry.
-            }
-        }
-
-        throw new InvalidOperationException("The role permissions changed repeatedly while reading them.");
-    }
-
-    private async Task<string?> FindConfirmedVersionAsync(Guid roleId, CancellationToken cancellationToken)
-    {
-        await using var scope = scopes.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<IPermissionReader>().FindRoleVersionAsync(roleId, cancellationToken);
-    }
-
-    private static RedisCacheKey CacheKey(Guid roleId, string version) =>
-        new(string.Create(CultureInfo.InvariantCulture, $"permissions:role:{roleId:N}:{version}"));
-
-    private sealed class RoleVersionChangedException : Exception;
 }

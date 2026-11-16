@@ -20,7 +20,8 @@ el seed y la lectura de permisos efectivos consumen ese catálogo.
 
 Las fuentes resuelven textos según la cultura actual; códigos repetidos fallan al
 componer. Sin una fuente, sus claims históricos no habilitan operaciones. El seed
-incorpora los permisos disponibles a Admin e invalida después del commit como antes.
+incorpora los permisos disponibles a Admin e invalida después del commit como antes (*enmendado el 2026-11-16: ver
+[Enmiendas](#enmiendas)*).
 Cada módulo declara sus códigos y recursos dentro de su carpeta.
 
 ## Alternativas descartadas
@@ -28,3 +29,9 @@ Cada módulo declara sus códigos y recursos dentro de su carpeta.
 - Agregar constantes del módulo a `Permissions`: rompe la frontera opcional.
 - Autorizar el chat con permisos de usuarios: mezcla responsabilidades.
 - Autorizar por nombre de rol: impide delegar lectura y respuesta por separado.
+
+## Enmiendas
+
+**Enmienda (2026-11-16, [ADR 0032](0032-sin-redis-la-app-sigue.md)):** los permisos no tienen caché, así que el seed ya
+no invalida nada por ellos: lo que le suma a Admin vale desde el pedido siguiente. Después del commit descarta sólo los
+ajustes. El catálogo compuesto no cambia.

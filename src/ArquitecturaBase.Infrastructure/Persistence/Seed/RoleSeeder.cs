@@ -15,17 +15,16 @@ internal sealed class RoleSeeder(
     IOptions<SeedOptions> seedOptions,
     IPermissionCatalog catalog)
 {
-    public async Task<Guid[]> SeedAsync(CancellationToken cancellationToken)
+    public async Task SeedAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var adminId = await EnsureRoleAsync(SystemRoles.Admin, catalog.All);
-        var userId = await EnsureRoleAsync(SystemRoles.User, []);
+        await EnsureRoleAsync(SystemRoles.Admin, catalog.All);
+        await EnsureRoleAsync(SystemRoles.User, []);
         await EnsureAdminRoleAsync();
-        return [adminId, userId];
     }
 
-    private async Task<Guid> EnsureRoleAsync(string name, IReadOnlyCollection<string> permissions)
+    private async Task EnsureRoleAsync(string name, IReadOnlyCollection<string> permissions)
     {
         var role = await roleManager.FindByNameAsync(name);
         var existed = role is not null;
@@ -53,7 +52,6 @@ internal sealed class RoleSeeder(
         {
             (await roleManager.AddClaimAsync(role, new Claim(Permissions.ClaimType, permission))).EnsureSucceeded("add a permission");
         }
-        return role.Id;
     }
 
     // Si la cuenta ya existía cuando se configuró Seed:AdminEmail, recibe el rol acá.

@@ -1,21 +1,26 @@
+using System.Data.Common;
 using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Identity;
 
 /// <summary>
-/// Permisos efectivos: la suma de los permisos de los roles de la cuenta, con los de cada rol cacheados. Los datos se
-/// arman como los arma la aplicación: con IUserRepository e IRoleRepository, adentro de un límite
-/// (factory.InTransactionAsync).
+/// Permisos efectivos (N9 y N33, 2026-11-16): la suma de los permisos de los roles de la cuenta, leída de la base con una
+/// sola consulta en el contexto del pedido, sin caché, y memorizada en ese scope. Los datos se arman como los arma la
+/// aplicación: con IUserRepository e IRoleRepository, adentro de un límite (factory.InTransactionAsync).
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class PermissionServiceTests(ApiFactory factory)
@@ -23,18 +28,14 @@ public sealed class PermissionServiceTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Permission_queries_and_cache_invalidation_share_one_instance_per_scope()
+    public async Task The_permission_service_is_one_instance_per_scope()
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var permissions = scope.ServiceProvider.GetRequiredService<IPermissionService>();
-        var invalidator = scope.ServiceProvider.GetRequiredService<IPermissionCacheInvalidator>();
-        Assert.Same(permissions, invalidator);
         Assert.Same(permissions, scope.ServiceProvider.GetRequiredService<IPermissionService>());
 
         await using var otherScope = factory.Services.CreateAsyncScope();
-        var otherPermissions = otherScope.ServiceProvider.GetRequiredService<IPermissionService>();
-        Assert.Same(otherPermissions, otherScope.ServiceProvider.GetRequiredService<IPermissionCacheInvalidator>());
-        Assert.NotSame(permissions, otherPermissions);
+        Assert.NotSame(permissions, otherScope.ServiceProvider.GetRequiredService<IPermissionService>());
     }
 
     [Fact]
@@ -56,37 +57,43 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         Assert.False(await WithPermissionsAsync(service => service.HasPermissionAsync(userId, Permissions.Users.Read, Ct)));
     }
 
+    /// <summary>
+    /// Una política pregunta varias veces en el mismo pedido: la base recibe una consulta por persona, no una por pregunta,
+    /// y ninguna por rol.
+    /// </summary>
     [Fact]
-    public async Task Role_permissions_are_cached_until_the_role_is_invalidated()
+    public async Task One_query_per_scope_and_person_however_many_times_it_is_asked()
+    {
+        var first = await CreateUserAsync(SystemRoles.Admin, SystemRoles.User);
+        var second = await CreateUserAsync(SystemRoles.User);
+        var recorder = new ReaderCommandRecorder();
+        await using var scope = factory.Services.CreateAsyncScope();
+        await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
+            scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
+        var service = new PermissionService(new PermissionReader(db), factory.Services.GetRequiredService<IPermissionCatalog>());
+
+        Assert.True(await service.HasPermissionAsync(first, Permissions.Users.Read, Ct));
+        Assert.True(await service.HasPermissionAsync(first, Permissions.Roles.Read, Ct));
+        Assert.NotEmpty(await service.GetPermissionsAsync(first, Ct));
+        Assert.Single(recorder.Commands);
+
+        Assert.False(await service.HasPermissionAsync(second, Permissions.Users.Read, Ct));
+        Assert.Equal(2, recorder.Commands.Count);
+    }
+
+    /// <summary>Sin caché, un cambio de claims que no pasa por Identity también vale desde el próximo pedido.</summary>
+    [Fact]
+    public async Task An_out_of_band_claim_change_is_visible_to_the_next_scope()
     {
         var role = await CreateRoleAsync(Permissions.Users.Read);
         var userId = await CreateUserAsync(role.Name);
         Assert.True(await HasUsersReadAsync(userId));
 
-        // An out-of-band claim change does not advance Identity's role version. Explicit invalidation still applies.
         await factory.InTransactionAsync(async services =>
         {
             var db = services.GetRequiredService<ApplicationDbContext>();
             db.RoleClaims.RemoveRange(await db.RoleClaims.Where(claim => claim.RoleId == role.Id).ToListAsync(Ct));
         });
-
-        Assert.True(await HasUsersReadAsync(userId));
-
-        await factory.ExecuteScopeAsync(services =>
-            services.GetRequiredService<IPermissionCacheInvalidator>().InvalidateRoleAsync(role.Id, Ct));
-
-        Assert.False(await HasUsersReadAsync(userId));
-    }
-
-    [Fact]
-    public async Task Committed_permission_revocation_is_visible_without_remote_invalidation()
-    {
-        var role = await CreateRoleAsync(Permissions.Users.Read);
-        var userId = await CreateUserAsync(role.Name);
-        Assert.True(await HasUsersReadAsync(userId));
-
-        await factory.InTransactionAsync(services =>
-            services.GetRequiredService<IRoleRepository>().UpdateAsync(role.Id, role.Name, null, [], Ct));
 
         Assert.False(await HasUsersReadAsync(userId));
     }
@@ -97,22 +104,20 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         var role = await CreateRoleAsync(Permissions.Users.Read);
         var userId = await CreateUserAsync(role.Name);
         await using var replica = factory.WithWebHostBuilder(_ => { });
-        await using var scope = replica.Services.CreateAsyncScope();
-        var permissions = scope.ServiceProvider.GetRequiredService<IPermissionService>();
-        Assert.Equal([Permissions.Users.Read], await permissions.GetPermissionsAsync(userId, Ct));
+        Assert.Equal([Permissions.Users.Read], await ReadOnAsync(replica.Services, userId));
 
         await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
             .UpdateAsync(role.Id, role.Name, null, [Permissions.Users.Read, Permissions.Roles.Read], Ct));
         Assert.Equal(new[] { Permissions.Users.Read, Permissions.Roles.Read }.Order(StringComparer.Ordinal),
-            await permissions.GetPermissionsAsync(userId, Ct));
+            await ReadOnAsync(replica.Services, userId));
 
         await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
             .UpdateAsync(role.Id, role.Name, null, [], Ct));
-        Assert.Empty(await permissions.GetPermissionsAsync(userId, Ct));
+        Assert.Empty(await ReadOnAsync(replica.Services, userId));
     }
 
     [Fact]
-    public async Task Seed_advances_the_role_version_when_restoring_missing_admin_permissions()
+    public async Task Seed_restores_missing_admin_permissions_for_the_next_read()
     {
         var userId = await CreateUserAsync(SystemRoles.Admin);
         var adminId = await factory.ExecuteDbContextAsync(db => db.Roles
@@ -122,12 +127,9 @@ public sealed class PermissionServiceTests(ApiFactory factory)
             await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
                 .UpdateAsync(adminId, SystemRoles.Admin, null, factory.Services.GetRequiredService<IPermissionCatalog>().All.Where(permission => permission != Permissions.Users.Read).ToArray(), Ct));
             Assert.False(await HasUsersReadAsync(userId));
-            var before = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IPermissionReader>().FindRoleVersionAsync(adminId, Ct));
 
             await factory.Services.SeedDatabaseAsync(Ct);
 
-            var after = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IPermissionReader>().FindRoleVersionAsync(adminId, Ct));
-            Assert.NotEqual(before, after);
             Assert.True(await HasUsersReadAsync(userId));
         }
         finally
@@ -137,7 +139,7 @@ public sealed class PermissionServiceTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Role_reassignment_is_visible_without_invalidating_cached_role_permissions()
+    public async Task Role_reassignment_is_visible_to_the_next_scope()
     {
         var originalRole = await CreateRoleAsync(Permissions.Users.Read);
         var replacementRole = await CreateRoleAsync(Permissions.Roles.Read);
@@ -153,9 +155,11 @@ public sealed class PermissionServiceTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Reader_returns_only_permission_claims_for_a_role()
+    public async Task Reader_returns_only_permission_claims_of_the_user_roles_once_each()
     {
         var role = await CreateRoleAsync(Permissions.Roles.Read);
+        var other = await CreateRoleAsync(Permissions.Roles.Read);
+        var userId = await CreateUserAsync(role.Name, other.Name);
 
         // IRoleRepository escribe solo claims de permisos. Uno de otro tipo se agrega directo en el contexto, adentro del
         // límite, y lo baja su guardado final.
@@ -172,20 +176,19 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         });
 
         var claims = await factory.ExecuteScopeAsync(services =>
-            services.GetRequiredService<IPermissionReader>().ListPermissionsForRoleAsync(role.Id, Ct));
+            services.GetRequiredService<IPermissionReader>().ListPermissionsForUserAsync(userId, Ct));
 
         Assert.Equal([Permissions.Roles.Read], claims);
     }
 
     /// <summary>
-    /// La fábrica del caché lee en su propio scope, con otra conexión: un permiso que quien pregunta todavía no confirmó no
-    /// se cachea. Sobre el contexto de quien llama, adentro de un límite, la fábrica vería el cambio sin confirmar y lo
-    /// dejaría una hora en el caché aunque el límite se deshiciera.
+    /// Adentro de un límite, la consulta corre en su conexión y su transacción (N33): no pide otra al pool mientras el
+    /// límite retiene la suya, así que ve lo que el límite todavía no confirmó. No queda en ningún caché: si el límite se
+    /// deshace, el pedido siguiente lee lo confirmado.
     /// </summary>
     [Fact]
-    public async Task The_cache_factory_reads_on_its_own_connection_and_never_caches_uncommitted_permissions()
+    public async Task Inside_a_boundary_permissions_are_read_on_its_connection_and_a_rollback_leaves_nothing_behind()
     {
-        // Un rol nuevo: su clave del caché arranca fría.
         var role = await CreateRoleAsync(Permissions.Users.Read);
         var userId = await CreateUserAsync(role.Name);
         IReadOnlyCollection<string> captured = [];
@@ -199,7 +202,7 @@ public sealed class PermissionServiceTests(ApiFactory factory)
             throw new RolledBackOnPurpose();
         }));
 
-        Assert.Equal([Permissions.Users.Read], captured);
+        Assert.Equal(new[] { Permissions.Users.Read, Permissions.Roles.Read }.Order(StringComparer.Ordinal), captured);
         Assert.Equal([Permissions.Users.Read], await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct)));
     }
 
@@ -230,5 +233,27 @@ public sealed class PermissionServiceTests(ApiFactory factory)
     private Task<T> WithPermissionsAsync<T>(Func<IPermissionService, Task<T>> action) =>
         factory.ExecuteScopeAsync(services => action(services.GetRequiredService<IPermissionService>()));
 
+    /// <summary>Un pedido nuevo de esa Api: su propio scope.</summary>
+    private static async Task<IReadOnlyCollection<string>> ReadOnAsync(IServiceProvider services, Guid userId)
+    {
+        await using var scope = services.CreateAsyncScope();
+
+        return await scope.ServiceProvider.GetRequiredService<IPermissionService>().GetPermissionsAsync(userId, Ct);
+    }
+
     private sealed class RolledBackOnPurpose : Exception;
+
+    /// <summary>Las consultas que salen hacia Postgres.</summary>
+    private sealed class ReaderCommandRecorder : DbCommandInterceptor
+    {
+        public List<string> Commands { get; } = [];
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
+            CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            Commands.Add(command.CommandText);
+
+            return ValueTask.FromResult(result);
+        }
+    }
 }

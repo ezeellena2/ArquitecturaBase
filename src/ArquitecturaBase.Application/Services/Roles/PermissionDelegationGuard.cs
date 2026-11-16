@@ -15,9 +15,9 @@ namespace ArquitecturaBase.Application.Services.Roles;
 /// directo en un rol o con un rol en una cuenta, y sólo actúa sobre una cuenta cuyos permisos tiene todos. La usan
 /// <c>RoleService</c> y <c>UserGuard</c>, adentro del límite del caso de uso.
 /// <list type="bullet">
-/// <item>Los permisos se leen de la base en cada llamada, nunca del caché de Redis: los roles de una cuenta, con sus
-/// permisos, en una sola consulta (<see cref="IRoleReader.ListRolesForUserAsync"/>), y los roles se comparan por id, así
-/// un rol renombrado entre dos lecturas no se confunde con otro.</item>
+/// <item>Los permisos se leen de la base en cada llamada, no de lo que <c>IPermissionService</c> memorizó en el pedido: los
+/// roles de una cuenta, con sus permisos, en una sola consulta (<see cref="IRoleReader.ListRolesForUserAsync"/>), y los
+/// roles se comparan por id, así un rol renombrado entre dos lecturas no se confunde con otro.</item>
 /// <item>Quien pide tiene los permisos de sus roles más los de User, que recibe toda cuenta nueva y sólo edita Admin.</item>
 /// <item>La cuenta de <c>Seed:AdminEmail</c> cuenta con Admin aunque hoy no lo tenga, porque el arranque se lo da.</item>
 /// <item>Como en <c>PermissionService</c>, sólo cuentan los permisos del catálogo: el claim de un módulo quitado no da ni

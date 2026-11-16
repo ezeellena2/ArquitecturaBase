@@ -7,8 +7,8 @@
 - El lock de seed serializa réplicas antes de leer. Conservá un único commit y rollback completo si un seeder falla.
 - El seed debe ser idempotente: los ajustes existentes no se reemplazan por defaults de configuración.
 - Un permiso nuevo se incorpora al catálogo y al rol Admin; conservá roles y cliente del sistema.
-- Después del commit completo se invalidan permisos y ajustes en Redis. No descartar desde un seeder parcial ni omitirlo porque sea arranque.
-- Probá arranque repetido, dos hosts y un Redis que conserva entradas entre procesos.
+- Después del commit completo se descartan en Redis sólo los ajustes: los permisos no tienen caché ([ADR 0032](../../../../docs/decisions/0032-sin-redis-la-app-sigue.md)). No descartar desde un seeder parcial ni omitirlo porque sea arranque; si Redis no responde, el arranque sigue con un Warning y lo que Redis conserve vence con su TTL.
+- Probá arranque repetido, dos hosts, un Redis que conserva entradas entre procesos y un Redis caído.
 
 ## Referencias
 

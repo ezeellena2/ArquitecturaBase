@@ -21,11 +21,11 @@ En los nombres, `<área>` es el prefijo del permiso (`products`) y `<Área>` la 
    - si el área es nueva, [`RoleServiceTests.Get_permissions_keeps_catalog_order_and_request_culture`](../../tests/ArquitecturaBase.Application.UnitTests/Services/Roles/RoleServiceTests.cs) (Application: las áreas, en orden) y, en [`RolesEndpointsTests`](../../tests/ArquitecturaBase.Api.IntegrationTests/Roles/RolesEndpointsTests.cs) (integración), `The_permission_catalog_is_grouped_by_area_and_translated` (las áreas y sus nombres en español) y `The_permission_catalog_is_also_in_english` (en inglés);
    - [`docs/features/administracion.md`](../features/administracion.md), "Reglas": en la frase "El catálogo queda en …" se suma el código nuevo, en el orden de `All`.
 
-## `InvalidateRoleAsync`: cuándo sí y cuándo no
+## Sin caché que invalidar
 
-Los permisos de cada rol se cachean una hora en Redis por su `ConcurrencyStamp` confirmado. **Un caso de uso que cambia los permisos de un rol** conserva `IPermissionCacheInvalidator.InvalidateRoleAsync(roleId, ct)` después del commit y solo si se confirmó, como `RoleService.UpdateAsync` y `RoleService.DeleteAsync` ([`RoleService.cs`](../../src/ArquitecturaBase.Application/Services/Roles/RoleService.cs)). Las escrituras de Identity avanzan la revisión y las lecturas nuevas seleccionan la clave nueva, incluso si falla el descarte. Invalidar antes del commit no selecciona esa revisión confirmada; las reglas y las fábricas en scope propio están en [backend.md](../architecture/backend.md#caché-compartido-en-redis).
+Los permisos efectivos no se cachean ([ADR 0032](../decisions/0032-sin-redis-la-app-sigue.md)): `PermissionService` los lee de la base con una consulta por persona y por pedido, y los memoriza sólo en ese scope ([identidad](../features/identidad.md)). **Un caso de uso que cambia los permisos de un rol** o los roles de una cuenta confirma y listo: el pedido siguiente, en cualquier copia, ve el cambio. No hay que descartar nada después del commit.
 
-**Sumar un permiso al catálogo no pide tocar un caso de uso:** el seed se lo agrega a Admin al arrancar, avanza su revisión y descarta después de confirmar. Redis puede conservar datos de la Api anterior; no se supone un caché vacío.
+**Sumar un permiso al catálogo no pide tocar un caso de uso:** el seed se lo agrega a Admin al arrancar, y vale desde el pedido siguiente.
 
 ## Trampas
 

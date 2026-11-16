@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Common.Pagination;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
@@ -227,7 +226,6 @@ public sealed class RoleServiceTests
         new(
             reader,
             new UnusedRoleRepository(),
-            new UnusedPermissionCacheInvalidator(),
             RequestValidators.For(
                 new CreateRoleRequestValidator(new Application.Channels.PermissionCatalog([])),
                 new UpdateRoleRequestValidator(new Application.Channels.PermissionCatalog([])), new ListRolesRequestValidator()),
@@ -257,10 +255,5 @@ public sealed class RoleServiceTests
 
         public Task LockForAssignmentAsync(IReadOnlyCollection<string> names, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
-    }
-
-    private sealed class UnusedPermissionCacheInvalidator : IPermissionCacheInvalidator
-    {
-        public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }

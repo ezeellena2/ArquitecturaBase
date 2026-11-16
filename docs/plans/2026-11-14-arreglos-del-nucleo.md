@@ -200,6 +200,33 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     Un ADR nuevo enmienda el [ADR 0009](../decisions/0009-redis-como-unico-cache-de-datos.md), y el 0010 en lo que toca a la
     invalidación. Cambian lo que los cita: `azure-setup.md:197-199`, `identidad.md:37`, `permiso-nuevo.md:26` y
     `backend.md:125`. Test: Redis caído con la app abierta. Mediano.
+
+    Programada el 2026-11-16 y commiteada después de su revisión adversarial, con el
+    [ADR 0032](../decisions/0032-sin-redis-la-app-sigue.md). Lo que el plan no fijaba:
+    - la consulta es `IPermissionReader.ListPermissionsForUserAsync` (el lector de permisos queda con ese solo método):
+      un `SELECT DISTINCT` de los claims de permiso de los roles de la cuenta, con el `ApplicationDbContext` del pedido.
+      `IRoleReader.ListRolesForUserAsync` no sirve para esto: cuenta las personas de cada rol en cada pedido (N32);
+    - `PermissionService` es scoped y memoriza por persona en un diccionario: una consulta por persona y por pedido;
+    - los permisos efectivos son, como antes, los de los roles que la cuenta tiene, filtrados por el catálogo. «User»
+      cuenta sólo si la cuenta lo tiene, como hasta ahora: sumarlo a todos es la regla de N1 para dar permisos, no la de
+      autorizar;
+    - sin la fila de ajustes, la lectura desde la base da lo mismo que la fábrica: `InviteOnly` y la presentación por
+      defecto;
+    - `RedisCache.IsUnavailable` (una `RedisException` o un `TimeoutException`) decide cuándo se sigue sin Redis: los
+      ajustes y el seed. Guardar los ajustes sin Redis sigue respondiendo 500 después de confirmar, como dice el ADR 0009;
+    - con Redis colgado, el cliente cancela los comandos pendientes al soltar el socket: el adaptador convierte en
+      `TimeoutException` toda cancelación que no pidió quien llama, en el llenado, el descarte y las leases, y la liberación
+      de la lease del llenado sólo deja que venza. Sin eso, `/api/settings/presentation` daba 500 con Redis pausado;
+    - la lectura de los ajustes sin Redis deja un Warning por proceso y por minuto (un timestamp con `Interlocked`), y las
+      demás, Debug sin la excepción;
+    - el chequeo de Redis es el de Aspire con `FailureStatus` en Degraded;
+    - el front usa el texto propio cuando el 5xx no trae `traceId`, es decir, no lo armó la Api (que siempre manda `code` y
+      `traceId`), con tres textos: lectura, escritura incierta y guardado con revisión.
+
+    Lo que encontró la revisión adversarial, ya arreglado: el 500 con Redis colgado (la sonda con Redis pausado queda en
+    `RedisFailureTests`), un Warning por lectura, dos `AGENTS.md` viejos (`Models/Identity` y `Seed`), el comentario de
+    `deploy.yml`, el ingreso por WhatsApp sin Redis (el código no sale hasta que vuelve, porque espera la lease; lo dicen el
+    ADR 0032 y la guía de Azure) y las enmiendas al 0009 y al 0010, que pasan a su sección `Enmiendas`.
 16. **N6. `/health` no agota la base.**
     - El chequeo de la base usa un `SELECT 1` del pool: en Npgsql 10, el `CanConnectAsync` del chequeo de EF ya lo hace, y un
       test lo fija. El resultado de `/health` se guarda dos segundos, y una ráfaga comparte el cálculo.

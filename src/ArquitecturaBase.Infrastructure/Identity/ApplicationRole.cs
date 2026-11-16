@@ -27,7 +27,7 @@ public sealed class ApplicationRole : IdentityRole<Guid>, IAuditable
     /// <summary>
     /// La revisión del nombre, la descripción y los permisos (N2), que la avanza <c>RoleRepository</c> cuando alguno
     /// cambia. Nace en 1, como la de la configuración. No es el <c>ConcurrencyStamp</c>, que Identity cambia con cada
-    /// guardado y arma la clave del caché de permisos.
+    /// guardado.
     /// </summary>
     public long Revision { get; private set; } = 1;
 

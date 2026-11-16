@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
 using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
@@ -11,6 +12,9 @@ namespace ArquitecturaBase.Infrastructure.Caching;
 public static class CachingRegistration
 {
     public const string ConnectionName = "cache";
+
+    /// <summary>El chequeo que registra el cliente de Aspire.</summary>
+    public const string HealthCheckName = "StackExchange.Redis";
 
     /// <summary>Sin un valor: dice qué clave falta, para qué sirve y cómo se elige.</summary>
     public const string MissingKeyPrefixMessage =
@@ -35,6 +39,16 @@ public static class CachingRegistration
             options.BacklogPolicy = BacklogPolicy.FailFast;
         });
         builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter(RedisCache.MeterName));
+
+        // N9: sin Redis la app sigue (los permisos y los ajustes se leen de la base), así que su caída deja /health en
+        // Degraded, que responde 200, como WhatsApp y el correo: la copia sigue en el tráfico. Sigue sin el tag "live".
+        builder.Services.PostConfigure<HealthCheckServiceOptions>(options =>
+        {
+            foreach (var registration in options.Registrations.Where(registration => registration.Name == HealthCheckName))
+            {
+                registration.FailureStatus = HealthStatus.Degraded;
+            }
+        });
 
         return builder;
     }

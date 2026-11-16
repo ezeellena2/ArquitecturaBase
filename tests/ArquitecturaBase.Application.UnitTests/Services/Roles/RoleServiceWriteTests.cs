@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
@@ -107,7 +106,7 @@ public sealed class RoleServiceWriteTests
     }
 
     [Fact]
-    public async Task Update_sorts_permissions_and_invalidates_the_cache_only_after_the_commit()
+    public async Task Update_sorts_permissions_and_commits_without_a_cache_to_invalidate()
     {
         var fixture = new Fixture();
         fixture.Reader.Role = NewRole("Reviewers");
@@ -124,12 +123,13 @@ public sealed class RoleServiceWriteTests
         Assert.Equal("Editors", fixture.Reader.LookedUpName);
         Assert.Equal("Editors", fixture.Repository.WrittenName);
         Assert.Equal([Permissions.Roles.Read, Permissions.Users.Read], fixture.Repository.WrittenPermissions);
-        Assert.Equal(["update", "commit", "invalidate"], fixture.Events);
+        // Sin caché de permisos (N9 y N33): el próximo pedido los lee de la base.
+        Assert.Equal(["update", "commit"], fixture.Events);
     }
 
-    /// <summary>Una excepción adentro del límite no invalida el caché ni deja un Handled o un Failed.</summary>
+    /// <summary>Una excepción adentro del límite no confirma nada ni deja un Handled o un Failed.</summary>
     [Fact]
-    public async Task Failed_update_does_not_invalidate_the_cache_or_log_an_outcome()
+    public async Task Failed_update_does_not_commit_or_log_an_outcome()
     {
         var fixture = new Fixture();
         fixture.Reader.Role = NewRole("Reviewers");
@@ -159,7 +159,7 @@ public sealed class RoleServiceWriteTests
     }
 
     [Fact]
-    public async Task Delete_invalidates_the_cache_only_after_the_commit()
+    public async Task Delete_commits_without_a_cache_to_invalidate()
     {
         var fixture = new Fixture();
         fixture.Reader.Role = NewRole("Reviewers");
@@ -167,7 +167,7 @@ public sealed class RoleServiceWriteTests
         var result = await fixture.Service.DeleteAsync(new DeleteRoleRequest(fixture.Reader.Role.Id), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(["delete", "commit", "invalidate"], fixture.Events);
+        Assert.Equal(["delete", "commit"], fixture.Events);
         Assert.Equal(
             ["Handling DeleteRole", "Handled DeleteRole"],
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
@@ -294,7 +294,6 @@ public sealed class RoleServiceWriteTests
             Service = new RoleService(
                 Reader,
                 Repository,
-                new FakePermissionCacheInvalidator(this),
                 RequestValidators.For(new CreateRoleRequestValidator(new Application.Channels.PermissionCatalog([])),
                     new UpdateRoleRequestValidator(new Application.Channels.PermissionCatalog([]))),
                 UnitOfWork,
@@ -446,15 +445,6 @@ public sealed class RoleServiceWriteTests
 
             public Task LockForAssignmentAsync(IReadOnlyCollection<string> names, CancellationToken cancellationToken) =>
                 throw new NotSupportedException();
-        }
-
-        private sealed class FakePermissionCacheInvalidator(Fixture fixture) : IPermissionCacheInvalidator
-        {
-            public Task InvalidateRoleAsync(Guid roleId, CancellationToken cancellationToken)
-            {
-                fixture.Events.Add("invalidate");
-                return Task.CompletedTask;
-            }
         }
     }
 }

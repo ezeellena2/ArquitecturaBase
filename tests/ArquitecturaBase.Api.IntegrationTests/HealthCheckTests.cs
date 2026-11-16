@@ -14,7 +14,7 @@ namespace ArquitecturaBase.Api.IntegrationTests;
 /// <summary>
 /// Los probes del orquestador consultan estos endpoints fuera de Development: si no están mapeados, reciben 404 y
 /// dan el contenedor por caído. La liveness no mira la base a propósito, para que una base caída no dispare
-/// reinicios en cadena que no arreglan nada.
+/// reinicios en cadena que no arreglan nada. Redis caído se prueba en <c>RedisFailureTests</c>.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class HealthCheckTests(ApiFactory factory)
@@ -53,6 +53,19 @@ public sealed class HealthCheckTests(ApiFactory factory)
         Assert.DoesNotContain("database", live.Entries.Keys);
         Assert.Contains("StackExchange.Redis", ready.Entries.Keys);
         Assert.DoesNotContain("StackExchange.Redis", live.Entries.Keys);
+    }
+
+    /// <summary>
+    /// N9: sin Redis la app sigue (permisos y configuración, de la base), así que su caída marca la readiness en Degraded,
+    /// que responde 200, como WhatsApp y el correo: la copia sigue en el tráfico. La base sigue en Unhealthy.
+    /// </summary>
+    [Fact]
+    public void A_redis_failure_degrades_readiness_and_a_database_failure_still_fails_it()
+    {
+        var registrations = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations;
+
+        Assert.Equal(HealthStatus.Degraded, registrations.Single(entry => entry.Name == "StackExchange.Redis").FailureStatus);
+        Assert.Equal(HealthStatus.Unhealthy, registrations.Single(entry => entry.Name == "database").FailureStatus);
     }
 
     /// <summary>La respuesta es una palabra, sin el detalle de cada check: no cuenta qué dependencias hay.</summary>

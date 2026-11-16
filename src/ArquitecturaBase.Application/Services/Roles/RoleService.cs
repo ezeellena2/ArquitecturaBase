@@ -12,15 +12,14 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Services.Roles;
 
 /// <summary>
-/// Lecturas y cambios de roles, con sus reglas y la invalidación de permisos cacheados. Es el área de referencia del
-/// límite transaccional: cada escritura valida afuera, corre en un solo ExecuteInTransactionAsync y, recién después del
-/// commit, invalida el caché. Quien pide sólo da o quita los permisos que tiene, y los de User sólo los cambia Admin
+/// Lecturas y cambios de roles, con sus reglas. Es el área de referencia del límite transaccional: cada escritura valida
+/// afuera y corre en un solo ExecuteInTransactionAsync. Los permisos no tienen caché que invalidar: cada pedido los lee de
+/// la base (N9 y N33, 2026-11-16). Quien pide sólo da o quita los permisos que tiene, y los de User sólo los cambia Admin
 /// (<see cref="PermissionDelegationGuard"/>, que sabe quién pide y lee sus permisos de la base adentro del límite).
 /// </summary>
 internal sealed class RoleService(
     IRoleReader roles,
     IRoleRepository repository,
-    IPermissionCacheInvalidator permissionCache,
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
     IPermissionCatalog catalog,
@@ -101,7 +100,6 @@ internal sealed class RoleService(
                 return validationError;
             }
 
-            // Un rol nuevo no lo tiene nadie todavía: no hay caché que invalidar después del commit.
             return await unitOfWork.ExecuteInTransactionAsync(
                 ct => CreateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         });
@@ -119,18 +117,10 @@ internal sealed class RoleService(
                 return validationError;
             }
 
-            // 2. Un solo límite, con la política escrita: un error de negocio no deja nada.
-            var result = await unitOfWork.ExecuteInTransactionAsync(
+            // 2. Un solo límite, con la política escrita: un error de negocio no deja nada. Lo confirmado vale desde el
+            //    pedido siguiente, que lee los permisos de la base.
+            return await unitOfWork.ExecuteInTransactionAsync(
                 ct => UpdateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-            // 3. Afuera, después del commit y solo si se confirmó. Invalidar antes dejaría que una lectura concurrente
-            //    vuelva a cachear los permisos viejos durante una hora.
-            if (result.IsSuccess)
-            {
-                await permissionCache.InvalidateRoleAsync(request.RoleId, cancellationToken);
-            }
-
-            return result;
         });
     }
 
@@ -138,18 +128,9 @@ internal sealed class RoleService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return OperationLog.RunAsync<Result>(logger, "DeleteRole", async () =>
-        {
-            var result = await unitOfWork.ExecuteInTransactionAsync(
-                ct => DeleteCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
-
-            if (result.IsSuccess)
-            {
-                await permissionCache.InvalidateRoleAsync(request.RoleId, cancellationToken);
-            }
-
-            return result;
-        });
+        return OperationLog.RunAsync<Result>(logger, "DeleteRole", () =>
+            unitOfWork.ExecuteInTransactionAsync(
+                ct => DeleteCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken));
     }
 
     // Adentro va todo lo que lee para decidir y todo lo que escribe, sin logs de éxito ni efectos que dependan del commit.

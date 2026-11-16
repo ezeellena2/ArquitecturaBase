@@ -112,11 +112,11 @@ También funciona con `dotnet run --project src/ArquitecturaBase.AppHost` o con 
 
 Con F5, la ventana Salida muestra solo los avisos y errores de la Api (`Logging:Debug` en `appsettings.Development.json`): con el depurador enganchado, escribir ahí cada línea frena toda la Api. El log completo, con cada consulta SQL, está en el dashboard de Aspire.
 
-Si el arranque se detiene en `RedisCache.RemoveAsync` con `RedisConnectionException`, el cliente
-no pudo conectarse a Redis al invalidar el caché del seed. Un contenedor `Running` no demuestra
-esa conexión: revisá los logs de `cache` y `api`, levantá desde el AppHost y conservá el puerto
-dinámico que Aspire inyecta. No copies a user-secrets el puerto de un arranque anterior ni omitas
-la invalidación. [Diagnóstico y comprobación local](docs/reviews/2026-10-03-roles-y-arranque-redis.md).
+Si el arranque avisa que Redis no respondió después del seed, el cliente no pudo conectarse a Redis
+al descartar los ajustes: la Api arranca igual y `/health` da `Degraded` (N9). Un contenedor `Running`
+no demuestra esa conexión: revisá los logs de `cache` y `api`, levantá desde el AppHost y conservá el
+puerto dinámico que Aspire inyecta. No copies a user-secrets el puerto de un arranque anterior.
+[Diagnóstico y comprobación local](docs/reviews/2026-10-03-roles-y-arranque-redis.md).
 
 **Al terminar, `aspire stop`.** Si queda corriendo, el arranque desde Visual Studio falla con `address already in use` y los DLL quedan bloqueados. El contenedor de Postgres sigue vivo a propósito.
 
@@ -195,7 +195,7 @@ Gmail reescribe el remitente a la cuenta que autentica, así que los correos sal
 
 ## Caché compartido
 
-Permisos por rol, modo de registro y preferencias generales de presentación usan Redis directo, sin HybridCache ni nivel local. AppHost entrega `ConnectionStrings:cache`; fuera de Aspire hay que provisionar Redis y configurar `ConnectionStrings__cache` como secreto. Las réplicas comparten `Caching__KeyPrefix`; cada instalación y ambiente usa uno distinto, y fuera de Development y Testing es obligatorio. Redis participa en `/health` y queda fuera de `/alive`.
+El modo de registro y las preferencias generales de presentación usan Redis directo, sin HybridCache ni nivel local; los permisos se leen de la base en cada pedido. Sin Redis la app sigue, con `/health` en `Degraded` ([ADR 0032](docs/decisions/0032-sin-redis-la-app-sigue.md)). AppHost entrega `ConnectionStrings:cache`; fuera de Aspire hay que provisionar Redis y configurar `ConnectionStrings__cache` como secreto. Las réplicas comparten `Caching__KeyPrefix`; cada instalación y ambiente usa uno distinto, y fuera de Development y Testing es obligatorio. Redis participa en `/health` y queda fuera de `/alive`.
 
 Una funcionalidad nueva sigue [agregar-cache.md](docs/guides/agregar-cache.md): fábrica en scope propio, TTL, invalidación después del commit y pruebas entre instancias. Las garantías de permisos, coordinación, fallas y métricas están en [backend.md](docs/architecture/backend.md#caché-compartido-en-redis); la conexión de producción, en [despliegue.md](docs/guides/despliegue.md#redis).
 

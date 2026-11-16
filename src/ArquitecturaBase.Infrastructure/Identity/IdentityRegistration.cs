@@ -88,9 +88,8 @@ internal static class IdentityRegistration
 
         services.AddSingleton<IInitialAdmin, InitialAdmin>();
         services.AddScoped<ISignInService, SignInService>();
-        services.AddScoped<PermissionService>();
-        services.AddScoped<IPermissionService>(provider => provider.GetRequiredService<PermissionService>());
-        services.AddScoped<IPermissionCacheInvalidator>(provider => provider.GetRequiredService<PermissionService>());
+        // Scoped: memoriza los permisos de cada persona durante el pedido (N33) y lee con su contexto.
+        services.AddScoped<IPermissionService, PermissionService>();
 
         return services;
     }

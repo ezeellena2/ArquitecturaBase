@@ -1,8 +1,9 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Infrastructure.Persistence.Seed;
 
@@ -21,28 +22,29 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Seed;
 /// no abren transacción propia (FindBy*, CreateAsync y UpdateAsync; verificado en OpenIddict.EntityFrameworkCore 7.7.1);
 /// SystemSettingsSeeder solo agrega la fila, que baja con el guardado siguiente del mismo contexto o con el final del
 /// límite.
+/// Después del commit descarta en Redis sólo los ajustes: los permisos no tienen caché (N9 y N33, 2026-11-16). Sin Redis el
+/// arranque sigue: lo que Redis conserve de antes vence con su TTL de 60 segundos.
 /// </remarks>
-internal sealed class DatabaseSeeder(
+internal sealed partial class DatabaseSeeder(
     IUnitOfWork unitOfWork,
     ApplicationDbContext dbContext,
     RoleSeeder roleSeeder,
     SystemSettingsSeeder systemSettingsSeeder,
     OpenIddictSeeder openIddictSeeder,
     DataProtectionKeySeeder dataProtectionKeySeeder,
-    IPermissionCacheInvalidator permissionCache,
     ISystemSettingsCache settingsCache,
-    IEnumerable<IDatabaseSeedParticipant> participants)
+    IEnumerable<IDatabaseSeedParticipant> participants,
+    ILogger<DatabaseSeeder> logger)
 {
     public async Task SeedAsync(CancellationToken cancellationToken)
     {
-        Guid[] roleIds = [];
         await unitOfWork.ExecuteInTransactionAsync(
             async ct =>
             {
                 await dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.Seed], ct);
                 await dataProtectionKeySeeder.SeedAsync(ct);
 
-                roleIds = await roleSeeder.SeedAsync(ct);
+                await roleSeeder.SeedAsync(ct);
                 await systemSettingsSeeder.SeedAsync(ct);
                 await openIddictSeeder.SeedAsync(ct);
                 foreach (var participant in participants) await participant.SeedAsync(ct);
@@ -53,10 +55,17 @@ internal sealed class DatabaseSeeder(
             cancellationToken);
 
         // Redis may survive the process. Discard only after the complete seed has committed.
-        foreach (var roleId in roleIds)
+        try
         {
-            await permissionCache.InvalidateRoleAsync(roleId, cancellationToken);
+            await settingsCache.InvalidateAsync(cancellationToken);
         }
-        await settingsCache.InvalidateAsync(cancellationToken);
+        catch (Exception exception) when (RedisCache.IsUnavailable(exception))
+        {
+            SettingsCacheNotDiscarded(logger, exception);
+        }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Redis did not respond after the seed: the settings it kept, if any, expire with their TTL.")]
+    private static partial void SettingsCacheNotDiscarded(ILogger logger, Exception exception);
 }

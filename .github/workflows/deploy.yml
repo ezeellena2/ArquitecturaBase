@@ -282,7 +282,8 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # Antes de cambiar algo en Azure: sin Readiness, la revisión nueva recibe tráfico aunque no tenga base ni Redis.
+      # Antes de cambiar algo en Azure: sin Readiness, la revisión nueva recibe tráfico aunque no tenga base. Sin Redis lo
+      # recibe igual, con /health en Degraded (ADR 0032).
       - name: Exigir los probes de la Container App
         if: steps.current.outputs.deploy == 'true'
         run: |

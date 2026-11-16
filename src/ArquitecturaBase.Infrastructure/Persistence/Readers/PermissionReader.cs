@@ -1,36 +1,22 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
 
+/// <summary>
+/// Una sola sentencia sobre el contexto del pedido: <c>SELECT DISTINCT</c> de los claims de permiso de los roles que la
+/// cuenta tiene en <c>AspNetUserRoles</c>, que entra por su clave primaria (UserId, RoleId) y llega a los claims por el
+/// índice de RoleId. Si el contexto está en un límite, la consulta va en su transacción.
+/// </summary>
 internal sealed class PermissionReader(ApplicationDbContext dbContext) : IPermissionReader
 {
-    public Task<string?> FindRoleVersionAsync(Guid roleId, CancellationToken cancellationToken) =>
-        dbContext.Roles.AsNoTracking()
-            .Where(role => role.Id == roleId)
-            .Select(role => role.ConcurrencyStamp)
-            .FirstOrDefaultAsync(cancellationToken);
-
-    public Task<RolePermissionsRow?> FindRolePermissionsAsync(Guid roleId, string version, CancellationToken cancellationToken) =>
-        dbContext.Roles.AsNoTracking()
-            .Where(role => role.Id == roleId && role.ConcurrencyStamp == version)
-            .Select(role => new RolePermissionsRow(role.ConcurrencyStamp!,
-                dbContext.RoleClaims
-                    .Where(claim => claim.RoleId == role.Id && claim.ClaimType == Permissions.ClaimType)
-                    .Select(claim => claim.ClaimValue!).ToArray()))
-            .FirstOrDefaultAsync(cancellationToken);
-
-    public async Task<IReadOnlyList<Guid>> ListRoleIdsForUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        await dbContext.UserRoles
-            .Where(userRole => userRole.UserId == userId)
-            .Select(userRole => userRole.RoleId)
-            .ToListAsync(cancellationToken);
-
-    public Task<string[]> ListPermissionsForRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
-        dbContext.RoleClaims
-            .Where(claim => claim.RoleId == roleId && claim.ClaimType == Permissions.ClaimType)
+    public async Task<IReadOnlyCollection<string>> ListPermissionsForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        await dbContext.RoleClaims
+            .AsNoTracking()
+            .Where(claim => claim.ClaimType == Permissions.ClaimType
+                && dbContext.UserRoles.Any(userRole => userRole.UserId == userId && userRole.RoleId == claim.RoleId))
             .Select(claim => claim.ClaimValue!)
-            .ToArrayAsync(cancellationToken);
+            .Distinct()
+            .ToListAsync(cancellationToken);
 }

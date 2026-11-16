@@ -20,28 +20,60 @@ internal sealed partial class RedisCache(
     ILogger<RedisCache> logger)
 {
     internal const string MeterName = "ArquitecturaBase.Caching";
+
+    /// <summary>
+    /// Redis did not answer: no connection, a command that timed out (<see cref="RedisTimeoutException"/> is a
+    /// <see cref="TimeoutException"/>), a server error, or the fill wait running out. Only callers that can go on without
+    /// the cache catch it (N9): the settings read the database and the seed keeps starting. A cancellation the caller's
+    /// token did not cause (the client cancels the pending commands when it drops a hung socket) is Redis not answering
+    /// too: every public operation turns it into a <see cref="TimeoutException"/>.
+    /// </summary>
+    internal static bool IsUnavailable(Exception exception) => exception is RedisException or TimeoutException;
+
     public async Task<bool> TryAcquireExclusiveLeaseAsync(RedisCacheKey key, string owner, TimeSpan duration, CancellationToken cancellationToken)
     {
         key.Validate();
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(duration, TimeSpan.Zero);
-        return await connection.GetDatabase().StringSetAsync(key.LeaseKey(options.Value.KeyPrefix), owner, duration, When.NotExists)
-            .WaitAsync(cancellationToken);
+        try
+        {
+            return await connection.GetDatabase().StringSetAsync(key.LeaseKey(options.Value.KeyPrefix), owner, duration, When.NotExists)
+                .WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw NotAnswered(exception);
+        }
     }
 
     public async Task<bool> RenewExclusiveLeaseAsync(RedisCacheKey key, string owner, TimeSpan duration, CancellationToken cancellationToken)
     {
         key.Validate();
-        return (long)await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.RenewExclusiveLease,
-            [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)duration.TotalMilliseconds]).WaitAsync(cancellationToken) == 1;
+        try
+        {
+            return (long)await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.RenewExclusiveLease,
+                [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)duration.TotalMilliseconds]).WaitAsync(cancellationToken) == 1;
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw NotAnswered(exception);
+        }
     }
 
     public async Task ReleaseExclusiveLeaseAsync(RedisCacheKey key, string owner, TimeSpan cooldown, CancellationToken cancellationToken)
     {
         key.Validate();
-        await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.ReleaseExclusiveLease,
-            [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)cooldown.TotalMilliseconds]).WaitAsync(cancellationToken);
+        try
+        {
+            await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.ReleaseExclusiveLease,
+                [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)cooldown.TotalMilliseconds]).WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw NotAnswered(exception);
+        }
     }
+
     private static readonly Meter CacheMeter = new(MeterName);
     private static readonly Counter<long> Hits = CacheMeter.CreateCounter<long>("cache.hits");
     private static readonly Counter<long> Misses = CacheMeter.CreateCounter<long>("cache.misses");
@@ -158,12 +190,13 @@ internal sealed partial class RedisCache(
                     }
                     finally
                     {
-                        // Cleanup is independent of request cancellation. Redis's command timeout bounds it.
+                        // Cleanup is independent of request cancellation. Redis's command timeout bounds it; if Redis does
+                        // not answer (a timeout, or the command cancelled with a hung socket), the lease just expires.
                         try
                         {
                             await database.ScriptEvaluateAsync(RedisCacheScripts.Release, [leaseKey], [owner]);
                         }
-                        catch (RedisException)
+                        catch (Exception exception) when (exception is RedisException or TimeoutException or OperationCanceledException)
                         {
                             LeaseReleaseFailed(logger);
                         }
@@ -173,9 +206,10 @@ internal sealed partial class RedisCache(
                 await Task.Delay(settings.RetryMilliseconds, token);
             }
         }
-        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested && timeout.IsCancellationRequested)
+        // The fill wait ran out, or the client cancelled a command with a hung socket: Redis did not answer either way.
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new TimeoutException("Timed out waiting for the Redis cache operation.", exception);
+            throw NotAnswered(exception);
         }
     }
 
@@ -183,10 +217,20 @@ internal sealed partial class RedisCache(
     {
         key.Validate();
         var settings = options.Value;
-        await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.Invalidate,
-            [key.DataKey(settings.KeyPrefix), key.LeaseKey(settings.KeyPrefix)])
-            .WaitAsync(cancellationToken);
+        try
+        {
+            await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.Invalidate,
+                [key.DataKey(settings.KeyPrefix), key.LeaseKey(settings.KeyPrefix)])
+                .WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw NotAnswered(exception);
+        }
     }
+
+    private static TimeoutException NotAnswered(OperationCanceledException exception) =>
+        new("Timed out waiting for the Redis cache operation.", exception);
 
     private static TValue Deserialize<TValue>(RedisValue cached, int maximumPayloadBytes)
     {

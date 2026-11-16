@@ -6,7 +6,8 @@ namespace ArquitecturaBase.Application.Interfaces.Persistence;
 /// <summary>
 /// Lectura cacheada de los ajustes, para el camino del ingreso: se consulta en cada pedido de código y en cada
 /// ingreso con Google, así que no puede pegarle a la base todas las veces. Lo implementa Infrastructure con el
-/// caché compartido. Lo descarta <see cref="Integrations.Caching.ISystemSettingsCache"/> después del commit.
+/// caché compartido. Lo descarta <see cref="Integrations.Caching.ISystemSettingsCache"/> después del commit. Si Redis
+/// no responde, lee la base sin cachear (N9): el ingreso sigue.
 /// </summary>
 public interface ISystemSettingsReader
 {

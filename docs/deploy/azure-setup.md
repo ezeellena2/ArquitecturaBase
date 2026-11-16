@@ -217,7 +217,7 @@ puerto acepta conexiones, aunque PostgreSQL o Redis no respondan.
 |---|---|---|
 | Startup | `/alive` | Da tiempo al arranque: la Api no escucha hasta validar opciones, comprobar migraciones y sembrar, y el seed puede esperar su lock hasta 30 s. Liveness y Readiness esperan a que pase. |
 | Liveness | `/alive` | Reinicia el contenedor si el proceso queda colgado. No consulta PostgreSQL ni Redis a propósito: si lo hiciera, una caída de esas dependencias reiniciaría los contenedores en cadena sin arreglar nada. |
-| Readiness | `/health` | Saca la réplica del tráfico mientras PostgreSQL o Redis no responden, y también si su anillo de claves de IA no coincide con el de las demás (`ai-key-ring`, [configurar IA](../guides/configurar-ia.md)): reiniciar no lo arregla. El check de WhatsApp queda en Degraded, que responde 200: un token vencido no corta el tráfico. El resultado se guarda 2 s, así que cada probe ve uno nuevo y una ráfaga no le llega a la base. |
+| Readiness | `/health` | Saca la réplica del tráfico mientras PostgreSQL no responde, y también si su anillo de claves de IA no coincide con el de las demás (`ai-key-ring`, [configurar IA](../guides/configurar-ia.md)): reiniciar no lo arregla. Los checks de Redis, WhatsApp y el correo quedan en Degraded, que responde 200: sin Redis la app sigue (N9) y un token vencido no corta el tráfico. El resultado se guarda 2 s, así que cada probe ve uno nuevo y una ráfaga no le llega a la base. |
 
 Los probes no se configuran por parámetros de la CLI: hay que exportar el YAML de la
 aplicación, agregarlos y volver a aplicarlo.
@@ -261,8 +261,11 @@ Los valores respetan los límites de Container Apps: `failureThreshold` admite h
 
 - **Startup** tolera unos 100 s de arranque antes de reiniciar el contenedor.
 - **Readiness** espera 5 s cada respuesta, porque un comando de Redis puede tardar hasta 3 s. Con tres fallos
-  seguidos (30 s) la réplica sale del tráfico; con una sola réplica, la app deja de atender hasta que la
-  dependencia vuelve. Sin Redis ya fallaban casi todos los pedidos de `/api`, porque los permisos pasan por el caché.
+  seguidos (30 s) la réplica sale del tráfico; con una sola réplica, la app deja de atender hasta que la base
+  vuelve. Redis caído no la saca ([ADR 0032](../decisions/0032-sin-redis-la-app-sigue.md)): siguen la app, los
+  permisos, la configuración y los webhooks de Meta, y el ingreso sigue por correo y Google; el código por WhatsApp no
+  sale hasta que vuelve Redis, como todo envío de WhatsApp, que espera su lease. La app muestra un texto propio para un
+  502 o un 504 del ingress.
 - **Liveness** reinicia después de tres fallos seguidos (90 s).
 - **Apagado:** la Api se toma hasta 25 s para terminar lo que tiene en curso, y la plataforma le da 60 antes de matarla.
   Con los 30 por defecto de los dos no quedaba margen.
