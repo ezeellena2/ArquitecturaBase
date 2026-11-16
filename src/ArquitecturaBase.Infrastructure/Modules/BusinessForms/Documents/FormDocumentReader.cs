@@ -136,8 +136,10 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
     private async Task<FormDocumentContent> ReadPdfAsync(byte[] content, CancellationToken ct)
     {
         if (!DocumentSignature.IsPdf(content) || FormPdfObjects.Count(content, MaximumPdfObjects) > MaximumPdfObjects) return Unreadable;
-        // Its streams are ciphertext until PdfPig decrypts them, so they cannot be measured: any /Encrypt is a PDF with a password.
-        if (FormPdfStreams.IsEncrypted(content)) return new(FormDocumentReadStatus.Protected);
+        // Its streams are ciphertext until PdfPig decrypts them: with the empty password they are decrypted to be measured, and a file
+        // that does not open with it, or whose handler is not the standard one, is a PDF with a password.
+        var security = FormPdfSecurity.Resolve(content);
+        if (security.Outcome == FormPdfSecurity.Outcome.Protected) return new(FormDocumentReadStatus.Protected);
         if (Volatile.Read(ref abandonedPdfs) >= MaximumAbandonedPdfs)
         {
             LogTooManyAbandoned(logger);
@@ -154,7 +156,7 @@ internal sealed partial class FormDocumentReader : IFormDocumentReader
                 // Nothing may escape a thread of its own: it would end the process.
                 try
                 {
-                    opened.SetResult(FormPdfStreams.Fits(content, MaximumPdfInflatedBytes, MaximumPdfObjects) ? openPdf(content) : Unreadable);
+                    opened.SetResult(FormPdfStreams.Fits(content, MaximumPdfInflatedBytes, MaximumPdfObjects, security.Decryptor) ? openPdf(content) : Unreadable);
                 }
                 catch (OutOfMemoryException exception)
                 {

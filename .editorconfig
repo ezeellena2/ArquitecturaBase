@@ -86,3 +86,11 @@ dotnet_diagnostic.CA1720.severity = none
 [src/ArquitecturaBase.Domain/Modules/BusinessForms/BusinessFormPersonAttribute.cs]
 # CA1711: Attribute nombra el dato configurable de una persona del modelo E2, no un atributo CLR.
 dotnet_code_quality.CA1711.allowed_suffixes = Attribute
+
+[src/ArquitecturaBase.Infrastructure/Modules/BusinessForms/Documents/FormPdfSecurity.cs]
+# CA5351: el manejador estándar de seguridad de PDF (ISO 32000-1) deriva sus claves con MD5 y RC4; acá sólo se descifra para medir, nunca se protege nada.
+dotnet_diagnostic.CA5351.severity = none
+
+[tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms/FormHostilePdfFixture.cs]
+# CA5351: el fixture cifra con MD5 y RC4 porque así lo define el manejador estándar de seguridad de PDF; es un archivo de prueba.
+dotnet_diagnostic.CA5351.severity = none

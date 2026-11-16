@@ -372,8 +372,8 @@ public sealed class FormDocumentAttachmentTests
         Assert.True(back);
     }
 
-    // F6: a PDF with /Encrypt is Protected before PdfPig opens it, with an empty password too: its streams are ciphertext, so they
-    // cannot be measured.
+    // A PDF whose standard security handler does not open with the empty password (here a made-up one) is Protected before PdfPig
+    // opens it.
     [Fact]
     public async Task A_pdf_with_an_encrypt_entry_is_protected_without_being_opened()
     {
@@ -381,6 +381,57 @@ public sealed class FormDocumentAttachmentTests
             _ => throw new InvalidOperationException("PdfPig must not open it."));
 
         var content = await reader.ReadAsync(FormHostilePdfFixture.Encrypted(), FormDocumentFormat.Pdf, TestContext.Current.CancellationToken);
+
+        Assert.Equal(FormDocumentReadStatus.Protected, content.Status);
+    }
+
+    // A PDF encrypted only for permissions (an empty opening password) is measured after decrypting it with that password, whatever
+    // the scheme of the standard security handler: the bomb in its object stream is unreadable without being inflated.
+    [Theory]
+    [InlineData("rc4-40")]
+    [InlineData("rc4-128")]
+    [InlineData("aes-128")]
+    [InlineData("aes-256")]
+    public async Task A_decompression_bomb_in_a_pdf_encrypted_for_permissions_only_is_unreadable(string scheme)
+    {
+        var bytes = FormHostilePdfFixture.EncryptedObjectStream(scheme, bomb: true);
+        Assert.True(bytes.Length < StructuredAttachmentLimits.MaximumBytes);
+        var watch = Stopwatch.StartNew();
+
+        var before = GC.GetTotalAllocatedBytes(precise: true);
+        var content = await Reader().ReadAsync(bytes, FormDocumentFormat.Pdf, TestContext.Current.CancellationToken);
+        var allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+
+        Assert.Equal(FormDocumentReadStatus.Unreadable, content.Status);
+        Assert.InRange(allocated, 0, 192L * 1024 * 1024);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(20));
+    }
+
+    [Theory]
+    [InlineData("rc4-40")]
+    [InlineData("rc4-128")]
+    [InlineData("aes-128")]
+    [InlineData("aes-256")]
+    public async Task A_pdf_encrypted_for_permissions_only_is_read_whatever_its_scheme(string scheme)
+    {
+        var content = await Reader().ReadAsync(FormHostilePdfFixture.EncryptedObjectStream(scheme, bomb: false), FormDocumentFormat.Pdf,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal((FormDocumentReadStatus.Read, 1), (content.Status, content.Pages));
+    }
+
+    [Theory]
+    [InlineData("rc4-40")]
+    [InlineData("rc4-128")]
+    [InlineData("aes-128")]
+    [InlineData("aes-256")]
+    public async Task A_pdf_encrypted_with_an_opening_password_is_protected_without_being_opened(string scheme)
+    {
+        var reader = new FormDocumentReader(NullLogger<FormDocumentReader>.Instance, FormDocumentReader.PdfReadTimeout,
+            _ => throw new InvalidOperationException("PdfPig must not open it."));
+
+        var content = await reader.ReadAsync(FormHostilePdfFixture.EncryptedObjectStream(scheme, bomb: true, openingPassword: "secreto"),
+            FormDocumentFormat.Pdf, TestContext.Current.CancellationToken);
 
         Assert.Equal(FormDocumentReadStatus.Protected, content.Status);
     }
