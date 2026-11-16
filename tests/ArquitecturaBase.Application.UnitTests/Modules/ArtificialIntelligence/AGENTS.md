@@ -10,7 +10,7 @@ estricto y deadline con FakeTimeProvider. Dobles con datos ficticios; no HTTP fa
 cuotas compartidas, scopes, cifrado, rollback y retención reales pertenecen a integración con Docker.
 ContextPolicy verifica es/en con cultura ambiente distinta de la capturada y corta historia
 anterior a un hueco vencido sin descifrarla. Dispatch comprueba consumo conocido ante bloqueo
-de publicación y la reserva conservadora de permisos. Retention verifica cuenta eliminada,
+de publicación y la reserva conservadora de permisos. Retention verifica cuenta eliminada (también sin contenido, I3),
 cancelación durable y purga física posterior a la ventana; el FK independiente se prueba en Docker.
 
 ConversationTitleTests comprueba grafemas Unicode, normalización, contexto original de cifrado

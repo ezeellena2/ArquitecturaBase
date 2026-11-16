@@ -42,7 +42,7 @@ ReadDocument tiene su cliente (`OpenAiDocumentReadingClient`), que sólo llama e
 
 NormalizeAudio convierte las excepciones de almacenamiento no canceladas (incluido AggregateException al agotar reintentos, apertura, lectura y cierre del stream) a ContentUnavailable sólo dentro del tramo previo al cliente STT. No transforma en incierto un archivo que no llegó al proveedor; cancelación y errores del POST conservan su clasificación propia.
 
-Retención física: Inicio conserva la retirada explícita; otros canales no la necesitan cuando vencieron contenido y recibos y no hay turnos activos. La consulta usa ConversationId de recibos independientes, sin FK/cascade ni inferencia desde el vencimiento del turno.
+Retención física (I3): ninguna conversación, de Inicio o de un canal, necesita retirada cuando vencieron contenido y recibos y no hay turnos activos; una de Inicio retirada no espera los recibos. La consulta usa ConversationId de recibos independientes, sin FK/cascade ni inferencia desde el vencimiento del turno. Las conversaciones de una cuenta borrada se listan por dueño para retirarlas aun sin contenido; como `IgnoreQueryFilters` vale para toda la consulta, el estado activo va explícito.
 
 I2: la purga de contenido también toma una grabación o una lectura de Inicio enviada hace más de 24 horas que ningún turno de una conversación activa nombra: el audio por `AudioRequestId` y la lectura por la clave de su copia en `AttachmentKey`, que nombra su pedido. Los canales técnicos, el prefijo de la clave y el corte los pasa Application; sin columna ni índice nuevos. Al borrar una conversación, el repositorio proyecta de sus turnos el `AudioRequestId` y, de los que tienen archivo, el perfil sellado, que dice qué lectura nombraron.
 

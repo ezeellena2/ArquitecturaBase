@@ -32,6 +32,12 @@ public interface IAiAssistantRepository
     /// before <see cref="AiAssistantUnnamedSources.SubmittedBeforeUtc"/> that no turn of an active conversation named (I2).
     /// </summary>
     Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit, CancellationToken cancellationToken);
+    /// <summary>The conversations a deleted account has not retired yet, with or without content left (I3).</summary>
+    Task<IReadOnlyList<AiConversation>> ListDeletedOwnerConversationsAsync(int limit, CancellationToken cancellationToken);
+    /// <summary>
+    /// The conversations, of Home or another channel, without active turns, with all their content expired and no receipt still valid, even
+    /// if nobody removed them (I3); a removed Home one does not wait for its receipts.
+    /// </summary>
     Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turnId, CancellationToken cancellationToken);

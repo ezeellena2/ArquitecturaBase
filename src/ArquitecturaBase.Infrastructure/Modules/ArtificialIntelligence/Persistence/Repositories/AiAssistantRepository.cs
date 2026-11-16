@@ -111,14 +111,19 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     public async Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
         await dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.ExpiresAtUtc <= nowUtc)
             .OrderBy(receipt => receipt.ExpiresAtUtc).ThenBy(receipt => receipt.Id).Take(limit).ToListAsync(cancellationToken);
+    // I3: IgnoreQueryFilters, which the deleted account needs, applies to the whole query, so the state leaves out the retired ones.
+    public async Task<IReadOnlyList<AiConversation>> ListDeletedOwnerConversationsAsync(int limit, CancellationToken cancellationToken) =>
+        await dbContext.Set<AiConversation>().Where(conversation => conversation.State == AiConversationState.Active
+                && dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == conversation.OwnerUserId && user.IsDeleted))
+            .OrderBy(conversation => conversation.Id).Take(limit).ToListAsync(cancellationToken);
     public async Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
         await Removable(nowUtc).OrderBy(conversation => conversation.RemovalRequestedAtUtc).ThenBy(conversation => conversation.Id)
             .Take(limit).ToListAsync(cancellationToken);
+    // I3: Home goes like the other channels, even if nobody removed it; a removed Home conversation does not wait for its receipts.
     private IQueryable<AiConversation> Removable(DateTime nowUtc) =>
         dbContext.Set<AiConversation>().IgnoreQueryFilters().Where(conversation =>
-            (conversation.State == AiConversationState.Removed || conversation.ChannelId != "home")
-            && (conversation.ChannelId == "home" || !dbContext.Set<AiAssistantRequestReceipt>().Any(receipt =>
-                receipt.ConversationId == conversation.Id && receipt.ExpiresAtUtc > nowUtc))
+            ((conversation.ChannelId == "home" && conversation.State == AiConversationState.Removed)
+                || !dbContext.Set<AiAssistantRequestReceipt>().Any(receipt => receipt.ConversationId == conversation.Id && receipt.ExpiresAtUtc > nowUtc))
             && !dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Any(turn => turn.ConversationId == conversation.Id
                 && (turn.ContentExpiresAtUtc > nowUtc || turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running)));
     public async Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turnId, CancellationToken cancellationToken) =>

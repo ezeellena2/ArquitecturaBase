@@ -302,6 +302,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime now, int pending, int grace, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime now, AiAssistantUnnamedSources unnamed, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantNamedSourceRow>> ListNamedSourcesAsync(Guid owner, Guid conversation, CancellationToken ct) => throw new NotSupportedException();
+    public Task<IReadOnlyList<AiConversation>> ListDeletedOwnerConversationsAsync(int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turn, CancellationToken ct) => Task.FromResult<IReadOnlyList<AiAssistantToolExecution>>(Tools.Where(item => item.TurnId == turn).ToArray());

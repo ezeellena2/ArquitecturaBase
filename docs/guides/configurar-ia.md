@@ -322,8 +322,10 @@ Conservá keyId/bytes/InstallationId mientras haya contenido, comprobantes o bac
 Eliminar una conversación retira el acceso inmediatamente y pide cancelación; la purga física
 se ejecuta después en lotes, y los comprobantes sin texto impiden eludir cuotas o repetir UUID.
 Después de vencer todos los turnos y cerrar los activos, la conversación retirada se elimina
-físicamente con sus turnos/herramientas. La purga usa un presupuesto total por lote y scopes
-nuevos; conserva los comprobantes independientes mientras siga su ventana.
+físicamente con sus turnos/herramientas; la que nadie retiró, de Inicio o de un canal, también,
+cuando además vencieron sus comprobantes, y una cuenta borrada retira las suyas (I3). La purga
+usa un presupuesto total por lote y scopes nuevos; conserva los comprobantes independientes
+mientras siga su ventana.
 No borres filas de operación para recuperar una generación incierta.
 
 ## Runbook del asistente

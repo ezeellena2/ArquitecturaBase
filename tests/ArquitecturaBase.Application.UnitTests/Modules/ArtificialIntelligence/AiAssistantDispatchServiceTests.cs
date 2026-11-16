@@ -111,6 +111,23 @@ public sealed partial class AiAssistantDispatchServiceTests
     }
 
     [Fact]
+    public async Task A_deleted_owners_conversation_is_retired_and_its_active_turn_canceled_without_content_to_purge()
+    {
+        var host = new Host();
+        host.Store.DeletedOwners = true;
+        host.Store.ActiveForConversation = host.Store.Turn;
+        var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock,
+            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts());
+        var result = await retention.PurgeBatchAsync(Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value);
+        Assert.Equal(AiConversationState.Removed, host.Store.Conversation.State);
+        Assert.NotNull(host.Store.Turn.CancelRequestedAtUtc);
+        Assert.False(host.Store.PhysicallyRemoved);
+        Assert.Equal(1, host.Work.Commits);
+    }
+
+    [Fact]
     public async Task Removed_conversations_are_physically_purged_only_after_the_content_and_receipt_window()
     {
         var host = new Host();
@@ -203,6 +220,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public long ConnectionRevision { get; set; } = 1;
         public bool Purgeable { get; set; }
         public bool Removable { get; set; }
+        public bool DeletedOwners { get; set; }
         public bool PhysicallyRemoved { get; private set; }
         public AiAssistantRequestReceipt? Receipt { get; set; }
         public AiAssistantTurn? ActiveForConversation { get; set; }
@@ -236,6 +254,8 @@ public sealed partial class AiAssistantDispatchServiceTests
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>([]);
         public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>(Purgeable ? [Turn] : []);
+        public Task<IReadOnlyList<AiConversation>> ListDeletedOwnerConversationsAsync(int limit, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AiConversation>>(DeletedOwners && Conversation.State == AiConversationState.Active ? [Conversation] : []);
         public Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiConversation>>(Removable ? [Conversation] : []);
         public void RemoveConversation(AiConversation conversation) => PhysicallyRemoved = true;

@@ -36,11 +36,18 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
             var now = timeProvider.GetUtcNow().UtcDateTime;
             var turns = await repository.ListPurgeableAsync(now, new(now.AddHours(-UnnamedSourceHours), AiAssistantChannelPolicy.HomeAudioChannelId,
                 AiAssistantChannelPolicy.HomeDocumentChannelId, AiAssistantHomeDocumentPolicy.Prefix), limits.MaintenanceBatchSize, ct);
-            var conversations = await repository.ListRemovableConversationsAsync(now, limits.MaintenanceBatchSize - turns.Count, ct);
-            foreach (var owner in turns.Select(t => t.OwnerUserId).Concat(conversations.Select(c => c.OwnerUserId)).Distinct().Order())
+            var retiring = await repository.ListDeletedOwnerConversationsAsync(limits.MaintenanceBatchSize - turns.Count, ct);
+            var conversations = await repository.ListRemovableConversationsAsync(now, limits.MaintenanceBatchSize - turns.Count - retiring.Count, ct);
+            foreach (var owner in turns.Select(t => t.OwnerUserId).Concat(retiring.Concat(conversations).Select(c => c.OwnerUserId)).Distinct().Order())
                 await repository.LockActorAsync(owner, ct);
-            foreach (var conversation in turns.Select(t => t.ConversationId).Concat(conversations.Select(c => c.Id)).Distinct().Order())
+            foreach (var conversation in turns.Select(t => t.ConversationId).Concat(retiring.Concat(conversations).Select(c => c.Id)).Distinct().Order())
                 await repository.LockConversationAsync(conversation, ct);
+            // I3: a deleted account retires its conversations even once they have no content left.
+            foreach (var conversation in retiring)
+            {
+                (await repository.GetActiveForConversationAsync(conversation.Id, ct))?.RequestCancellation(now);
+                conversation.Remove(now);
+            }
             var deletedOwners = new HashSet<Guid>();
             foreach (var owner in turns.Select(t => t.OwnerUserId).Distinct())
                 if (await users.FindByIdAsync(owner, ct) is null) deletedOwners.Add(owner);
@@ -56,8 +63,8 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
                 foreach (var tool in await repository.ListToolsAsync(turn.Id, ct)) repository.RemoveTool(tool);
             }
             foreach (var conversation in conversations) repository.RemoveConversation(conversation);
-            var receipts = await repository.ListExpiredReceiptsAsync(now, limits.MaintenanceBatchSize - turns.Count - conversations.Count, ct);
+            var receipts = await repository.ListExpiredReceiptsAsync(now, limits.MaintenanceBatchSize - turns.Count - retiring.Count - conversations.Count, ct);
             foreach (var receipt in receipts) repository.RemoveReceipt(receipt);
-            return Result.Success(turns.Count + conversations.Count + receipts.Count);
+            return Result.Success(turns.Count + retiring.Count + conversations.Count + receipts.Count);
         }, CommitPolicy.OnSuccess, cancellationToken));
 }

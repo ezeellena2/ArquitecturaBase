@@ -20,11 +20,13 @@ habilita. El piloto con modelos y cuentas reales está en [verificación y produ
 ## Punto de partida comprobado en código
 
 - El contenido de cada turno vence a los 30 días. `AiAssistantRetentionService.PurgeBatchAsync`
-  purga cada hora un lote de hasta 100 elementos repartido entre contenido, conversaciones
-  retiradas y comprobantes vencidos.
-- **Las conversaciones activas y sus turnos sin contenido conservan metadata sin plazo.** Sólo una
-  conversación retirada se borra físicamente, cuando vencieron todos sus turnos y no queda uno
-  activo. Una cuenta borrada retira y cancela lo suyo; una desactivada queda bloqueada sin purga anticipada.
+  purga cada hora un lote de hasta 100 elementos repartido entre contenido, conversaciones de
+  cuentas borradas que retira, conversaciones que borra y comprobantes vencidos.
+- **Mientras una conversación tenga algo vigente, sus turnos sin contenido conservan metadata.** Una
+  conversación, de Inicio o de un canal, se borra físicamente cuando no queda un turno activo, venció
+  todo su contenido y ningún recibo sigue vigente, aunque nadie la haya retirado; una de Inicio
+  retirada no espera los recibos. Una cuenta borrada retira y cancela lo suyo aunque ya no tenga
+  contenido; una desactivada queda bloqueada sin purga anticipada.
 - WhatsApp vacía `Body` y `ProtectedFlowResponse` a los 90 días con un `UPDATE` sin lote y sin
   índice parcial por fecha con contenido presente (`WhatsAppMessageRetentionRepository`); las
   filas se conservan ([WhatsApp](../features/whatsapp.md#reglas)).

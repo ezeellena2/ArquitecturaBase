@@ -99,13 +99,14 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
     [InlineData("whatsapp-assistant", true, false, false, false)]
     [InlineData("whatsapp-assistant", false, true, false, false)]
     [InlineData("whatsapp-assistant", false, false, true, false)]
-    [InlineData("home", false, false, false, false)]
-    public async Task Channel_metadata_waits_for_turns_and_receipts_while_home_keeps_explicit_removal(
+    [InlineData("home", false, false, false, true)]
+    [InlineData("home", true, false, false, false)]
+    [InlineData("home", false, true, false, false)]
+    [InlineData("home", false, false, true, false)]
+    public async Task Channel_and_home_metadata_wait_for_turns_and_receipts_without_an_explicit_removal(
         string channel, bool liveReceipt, bool liveContent, bool activeTurn, bool removed)
     {
-        var owner = await factory.InTransactionAsync(async services =>
-            (await services.GetRequiredService<IUserRepository>().CreateAsync(Email.Create(TestEmails.Unique("channel-retention")).Value,
-                null, false, null, "es", Ct)).Id);
+        var owner = await CreateUserAsync("channel-retention");
         var now = factory.Clock.GetUtcNow().UtcDateTime;
         var submitted = now.AddDays(-32);
         var conversation = AiConversation.Create(owner, submitted, channel);
@@ -121,7 +122,7 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
                 services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(conversation, turn, receipt);
                 return Task.CompletedTask;
             });
-            await factory.ExecuteScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().PurgeBatchAsync(Ct));
+            await PurgeAllAsync();
             await factory.ExecuteDbContextAsync(async db =>
             {
                 Assert.Equal(!removed, await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == conversation.Id, Ct));
@@ -142,5 +143,98 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
                 await db.SaveChangesAsync(CancellationToken.None);
             });
         }
+    }
+
+    // I3: a deleted account is left without conversations even once its turns have no content to purge. Three months after its last use,
+    // the purge already took the content and the receipts expired, while the conversation kept its metadata.
+    [Fact]
+    public async Task A_deleted_account_three_months_after_its_last_use_is_left_without_conversations()
+    {
+        var owner = await CreateUserAsync("deleted-three-months");
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var lastUse = now.AddDays(-92);
+        var conversation = AiConversation.Create(owner, lastUse);
+        var turn = AiAssistantTurn.Create(owner, conversation.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC",
+            AiProvider.OpenAI, "fictional-model", 1, lastUse, lastUse.AddDays(30));
+        turn.RequestCancellation(lastUse);
+        turn.PurgeContent();
+        var receipt = AiAssistantRequestReceipt.Create(owner, turn.RequestId, "fingerprint", "test", conversation.Id, turn.Id, lastUse,
+            lastUse.AddDays(30), conversation.ChannelId, false);
+        await factory.InTransactionAsync(services =>
+        {
+            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(conversation, turn, receipt);
+            return Task.CompletedTask;
+        });
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().DeleteAsync(owner, Ct));
+
+        await PurgeAllAsync();
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            Assert.False(await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.OwnerUserId == owner, Ct));
+            Assert.False(await db.Set<AiAssistantTurn>().IgnoreQueryFilters().AnyAsync(row => row.OwnerUserId == owner, Ct));
+            Assert.False(await db.Set<AiAssistantRequestReceipt>().AnyAsync(row => row.OwnerUserId == owner, Ct));
+        });
+    }
+
+    // I3: a deleted account retires its conversations without content while a receipt still lives: Home, once retired, goes when its
+    // turns expired, and another channel stays hidden until its receipts expire.
+    [Fact]
+    public async Task A_deleted_account_retires_its_conversations_without_content_while_a_receipt_still_lives()
+    {
+        var owner = await CreateUserAsync("deleted-live-receipt");
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var submitted = now.AddDays(-10);
+        var rows = new List<object>();
+        var conversations = new Dictionary<string, Guid>();
+        foreach (var channel in new[] { "home", "whatsapp-assistant" })
+        {
+            var conversation = AiConversation.Create(owner, submitted, channel);
+            var turn = AiAssistantTurn.Create(owner, conversation.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC",
+                AiProvider.OpenAI, "fictional-model", 1, submitted, now.AddDays(-1), channel);
+            turn.RequestCancellation(submitted);
+            turn.PurgeContent();
+            rows.AddRange([conversation, turn, AiAssistantRequestReceipt.Create(owner, turn.RequestId, "fingerprint", "test", conversation.Id,
+                turn.Id, submitted, now.AddDays(20), channel, false)]);
+            conversations[channel] = conversation.Id;
+        }
+        await factory.InTransactionAsync(services =>
+        {
+            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>().AddRange(rows);
+            return Task.CompletedTask;
+        });
+
+        // While the account exists, the receipts keep both.
+        await PurgeAllAsync();
+        await factory.ExecuteDbContextAsync(async db =>
+            Assert.Equal(2, await db.Set<AiConversation>().CountAsync(row => row.OwnerUserId == owner, Ct)));
+
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().DeleteAsync(owner, Ct));
+        await PurgeAllAsync();
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            Assert.False(await db.Set<AiConversation>().AnyAsync(row => row.OwnerUserId == owner, Ct));
+            Assert.False(await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == conversations["home"], Ct));
+            var channel = await db.Set<AiConversation>().IgnoreQueryFilters().SingleAsync(row => row.Id == conversations["whatsapp-assistant"], Ct);
+            Assert.Equal(AiConversationState.Removed, channel.State);
+            Assert.Equal(2, await db.Set<AiAssistantRequestReceipt>().CountAsync(row => row.OwnerUserId == owner, Ct));
+        });
+    }
+
+    private Task<Guid> CreateUserAsync(string prefix) => factory.InTransactionAsync(async services =>
+        (await services.GetRequiredService<IUserRepository>().CreateAsync(Email.Create(TestEmails.Unique(prefix)).Value,
+            null, false, null, "es", Ct)).Id);
+
+    // The purge goes in batches shared with what earlier scenarios left: it runs until a batch finds nothing to do.
+    private async Task PurgeAllAsync()
+    {
+        for (var batch = 0; batch < 50; batch++)
+        {
+            var result = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IAiAssistantRetentionService>().PurgeBatchAsync(Ct));
+            Assert.True(result.IsSuccess);
+            if (result.Value == 0) return;
+        }
+        Assert.Fail("The purge did not finish in 50 batches.");
     }
 }
