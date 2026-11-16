@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -268,7 +269,7 @@ public sealed class FormCatalogAssistantProposalServiceTests
                     InteractionMode = AssistantInteractionMode.Unspecified },
                 new(assistant.TurnId, ProposalId, new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 1), Manual),
                 new("fictitious-profile", 3, "home-system", 2, Catalogs.Time.GetUtcNow().UtcDateTime.AddMinutes(-2), "home"), true);
-            Service = new(Lookup, Reader, Catalogs, Catalogs.Service, new FormCatalogAccessGuard(Catalogs.Current, assistant.Permissions), Catalogs.Uow);
+            Service = new(Lookup, Reader, Catalogs, Catalogs.Service, new FormCatalogAccessGuard(Catalogs.Current, assistant.Permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), Catalogs.Uow);
         }
 
         public CreateFromAssistantProposalRequest Request => new(Lookup.RequestId, ProposalId);

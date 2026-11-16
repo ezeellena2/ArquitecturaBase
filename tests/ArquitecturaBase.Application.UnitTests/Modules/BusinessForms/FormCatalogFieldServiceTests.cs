@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -267,7 +268,7 @@ public sealed class FormCatalogFieldServiceTests
             : [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         var repository = items ?? new FormCatalogActivationRepository(catalog);
         return new(repository, reader, work, RequestValidators.For(new UpdateManualCatalogRequestValidator()),
-            new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository), new(reader));
+            new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), null!, new(repository), new(reader));
     }
 
     private static FormCatalogStoredRow Row(BusinessFormCatalog catalog) => new(catalog.Id, catalog.Key, catalog.NameJson, catalog.DescriptionJson,

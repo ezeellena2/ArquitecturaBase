@@ -433,7 +433,7 @@ public sealed class BusinessFormAttachmentReaderTests
     {
         permissions ??= new FakePermissionService();
         current ??= new FakeCurrentUser();
-        return new BusinessFormAttachmentReader(new FormCatalogAccessGuard(current, permissions), new FormDraftAccessGuard(current, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }),
+        return new BusinessFormAttachmentReader(new FormCatalogAccessGuard(current, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), new FormDraftAccessGuard(current, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }),
             spreadsheets, documents);
     }
 

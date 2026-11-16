@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -199,7 +200,7 @@ public sealed class FormCatalogProposalServiceTests
         var host = new FormCatalogProposalFixture();
         var catalog = host.Pending("en");
         var reader = new FormCatalogService(host, host, host.Uow, RequestValidators.For(new UpdateManualCatalogRequestValidator()),
-            new(host.Current, host.Assistant.Permissions), host.Assistant.Users, new(host), new(host));
+            new(host.Current, host.Assistant.Permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), host.Assistant.Users, new(host), new(host));
         var result = await reader.GetAsync(catalog.Id, Ct);
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value.Proposal);
@@ -217,7 +218,7 @@ public sealed class FormCatalogProposalServiceTests
         var catalog = host.Pending("en");
         var evidence = catalog.ProposalEvidenceJson;
         var editor = new FormCatalogFiltersService(host, host, host.Uow, RequestValidators.For(new UpdateFiltersCatalogRequestValidator()),
-            new(host.Current, host.Assistant.Permissions), host.Assistant.Users, host);
+            new(host.Current, host.Assistant.Permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), host.Assistant.Users, host);
         var request = host.Approval(catalog, "en");
         var result = await editor.UpdateAsync(catalog.Id, new(catalog.Revision, request.Name, request.Description, request.Filters, false), Ct);
         Assert.True(result.IsSuccess);
@@ -235,7 +236,7 @@ public sealed class FormCatalogProposalServiceTests
             new Dictionary<string,string> { ["es"] = "Normal", ["en"] = "Normal" }, "{}");
         host.Catalogs.Add(catalog);
         var editor = new FormCatalogFiltersService(host, host, host.Uow, RequestValidators.For(new UpdateFiltersCatalogRequestValidator()),
-            new(host.Current, host.Assistant.Permissions), host.Assistant.Users, host);
+            new(host.Current, host.Assistant.Permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), host.Assistant.Users, host);
         var request = host.Approval(catalog, "en");
         var result = await editor.UpdateAsync(catalog.Id, new(catalog.Revision, request.Name, request.Description, request.Filters, false), Ct);
         Assert.True(result.IsFailure);

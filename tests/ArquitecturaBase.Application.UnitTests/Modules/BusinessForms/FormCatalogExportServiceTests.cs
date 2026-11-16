@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using System.Globalization;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -263,7 +264,7 @@ public sealed class FormCatalogExportServiceTests
         var current = new FakeCurrentUser { UserId = Guid.NewGuid() };
         var permissions = new FakePermissionService(); permissions.Permissions[current.UserId.Value] = [BusinessFormsPermissions.CatalogsRead];
         var reader = new FormCatalogExportReader(); var writer = new FakeFormWorkbookWriter();
-        return (new(reader, writer, new(current, permissions)), reader, writer, permissions, current);
+        return (new(reader, writer, new(current, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true })), reader, writer, permissions, current);
     }
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static object Typed(string type, string value) => type switch

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -68,7 +69,7 @@ public sealed class FormCatalogUsageCountTests
         permissions.Permissions[actor] = canReadForms
             ? [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage, BusinessFormsPermissions.Read]
             : [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
-        var guard = new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions);
+        var guard = new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true });
         var repository = new FormCatalogActivationRepository(catalog);
         var texts = new Dictionary<string, string?> { ["es"] = "Personas editadas", ["en"] = "Edited people" };
         var cancellationToken = TestContext.Current.CancellationToken;

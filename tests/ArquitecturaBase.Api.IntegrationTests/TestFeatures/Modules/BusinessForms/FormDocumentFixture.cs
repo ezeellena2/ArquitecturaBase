@@ -30,7 +30,7 @@ internal static class FormDocumentFixture
     {
         await using var services = new ServiceCollection().AddBusinessFormsInfrastructure().BuildServiceProvider();
         var permissions = new PermissionAuthorizationFixture();
-        var reader = new BusinessFormAttachmentReader(new FormCatalogAccessGuard(permissions, permissions), new FormDraftAccessGuard(permissions, permissions, null!),
+        var reader = new BusinessFormAttachmentReader(new FormCatalogAccessGuard(permissions, permissions, null!), new FormDraftAccessGuard(permissions, permissions, null!),
             services.GetRequiredService<IFormSpreadsheetReader>(), services.GetRequiredService<IFormDocumentReader>());
         return await reader.PrepareAsync(bytes, name, TestContext.Current.CancellationToken);
     }

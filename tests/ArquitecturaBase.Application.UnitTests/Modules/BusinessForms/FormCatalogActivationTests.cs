@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -24,7 +25,7 @@ public sealed class FormCatalogActivationTests
         var actor = Guid.NewGuid();
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
-        var guard = new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions);
+        var guard = new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true });
         var manualReader = new FormCatalogFieldReader();
         var manual = new FormCatalogService(repository, manualReader, work, RequestValidators.For(new UpdateManualCatalogRequestValidator()), guard, null!, new(repository), new(manualReader));
         var filtered = new FormCatalogFiltersService(repository, null!, work, RequestValidators.For(new UpdateFiltersCatalogRequestValidator()), guard, null!, null!);

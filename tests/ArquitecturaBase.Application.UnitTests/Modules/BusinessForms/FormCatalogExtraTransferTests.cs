@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -256,7 +257,7 @@ public sealed class FormCatalogExtraTransferTests
         permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead];
         var reader = new FormCatalogExportReader();
         var writer = new FakeFormWorkbookWriter();
-        return (new(reader, writer, new(new FakeCurrentUser { UserId = actor }, permissions)), reader, writer);
+        return (new(reader, writer, new(new FakeCurrentUser { UserId = actor }, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true })), reader, writer);
     }
 
     private static FormCatalogStoredItemRow Item(Guid catalogId, string code, int position, string values) =>

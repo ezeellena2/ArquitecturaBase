@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
@@ -155,7 +156,7 @@ public sealed class FormCatalogOriginalLanguageTests
         var reader = new FormCatalogFieldReader();
         return new(repository, reader, work,
             RequestValidators.For(new CreateManualCatalogRequestValidator(), new UpdateManualCatalogRequestValidator()),
-            new(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository), new(reader));
+            new(new FakeCurrentUser { UserId = actor }, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), null!, new(repository), new(reader));
     }
 
     private static FormCatalogFiltersService FiltersService(FormCatalogCapacityRepository repository, FakeUnitOfWork work)
@@ -164,6 +165,6 @@ public sealed class FormCatalogOriginalLanguageTests
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         return new(repository, null!, work, RequestValidators.For(new CreateFiltersCatalogRequestValidator(), new UpdateFiltersCatalogRequestValidator()),
-            new(new FakeCurrentUser { UserId = actor }, permissions), null!, null!);
+            new(new FakeCurrentUser { UserId = actor }, permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true }), null!, null!);
     }
 }

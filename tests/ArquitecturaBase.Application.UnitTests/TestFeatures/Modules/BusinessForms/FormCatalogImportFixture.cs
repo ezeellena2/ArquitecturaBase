@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
@@ -71,7 +72,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
         Current.UserId = Actor;
         Permissions.Permissions[Actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         Files = new(storage);
-        var access = new FormCatalogAccessGuard(Current, Permissions);
+        var access = new FormCatalogAccessGuard(Current, Permissions, new InMemoryUserAccounts { UnknownAccountsAreActive = true });
         Service = new(this, this, Work, RequestValidators.For(new FormCatalogImportRequestValidator(), new FormCatalogAssistantImportRequestValidator()),
             access, new FormCatalogImportRecorder(this, this, access, new(this), Clock), new FormCatalogAssistantImportPolicy(Lookup, Files, this));
     }
