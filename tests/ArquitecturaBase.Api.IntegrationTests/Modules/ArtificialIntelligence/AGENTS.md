@@ -50,7 +50,7 @@ AiAssistantHomeCatalogTests cuenta lo que ofrece Inicio con los módulos del hos
 
 AiAssistantUnknownSealTests (I4) sella en PostgreSQL un turno con una terminal futura: el claim toma el siguiente y lo deja pendiente, Get da `UnknownVersion`, y vence sin un intento y devuelve la cuota (con el cupo justo, un pedido más entra recién entonces); vencido, Get da su estado en claro y Cancel no lo cambia.
 
-AiAssistantSealedVersionTests (I4) sella en PostgreSQL una extracción de Formularios y un turno de WhatsApp, con sus ids y sin importar los módulos, con la versión 1 de una capacidad y los recupera con el contexto de una 2 ficticia (`RaisedVersionAssistantSource`): la consulta, el replay, el claim y la cancelación.
+AiAssistantSealedVersionTests (I4) sella en PostgreSQL una extracción de Formularios y un turno de WhatsApp, con sus ids y sin importar los módulos, con la versión 1 de una capacidad y los recupera con el contexto de una 2 ficticia (`RaisedVersionAssistantSource`): la consulta, el replay, el claim y la cancelación. Un turno de Inicio sellado antes de la suba lo corre la copia de después (otro host) con la versión sellada, y termina.
 
 AiConnectionUnsupportedProviderTests (I4) guarda en PostgreSQL una conexión y un turno con un proveedor futuro: la pantalla lo muestra sin 500, vacío y pausado con `unsupportedProvider`, el bootstrap y la disponibilidad dan `paused`, guardar con `Keep` lo guarda sin la clave y la prueba con `Keep` da `CredentialRequired`, el claim no lo toma, el turno se sigue leyendo y guardar con OpenAI lo reemplaza.
 

@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Ser
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Workers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
@@ -52,6 +53,25 @@ public sealed class AiAssistantSealedVersionTests(ApiFactory factory)
         var request = new AssistantOperationRequest(Guid.NewGuid(), context, "A form response was captured.", now.AddMinutes(-1), now.AddHours(1));
 
         await AssertRecoveredAsync(scenario, request, "whatsapp.no-reply");
+    }
+
+    // I4, review: a turn sealed before the deployment that raises its capability is run by the copy after the raise with the version it
+    // sealed, which that copy keeps registered, and closes well; the raised one (fictitious, it rejects every call) never runs.
+    [Fact]
+    public async Task A_turn_sealed_before_raising_its_capability_runs_the_sealed_version_after_the_raise()
+    {
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary");
+        var requestId = Guid.NewGuid();
+        await scenario.SubmitAsync(requestId, "How many users are there?");
+        await using var raised = scenario.CreateAdditionalHost(services =>
+            services.AddSingleton<IAssistantCapabilitySource>(new RaisedVersionAssistantSource("users.summary", 2)));
+
+        Assert.True(await raised.Services.GetRequiredService<AiAssistantCoordinator>().ProcessNextAsync(Ct));
+
+        using var turn = await scenario.Client.GetAsync($"/api/ai/assistant/turns/{requestId}", Ct);
+        Assert.Equal("completed", (await turn.ReadJsonAsync()).GetProperty("state").GetString());
+        // The tool the provider asked for answered with its evidence, and the provider closed on it.
+        Assert.Equal(2, scenario.Handler.Requests.Count);
     }
 
     private static async Task AssertRecoveredAsync(AiAssistantExecutionScenario scenario, AssistantOperationRequest request, string capabilityId)

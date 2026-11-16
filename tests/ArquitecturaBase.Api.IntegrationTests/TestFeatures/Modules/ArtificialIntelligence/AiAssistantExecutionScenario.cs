@@ -115,6 +115,10 @@ internal sealed class AiAssistantExecutionScenario(WebApplicationFactory<Program
 
     public WebApplicationFactory<Program> CreateAdditionalHost() => host.WithWebHostBuilder(_ => { });
 
+    // Another copy on the same database with something more, such as the deployment that raises a capability (I4).
+    public WebApplicationFactory<Program> CreateAdditionalHost(Action<IServiceCollection> configureServices) =>
+        host.WithWebHostBuilder(builder => builder.ConfigureTestServices(configureServices));
+
     // Another client of the same host: as that person, or without a session when null.
     public HttpClient CreateClient(Guid? userId)
     {

@@ -8,7 +8,7 @@ La falla de confirmación se provoca dentro de la UoW real, una vez después de 
 comprobar rollback y recuperación en un scope nuevo. No usar este comportamiento en src.
 Hereda [TestFeatures](../../AGENTS.md) y [las pruebas IA](../../../Modules/ArtificialIntelligence/AGENTS.md).
 
-AiAssistantExecutionScenario permite abrir un segundo host con la misma composición y base para verificar reservas entre réplicas. AiAssistantExecutionScenario y AiAssistantTestScenario crean turnos por el contrato HTTP de aceptación real; no inyectan ni reconstruyen perfiles de ejecución. Un seed que no va a ejecutar el motor (retención o coordinación doblada) no recibe un sello ficticio sólo para parecer una aceptación real.
+AiAssistantExecutionScenario permite abrir un segundo host con la misma composición y base para verificar reservas entre réplicas, o con servicios de más, como la copia después de una suba (I4). AiAssistantExecutionScenario y AiAssistantTestScenario crean turnos por el contrato HTTP de aceptación real; no inyectan ni reconstruyen perfiles de ejecución. Un seed que no va a ejecutar el motor (retención o coordinación doblada) no recibe un sello ficticio sólo para parecer una aceptación real.
 
 AiAssistantContractCapture escribe bytes HTTP intactos del asistente de Inicio sólo con AI_ASSISTANT_HTTP_OUTPUT; no completa ni reescribe los cuerpos.
 
@@ -22,6 +22,6 @@ DocumentReadingHandler y DocumentReadingClient son los dobles de la lectura de d
 
 `FailingReadAssistantSource` es una lectura cuya base falla siempre (`FictionalDbException`, I5).
 
-`RaisedVersionAssistantSource` registra una versión ficticia de una capacidad de un módulo, junto a la que el módulo conserva (I4); nunca se ejecuta.
+`RaisedVersionAssistantSource` registra una versión ficticia de una capacidad, junto a la que se conserva (I4); rechaza toda llamada, y un turno sellado con la anterior nunca la corre.
 
 `AiAssistantExecutionProviderHandler` responde también un estado o rechaza la conexión (`FailWith`, `RefuseConnection`), y `ProviderConnectionFailure` usa el handler del registro con una conexión que nunca llega (nombre, rechazo, TLS o plazo de conexión), sin red (I6).
