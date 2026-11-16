@@ -44,8 +44,9 @@ public sealed partial class FormDraftEndpointsTests
         var own = await CreateAsync(otherWriter, payload); Assert.NotEqual(original.GetProperty("definition").GetProperty("id").GetGuid(), own.GetProperty("definition").GetProperty("id").GetGuid());
         var actorId = Guid.Parse(otherWriter.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var role = await factory.ExecuteDbContextAsync(db => db.UserRoles.Where(link => link.UserId == actorId)
-            .Join(db.Roles, link => link.RoleId, value => value.Id, (link, value) => new { value.Id, value.Name }).SingleAsync(Ct));
-        using var revoked = await admin.PutAsJsonAsync("/api/roles/" + role.Id, new { name = role.Name, description = (string?)null, permissions = new[] { BusinessFormsPermissions.Read } }, Ct);
+            .Join(db.Roles, link => link.RoleId, value => value.Id, (link, value) => new { value.Id, value.Name, value.Revision }).SingleAsync(Ct));
+        // N2: the edit carries the revision it read.
+        using var revoked = await admin.PutAsJsonAsync("/api/roles/" + role.Id, new { name = role.Name, description = (string?)null, permissions = new[] { BusinessFormsPermissions.Read }, expectedRevision = role.Revision }, Ct);
         Assert.Equal(HttpStatusCode.NoContent, revoked.StatusCode);
         using var ownRead = await otherWriter.GetAsync("/api/forms/draft-changes/" + own.GetProperty("requestId").GetGuid(), Ct); Assert.Equal(HttpStatusCode.OK, ownRead.StatusCode);
         using var cannotWrite = await otherWriter.PostAsJsonAsync("/api/forms/definitions", Payload(), Ct); Assert.Equal(HttpStatusCode.Forbidden, cannotWrite.StatusCode);

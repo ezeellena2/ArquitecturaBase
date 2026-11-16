@@ -9,6 +9,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -207,8 +208,10 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(FormRuleErrors.RoleUnavailable.Code,(await unavailable.ReadJsonAsync()).GetProperty("code").GetString());
         await FormRuleContractCapture.WriteAsync(unavailable,"role-unavailable-es",Ct);
         var actor = Guid.Parse(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var role = await factory.ExecuteDbContextAsync(db=>db.UserRoles.Where(link=>link.UserId == actor).Join(db.Roles,link=>link.RoleId,value=>value.Id,(link,value)=>new {value.Id,value.Name}).SingleAsync(Ct));
-        using var revoked = await designer.PutAsJsonAsync("/api/roles/" + role.Id,new { name = role.Name, description = (string?)null, permissions = Array.Empty<string>() },Ct);
+        var role = await factory.ExecuteDbContextAsync(db=>db.UserRoles.Where(link=>link.UserId == actor).Join(db.Roles,link=>link.RoleId,value=>value.Id,(link,value)=>new {value.Id,value.Name,value.Revision}).SingleAsync(Ct));
+        // N1: whoever gives or takes away a permission holds it; N2: the edit carries the revision it read.
+        using var roleManager = await OperatorAsync([Permissions.Roles.Manage,BusinessFormsPermissions.RulesManage]);
+        using var revoked = await roleManager.PutAsJsonAsync("/api/roles/" + role.Id,new { name = role.Name, description = (string?)null, permissions = Array.Empty<string>(), expectedRevision = role.Revision },Ct);
         Assert.Equal(HttpStatusCode.NoContent,revoked.StatusCode);
         using var deniedRead = await manager.GetAsync(route,Ct); Assert.Equal(HttpStatusCode.Forbidden,deniedRead.StatusCode);
         using var deniedWrite = await manager.PostAsJsonAsync(route,new { expectedRevision = 0, rules = Array.Empty<object>() },Ct); Assert.Equal(HttpStatusCode.Forbidden,deniedWrite.StatusCode);

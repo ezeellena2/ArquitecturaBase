@@ -10,6 +10,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 
@@ -105,7 +106,8 @@ public sealed partial class FormDraftEndpointsTests
     public async Task Consulting_an_uncertain_run_preserves_read_access_when_control_permission_is_revoked()
     {
         using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage]);
-        using var administrator = await AdminAsync();
+        // N1: whoever gives or takes away a permission holds it; N2: the edit carries the revision it read.
+        using var administrator = await OperatorAsync([Permissions.Roles.Manage, BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage]);
         var seeded = await SeedWorkflowRunAsync(manager, FormActionRunState.Uncertain);
         var route = $"/api/forms/records/{seeded.RecordId}/workflow";
         var control = $"/api/forms/records/{seeded.RecordId}/actions/{seeded.RunId}/consult";
@@ -117,9 +119,9 @@ public sealed partial class FormDraftEndpointsTests
         await FormWorkflowContractCapture.WriteAsync(consultation, "consult-es", Ct);
         var actor = Guid.Parse(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var role = await factory.ExecuteDbContextAsync(db => db.UserRoles.Where(link => link.UserId == actor)
-            .Join(db.Roles, link => link.RoleId, item => item.Id, (link, item) => new { item.Id, item.Name }).SingleAsync(Ct));
+            .Join(db.Roles, link => link.RoleId, item => item.Id, (link, item) => new { item.Id, item.Name, item.Revision }).SingleAsync(Ct));
         using var revokeControl = await administrator.PutAsJsonAsync("/api/roles/" + role.Id,
-            new { name = role.Name, description = (string?)null, permissions = new[] { BusinessFormsPermissions.RecordsRead } }, Ct);
+            new { name = role.Name, description = (string?)null, permissions = new[] { BusinessFormsPermissions.RecordsRead }, expectedRevision = role.Revision }, Ct);
         Assert.Equal(HttpStatusCode.NoContent, revokeControl.StatusCode);
         using var deniedControl = await manager.PostAsync(control, null, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, deniedControl.StatusCode);
@@ -128,7 +130,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.OK, stillReadable.StatusCode);
         Assert.False((await stillReadable.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("canConsult").GetBoolean());
         using var revokeRead = await administrator.PutAsJsonAsync("/api/roles/" + role.Id,
-            new { name = role.Name, description = (string?)null, permissions = Array.Empty<string>() }, Ct);
+            new { name = role.Name, description = (string?)null, permissions = Array.Empty<string>(), expectedRevision = role.Revision + 1 }, Ct);
         Assert.Equal(HttpStatusCode.NoContent, revokeRead.StatusCode);
         using var deniedRead = await manager.GetAsync(route, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, deniedRead.StatusCode);
