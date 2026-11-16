@@ -83,9 +83,13 @@ internal static class FormRulePolicy
     public static IReadOnlyList<FormActionResultDatum> Declared(FormRuleAction action, FormRuleOptionsResponse options) =>
         action.Kind == "IssueDocument" && options.Issuers?.FirstOrDefault(issuer => issuer.Id == action.IssuerId) is { } issuer
             ? issuer.ResultFields.Select(field => new FormActionResultDatum(issuer.Id, field.Key)).ToArray() : [];
-    /// <summary>Some notice of the rules names the answer of a question: any datum that is not the number, the reason or a result.</summary>
+    /// <summary>
+    /// Some notice of the rules carries the answers of a question: it names one (any datum that is not the number, the reason or a
+    /// result), attaches the PDF of the response or is the copy of an issuance, which send all the values without citing any.
+    /// </summary>
     internal static bool CitesQuestionData(IEnumerable<FormRule> rules)
     {
+        if (rules.SelectMany(rule => rule.Actions).Any(action => action.IncludePdf || action.Kind == "SendCopy")) return true;
         foreach (var text in rules.SelectMany(rule => rule.Actions).Where(action => action.Text is not null).SelectMany(action => action.Text!.Values))
         {
             for (var start = text.IndexOf('{'); start >= 0; start = text.IndexOf('{', start + 1))

@@ -16,8 +16,8 @@ internal sealed class FormRuleAccessGuard(ICurrentUser currentUser, IPermissionS
         && await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RulesManage, cancellationToken);
 
     /// <summary>
-    /// F5: a notice that cites the answers of a question carries response values, so whoever saves it needs «Ver respuestas» too.
-    /// A rule without data of questions is saved with the rules permission alone.
+    /// F5: a notice that cites the answers of a question, attaches the PDF of the response or is the copy of an issuance carries
+    /// response values, so whoever saves it needs «Ver respuestas» too. A rule without them is saved with the rules permission alone.
     /// </summary>
     public async Task<Result> MayCiteAnswersAsync(Guid actor, IEnumerable<FormRule> rules, CancellationToken cancellationToken) =>
         !FormRulePolicy.CitesQuestionData(rules) || await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, cancellationToken)

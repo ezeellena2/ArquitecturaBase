@@ -33,6 +33,29 @@ public sealed partial class FormDraftEndpointsTests
         using var allowed = await reader.PostAsJsonAsync(route,Body(1,$"Recibimos {{número}}: {{{fieldId:D}}}"),Ct);
         Assert.Equal(HttpStatusCode.Created,allowed.StatusCode);
     }
+    // F5: a notice that attaches the PDF of the response carries all its values without citing any, so it asks for «View responses» too.
+    [Fact]
+    public async Task A_notice_that_attaches_the_pdf_of_the_response_also_needs_to_view_responses()
+    {
+        using var designer = await AdminAsync();
+        var created = await CreateAsync(designer,Payload("Avisos con PDF"));
+        var id = created.GetProperty("definition").GetProperty("id").GetGuid();
+        var route = $"/api/forms/definitions/{id}/rules";
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RulesManage,BusinessFormsPermissions.RecordsRead]);
+        object Body(long revision,bool includePdf) => new { expectedRevision = revision, rules = new[] { new { id = Guid.NewGuid(), @event = "Approved", conditions = Array.Empty<object>(), actions = new object[]
+        {
+            new { id = Guid.NewGuid(), kind = "GeneratePdf", text = (object?)null, includePdf = false },
+            new { id = Guid.NewGuid(), kind = "NotifyAuthor", text = new { es = "Tu constancia está lista." }, includePdf },
+        } } } };
+        using var refused = await manager.PostAsJsonAsync(route,Body(0,true),Ct);
+        Assert.Equal(HttpStatusCode.Forbidden,refused.StatusCode);
+        Assert.Equal(FormRuleErrors.RecordsReadRequired.Code,(await refused.ReadJsonAsync()).GetProperty("code").GetString());
+        using var withoutPdf = await manager.PostAsJsonAsync(route,Body(0,false),Ct);
+        Assert.Equal(HttpStatusCode.Created,withoutPdf.StatusCode);
+        using var allowed = await reader.PostAsJsonAsync(route,Body(1,true),Ct);
+        Assert.Equal(HttpStatusCode.Created,allowed.StatusCode);
+    }
     [Fact]
     public async Task Rule_routes_require_only_rule_management_and_an_authenticated_session()
     {

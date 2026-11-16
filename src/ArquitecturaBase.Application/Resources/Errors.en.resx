@@ -228,7 +228,7 @@
   <data name="Forms.Catalog.FeedInvalid" xml:space="preserve"><value>The source sent repeated or empty options.</value></data>
   <data name="Forms.Catalog.FeedUnavailable" xml:space="preserve"><value>The source of the catalog did not answer.</value></data>
   <data name="Forms.Rule.IssuerUnavailable" xml:space="preserve"><value>This action only works on a form copied from its standard, with the module installed.</value></data>
-  <data name="Forms.Rule.RecordsReadRequired" xml:space="preserve"><value>This form's rules cite the answers of questions: you also need the permission to see the responses.</value></data>
+  <data name="Forms.Rule.RecordsReadRequired" xml:space="preserve"><value>This form's rules cite the answers of questions or send the whole response (its PDF or the copy of an issuance): you also need the permission to see the responses.</value></data>
   <data name="Forms.Rule.IssuerPermissionRequired" xml:space="preserve"><value>This form's rules issue documents: you also need the permission to issue them.</value></data>
   <data name="Forms.Action.IssuerUnavailable" xml:space="preserve"><value>The module that issues the document is not installed.</value></data>
   <data name="Forms.Action.IssueDataUnavailable" xml:space="preserve"><value>The form lacks the standard questions the issuance needs.</value></data>

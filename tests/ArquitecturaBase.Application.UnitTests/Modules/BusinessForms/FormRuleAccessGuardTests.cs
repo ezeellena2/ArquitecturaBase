@@ -50,6 +50,24 @@ public sealed class FormRuleAccessGuardTests
         Assert.True((await guard.MayCiteAnswersAsync(actor, rules, CancellationToken.None)).IsSuccess);
     }
 
+    // F5: the PDF of the response and the copy of an issuance carry all its values without citing any of them.
+    [Theory]
+    [InlineData("NotifyAuthor", true, true)]
+    [InlineData("SendCopy", false, true)]
+    [InlineData("SendCopy", true, true)]
+    [InlineData("NotifyAuthor", false, false)]
+    public async Task A_notice_that_carries_the_pdf_or_the_copy_of_the_response_also_needs_to_view_responses(string kind, bool includePdf, bool needsRecordsRead)
+    {
+        var actor = Guid.NewGuid();
+        var permissions = new FakePermissionService();
+        var guard = new FormRuleAccessGuard(new FakeCurrentUser { UserId = actor }, permissions, []);
+        FormRule[] rules = [new(Guid.NewGuid(), "Received", [], [new(Guid.NewGuid(), kind, null, new Dictionary<string, string> { ["es"] = "Sin datos" }, includePdf)])];
+        permissions.Permissions[actor] = [BusinessFormsPermissions.RulesManage];
+        Assert.Equal(!needsRecordsRead, (await guard.MayCiteAnswersAsync(actor, rules, CancellationToken.None)).IsSuccess);
+        permissions.Permissions[actor] = [BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.RecordsRead];
+        Assert.True((await guard.MayCiteAnswersAsync(actor, rules, CancellationToken.None)).IsSuccess);
+    }
+
     private sealed class Issuer(string id, string permission) : IStructuredRecordIssuer
     {
         public string IssuerId => id;

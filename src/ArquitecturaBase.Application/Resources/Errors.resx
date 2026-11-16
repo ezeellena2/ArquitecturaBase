@@ -228,7 +228,7 @@
   <data name="Forms.Catalog.FeedInvalid" xml:space="preserve"><value>El origen mandó opciones repetidas o vacías.</value></data>
   <data name="Forms.Catalog.FeedUnavailable" xml:space="preserve"><value>El origen del catálogo no respondió.</value></data>
   <data name="Forms.Rule.IssuerUnavailable" xml:space="preserve"><value>Esta acción sólo vale en un formulario copiado de su estándar, con el módulo instalado.</value></data>
-  <data name="Forms.Rule.RecordsReadRequired" xml:space="preserve"><value>Las reglas de este formulario citan respuestas de preguntas: necesitás también el permiso para ver las respuestas.</value></data>
+  <data name="Forms.Rule.RecordsReadRequired" xml:space="preserve"><value>Las reglas de este formulario citan respuestas de preguntas o mandan las respuestas enteras (el PDF o la copia de una emisión): necesitás también el permiso para ver las respuestas.</value></data>
   <data name="Forms.Rule.IssuerPermissionRequired" xml:space="preserve"><value>Las reglas de este formulario emiten comprobantes: necesitás también el permiso para emitirlos.</value></data>
   <data name="Forms.Action.IssuerUnavailable" xml:space="preserve"><value>El módulo que emite el comprobante no está instalado.</value></data>
   <data name="Forms.Action.IssueDataUnavailable" xml:space="preserve"><value>El formulario no tiene las preguntas del estándar que necesita la emisión.</value></data>
