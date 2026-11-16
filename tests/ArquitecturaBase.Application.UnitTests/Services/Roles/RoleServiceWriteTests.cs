@@ -93,6 +93,20 @@ public sealed class RoleServiceWriteTests
     }
 
     [Fact]
+    public async Task Admin_keeps_being_editable_after_a_module_is_removed()
+    {
+        // B3: Admin guarda el permiso de un módulo que ya no está; el pedido sólo puede traer los del catálogo.
+        var fixture = new Fixture();
+        string[] catalogPermissions = [.. fixture.Catalog.All.Order(StringComparer.Ordinal)];
+        fixture.Reader.Role = NewRole(SystemRoles.Admin, true, 1, [.. catalogPermissions, "removedmodule.manage"]);
+
+        var result = await fixture.Service.UpdateAsync(
+            new UpdateRoleRequest(fixture.Reader.Role.Id, SystemRoles.Admin, "Otra descripción", catalogPermissions), Ct);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public async Task Update_sorts_permissions_and_invalidates_the_cache_only_after_the_commit()
     {
         var fixture = new Fixture();

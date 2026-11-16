@@ -184,14 +184,17 @@ internal sealed class RoleService(
         IReadOnlyCollection<string> permissions =
             [.. (request.Permissions ?? []).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
 
-        // Admin y User no se renombran; Admin conserva siempre todos sus permisos.
+        // Admin y User no se renombran; Admin conserva siempre todos sus permisos. Se comparan sólo los del catálogo
+        // (B3): el pedido no puede traer el permiso de un módulo quitado, que Admin todavía guarda.
         if (role.IsSystemRole && !string.Equals(role.Name, name, StringComparison.Ordinal))
         {
             return RoleErrors.SystemRoleCannotChange;
         }
 
         if (string.Equals(role.Name, SystemRoles.Admin, StringComparison.Ordinal)
-            && !permissions.SequenceEqual(role.Permissions, StringComparer.Ordinal))
+            && !permissions.SequenceEqual(
+                role.Permissions.Where(catalog.Contains).Order(StringComparer.Ordinal),
+                StringComparer.Ordinal))
         {
             return RoleErrors.SystemRoleCannotChange;
         }
