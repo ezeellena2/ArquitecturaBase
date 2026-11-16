@@ -62,6 +62,7 @@ tarea, y al verificarla aparecieron dos regresiones, también corregidas (F6-1 y
    `FormDraftEndpointsTests` que reciben 403 en `PUT /api/roles` desde N1 (`Roles.Role.PermissionsNotHeld`). Varios agentes
    commitearon a la vez sobre copias distintas y se pisaron (el texto de F5, anotaciones de este plan): antes de cerrar, revisar que
    cada archivo compartido conserve lo de todos.
+   La integración de Formularios del 2026-11-16 dio 1026 de 1033: las 3 de N1 y 4 tests desfasados por F15, F24 y F31, arreglados en `11905550`.
 4. **Menores de la revisión adversarial 2 (2026-11-16)**, sin programar, una línea cada uno:
    - 2b-1 (F15): con nodos viejos escribiendo durante el despliegue, un campo sellado sólo por una captura vieja no entra a `BusinessFormRecordCatalogFields` hasta que una captura nueva lo vuelva a sellar; falta un relleno idempotente en el despliegue siguiente o dejarlo documentado.
    - 2b-2 (F15, migración 20261116111033): el INSERT usa `entry.value -> 'name'` y `->> 'key'` contra columnas NOT NULL; un `FieldValuesJson` viejo sin `name` o `key` aborta la migración (COALESCE o filtrar `entry.value ? 'key'`, o verificar con datos reales). Comprobado el 2026-11-16: la base de desarrollo (`appdb`) tiene 85 campos sellados y ninguno sin `key` ni `name`.
