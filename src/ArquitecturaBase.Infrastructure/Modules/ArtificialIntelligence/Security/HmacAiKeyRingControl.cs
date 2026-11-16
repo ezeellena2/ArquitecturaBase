@@ -9,6 +9,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Securit
 internal sealed class HmacAiKeyRingControl(AiKeyRing ring) : IAiKeyRingControl
 {
     private static readonly byte[] Label = "ArquitecturaBase AI key ring control"u8.ToArray();
+    public string ActiveKeyId => ring.ActiveKeyId;
     public IReadOnlyDictionary<string, string> CreateControls() => ring.KeyIds.ToDictionary(keyId => keyId, Control, StringComparer.Ordinal);
     private string Control(string keyId)
     {

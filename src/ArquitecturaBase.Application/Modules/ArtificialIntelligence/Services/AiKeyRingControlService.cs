@@ -9,8 +9,10 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 /// <summary>
 /// I17: compares each key of the configured ring that already has a control in the database; a key without one gets it, and a
-/// control whose key left the ring is not compared (a finished rotation). A copy with a key that differs writes nothing, so it
-/// cannot claim the other keys of its ring. The lock serializes two copies that start at once: the second reads the first's.
+/// control whose key left the ring is not compared (a finished rotation). Once there are controls, the active key must already have
+/// its own (I17, review): a ring of other keys has nothing to compare, but it would encrypt with a key the other copies do not have. A
+/// rotation brings the new key in as a non-active one first, which writes its control. A copy with a key that differs writes nothing,
+/// so it cannot claim the other keys of its ring. The lock serializes two copies that start at once: the second reads the first's.
 /// </summary>
 internal sealed class AiKeyRingControlService(IAiKeyRingControlRepository repository, IAiKeyRingControl ring, IUnitOfWork unitOfWork,
     TimeProvider timeProvider) : IAiKeyRingControlService
@@ -25,7 +27,8 @@ internal sealed class AiKeyRingControlService(IAiKeyRingControlRepository reposi
         var stored = (await repository.ListAsync(ct)).ToDictionary(control => control.KeyId, control => control.Control, StringComparer.Ordinal);
         var controls = ring.CreateControls();
         IReadOnlyList<string> mismatched = [.. controls
-            .Where(control => stored.TryGetValue(control.Key, out var value) && !string.Equals(value, control.Value, StringComparison.Ordinal))
+            .Where(control => stored.TryGetValue(control.Key, out var value) ? !string.Equals(value, control.Value, StringComparison.Ordinal)
+                : stored.Count > 0 && string.Equals(control.Key, ring.ActiveKeyId, StringComparison.Ordinal))
             .Select(control => control.Key).Order(StringComparer.Ordinal)];
         if (mismatched.Count > 0) return Result.Success(mismatched);
         var now = timeProvider.GetUtcNow().UtcDateTime;

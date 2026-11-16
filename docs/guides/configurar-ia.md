@@ -17,8 +17,9 @@ seguí [su configuración](configurar-google-places.md). No usa la clave ni el p
 2. Provisioná el anillo externo antes de arrancar. Cada réplica usa exactamente el mismo
    InstallationId, claves históricas y ActiveKeyId. Un derivado independiente usa ID y claves nuevos.
    La readiness lo comprueba (I17): la primera copia guarda en `AiKeyRingControls` un valor de control por clave, y una
-   copia con otro InstallationId u otros bytes para el mismo keyId deja `/health` en Unhealthy (chequeo `ai-key-ring`, con
-   un log de error que nombra el keyId) y no recibe tráfico. Cargale el mismo anillo que a las demás y reiniciala: lee el
+   copia con otro InstallationId u otros bytes para el mismo keyId, o cuya clave activa no tiene control cuando ya hay otros
+   (un anillo de otras claves), deja `/health` en Unhealthy (chequeo `ai-key-ring`, con un log de error que nombra el keyId)
+   y no recibe tráfico. Cargale el mismo anillo que a las demás y reiniciala: lee el
    anillo al arrancar. Sólo si el control lo escribió una copia con el anillo equivocado (por ejemplo, la primera de una
    base nueva), corregila, borrá esa fila (`DELETE FROM "AiKeyRingControls" WHERE "KeyId" = '<keyId>'`) y reiniciá las
    copias; lo que aquella cifró se lee sólo con su anillo. Nunca la borres para que pase una copia con otro anillo.
@@ -109,6 +110,8 @@ Para rotar cifrado:
 2. Agregala al anillo de todas las réplicas manteniendo activa la anterior; reinicialas y
    comprobá su arranque. Las opciones del anillo se validan/cargan al inicio, sin hot reload.
    La primera réplica que arranca con la clave nueva escribe su control; las demás tienen que coincidir (readiness).
+   Antes del paso 3, al menos una réplica con este anillo tiene que haber llegado a la readiness: una que arranca con la
+   nueva activa sin que nadie haya escrito su control no queda lista.
 3. Cambiá ActiveKeyId en todas y reinicialas. Las escrituras nuevas y HMAC nuevos usan la nueva clave;
    lecturas y reintentos de comprobantes usan el keyId original.
 4. Reemplazá la clave del proveedor en el editor si necesitás recifrar la fila con la activa.
