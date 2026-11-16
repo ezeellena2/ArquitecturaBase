@@ -20,6 +20,9 @@ public static class Extensions
     public const string AlivenessEndpointPath = "/alive";
     private static readonly string[] LiveTags = ["live"];
 
+    /// <summary>El ambiente del arnés de integración.</summary>
+    private const string TestingEnvironment = "Testing";
+
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
@@ -40,6 +43,19 @@ public static class Extensions
             logging.IncludeFormattedMessage = true;
             logging.IncludeScopes = true;
         });
+
+        // Fuera de Development y Testing, la consola escribe una línea JSON por log con sus scopes (N10): el traceId y la
+        // ruta que pone ASP.NET Core en cada pedido, y el id de quien pide. Así el código que ve la persona en un error se
+        // encuentra en los logs de la plataforma aunque no haya exportador.
+        if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment(TestingEnvironment))
+        {
+            builder.Logging.AddJsonConsole(console =>
+            {
+                console.IncludeScopes = true;
+                console.UseUtcTimestamp = true;
+                console.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+            });
+        }
 
         builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics =>

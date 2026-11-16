@@ -196,8 +196,8 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     `ServiceDefaults`, porque ningún cliente lo usa tal cual; los 14 clientes que hoy lo quitan quedan igual. Un control:
     ningún cliente con nombre repite un POST ante un 503. ServiceDefaults deja también el paquete; cambian su `AGENTS.md`, el
     [mapa](../architecture/mapa-de-instrucciones.md) y [quitar WhatsApp](../guides/quitar-whatsapp.md). Trivial.
-20. **N10. El código de error se puede rastrear.** En Production, la consola escribe JSON con scopes y el id del usuario va
-    en un scope; la [guía de despliegue](../guides/despliegue.md) documenta el exportador (`OTEL_EXPORTER_OTLP_ENDPOINT`) y
+20. **N10. El código de error se puede rastrear.** Fuera de Development y Testing, la consola escribe JSON con scopes y el id
+    del usuario va en un scope, también en el log del 500; la [guía de despliegue](../guides/despliegue.md) documenta el exportador (`OTEL_EXPORTER_OTLP_ENDPOINT`) y
     una alerta de 5xx. Completa lo que figura a medias en [verificación y producción](verificacion-y-produccion.md). Trivial
     a chico.
 

@@ -176,6 +176,40 @@ Para restaurar, recuperar juntos base y PFX/contraseña desde respaldos separado
 
 El correo y los códigos, invitaciones y orientación de acceso se persisten cifrados junto al caso de uso. Un reinicio conserva pendientes y un rollback no permite enviarlos. El bundle agrega `QueuedDeliveries` antes de la imagen nueva; requiere el certificado de Data Protection disponible en todas las réplicas. La capacidad es compartida por canal (100 por defecto), y una fila reservada no se repite después de una caída: puede quedar un resultado incierto. El detalle y las políticas de cola llena están en [backend](../architecture/backend.md#colas-transaccionales) y en cada área.
 
+## Logs, trazas y alertas
+
+Un error inesperado le muestra a la persona un código («informá el código 00-…-01»): es el `traceId` del pedido, y su
+segundo tramo es el `TraceId` que llevan sus logs. Para encontrarlo:
+
+- **La consola.** Fuera de Development y Testing escribe una línea JSON por log (`AddJsonConsole`, en
+  `ArquitecturaBase.ServiceDefaults/Extensions.cs`) con los scopes del pedido: `TraceId`, `SpanId` y `RequestPath`, que
+  pone ASP.NET Core, y con sesión `UserId`, sólo el id de la cuenta, nunca su correo ni su número
+  (`Api/RequestContext/UserLogScope.cs`). El log del 500 los lleva todos. En Container Apps la consola llega a Log
+  Analytics (`ContainerAppConsoleLogs_CL | where Log_s contains "<TraceId>"`) sin configurar nada más.
+- **El exportador.** Con `OTEL_EXPORTER_OTLP_ENDPOINT`, la Api manda por OTLP trazas, métricas y logs, también los
+  spans de cada comando SQL; sin ella no exporta nada (`AddOpenTelemetryExporters`). En desarrollo la pone el AppHost,
+  hacia el dashboard de Aspire. En Container Apps la define el agente de OpenTelemetry del ambiente cuando se le da un
+  destino, por ejemplo Application Insights
+  ([agentes de OpenTelemetry](https://learn.microsoft.com/azure/container-apps/opentelemetry-agents)):
+
+  ```bash
+  az containerapp env telemetry app-insights set --resource-group $RG --name $ACA_ENV --connection-string "<cadena de Application Insights>" --enable-open-telemetry-traces true --enable-open-telemetry-logs true
+  ```
+
+  Con un colector propio, se declara a mano: `OTEL_EXPORTER_OTLP_ENDPOINT` y, si pide una clave,
+  `OTEL_EXPORTER_OTLP_HEADERS` como secreto.
+- **La alerta de 5xx.** Una alerta de métrica sobre `Requests` de la Container App, filtrada por `statusCodeCategory`,
+  avisa cuando la Api, o el ingress con un 502 o un 504, responde errores:
+
+  ```bash
+  az monitor action-group create --resource-group $RG --name api-alertas --short-name api --action email responsable <correo>
+  az monitor metrics alert create --resource-group $RG --name api-5xx --scopes $(az containerapp show --resource-group $RG --name $APP --query id --output tsv) --condition "total Requests > 5 where statusCodeCategory includes 5xx" --window-size 5m --evaluation-frequency 1m --action api-alertas --description "La Api respondió errores 5xx"
+  ```
+
+  El umbral (más de 5 en 5 minutos) es un punto de partida: con poco tráfico, un solo 500 ya dice algo.
+
+Nada de esto se probó todavía contra Azure real.
+
 ## Lista antes del primer despliegue
 
 - [ ] La configuración de [azure-dev.md](../deploy/azure-dev.md) completada, con infraestructura, base `appdb`, GitHub environment `dev`, identidades y secrets; ambos workflows en GitHub.
@@ -186,4 +220,5 @@ El correo y los códigos, invitaciones y orientación de acceso se persisten cif
 - [ ] La URL de producción entre los redirect URIs autorizados en la consola de Google.
 - [ ] `ForwardedHeaders` declarado, `AllowedHosts` en `*` con el ingress o el proxy filtrando por host y conservando el `Host` público, y el plazo de apagado de la Container App en 60 s ([Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados)).
 - [ ] Los PFX de firma, cifrado de tokens y Data Protection respaldados aparte de PostgreSQL, junto a sus contraseñas.
+- [ ] El destino de OpenTelemetry del ambiente y la alerta de 5xx ([Logs, trazas y alertas](#logs-trazas-y-alertas)).
 - [ ] Después del primer arranque: el dueño entra con el correo de `Seed:AdminEmail` y queda como Admin.

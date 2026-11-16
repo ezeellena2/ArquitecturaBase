@@ -8,6 +8,7 @@ using ArquitecturaBase.Api.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Api.Modules.Arca;                 // módulo ARCA
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Api.RateLimiting;
+using ArquitecturaBase.Api.RequestContext;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Modules.WhatsApp;    // módulo WhatsApp
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence;
@@ -88,6 +89,8 @@ app.UseGlobalRequestLimits();
 // Explícitos, y no los que WebApplication agrega solo al principio del pipeline: así quedan dentro de la
 // localización y de UseStatusCodePages, y el 401/403 también sale como ProblemDetails traducido.
 app.UseAuthentication();
+// Los logs del pedido llevan el id de quien pide (N10): con el traceId que ve la persona se encuentra la cuenta.
+app.UseUserLogScope();
 // Después de autenticación para particionar por operador; las políticas por IP conservan los pedidos anónimos.
 // Después de UseStatusCodePages para que el rechazo responda ProblemDetails con retryAfter.
 app.UseRateLimiter();

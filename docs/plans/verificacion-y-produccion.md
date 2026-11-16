@@ -158,8 +158,9 @@ La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-pe
   descifran la credencial, los comprobantes y el contenido del asistente antes de habilitar tráfico.
 - [ ] Probar una segunda instalación independiente (base, anillo e ID, UserSecretsId, prefijo de Redis,
   origen y credenciales propios) y comprobar que no comparte nada con la primera.
-- [ ] En el despliegue: anillo de IA en secrets o Key Vault, alertas y exportación OpenTelemetry, dos
-  réplicas reales y apagado con turnos en curso (deben quedar Uncertain o Expired, sin reenviarse).
+- [ ] En el despliegue: anillo de IA en secrets o Key Vault, el destino de OpenTelemetry y la alerta de 5xx, como
+  dice la [guía](../guides/despliegue.md#logs-trazas-y-alertas) (la consola ya escribe JSON con el `TraceId` y el
+  `UserId`, N10), dos réplicas reales y apagado con turnos en curso (deben quedar Uncertain o Expired, sin reenviarse).
 
 ## Privacidad de la instalación de prueba
 

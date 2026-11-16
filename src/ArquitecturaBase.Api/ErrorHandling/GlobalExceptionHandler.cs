@@ -1,3 +1,4 @@
+using ArquitecturaBase.Api.RequestContext;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.AspNetCore.Diagnostics;
@@ -34,7 +35,12 @@ internal sealed partial class GlobalExceptionHandler(
         }
         else
         {
-            LogUnhandledException(logger, exception);
+            // La excepción ya salió del scope del pedido: el log del 500 lleva quién pedía en uno propio (N10).
+            using (UserLogScope.Begin(logger, httpContext))
+            {
+                LogUnhandledException(logger, exception);
+            }
+
             problem = ProblemDetailsMapper.Create(
                 ErrorType.Failure, ApiErrorCodes.Unexpected, ErrorMessages.Get(ApiErrorCodes.Unexpected));
         }
