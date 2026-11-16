@@ -331,7 +331,8 @@ public sealed class AiAssistantOperationsTests
             "timeZone" => fixture.Context with { TimeZoneId = "America/Argentina/Buenos_Aires" },
             // Another capability; an earlier version of the sealed one is still found (I4, AiAssistantSealedVersionTests).
             "capability" => fixture.Context with { AllowedCapabilities = [new("fixture.other", 1)] },
-            "terminal" => fixture.Context with { AllowedTerminals = [new("assistant_answer", 1)] },
+            // Another terminal, beside the sealed one; an earlier version of the sealed one is still found (I4, review).
+            "terminal" => fixture.Context with { AllowedTerminals = [new("assistant_proposal", 1), new("assistant_answer", 1)] },
             _ => fixture.Context with { RequiredPermissions = new(["fictional.unaccepted.permission"], []) },
         };
         var result = await fixture.Service.GetAsync(context, completed.Turn.RequestId, Ct);

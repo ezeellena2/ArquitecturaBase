@@ -56,15 +56,18 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
         return verdict;
     }
 
-    // I4: what a channel asks now, with the sealed version of each capability it names while this version still knows it: a module that
-    // raises a version keeps the earlier one registered, so what was in flight is compared and replayed as it was sealed.
+    // I4: what a channel asks now, with the sealed version of each capability and terminal it names while this version still knows it: a
+    // module that raises a version keeps the earlier one registered (and every terminal up to the highest is read), so what was in flight is
+    // compared and replayed as it was sealed.
     public AssistantChannelContext AsSealed(AssistantChannelContext requested, AssistantChannelContext captured)
     {
         var sealedVersions = captured.AllowedCapabilities.Concat(captured.PreloadedCapabilities ?? []).Where(registry.ContainsKey).ToArray();
+        var sealedTerminals = captured.AllowedTerminals.Where(KnownTerminal).ToArray();
         AssistantCapabilityReference Sealed(AssistantCapabilityReference reference) =>
             sealedVersions.FirstOrDefault(known => known.Id == reference.Id) ?? reference;
         return requested with { AllowedCapabilities = requested.AllowedCapabilities.Select(Sealed).ToArray(),
-            PreloadedCapabilities = requested.PreloadedCapabilities?.Select(Sealed).ToArray() };
+            PreloadedCapabilities = requested.PreloadedCapabilities?.Select(Sealed).ToArray(),
+            AllowedTerminals = requested.AllowedTerminals.Select(terminal => sealedTerminals.FirstOrDefault(known => known.Id == terminal.Id) ?? terminal).ToArray() };
     }
 
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>

@@ -61,13 +61,36 @@ public sealed class AiAssistantSealedVersionTests
     }
 
     [Fact]
-    public void The_catalog_takes_the_sealed_version_only_of_a_capability_it_knows()
+    public void The_catalog_takes_the_sealed_version_only_of_a_capability_or_a_terminal_it_knows()
     {
         var f = new AssistantOperationsFixture();
-        var raised = Raised(f.Context);
-        var unknown = f.Context with { AllowedCapabilities = [new("fixture.proposal", 9)] };
+        var raised = Raised(f.Context) with { AllowedTerminals = [new("assistant_proposal", 2)] };
+        var unknown = f.Context with { AllowedCapabilities = [new("fixture.proposal", 9)], AllowedTerminals = [new("assistant_proposal", 9)] };
 
         Assert.Equal(f.Context.AllowedCapabilities, f.Catalog.AsSealed(raised, f.Context).AllowedCapabilities);
+        Assert.Equal(f.Context.AllowedTerminals, f.Catalog.AsSealed(raised, f.Context).AllowedTerminals);
         Assert.Equal(raised.AllowedCapabilities, f.Catalog.AsSealed(raised, unknown).AllowedCapabilities);
+        Assert.Equal(raised.AllowedTerminals, f.Catalog.AsSealed(raised, unknown).AllowedTerminals);
+    }
+
+    // I4, review: a channel that raises its terminal (assistant_proposal@1 to @2) still finds, replays and cancels what the earlier one
+    // sealed, as with a capability.
+    [Fact]
+    public async Task An_operation_sealed_with_an_earlier_terminal_is_found_replayed_and_cancelled_after_raising_it()
+    {
+        var f = new AssistantOperationsFixture();
+        var request = f.Request();
+        Assert.True((await f.Service.SubmitAsync(request, Ct)).IsSuccess);
+        var raised = f.Context with { AllowedTerminals = [new("assistant_proposal", 2)] };
+
+        var found = await f.Service.GetAsync(raised, request.RequestId, Ct);
+        var replayed = await f.Service.SubmitAsync(request with { Context = raised }, Ct);
+        var canceled = await f.Service.CancelAsync(raised, request.RequestId, Ct);
+
+        Assert.True(found.IsSuccess, found.IsFailure ? found.Error.Code : null);
+        Assert.True(replayed.IsSuccess, replayed.IsFailure ? replayed.Error.Code : null);
+        Assert.Equal(request.RequestId, replayed.Value.RequestId);
+        Assert.True(canceled.IsSuccess);
+        Assert.Equal(AiAssistantTurnState.Canceled, Assert.Single(f.Store.Turns).State);
     }
 }
