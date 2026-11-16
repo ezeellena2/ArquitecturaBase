@@ -225,9 +225,9 @@ public sealed partial class FormDraftEndpointsTests
     [Fact]
     public async Task A_standard_with_rules_is_added_with_them_as_the_first_revision_of_its_rules_once_per_request()
     {
-        // The test issuer asks for ApprovalsDecide: adding a standard whose rules issue needs it (H6).
+        // The test issuer asks for ApprovalsDecide: adding a standard whose rules issue needs it (H6); its PDF and copy, «Ver respuestas» (F5).
         using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage,
-            BusinessFormsPermissions.ApprovalsDecide]);
+            BusinessFormsPermissions.ApprovalsDecide, BusinessFormsPermissions.RecordsRead]);
         var issuer = new TestRecordIssuer();
         await using var host = IssuerHost(issuer);
         using var client = InHost(host, designer);
@@ -273,10 +273,13 @@ public sealed partial class FormDraftEndpointsTests
         var prefix = "P" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         using var withoutRules = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.ApprovalsDecide]);
         using var withoutIssuer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage]);
-        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage,
+        using var withoutRecords = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage,
             BusinessFormsPermissions.ApprovalsDecide]);
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage,
+            BusinessFormsPermissions.ApprovalsDecide, BusinessFormsPermissions.RecordsRead]);
         using var rulesClient = InHost(host, withoutRules);
         using var issuerClient = InHost(host, withoutIssuer);
+        using var recordsClient = InHost(host, withoutRecords);
         using var designerClient = InHost(host, designer);
 
         // Without the issuer's permission the answer has its own code, so the rule editor tells it instead of closing.
@@ -284,6 +287,12 @@ public sealed partial class FormDraftEndpointsTests
             Assert.Equal((HttpStatusCode.Forbidden, "Forms.Definition.Forbidden"), (refused.StatusCode, (await refused.ReadJsonAsync()).GetProperty("code").GetString()));
         using (var refused = await issuerClient.PostAsJsonAsync($"/api/forms/library/{TestRecordIssuer.Key}/copies", Add(Guid.NewGuid(), prefix), Ct))
             Assert.Equal((HttpStatusCode.Forbidden, "Forms.Rule.IssuerPermissionRequired"), (refused.StatusCode, (await refused.ReadJsonAsync()).GetProperty("code").GetString()));
+
+        // F5: the rules of the standard attach the PDF and send a copy, so adding it also asks for «Ver respuestas»; nothing is created.
+        using (var refused = await recordsClient.PostAsJsonAsync($"/api/forms/library/{TestRecordIssuer.Key}/copies", Add(Guid.NewGuid(), prefix), Ct))
+            Assert.Equal((HttpStatusCode.Forbidden, "Forms.Rule.RecordsReadRequired"), (refused.StatusCode, (await refused.ReadJsonAsync()).GetProperty("code").GetString()));
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition>()
+            .IgnoreQueryFilters().AnyAsync(definition => definition.Prefix == prefix, Ct)));
 
         using var added = await designerClient.PostAsJsonAsync($"/api/forms/library/{TestRecordIssuer.Key}/copies", Add(Guid.NewGuid(), prefix), Ct);
         Assert.Equal(HttpStatusCode.Created, added.StatusCode);

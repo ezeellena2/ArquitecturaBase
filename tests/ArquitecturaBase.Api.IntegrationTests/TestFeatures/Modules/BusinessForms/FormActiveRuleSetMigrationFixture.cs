@@ -59,9 +59,9 @@ internal sealed record FormActiveRuleSetMigrationFixture(Guid DefinitionId, Guid
             var roles = services.GetRequiredService<IRoleRepository>();
             await roles.CreateAsync(SystemRoles.User, null, [], token);
             var roleName = "standard-rules-" + Guid.NewGuid().ToString("N");
-            // Adding a standard whose rules issue asks for the issuer's permission too (H6); the test issuer's is ApprovalsDecide.
+            // Adding a standard whose rules issue asks for the issuer's permission too (H6); the test issuer's is ApprovalsDecide; its PDF and copy ask for «Ver respuestas» (F5).
             await roles.CreateAsync(roleName, null, [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage,
-                BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.ApprovalsDecide], token);
+                BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.ApprovalsDecide, BusinessFormsPermissions.RecordsRead], token);
             var users = services.GetRequiredService<IUserRepository>();
             var user = await users.CreateAsync(Email.Create(TestEmails.Unique("standard-rules")).Value, null, false, null, "es", token);
             await users.SetRolesAsync(user.Id, [roleName], token);

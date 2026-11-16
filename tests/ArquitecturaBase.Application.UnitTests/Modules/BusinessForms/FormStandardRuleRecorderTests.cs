@@ -94,7 +94,10 @@ public sealed class FormStandardRuleRecorderTests
             Assert.Equal(code, (await recorder.CheckIssuingAsync(Standard(Rules), CancellationToken.None)).Error.Code);
         }
 
+        // F5: the PDF and the copy of those rules carry response values, so it needs «Ver respuestas» too.
         permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RulesManage, "test.issue"];
+        Assert.Equal(FormRuleErrors.RecordsReadRequired.Code, (await recorder.CheckIssuingAsync(Standard(Rules), CancellationToken.None)).Error.Code);
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RulesManage, "test.issue", BusinessFormsPermissions.RecordsRead];
         Assert.True((await recorder.CheckIssuingAsync(Standard(Rules), CancellationToken.None)).IsSuccess);
     }
 

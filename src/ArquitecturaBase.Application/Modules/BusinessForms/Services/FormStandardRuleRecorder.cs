@@ -21,14 +21,19 @@ internal sealed class FormStandardRuleRecorder(IFormRuleRepository rules, IFormC
 
     /// <summary>
     /// H6: a standard whose rules issue leaves the copy issuing with legal effect, so whoever adds it needs the rules permission and
-    /// the permission of each issuer it names.
+    /// the permission of each issuer it names. F5: one whose notices attach the PDF or send a copy leaves the copy sending response
+    /// values, so it also needs «Ver respuestas», decided by the same policy and guard as saving those rules.
     /// </summary>
     public async Task<Result> CheckIssuingAsync(StructuredFormStandard standard, CancellationToken cancellationToken)
     {
-        if (standard.Rules?.SelectMany(rule => rule.Actions).Select(action => action.IssuerId).OfType<string>().ToArray() is not { Length: > 0 } issuing)
-            return Result.Success();
+        if (standard.Rules is not { Count: > 0 } standardRules) return Result.Success();
+        var issuing = standardRules.SelectMany(rule => rule.Actions).Select(action => action.IssuerId).OfType<string>().ToArray();
+        var rules = standardRules.Select(rule => new FormRule(Guid.Empty, rule.Event, [], [.. rule.Actions.Select(action =>
+            new FormRuleAction(Guid.Empty, action.Kind, null, action.Text, action.IncludePdf, action.IssuerId))])).ToArray();
+        if (issuing.Length == 0 && !FormRulePolicy.CitesQuestionData(rules)) return Result.Success();
         var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
-        return await access.MayIssueAsync(actor.Value, issuing, cancellationToken);
+        var mayIssue = await access.MayIssueAsync(actor.Value, issuing, cancellationToken); if (mayIssue.IsFailure) return mayIssue;
+        return await access.MayCiteAnswersAsync(actor.Value, rules, cancellationToken);
     }
 
     /// <summary>What the save runs once it has the new definition; null when the standard brings no rules.</summary>
