@@ -87,7 +87,8 @@ internal sealed class AiAssistantService(IAiAssistantRepository repository, IUni
             }, CommitPolicy.OnSuccess, cancellationToken);
         });
 
-    // What the turns of the conversation named, by its receipt: a recording by its request and a reading by the one sealed in the profile.
+    // What the turns of the conversation named, by its receipt: a recording by its request and a reading by the key of the copy a turn holds,
+    // which names the reading's request. The sealed profile says the same, but a profile this deploy cannot read would hide it.
     private async Task<IReadOnlyList<(Guid ConversationId, Guid TurnId, string ChannelId)>> NamedSourcesAsync(Guid userId, Guid conversationId,
         CancellationToken ct)
     {
@@ -95,8 +96,8 @@ internal sealed class AiAssistantService(IAiAssistantRepository repository, IUni
         foreach (var row in await repository.ListNamedSourcesAsync(userId, conversationId, ct))
         {
             if (row.AudioRequestId is { } audio) named.Add((audio, AiAssistantChannelPolicy.HomeAudioChannelId));
-            if (row.ExecutionProfileJson is not null && AiAssistantChannelPolicy.Read(row.ExecutionProfileJson) is { IsSuccess: true } profile
-                && profile.Value.DocumentRequestId is { } document) named.Add((document, AiAssistantChannelPolicy.HomeDocumentChannelId));
+            if (AiAssistantHomeDocumentPolicy.TryParseKey(row.AttachmentKey, out var document))
+                named.Add((document, AiAssistantChannelPolicy.HomeDocumentChannelId));
         }
         var sources = new List<(Guid, Guid, string)>(named.Count);
         foreach (var (requestId, channelId) in named)

@@ -156,6 +156,30 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         Assert.False(string.IsNullOrEmpty(audio.GetProperty("transcript").GetString()));
     }
 
+    // I2, review: removing finds the reading by the key of the copy its turn holds, not by the sealed profile, which this deploy may not
+    // read (instructions it does not know, a later version or a profile over its bound): the reading goes all the same.
+    [Fact]
+    public async Task Removing_a_conversation_purges_its_reading_even_if_the_turn_profile_cannot_be_read()
+    {
+        using var provider = DocumentReadingHandler.Json(DocumentReadingHandler.Completed(DocumentReadingHandler.Reading()));
+        await using var scenario = await CreateAsync(provider);
+        var (documentRequestId, photoKey) = await ReadPhotoAsync(scenario);
+        var removedId = (await SubmitAsync(scenario, Guid.NewGuid(), documentRequestId)).GetProperty("conversationId").GetGuid();
+        Assert.True(await scenario.ProcessNextAsync());
+        await ScopeDbAsync(scenario, async db =>
+        {
+            var turn = await db.Set<AiAssistantTurn>().SingleAsync(turn => turn.ConversationId == removedId, Ct);
+            db.Entry(turn).Property(row => row.ExecutionProfileJson).CurrentValue = "{}";
+            return await db.SaveChangesAsync(Ct);
+        });
+
+        using (var removed = await scenario.Client.DeleteAsync($"/api/ai/assistant/conversations/{removedId}", Ct))
+            Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+
+        Assert.Equal(("completed", JsonValueKind.Null), await DocumentAsync(scenario, documentRequestId));
+        Assert.Empty(await RetainedAsync(scenario, photoKey));
+    }
+
     // I2, review: the purge runs under the budget lock, so it finds a turn that names a reading by its whole key, an equality the filtered
     // AttachmentKey index answers, never by a prefix of the column.
     [Fact]

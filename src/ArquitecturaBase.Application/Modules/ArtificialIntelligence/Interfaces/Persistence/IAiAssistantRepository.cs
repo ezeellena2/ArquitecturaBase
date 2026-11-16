@@ -18,7 +18,7 @@ public interface IAiAssistantRepository
     Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken);
     /// <summary>The spreadsheet of the latest turn of the conversation that has one, own or inherited, even once its content was purged.</summary>
     Task<AiAssistantAttachmentRow?> FindLatestAttachmentAsync(Guid conversationId, CancellationToken cancellationToken);
-    /// <summary>The turns of the person's conversation that named a recording or have a file, with the profile of those with a file (I2).</summary>
+    /// <summary>The turns of the person's conversation that named a recording or hold a file, with the key of its copy (I2).</summary>
     Task<IReadOnlyList<AiAssistantNamedSourceRow>> ListNamedSourcesAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken);
     /// <summary>
     /// The day's acceptances and the active work. Document readings count apart: with <paramref name="isDocument"/>, the actor's in every

@@ -51,11 +51,11 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .OrderByDescending(turn => turn.Ordinal)
             .Select(turn => new AiAssistantAttachmentRow(turn.Id, turn.PayloadRevision, turn.ContentExpiresAtUtc, turn.AttachmentKey!, turn.ProtectedAttachment))
             .FirstOrDefaultAsync(cancellationToken);
-    // I2: a projection of the conversation's turns that named a recording or have a file; the profile only for these, which seals the reading.
+    // I2: a projection of the conversation's turns that named a recording or hold a copy, whose key names a Home reading's request.
     public async Task<IReadOnlyList<AiAssistantNamedSourceRow>> ListNamedSourcesAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) =>
         await dbContext.Set<AiAssistantTurn>().Where(turn => turn.ConversationId == conversationId && turn.OwnerUserId == ownerUserId
                 && (turn.AudioRequestId != null || turn.AttachmentKey != null))
-            .Select(turn => new AiAssistantNamedSourceRow(turn.AudioRequestId, turn.AttachmentKey == null ? null : turn.ExecutionProfileJson))
+            .Select(turn => new AiAssistantNamedSourceRow(turn.AudioRequestId, turn.AttachmentKey))
             .ToArrayAsync(cancellationToken);
 
     public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument,
