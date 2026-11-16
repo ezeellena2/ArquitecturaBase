@@ -55,7 +55,7 @@ En orden de peso; cada tarea lo repite.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro y el contador para quien
    administra reglas (el aviso a quien cargó, que esperaba ARCA H11, quedó hecho el 2026-11-16).
 3. **El resto de la etapa 6:** nada.
-4. **La etapa 7:** F25.
+4. **La etapa 7:** nada, salvo repetir la prueba de quitar Formularios (F25).
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
    «No aplica» se empieza a escribir en la misma versión que lo trae, contra la regla de la [guía de migración](../guides/migracion.md)
    que cita «Al día».
@@ -212,7 +212,7 @@ En orden de peso; cada tarea lo repite.
     columnas que pasan a aceptar nulos, borrados junto con su reemplazo) y la lista versionada de las enumeraciones guardadas como
     texto; el comprobante de guardado se abre sin rechazar lo desconocido, o con su formato versionado. Mediano. Hecha el 2026-11-16: la regla general y su control son los de la tarea 37 (CHECK nuevos, nulos nuevos, borrado con su reemplazo y renombres); las 16 enumeraciones de Formularios guardadas como texto quedan en `FormStoredEnumTests`, que obliga a editar la lista al sumar un valor; el comprobante ignora los miembros que no conoce (`FormChangeProtectorCompatibilityTests`; el manifiesto de publicación sigue cerrado, no se vuelve a abrir tras sellarse). `FormActionRunState.NotApplicable`, escrito el 2026-11-15 en la misma versión que lo trae, queda como excepción conocida en la regla y en la lista.
 39. **F25. La guía para quitar Formularios, al día.** Las 29 tablas, la bandeja y DOC6, qué le queda a ARCA y lo del B5 del núcleo;
-    un test compara las tablas de la guía con las del módulo, y se repite la prueba de quitarlo. Chico. Sin empezar.
+    un test compara las tablas de la guía con las del módulo, y se repite la prueba de quitarlo. Chico. Hecha el 2026-11-16, salvo la prueba: la guía cuenta las 30 tablas del módulo (la bandeja, DOC6 y `BusinessFormRecordCatalogFields`), dice qué le queda a ARCA (sin Formularios no tiene emisor) y que el asistente de WhatsApp espera la tarea 26 del plan del núcleo (B5); `FormRemovalGuideTests` compara su lista con las tablas del modelo. **Falta repetir la prueba de quitar el módulo en una copia** (migración `RemoveBusinessForms`, su `Down` y los tests que la guía corrige): la guía lo anota en «Comprobaciones registradas».
 40. **F10. La retención nombra todo** (decisión 6). La fila de la retención en los [planes pendientes](README.md) suma lo que lista
     F10 y el borrado definitivo de una persona como un puerto del núcleo que implementa cada módulo. Trivial.
     Hecha el 2026-11-15 en 0a89d4e0.

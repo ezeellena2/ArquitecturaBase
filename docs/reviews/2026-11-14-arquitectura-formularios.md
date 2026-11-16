@@ -706,6 +706,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   ARCA registra para Formularios (`ArcaApplicationRegistration.cs:69-72`); `quitar-arca.md:10`.
 - **Arreglo:** actualizar la guía (las 29 tablas, la bandeja y DOC6, qué le queda a ARCA, lo del B5) y repetir la prueba de quitar
   el módulo, con un test que compare las tablas de la guía con las del módulo. Chico.
+- **Arreglado el 2026-11-16** (la guía y su test de tablas; falta repetir la prueba de quitar el módulo en una copia).
 
 #### F26. Si se quita la IA con extracciones en curso, esos documentos quedan leyendo para siempre
 

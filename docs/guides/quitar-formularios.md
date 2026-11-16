@@ -1,17 +1,30 @@
 # Quitar el módulo de formularios
 
 Para un derivado que no usa formularios (`BusinessForms`). No apagues opciones para simular la retirada: quitá
-código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 27 tablas del módulo
-(definiciones, borradores, carpetas, versiones, catálogos, respuestas y sus resultados, reglas, diseños de PDF, sugerencias y
-datos de personas):
+código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 30 tablas del módulo
+(definiciones, borradores, carpetas, versiones, catálogos, respuestas y sus resultados, reglas, diseños de PDF, sugerencias, datos
+de personas, la bandeja «Documentos recibidos» con sus eventos y las propuestas de «Armar formulario con la IA», DOC6):
 respaldá la base antes.
 
-WhatsApp e IA siguen andando. Sin el módulo, el núcleo usa sus versiones apagadas de los puertos de formularios
+WhatsApp e IA siguen andando, con una salvedad, y ARCA queda sin emisor. Sin el módulo, el núcleo usa sus versiones apagadas de los puertos de formularios
 (`DisabledStructuredFormSource`, `UnavailableStructuredRecordSink` y las demás de `Application/Channels`): WhatsApp no
 encuentra formularios para mandar y el asistente pierde las capacidades de formularios. Con
 `UnavailableStructuredAttachmentReader` nadie puede adjuntar una planilla: Inicio no muestra el clip (el bootstrap da
-`attachments` en false) y una planilla que llega por WhatsApp queda No disponible, sin bajarse. Las tablas
-`WhatsAppFlow*` son del otro módulo y se quedan.
+`attachments` en false) y una planilla que llega por WhatsApp queda No disponible, sin bajarse. Con `UnavailableStructuredDocumentChannel` y
+`UnavailableStructuredDocumentRowsChannel` los documentos que llegan por WhatsApp no pasan a la bandeja ni a una carga por filas.
+Las tablas `WhatsAppFlow*` son del otro módulo y se quedan.
+
+- **El asistente de WhatsApp (B5 del núcleo).** El contexto del asistente de WhatsApp pide siempre capacidades `forms.*`
+  (`WhatsAppAssistantAccessPolicy`) y el catálogo del motor rechaza el contexto entero si falta una: sin Formularios, ninguna
+  conversación en modo Asistente recibe respuesta mientras no esté hecha la tarea 26 del
+  [plan del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md) (WhatsApp pide esas capacidades sólo si están instaladas, con un
+  test que compone WhatsApp e IA sin el módulo). Antes de quitar Formularios, comprobá que esté hecha; si no, el chat manual
+  sigue y el automático no.
+- **ARCA.** ARCA no tiene una ruta propia para emitir: registra para Formularios el emisor (`IStructuredRecordIssuer`), la
+  consulta del padrón, los catálogos «ARCA» y el estándar «Factura» (`ArcaApplicationRegistration`), puertos del núcleo que sólo
+  consume el módulo. Sin Formularios compila y arranca, pero nadie los llama: la conexión, el padrón y los comprobantes ya
+  emitidos siguen, y la facturación queda sin nada que emita. Un derivado sin formularios que tampoco factura quita también
+  [ARCA](quitar-arca.md); uno que factura conserva Formularios.
 
 ## Backend
 
@@ -52,7 +65,7 @@ encuentra formularios para mandar y el asistente pierde las capacidades de formu
    - En `src/ArquitecturaBase.Application/ArquitecturaBase.Application.csproj`, el `ItemGroup` de los estándares de la
      biblioteca (`Modules\BusinessForms\Resources\Standards\*.json`).
    - En `.editorconfig`, las dos secciones de `src/ArquitecturaBase.Domain/Modules/BusinessForms/…`.
-   - Las 201 claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
+   - Todas las claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
      `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
    - `FormCatalogStateInvalid` de `ValidationMessages` y de `Validation.resx`/`.en.resx`.
    - `harnesses/assistant-qualification`, el arnés manual de calificación del asistente. Está fuera de la solución y el
@@ -72,12 +85,15 @@ encuentra formularios para mandar y el asistente pierde las capacidades de formu
 
    `dotnet ef` lee el proyecto antes de compilarlo: en un clon sin `obj`, sin el `restore` no lo encuentra.
 
-   `Up` suelta primero las claves foráneas entre tablas del módulo y después borra sólo sus 27 tablas:
-   `FormDefinitions`, `FormDraftChanges`, `FormFolders`, `FormFolderMemberships` y las 23 `BusinessForm*` (`ActionRuns`,
-   `CaptureReceipts`, `CatalogItems`, `Catalogs`, `Documents`, `Fields`, `MissingRequests`, `MissingTopics`, `PdfDesigns`,
-   `PersonAttributes`, `PersonData`, `PublicationOperations`, `RecordCatalogFields`, `RecordFiles`, `RecordReferences`, `RecordResults`,
-   `RecordValues`, `Records`, `RetiredIdentities`, `RuleSets`, `Suggestions`, `Tasks` y `Versions`). Si aparece otra
-   tabla, algo se borró de más.
+   <!-- tablas -->
+   BusinessFormActionRuns, BusinessFormCaptureReceipts, BusinessFormCatalogItems, BusinessFormCatalogs, BusinessFormDocuments, BusinessFormFields, BusinessFormMissingRequests, BusinessFormMissingTopics, BusinessFormPdfDesigns, BusinessFormPersonAttributes, BusinessFormPersonData, BusinessFormPublicationOperations, BusinessFormRecordCatalogFields, BusinessFormRecordFiles, BusinessFormRecordReferences, BusinessFormRecordResults, BusinessFormRecords, BusinessFormRecordValues, BusinessFormRetiredIdentities, BusinessFormRuleSets, BusinessFormSuggestions, BusinessFormTasks, BusinessFormVersions, FormDefinitions, FormDocumentProposals, FormDraftChanges, FormFolderMemberships, FormFolders, FormReceivedDocumentEvents, FormReceivedDocuments
+   <!-- /tablas -->
+
+   `Up` suelta primero las claves foráneas entre tablas del módulo y después borra sólo sus 30 tablas, que son las
+   de la lista de arriba (`FormReceivedDocuments` y `FormReceivedDocumentEvents` son la bandeja, `FormDocumentProposals` las
+   de DOC6 y `BusinessFormRecordCatalogFields` las columnas de catálogo de las respuestas). Si aparece otra tabla, algo se
+   borró de más. El test `FormRemovalGuideTests` compara esta lista con las tablas del modelo del módulo: si el módulo suma una,
+   falla hasta que la guía la nombre y su cuenta.
 
    `Down` las recrea desde el modelo, que no tiene las dos claves diferibles de `BusinessFormCatalogItems`: EF no modela
    la diferibilidad, y las crearon a mano `AddUniqueManualCatalogItemPositions` y `DeferCatalogItemCodeUniqueness`. Sus
@@ -174,8 +190,10 @@ front, quitá las filas de `src/features/business-forms` de su
 ## Comprobaciones registradas
 
 El 2026-11-03 y el 2026-11-04 se siguió esta guía en copias descartables: un `git archive` del commit, sin tocar los
-checkouts. Después el módulo sumó `BusinessFormRecordResults`, `FormFolders` y `FormFolderMemberships`, y quedó en 26
-tablas: la próxima prueba de fuego vuelve a comprobar la migración y cuántas claves foráneas suelta.
+checkouts. Después el módulo sumó `BusinessFormRecordResults`, `FormFolders` y `FormFolderMemberships`, la bandeja, las propuestas de DOC6 y
+las columnas de catálogo de las respuestas, y hoy tiene 30 tablas. **La prueba no se repitió desde el 2026-11-04:** la lista de
+tablas ya la controla un test, pero la próxima prueba de fuego tiene que volver a comprobar la migración (cuántas claves foráneas
+suelta), el `Down` y los tests que la guía corrige.
 
 En el backend, sobre `d558c421` y con los tests corregidos de abajo:
 
