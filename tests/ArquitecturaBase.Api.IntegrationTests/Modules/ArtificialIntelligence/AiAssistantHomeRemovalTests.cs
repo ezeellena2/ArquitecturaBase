@@ -102,6 +102,33 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         Assert.Equal("Ai.Assistant.Expired", (await late.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
+    // I2, review: a conversation removed before I2 left its reading and its transcript behind, and its purged turns still carry their
+    // AudioRequestId and AttachmentKey. Only a turn of an active conversation names a source, so after 24 hours those go too.
+    [Fact]
+    public async Task A_reading_and_a_recording_only_a_turn_of_a_removed_conversation_named_expire_after_24_hours()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        using var provider = DocumentReadingHandler.Json(DocumentReadingHandler.Completed(DocumentReadingHandler.Reading()));
+        await using var scenario = await CreateAsync(provider, clock);
+        var (documentRequestId, photoKey) = await ReadPhotoAsync(scenario);
+        var (audioRequestId, audioKey) = await NormalizeAsync(scenario);
+        var removedId = (await SubmitAsync(scenario, Guid.NewGuid(), documentRequestId, audioRequestId)).GetProperty("conversationId").GetGuid();
+        Assert.True(await scenario.ProcessNextAsync());
+        // Removed the way it was before I2: the conversation goes, what its turn named stays.
+        await ScopeDbAsync(scenario, async db =>
+        {
+            (await db.Set<AiConversation>().SingleAsync(conversation => conversation.Id == removedId, Ct)).Remove(clock.GetUtcNow().UtcDateTime);
+            return await db.SaveChangesAsync(Ct);
+        });
+
+        clock.Advance(TimeSpan.FromHours(24) + TimeSpan.FromMinutes(1));
+        await PurgeAsync(scenario);
+
+        Assert.Equal(("completed", JsonValueKind.Null), await DocumentAsync(scenario, documentRequestId));
+        Assert.Equal(("completed", JsonValueKind.Null), await TranscriptAsync(scenario, audioRequestId));
+        Assert.Empty(await RetainedAsync(scenario, photoKey, audioKey));
+    }
+
     private async Task<AiAssistantExecutionScenario> CreateAsync(DocumentReadingHandler provider, TimeProvider? clock = null)
     {
         var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary", services =>
