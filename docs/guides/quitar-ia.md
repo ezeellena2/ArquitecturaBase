@@ -93,8 +93,8 @@ AiConversations/AiAssistantTurns/AiAssistantToolExecutions/AiAssistantRequestRec
 y Down los reconstruya. Las únicas claves foráneas del módulo son internas (herramientas → turno y
 turno → conversación, en cascada): ninguna tabla del núcleo ni de otro módulo apunta a las suyas.
 Lo que sumaron migraciones posteriores se va con su tabla: las columnas de la planilla de
-`AiAssistantTurns`, con su índice filtrado, e `IsDocument` de los recibos, con su CHECK y su índice;
-`AddAssistantTurnAttachment`, `AddAssistantTurnAttachmentHashAndSize` y `AddAssistantDocumentReading` se
+`AiAssistantTurns`, con su índice filtrado, su `TraceParent` (I10), e `IsDocument` de los recibos, con su CHECK y su índice;
+`AddAssistantTurnAttachment`, `AddAssistantTurnAttachmentHashAndSize`, `AddAssistantDocumentReading` y `AddAssistantTurnTrace` se
 quedan, como las demás migraciones. Aplicá con el bundle
 antes del nuevo código, después de detener o retirar tráfico de rutas IA de la versión vieja.
 El drop es destructivo: respaldar precede a publicar. Las copias privadas de Inicio (las planillas y los Word en

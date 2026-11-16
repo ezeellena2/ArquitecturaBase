@@ -45,7 +45,7 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
                 return Result.Success<AiAssistantClaimResponse?>(null);
             }
             return Result.Success<AiAssistantClaimResponse?>(new(turn.Id, turn.OwnerUserId, turn.ConversationId, turn.RequestId,
-                turn.Fence, turn.AttemptId!.Value, turn.DeadlineAtUtc!.Value, turn.Culture));
+                turn.Fence, turn.AttemptId!.Value, turn.DeadlineAtUtc!.Value, turn.Culture) { TraceParent = turn.TraceParent });
         }, CommitPolicy.OnSuccess, cancellationToken);
         if (outcome.IsSuccess) NotifyTerminal(terminalTurn);
         return outcome;

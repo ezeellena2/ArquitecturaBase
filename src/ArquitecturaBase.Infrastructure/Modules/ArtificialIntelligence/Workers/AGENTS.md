@@ -10,6 +10,9 @@ Cancelación y shutdown son cooperativos; una salida posible sin cierre queda du
 ProviderUnavailable sale sólo de la llamada al proveedor; una excepción fuera de ella es ExecutionFailed (I5).
 Una falla del proveedor se registra con su código, el estado HTTP, el turno y el proveedor; `LlmProviderFailures` la clasifica (I6).
 Un valor nuevo del sello o del proveedor se escribe un despliegue después del que ya lo lee ([despliegue](../../../../../docs/guides/despliegue.md), I4).
+I10: `AiAssistantTracing` abre una actividad por turno que continúa el `TraceParent` del claim (ilegible: se ignora) y envuelve
+capacidades y proveedor; una falla la marca con su código. Etiquetas: turno, canal, propósito, proveedor y capacidades con versión,
+nunca contenido. El Id del turno va en el scope de los logs del worker.
 
 Los schedulers usan TimeProvider y tokens de parada. Logs y métricas contienen estados, códigos,
 duraciones e IDs operativos; nunca preguntas, respuestas, resultados ni credenciales.

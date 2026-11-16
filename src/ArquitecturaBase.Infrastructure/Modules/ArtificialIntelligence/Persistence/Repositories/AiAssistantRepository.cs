@@ -134,7 +134,13 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .OrderBy(tool => tool.Ordinal).ToListAsync(cancellationToken);
 
     public void AddConversation(AiConversation conversation) { dbContext.RequireTransaction(); dbContext.Set<AiConversation>().Add(conversation); }
-    public void AddTurn(AiAssistantTurn turn) { dbContext.RequireTransaction(); dbContext.Set<AiAssistantTurn>().Add(turn); }
+    // I10: the turn keeps the trace of whoever submits it (the request in Home, the round in a channel), which the coordinator continues.
+    public void AddTurn(AiAssistantTurn turn)
+    {
+        dbContext.RequireTransaction();
+        if (AiAssistantTracing.Current() is { } trace) turn.RecordTrace(trace);
+        dbContext.Set<AiAssistantTurn>().Add(turn);
+    }
     public void AddReceipt(AiAssistantRequestReceipt receipt) { dbContext.RequireTransaction(); dbContext.Set<AiAssistantRequestReceipt>().Add(receipt); }
     public void AddTool(AiAssistantToolExecution execution) { dbContext.RequireTransaction(); dbContext.Set<AiAssistantToolExecution>().Add(execution); }
     public void RemoveTool(AiAssistantToolExecution execution) { dbContext.RequireTransaction(); dbContext.Set<AiAssistantToolExecution>().Remove(execution); }

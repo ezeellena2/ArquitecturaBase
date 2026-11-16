@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -15,8 +16,11 @@ internal sealed class AiAssistantExecutionProviderHandler(AiProvider provider, s
     /// <summary>I6: the connection to the provider is refused before anything is sent.</summary>
     public bool RefuseConnection { get; set; }
     public List<int> ActiveTransactionsDuringHttp { get; } = [];
+    /// <summary>I10: the trace each call to the provider ran in.</summary>
+    public List<ActivityTraceId?> Traces { get; } = [];
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        Traces.Add(Activity.Current?.TraceId);
         Assert.Equal(HttpMethod.Post, request.Method);
         Assert.Equal(provider == AiProvider.OpenAI ? "https://api.openai.com/v1/responses" : "https://api.anthropic.com/v1/messages", request.RequestUri?.AbsoluteUri);
         Assert.Equal(0, transactions.ActiveTransactions);

@@ -38,6 +38,10 @@ internal sealed partial class AiAssistantCoordinator(
         }
         if (claim is null) return false;
         Claims.Add(1);
+        // I10: one activity per turn continues the trace its caller left in it, around its capabilities and the provider call, and every
+        // log of the worker says which turn.
+        using var activity = AiAssistantTracing.StartTurn(claim.TurnId, claim.TraceParent);
+        using var turnScope = TurnScope(logger, claim.TurnId);
         var started = timeProvider.GetTimestamp();
         var culture = CultureInfo.CurrentCulture;
         var uiCulture = CultureInfo.CurrentUICulture;
@@ -57,6 +61,7 @@ internal sealed partial class AiAssistantCoordinator(
                 prepared = await scope.ServiceProvider.GetRequiredService<IAiAssistantExecutionService>().PrepareAsync(claim, execution.Token);
             if (prepared.IsFailure) { await FailAsync(claim, prepared.Error.Code, false); return true; }
             var context = prepared.Value;
+            AiAssistantTracing.Describe(activity, context);
             while (!execution.IsCancellationRequested)
             {
                 Result<bool> reserved;
@@ -156,6 +161,7 @@ internal sealed partial class AiAssistantCoordinator(
 
     private async Task FailAsync(AiAssistantClaimResponse claim, string code, bool uncertain, LlmConversationUsage? usage = null)
     {
+        AiAssistantTracing.MarkFailed(code);
         var failed = await PersistFinalAsync((service, token) => service.FailAsync(claim, code, uncertain, token, usage));
         if (failed?.IsSuccess == true) await ObserveOutcomeAsync(claim);
     }
@@ -194,6 +200,8 @@ internal sealed partial class AiAssistantCoordinator(
         }
         return null;
     }
+
+    private static readonly Func<ILogger, Guid, IDisposable?> TurnScope = LoggerMessage.DefineScope<Guid>("Assistant turn {AssistantTurnId}");
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Assistant unit {Unit} was rejected with {Code}.")]
     private static partial void LogUnitRejected(ILogger logger, string unit, string code);

@@ -5,7 +5,11 @@ using ArquitecturaBase.Application.Models.SystemQueries;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 
 public sealed record AiAssistantClaimResponse(Guid TurnId, Guid OwnerUserId, Guid ConversationId, Guid RequestId,
-    long Fence, Guid AttemptId, DateTime DeadlineAtUtc, string Culture);
+    long Fence, Guid AttemptId, DateTime DeadlineAtUtc, string Culture)
+{
+    /// <summary>I10: the trace context the turn kept when it was accepted, which the coordinator continues; as stored, unchecked.</summary>
+    public string? TraceParent { get; init; }
+}
 public sealed record AiAssistantExecutionContextResponse(AiAssistantClaimResponse Claim, AiAssistantTurnRow Turn,
     LlmConversationRequest ProviderRequest, IReadOnlyList<SystemQueryEvidence> Evidences,
     IReadOnlyList<AiAssistantObservedTool> ObservedTools, int ToolCalls, int ToolBytes)

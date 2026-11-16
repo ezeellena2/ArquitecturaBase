@@ -58,6 +58,10 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     public bool UsageUnknown { get; private set; }
     public int ReportedUsageSteps { get; private set; }
     public string? FailureCode { get; private set; }
+    /// <summary>I10: a W3C traceparent, the only form that fits.</summary>
+    public const int TraceParentLength = 55;
+    /// <summary>I10: the trace context of whoever submitted the turn, which the coordinator continues; none before I10 or without a trace.</summary>
+    public string? TraceParent { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -86,6 +90,14 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     }
 
     public void ProtectQuestion(string protectedQuestion) => ProtectedQuestion = protectedQuestion;
+
+    /// <summary>I10: kept once, when the turn is accepted.</summary>
+    public void RecordTrace(string traceParent)
+    {
+        if (traceParent is not { Length: TraceParentLength })
+            throw new ArgumentException("A trace context is a W3C traceparent.", nameof(traceParent));
+        TraceParent ??= traceParent;
+    }
 
     public void AttachAudio(Guid audioRequestId, string protectedTranscript)
     {

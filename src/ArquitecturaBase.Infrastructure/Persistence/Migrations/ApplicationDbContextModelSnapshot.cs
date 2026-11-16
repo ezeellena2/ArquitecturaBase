@@ -1085,6 +1085,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<int>("ToolCalls")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TraceParent")
+                        .HasMaxLength(55)
+                        .HasColumnType("character varying(55)");
+
                     b.Property<bool>("UsageUnknown")
                         .HasColumnType("boolean");
 

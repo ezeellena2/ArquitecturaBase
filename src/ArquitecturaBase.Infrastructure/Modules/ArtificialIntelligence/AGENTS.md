@@ -17,6 +17,7 @@ activos, se borra físicamente con cascade de turnos/tools. Los recibos no tiene
 cancelación cooperativa y reintento exclusivo del cierre ya obtenido; un Running abandonado
 no vuelve a generar. Límites/perfiles explícitos en AiAssistantOptions; un catálogo de modelos
 no acredita compatibilidad. Meters del módulo sin preguntas ni etiquetas de actor/conversación.
+I10: `AddTurn` guarda en `TraceParent` el contexto W3C activo de quien acepta (sin uno, nada), que continúa el coordinador.
 
 Los detalles del negocio usan JSONB nullable y ValueComparer para las colecciones; la migración
 aditiva conserva los siete textos, revisión y comprobantes. La huella histórica sin details no

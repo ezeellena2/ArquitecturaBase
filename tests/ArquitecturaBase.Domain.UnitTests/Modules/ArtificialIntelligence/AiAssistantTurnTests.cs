@@ -214,6 +214,21 @@ public sealed class AiAssistantTurnTests
         Assert.Equal(sealedRevision, sealedTurn.Revision);
     }
 
+    // I10: the trace context of whoever submitted the turn, a W3C traceparent, kept once and never revised.
+    [Fact]
+    public void A_turn_keeps_the_first_w3c_trace_it_is_given_and_rejects_another_form()
+    {
+        var turn = NewTurn();
+        Assert.Null(turn.TraceParent);
+        var first = $"00-{new string('a', 32)}-{new string('b', 16)}-01";
+
+        Assert.Throws<ArgumentException>(() => turn.RecordTrace("|root.span."));
+        turn.RecordTrace(first);
+        turn.RecordTrace($"00-{new string('c', 32)}-{new string('d', 16)}-01");
+
+        Assert.Equal(first, turn.TraceParent);
+    }
+
     private static AiAssistantTurn NewTurn()
     {
         var now = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);

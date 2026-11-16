@@ -96,7 +96,9 @@ Además:
   del procesador entrante continúa la del último mensaje del chat, y el envío, la de su salida, con la llamada a Meta adentro. Lo
   estampa el interceptor del módulo y lo continúan sus workers con el `ActivitySource` `ArquitecturaBase.WhatsApp`, registrado en
   el módulo como su medidor; las etiquetas no llevan números, cuerpos ni ids. Una fila de antes, o escrita sin traza, no tiene. La
-  captura de los Flows (con su rechazo y su reenvío) y la cola de acceso todavía no continúan la traza.
+  captura de los Flows (con su rechazo y su reenvío) y la cola de acceso todavía no continúan la traza. El pedido que la vuelta
+  manda al motor guarda su contexto en el turno, y el coordinador del asistente lo continúa hasta el proveedor
+  ([I10](inteligencia-artificial.md#ejecución-fallas-y-mantenimiento)).
 - **El contenido del chat se guarda cifrado (H16, [ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md)).** Con Data
   Protection y un propósito propio, por un conversor de EF que cifra al guardar y descifra al leer (`WhatsAppChatContent`, cuyo
   protector se fija al arrancar): el contenido no se busca ni se compara en SQL, sólo se pregunta si es nulo. Desde el

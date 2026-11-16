@@ -45,7 +45,9 @@ public static class ArtificialIntelligenceInfrastructureRegistration
         services.AddSingleton<AiAssistantTelemetry>();
         services.AddHostedService<AiAssistantBackgroundService>();
         services.AddHostedService<AiAssistantRetentionBackgroundService>();
-        services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter("ArquitecturaBase.AiAssistant", "ArquitecturaBase.AiAssistant.Maintenance", "ArquitecturaBase.AiAssistant.Application"));
+        // I10: the assistant's traces, with the context each turn keeps, beside its meters.
+        services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter("ArquitecturaBase.AiAssistant", "ArquitecturaBase.AiAssistant.Maintenance", "ArquitecturaBase.AiAssistant.Application"))
+            .WithTracing(tracing => tracing.AddSource(AiAssistantTracing.SourceName));
         services.AddSingleton<LlmHttpTransport>();
         services.AddSingleton<ILlmClient, LlmClient>();
         services.AddOptions<GooglePlacesOptions>().Bind(configuration.GetSection("ArtificialIntelligence:GooglePlaces")).ValidateDataAnnotations().ValidateOnStart();
