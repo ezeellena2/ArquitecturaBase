@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Models.Files;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Services.Files;
@@ -14,10 +15,10 @@ internal sealed class PrivateFileCleanupService(IPrivateFileStore store, IStored
         if (!store.IsAvailable) return Result.Success();
         // Captures retry for minutes; a full day leaves ongoing uploads outside this sweep.
         var cutoff = timeProvider.GetUtcNow().UtcDateTime.AddDays(-1);
-        var batch = new List<string>(128);
+        var batch = new List<PrivateFileObjectRow>(128);
         await foreach (var blob in store.ListAsync(cutoff, cancellationToken))
         {
-            batch.Add(blob.Key);
+            batch.Add(blob);
             if (batch.Count < 128) continue;
             await PurgeBatchAsync(batch, cancellationToken);
             batch.Clear();
@@ -25,13 +26,15 @@ internal sealed class PrivateFileCleanupService(IPrivateFileStore store, IStored
         if (batch.Count > 0) await PurgeBatchAsync(batch, cancellationToken);
         return Result.Success();
     });
-    private async Task PurgeBatchAsync(IReadOnlyList<string> keys, CancellationToken cancellationToken)
+    private async Task PurgeBatchAsync(IReadOnlyList<PrivateFileObjectRow> blobs, CancellationToken cancellationToken)
     {
+        var keys = blobs.Select(blob => blob.Key).ToArray();
         var referenced = (await files.ListReferencedKeysAsync(keys, cancellationToken)).ToHashSet(StringComparer.Ordinal);
         foreach (var source in retentionSources)
             referenced.UnionWith(await source.ListReferencedKeysAsync(keys, cancellationToken));
-        foreach (var key in keys)
-            if (!referenced.Contains(key)) await store.DeleteAsync(key, cancellationToken);
+        // The listed version keeps an upload retried with the same key after the listing out of this sweep.
+        foreach (var blob in blobs)
+            if (!referenced.Contains(blob.Key)) await store.DeleteIfUnchangedAsync(blob.Key, blob.Version, cancellationToken);
     }
 
 }

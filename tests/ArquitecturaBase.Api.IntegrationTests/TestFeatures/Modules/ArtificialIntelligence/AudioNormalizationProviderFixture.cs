@@ -23,6 +23,8 @@ internal sealed class AudioNormalizationFiles(byte[]? bytes) : IPrivateFileStore
     public Task<bool> WriteOnceAsync(string key, Stream content, string contentType, CancellationToken ct) => throw new NotSupportedException();
     public Task WriteAsync(string key, Stream content, string contentType, CancellationToken ct) => throw new NotSupportedException();
     public Task DeleteAsync(string key, CancellationToken ct) => throw new NotSupportedException();
+    // Lists nothing, so the cleanup never deletes through it.
+    public Task DeleteIfUnchangedAsync(string key, string version, CancellationToken ct) => throw new NotSupportedException();
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [EnumeratorCancellation] CancellationToken ct)
     { await Task.CompletedTask; yield break; }
 }

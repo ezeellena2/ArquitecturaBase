@@ -17,6 +17,8 @@ internal sealed class ArcaMemoryFiles : IPrivateFileStore
 
     public IReadOnlyDictionary<string, byte[]> Objects => objects;
 
+    // Lists nothing, so the cleanup never deletes through it.
+    public Task DeleteIfUnchangedAsync(string key, string version, CancellationToken ct) => throw new NotSupportedException();
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await Task.CompletedTask;

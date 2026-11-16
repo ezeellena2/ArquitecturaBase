@@ -8,6 +8,7 @@ internal sealed class MemoryPrivateFileStore(bool available = true) : IPrivateFi
 {
     private readonly Dictionary<string, byte[]> content = new(StringComparer.Ordinal);
     public Dictionary<string, DateTime> Modified { get; } = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> versions = new(StringComparer.Ordinal);
     public int WriteCount { get; private set; }
     public int ReadCount { get; private set; }
     public Action? BeforeRead { get; set; }
@@ -18,7 +19,7 @@ internal sealed class MemoryPrivateFileStore(bool available = true) : IPrivateFi
         using var buffer = new MemoryStream(); await value.CopyToAsync(buffer, cancellationToken);
         lock (content)
         {
-            content[key] = buffer.ToArray(); Modified[key] = DateTime.MinValue; WriteCount++;
+            content[key] = buffer.ToArray(); Modified[key] = DateTime.MinValue; WriteCount++; versions[key] = WriteCount;
         }
     }
     public async Task<bool> WriteOnceAsync(string key, Stream value, string contentType, CancellationToken cancellationToken)
@@ -27,7 +28,7 @@ internal sealed class MemoryPrivateFileStore(bool available = true) : IPrivateFi
         lock (content)
         {
             if (content.ContainsKey(key)) return false;
-            content.Add(key, buffer.ToArray()); Modified[key] = DateTime.MinValue; WriteCount++; return true;
+            content.Add(key, buffer.ToArray()); Modified[key] = DateTime.MinValue; WriteCount++; versions[key] = WriteCount; return true;
         }
     }
     public Task<Stream?> OpenReadAsync(string key, CancellationToken cancellationToken)
@@ -41,12 +42,22 @@ internal sealed class MemoryPrivateFileStore(bool available = true) : IPrivateFi
     }
     public Task DeleteAsync(string key, CancellationToken cancellationToken)
     {
-        lock (content) { content.Remove(key); Modified.Remove(key); } return Task.CompletedTask;
+        lock (content) { content.Remove(key); Modified.Remove(key); versions.Remove(key); } return Task.CompletedTask;
+    }
+    public Task DeleteIfUnchangedAsync(string key, string version, CancellationToken cancellationToken)
+    {
+        lock (content)
+            if (versions.TryGetValue(key, out var current) && current.ToString(System.Globalization.CultureInfo.InvariantCulture) == version)
+            {
+                content.Remove(key); Modified.Remove(key); versions.Remove(key);
+            }
+        return Task.CompletedTask;
     }
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await Task.CompletedTask; KeyValuePair<string, DateTime>[] rows;
-        lock (content) rows = Modified.ToArray();
-        foreach (var row in rows) if (row.Value < olderThanUtc) yield return new(row.Key, row.Value);
+        await Task.CompletedTask; (string Key, DateTime Modified, int Version)[] rows;
+        lock (content) rows = Modified.Select(row => (row.Key, row.Value, versions[row.Key])).ToArray();
+        foreach (var row in rows)
+            if (row.Modified < olderThanUtc) yield return new(row.Key, row.Modified, row.Version.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 }

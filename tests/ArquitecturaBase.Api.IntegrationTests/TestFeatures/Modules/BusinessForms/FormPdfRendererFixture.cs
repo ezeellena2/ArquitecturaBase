@@ -185,5 +185,7 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
     public Task WriteAsync(string key, Stream content, string type, CancellationToken ct) => throw new NotSupportedException();
     public Task<bool> WriteOnceAsync(string key, Stream content, string type, CancellationToken ct) => throw new NotSupportedException();
     public Task DeleteAsync(string key, CancellationToken ct) => throw new NotSupportedException();
+    // Lists nothing, so the cleanup never deletes through it.
+    public Task DeleteIfUnchangedAsync(string key, string version, CancellationToken ct) => throw new NotSupportedException();
     public IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, CancellationToken ct) => throw new NotSupportedException();
 }

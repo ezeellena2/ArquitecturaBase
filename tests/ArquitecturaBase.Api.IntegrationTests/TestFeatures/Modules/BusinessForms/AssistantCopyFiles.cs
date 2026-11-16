@@ -43,6 +43,8 @@ internal sealed class AssistantCopyFiles : IPrivateFileStore
         return Task.CompletedTask;
     }
 
+    // Lists nothing, so the cleanup never deletes through it.
+    public Task DeleteIfUnchangedAsync(string key, string version, CancellationToken ct) => throw new NotSupportedException();
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await Task.CompletedTask;

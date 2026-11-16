@@ -25,6 +25,8 @@ internal sealed class WhatsAppAudioDispatchProbe : IPrivateFileStore,IWhatsAppMe
     public Task<Stream?> OpenReadAsync(string key,CancellationToken ct)
     {ct.ThrowIfCancellationRequested();Reads++;return Task.FromResult<Stream?>(files.TryGetValue(key,out var bytes)?new MemoryStream(bytes,false):null);}
     public Task DeleteAsync(string key,CancellationToken ct){files.Remove(key);return Task.CompletedTask;}
+    // Lists nothing, so the cleanup never deletes through it.
+    public Task DeleteIfUnchangedAsync(string key, string version, CancellationToken ct) => throw new NotSupportedException();
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc,[EnumeratorCancellation]CancellationToken cancellationToken)
     {cancellationToken.ThrowIfCancellationRequested();await Task.CompletedTask;yield break;}
 }

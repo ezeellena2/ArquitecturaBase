@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Services.Files;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 using ArquitecturaBase.Domain.Files;
@@ -63,6 +64,23 @@ public sealed class PrivateFileCleanupServiceTests
         Assert.Equal(3, metadata.KeyLookupCount);
     }
     [Fact]
+    public async Task An_object_uploaded_again_with_the_same_key_after_the_listing_is_not_deleted()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 16, 12, 0, 0, TimeSpan.Zero));
+        var store = new MemoryPrivateFileStore();
+        foreach (var key in new[] { "retried-photo", "orphan" })
+        {
+            await using var bytes = new MemoryStream([1]); await store.WriteAsync(key, bytes, "image/jpeg", CancellationToken.None);
+            store.Modified[key] = clock.GetUtcNow().UtcDateTime.AddDays(-2);
+        }
+        var reupload = new ReuploadingRetentionSource(store, "retried-photo");
+        var service = new PrivateFileCleanupService(store, new MemoryStoredFileRepository(), clock, NullLogger<PrivateFileCleanupService>.Instance, [reupload]);
+        Assert.True((await service.PurgeAsync(CancellationToken.None)).IsSuccess);
+        Assert.Equal(new[] { "retried-photo" }, store.Modified.Keys.ToArray());
+        await using var saved = await store.OpenReadAsync("retried-photo", CancellationToken.None);
+        Assert.NotNull(saved); Assert.Equal(2, saved.ReadByte());
+    }
+    [Fact]
     public async Task A_retention_source_failure_does_not_authorize_deleting_any_object_in_its_batch()
     {
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 16, 12, 0, 0, TimeSpan.Zero));
@@ -75,5 +93,14 @@ public sealed class PrivateFileCleanupServiceTests
         var service = new PrivateFileCleanupService(store, new MemoryStoredFileRepository(), clock, NullLogger<PrivateFileCleanupService>.Instance, [source]);
         await Assert.ThrowsAsync<IOException>(() => service.PurgeAsync(CancellationToken.None));
         Assert.Equal(new[] { "orphan", "pending-copy" }, store.Modified.Keys.Order().ToArray());
+    }
+    /// <summary>A phone retries a failed upload with the same deterministic key right after the sweep listed it.</summary>
+    private sealed class ReuploadingRetentionSource(MemoryPrivateFileStore store, string key) : IPrivateFileRetentionSource
+    {
+        public async Task<IReadOnlyList<string>> ListReferencedKeysAsync(IReadOnlyList<string> keys, CancellationToken cancellationToken)
+        {
+            await using var bytes = new MemoryStream([2]); await store.WriteAsync(key, bytes, "image/jpeg", cancellationToken);
+            return [];
+        }
     }
 }

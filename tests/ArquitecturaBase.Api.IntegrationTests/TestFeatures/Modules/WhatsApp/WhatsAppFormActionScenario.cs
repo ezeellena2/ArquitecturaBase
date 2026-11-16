@@ -105,6 +105,8 @@ internal sealed class ActionPrivateFiles : IPrivateFileStore
     public Task WriteAsync(string key, Stream content, string contentType, CancellationToken ct) => throw new NotSupportedException();
     public Task<Stream?> OpenReadAsync(string key, CancellationToken ct) => Task.FromResult<Stream?>(Content.TryGetValue(key, out var content) ? new MemoryStream(content, false) : null);
     public Task DeleteAsync(string key, CancellationToken ct) { Content.Remove(key); return Task.CompletedTask; }
+    // Lists nothing, so the cleanup never deletes through it.
+    public Task DeleteIfUnchangedAsync(string key, string version, CancellationToken ct) => throw new NotSupportedException();
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [EnumeratorCancellation] CancellationToken cancellationToken)
     { cancellationToken.ThrowIfCancellationRequested(); await Task.CompletedTask; yield break; }
 }

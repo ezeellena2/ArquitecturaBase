@@ -5,7 +5,8 @@ public sealed record StoredFileRow(Guid Id, Guid OwnerUserId, string Name, strin
 {
     public override string ToString() => "StoredFileRow { Content = [REDACTED] }";
 }
-public sealed record PrivateFileObjectRow(string Key, DateTime LastModifiedAtUtc)
+/// <summary><c>Version</c> is the provider's opaque version of the listed object (the ETag in Azure).</summary>
+public sealed record PrivateFileObjectRow(string Key, DateTime LastModifiedAtUtc, string Version)
 {
     public override string ToString() => "PrivateFileObjectRow { Content = [REDACTED] }";
 }

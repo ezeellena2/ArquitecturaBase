@@ -31,6 +31,8 @@ internal sealed class HomeAudioFiles : IPrivateFileStore
         content.TryRemove(key, out _);
         return Task.CompletedTask;
     }
+    // Lists nothing, so the cleanup never deletes through it.
+    public Task DeleteIfUnchangedAsync(string key, string version, CancellationToken ct) => throw new NotSupportedException();
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [EnumeratorCancellation] CancellationToken ct)
     {
         await Task.CompletedTask;

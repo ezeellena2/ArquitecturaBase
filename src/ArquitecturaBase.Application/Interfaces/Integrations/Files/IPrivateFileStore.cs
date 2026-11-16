@@ -11,4 +11,6 @@ public interface IPrivateFileStore
     Task WriteAsync(string key, Stream content, string contentType, CancellationToken cancellationToken);
     Task<Stream?> OpenReadAsync(string key, CancellationToken cancellationToken);
     Task DeleteAsync(string key, CancellationToken cancellationToken);
+    /// <summary>Deletes the object only while it keeps the version that <see cref="ListAsync"/> returned; a newer upload with the same key is preserved.</summary>
+    Task DeleteIfUnchangedAsync(string key, string version, CancellationToken cancellationToken);
 }

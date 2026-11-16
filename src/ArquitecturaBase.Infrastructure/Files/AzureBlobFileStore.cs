@@ -77,11 +77,24 @@ internal sealed class AzureBlobFileStore : IPrivateFileStore
     public async Task DeleteAsync(string key, CancellationToken cancellationToken) =>
         await GetContainer().GetBlobClient(key).DeleteIfExistsAsync(cancellationToken: cancellationToken);
 
+    public async Task DeleteIfUnchangedAsync(string key, string version, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await GetContainer().GetBlobClient(key).DeleteIfExistsAsync(
+                conditions: new BlobRequestConditions { IfMatch = new ETag(version) }, cancellationToken: cancellationToken);
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412 && exception.ErrorCode == "ConditionNotMet")
+        {
+            // Uploaded again after the listing: the newer object stays.
+        }
+    }
+
     public async IAsyncEnumerable<PrivateFileObjectRow> ListAsync(DateTime olderThanUtc, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await foreach (var blob in GetContainer().GetBlobsAsync(cancellationToken: cancellationToken))
-            if (blob.Properties.LastModified is { } modified && modified.UtcDateTime < olderThanUtc)
-                yield return new(blob.Name, modified.UtcDateTime);
+            if (blob.Properties.LastModified is { } modified && modified.UtcDateTime < olderThanUtc && blob.Properties.ETag is { } etag)
+                yield return new(blob.Name, modified.UtcDateTime, etag.ToString());
     }
 
     private BlobContainerClient GetContainer() => container ?? throw new InvalidOperationException("Private file storage is not configured.");

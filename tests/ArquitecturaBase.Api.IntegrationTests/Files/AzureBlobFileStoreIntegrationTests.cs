@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Files;
+using ArquitecturaBase.Application.Models.Files;
 using ArquitecturaBase.Infrastructure.Files;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -26,6 +27,31 @@ public sealed class AzureBlobFileStoreIntegrationTests
         await store.DeleteAsync("server/generated-key", ct); await store.DeleteAsync("server/generated-key", ct);
         Assert.Null(await store.OpenReadAsync("server/generated-key", ct));
         Assert.False((await container.GetBlobClient("server/generated-key").ExistsAsync(ct)).Value);
+    }
+    [Fact]
+    public async Task A_blob_uploaded_again_after_the_listing_survives_the_delete_with_the_listed_version()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var emulator = new AzuriteFixture(); await emulator.StartAsync(ct);
+        var store = new AzureBlobFileStore(Options.Create(new FileStorageOptions { Enabled = true, CredentialMode = "ConnectionString", ConnectionString = emulator.ConnectionString }));
+        await using (var first = new MemoryStream([1])) await store.WriteAsync("retried/photo", first, "image/jpeg", ct);
+        var listed = await ListSingleAsync(store, ct);
+        await using (var retried = new MemoryStream([2])) await store.WriteAsync("retried/photo", retried, "image/jpeg", ct);
+        await store.DeleteIfUnchangedAsync(listed.Key, listed.Version, ct);
+        await using (var saved = await store.OpenReadAsync("retried/photo", ct))
+        {
+            Assert.NotNull(saved); Assert.Equal(2, saved.ReadByte());
+        }
+        var current = await ListSingleAsync(store, ct);
+        Assert.NotEqual(listed.Version, current.Version);
+        await store.DeleteIfUnchangedAsync(current.Key, current.Version, ct); await store.DeleteIfUnchangedAsync(current.Key, current.Version, ct);
+        Assert.Null(await store.OpenReadAsync("retried/photo", ct));
+    }
+    private static async Task<PrivateFileObjectRow> ListSingleAsync(AzureBlobFileStore store, CancellationToken ct)
+    {
+        var rows = new List<PrivateFileObjectRow>();
+        await foreach (var row in store.ListAsync(DateTime.MaxValue, ct)) rows.Add(row);
+        return Assert.Single(rows);
     }
     [Fact]
     public async Task Conditional_private_uploads_from_two_stores_preserve_exactly_one_winning_copy()
