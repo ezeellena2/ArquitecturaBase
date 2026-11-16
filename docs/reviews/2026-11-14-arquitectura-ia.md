@@ -381,6 +381,13 @@ cambiarla lo decidís vos.
 
   Chico a mediano. **Decidido el 2026-11-14:** la regla de N27 llega al motor ([decisiones](#decisiones-del-2026-11-14)). Lo
   que hacen Formularios y WhatsApp con un 404 es de sus revisiones; quedó anotado para la de Formularios.
+- **Arreglado el 2026-11-16 en 446350e1, 5e730587, ef2d920a y 2a3bbda2, con sus correcciones (8a0faa3f, 8b85cac4,
+  04365ea6, 4fb2eb12, 612ab9b1, 668f6684, 03a375f4, 80636878, 930b8779, 4d37d8f2 y c8ae6370; front 033d8d28, 35f3ba7c y
+  15e8c94e):** la regla está en `inteligencia-artificial.md` y en los `AGENTS.md` del motor; un sello con una versión mayor
+  que la más alta conocida responde `Ai.Assistant.UnknownVersion` (409 reintentable) y el claim no lo toma, mientras lo
+  retirado o dañado cierra como antes; los módulos aceptan la versión sellada de su capacidad o terminal mientras siga
+  registrada; y un proveedor desconocido deja la conexión pausada, sin 500. Lo que hacen Formularios y WhatsApp con un 404 o
+  con ese 409 sigue en sus revisiones (el detalle, en el plan).
 
 #### I5. Si una capacidad falla con un error de la base, el turno entero se pierde y se culpa al proveedor
 
@@ -547,6 +554,8 @@ cambiarla lo decidís vos.
   ejemplos exportados; o que la Api publique la versión del build y el front pida recargar cuando no coincida. Chico.
   **Decidido el 2026-11-14:** Inicio tolera campos desconocidos; extenderlo a todo el front se decide con su regla
   ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16 en el front, en bcea09bb:** `api/assistant.ts` lee las respuestas con `z.object`, que descarta
+  lo desconocido, y lo estricto quedó en los tests de contrato, que comparan los ejemplos exportados.
 
 #### I12. Cada despliegue corta las consultas en curso y las rotula mal
 

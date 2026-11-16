@@ -295,6 +295,21 @@ front, tsc, lint y vitest de la feature (259).
     consumir cuando no hubo paso. Va con el plazo de apagado de N17, que se fija en el núcleo. Tests: con el host
     deteniéndose durante un paso, el paso termina; sin paso, el turno vuelve a pendiente. Chico.
 
+**Hecha el 2026-11-16, salvo la 24:** la 19 en 446350e1; la 20 en 5e730587, 8a0faa3f, 8b85cac4, 04365ea6 y 4fb2eb12
+(front 033d8d28); la 21 en ef2d920a, 03a375f4, 80636878, 930b8779, 4d37d8f2 y c8ae6370; la 22 en 2a3bbda2, 612ab9b1 y
+668f6684 (front 35f3ba7c y 15e8c94e); y la 23 en el front, en bcea09bb. Los commits después del primero de cada una corrigen
+lo que encontró su revisión adversarial: sólo una versión mayor que la más alta conocida espera a otra copia, y lo retirado o
+dañado cierra como antes; un turno terminado responde su estado sin leer el sello y la cancelación se registra igual; el
+claim trae los pendientes en una sola consulta; las terminales y lo que el sello no admitió también aceptan la versión
+sellada; y guardar sin tocar la clave de un proveedor desconocido la descarta. Un pendiente que esta copia no entiende ocupa
+su lugar del tope hasta vencer. Quedan para las revisiones de Formularios y WhatsApp: Formularios convierte una falla de la
+búsqueda de una propuesta en 404 o en 500, aplica el tope de la extracción sólo a un «no existe» y relee los 20 más viejos;
+los botones de WhatsApp contestan «no se pudo» ante cualquier falla de la consulta; y quienes leen el resultado (`Handles`,
+`FormDocumentAuthoringPolicy`, `WhatsAppAssistantReplyPolicy`) comparan la versión exacta, que la regla pide cambiar con la
+primera suba. La 24 (I12) espera el plazo de apagado de N17, que el núcleo todavía no programó. Build sin advertencias,
+Domain 1184, Application 6282 y Architecture 229 enteros en una copia de HEAD; integración de IA (49) y de WhatsApp y
+Formularios (100) en verde; en el front, tsc, lint y vitest de la feature (264).
+
 ### Etapa 6: la traza y el anillo
 
 25. **I10, la traza. Una consulta se sigue a través del motor.** Como H19: una fuente de trazas del asistente registrada con
