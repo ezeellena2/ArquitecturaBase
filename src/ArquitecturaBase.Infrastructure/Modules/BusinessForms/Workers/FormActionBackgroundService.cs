@@ -21,6 +21,8 @@ internal sealed partial class FormActionBackgroundService(IServiceScopeFactory s
                 await using(var reservation=scopes.CreateAsyncScope())
                 {
                     var result=await reservation.ServiceProvider.GetRequiredService<IFormActionDispatchService>().ReserveAsync(candidate,cancellationToken);
+                    // F2: a run that cannot go on (failed, or waiting for a person) is told once to whoever loaded the response.
+                    if(result.IsSuccess&&result.Value is null&&reservation.ServiceProvider.GetService<IFormActionStallService>() is {} stalls)await stalls.NotifyAsync(candidate,cancellationToken);
                     if(result.IsFailure||result.Value is null)continue;work=result.Value;
                 }
                 FormActionOutcomeResponse outcome;

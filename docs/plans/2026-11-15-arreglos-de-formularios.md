@@ -52,8 +52,8 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 En orden de peso; cada tarea lo repite.
 
 1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
-2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro, el contador para quien
-   administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 10 y 11.
+2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro y el contador para quien
+   administra reglas (el aviso a quien cargó, que esperaba ARCA H11, quedó hecho el 2026-11-16); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 10 y 11.
 3. **El resto de la etapa 6:** F8, sin empezar.
 4. **La etapa 7:** F29, F30 y F25.
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
@@ -111,7 +111,7 @@ En orden de peso; cada tarea lo repite.
    puede salir porque la ventana de 24 horas está cerrada queda «No aplica» para esa persona, con su motivo, y no frena lo que
    sigue. Cambian las reglas del motor de acciones en [formularios](../features/formularios.md). Tests con `FakeTimeProvider`: un
    PDF en duda se confirma solo sin volver a generarse, y un aviso con la ventana cerrada deja seguir la regla. Mediano.
-   Hecha en parte el 2026-11-15 en `4dc53b94`: consulta sola con espera creciente y aviso «No aplica» por la ventana de 24 horas cerrada. Faltan la marca «Con acciones por resolver» de la planilla (con su filtro y el contador para quien administra reglas, que cambian el contrato y el front) y el aviso a quien cargó cuando su regla se frena. El front del estado «No aplica» quedó hecho el 2026-11-16 en `511b6800` del front (`recipientStates`, su texto en es y en, tono neutro y su motivo).
+   Hecha en parte el 2026-11-15 en `4dc53b94` y el 2026-11-16 (aviso a quien cargó, que es ARCA H11; migración `FormActionRunStallNotice`): consulta sola con espera creciente, aviso «No aplica» por la ventana de 24 horas y aviso a quien cargó, una vez por acción frenada, por el canal durable de los avisos. Falta la marca «Con acciones por resolver» de la planilla (con su filtro y el contador para quien administra reglas, que cambian el contrato y el front y esperan el tablero). El front del estado «No aplica» quedó hecho el 2026-11-16 en `511b6800` del front (`recipientStates`, su texto en es y en, tono neutro y su motivo).
 8. **F28. El worker reserva sólo los tipos de acción que conoce.** Filtro de tipos en la búsqueda de trabajo y un `switch` de
    efectos sin rama por defecto, con un test que recorre los tipos que acepta el editor de reglas y otro donde un tipo desconocido
    sigue esperando. Chico.

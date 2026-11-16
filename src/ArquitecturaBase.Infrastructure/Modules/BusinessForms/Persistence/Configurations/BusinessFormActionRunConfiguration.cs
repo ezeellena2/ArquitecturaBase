@@ -11,7 +11,7 @@ internal sealed class BusinessFormActionRunConfiguration:IEntityTypeConfiguratio
         builder.HasIndex(run=>new{run.RecordId,run.Event,run.RuleId,run.ActionId}).IsUnique();
         builder.HasIndex(run=>new{run.State,run.NextCheckAtUtc,run.AcceptedAtUtc});
         builder.Property(run=>run.State).HasConversion<string>().HasMaxLength(24);builder.Property(run=>run.Fence).IsConcurrencyToken();
-        builder.Property(run=>run.LastRequestKind).HasMaxLength(16);builder.Property(run=>run.AutoConsultCount).HasDefaultValue(0);
+        builder.Property(run=>run.LastRequestKind).HasMaxLength(16);builder.Property(run=>run.AutoConsultCount).HasDefaultValue(0);builder.Property(run=>run.StallNoticedAtUtc);
         builder.Property(run=>run.Event).HasMaxLength(24);builder.Property(run=>run.Kind).HasMaxLength(32);builder.Property(run=>run.FailureCode).HasMaxLength(200);
         builder.Property(run=>run.SnapshotJson).HasColumnType("jsonb");builder.Property(run=>run.OutcomeJson).HasColumnType("jsonb");
         builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(run=>new{run.DefinitionId,run.RecordId}).HasPrincipalKey(record=>new{record.DefinitionId,record.Id}).OnDelete(DeleteBehavior.Restrict);

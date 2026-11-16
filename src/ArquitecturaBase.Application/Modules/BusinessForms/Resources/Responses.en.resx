@@ -32,4 +32,5 @@
   <data name="Issue.NoLongerIssuable" xml:space="preserve"><value>That response can no longer be issued.</value></data>
   <data name="Issue.Voided" xml:space="preserve"><value>We did not issue it. {0} was voided.</value></data>
   <data name="Issue.Failed.Body" xml:space="preserve"><value>I can't issue it yet: {0}</value></data>
+  <data name="Action.Stalled" xml:space="preserve"><value>The rule of your response {0} to «{1}» is on hold: one of its actions could not go on. Let whoever manages the rules know so they can review it.</value></data>
 </root>

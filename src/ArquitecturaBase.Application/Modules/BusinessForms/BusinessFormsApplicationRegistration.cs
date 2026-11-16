@@ -50,6 +50,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormCatalogPartyValuesPolicy>();
         services.TryAddScoped<FormIssueRequestPolicy>();
         services.TryAddScoped<FormIssueMessageIssuer>();
+        services.TryAddScoped<IFormActionStallService, FormActionStallService>();
         services.TryAddScoped<IFormIssueActionService, FormIssueActionService>();
         services.TryAddScoped<IFormIssueCopyService, FormIssueCopyService>();
         services.TryAddScoped<FormRecordVoidRecorder>();

@@ -32,4 +32,5 @@
   <data name="Issue.NoLongerIssuable" xml:space="preserve"><value>Esa respuesta ya no se puede emitir.</value></data>
   <data name="Issue.Voided" xml:space="preserve"><value>No la emitimos. {0} quedó anulada.</value></data>
   <data name="Issue.Failed.Body" xml:space="preserve"><value>Todavía no puedo emitirla: {0}</value></data>
+  <data name="Action.Stalled" xml:space="preserve"><value>La regla de tu respuesta {0} de «{1}» quedó frenada: una de sus acciones no pudo seguir. Avisale a quien administra las reglas para que la revise.</value></data>
 </root>

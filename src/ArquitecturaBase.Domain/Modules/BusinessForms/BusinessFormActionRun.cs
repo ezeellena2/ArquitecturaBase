@@ -38,6 +38,8 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     /// <summary>F2: how many times the system asked on its own, with a growing wait, about an effect left in doubt by a local error.</summary>
     public int AutoConsultCount { get; private set; }
     public const int MaxAutoConsults = 8;
+    /// <summary>F2: when whoever loaded the response was told that this action stopped its rule (or found without a channel to tell them); once per run.</summary>
+    public DateTime? StallNoticedAtUtc { get; private set; }
     public long Fence { get; private set; }
     public DateTime? LeaseExpiresAtUtc { get; private set; }
     public DateTime? NextCheckAtUtc { get; private set; }
@@ -90,6 +92,16 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         if(recorded.IsSuccess)AutoConsultCount++;
         return recorded;
     }
+    /// <summary>
+    /// F2: an action that cannot go on by itself and stops the rest of its rule: failed, or in doubt waiting for a person (an issuance
+    /// that waits for its author to confirm it is a question to them, not a stop). An expression, so a query can use it.
+    /// </summary>
+    public static Expression<Func<BusinessFormActionRun,bool>> UnnoticedStall { get; } = run => run.StallNoticedAtUtc==null
+        && (run.State==FormActionRunState.Failed || run.State==FormActionRunState.Uncertain && run.FailureCode!=FormActionErrors.AwaitingConfirmation.Code);
+    private static readonly Func<BusinessFormActionRun,bool> IsUnnoticedStall=UnnoticedStall.Compile();
+    public bool NeedsStallNotice=>IsUnnoticedStall(this);
+    /// <summary>F2: whoever loaded the response was told (or has no channel to be told): the run is not announced again, however many times it is retried.</summary>
+    public void RecordStallNotice(DateTime nowUtc){StallNoticedAtUtc??=nowUtc;}
     public bool OwnsLease(long fence,DateTime nowUtc)=>Fence==fence&&State==FormActionRunState.Running&&LeaseExpiresAtUtc>nowUtc;
     private void Requested(string kind,Guid? byUserId,DateTime nowUtc){LastRequestKind=kind;LastRequestedByUserId=byUserId;LastRequestedAtUtc=nowUtc;}
     public Result RequestRetry(DateTime nowUtc,Guid? requestedBy=null)

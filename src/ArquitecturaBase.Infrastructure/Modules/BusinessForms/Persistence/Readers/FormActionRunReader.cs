@@ -12,12 +12,20 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
     public async Task<IReadOnlyList<Guid>> ListExistingPdfRunIdsAsync(IReadOnlyList<Guid> runIds, CancellationToken cancellationToken) =>
         await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run => runIds.Contains(run.Id) && run.Kind == "GeneratePdf"
             && db.Set<BusinessFormRecord>().Any(record => record.Id == run.RecordId)).Select(run => run.Id).ToArrayAsync(cancellationToken);
-    public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(DateTime nowUtc,CancellationToken cancellationToken)=>await db.Set<BusinessFormActionRun>().AsNoTracking()
-        .Where(run=>FormActionKinds.Known.Contains(run.Kind)&&(run.State==FormActionRunState.Waiting||run.State==FormActionRunState.Running)
-            &&(run.LeaseExpiresAtUtc==null||run.LeaseExpiresAtUtc<=nowUtc)&&(run.NextCheckAtUtc==null||run.NextCheckAtUtc<=nowUtc)
-            &&(run.DependsOnRunId==null||db.Set<BusinessFormActionRun>().Any(previous=>previous.Id==run.DependsOnRunId
-                &&(previous.State==FormActionRunState.Completed||previous.State==FormActionRunState.NotApplicable))))
-        .OrderBy(run=>run.NextCheckAtUtc??run.AcceptedAtUtc).ThenBy(run=>run.AcceptedAtUtc).ThenBy(run=>run.Id).Select(run=>run.Id).Take(100).ToArrayAsync(cancellationToken);
+    public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(DateTime nowUtc,CancellationToken cancellationToken)
+    {
+        var due=await db.Set<BusinessFormActionRun>().AsNoTracking()
+            .Where(run=>FormActionKinds.Known.Contains(run.Kind)&&(run.State==FormActionRunState.Waiting||run.State==FormActionRunState.Running)
+                &&(run.LeaseExpiresAtUtc==null||run.LeaseExpiresAtUtc<=nowUtc)&&(run.NextCheckAtUtc==null||run.NextCheckAtUtc<=nowUtc)
+                &&(run.DependsOnRunId==null||db.Set<BusinessFormActionRun>().Any(previous=>previous.Id==run.DependsOnRunId
+                    &&(previous.State==FormActionRunState.Completed||previous.State==FormActionRunState.NotApplicable))))
+            .OrderBy(run=>run.NextCheckAtUtc??run.AcceptedAtUtc).ThenBy(run=>run.AcceptedAtUtc).ThenBy(run=>run.Id).Select(run=>run.Id).Take(100).ToArrayAsync(cancellationToken);
+        if(due.Length>=100)return due;
+        // F2: an action that stopped its rule and was not announced yet comes back to the worker, which tells whoever loaded the response.
+        var stalled=await db.Set<BusinessFormActionRun>().AsNoTracking().Where(BusinessFormActionRun.UnnoticedStall).Where(run=>FormActionKinds.Known.Contains(run.Kind))
+            .OrderBy(run=>run.UpdatedAtUtc).ThenBy(run=>run.Id).Select(run=>run.Id).Take(100-due.Length).ToArrayAsync(cancellationToken);
+        return [..due,..stalled];
+    }
     public async Task<FormIssueConfirmationResponse?> FindIssueConfirmationAsync(Guid recordId,Guid actorUserId,CancellationToken cancellationToken)
     {
         var waiting=FormActionErrors.AwaitingConfirmation.Code;
