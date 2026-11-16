@@ -232,7 +232,9 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
         // valor por defecto (InviteOnly) se prueba sobre bases vacías en SystemSettingsSeedTests.
         builder.UseSetting("Registration:Mode", "Open");
 
-        // El ClientId sale de appsettings.json; el secreto real nunca llega a los tests.
+        // Google prendido, con un cliente de mentira: la plantilla lo trae apagado (B1), y los datos reales de una
+        // instalación nunca llegan a los tests.
+        builder.UseSetting("Authentication:Google:ClientId", "test-google-client-id.apps.googleusercontent.com");
         builder.UseSetting("Authentication:Google:ClientSecret", "test-google-client-secret");
 
         // El SPA de mentira: el index.html que devuelve el fallback, la página del iframe de renovación y un asset

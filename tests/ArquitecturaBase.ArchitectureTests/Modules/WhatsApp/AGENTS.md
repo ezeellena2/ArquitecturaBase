@@ -7,3 +7,5 @@ Los métodos públicos de dispatch usan `OperationLog`; el inicio durable del ef
 WhatsAppTransactionContribution aporta los Type exactos IWhatsAppAssistantReader, IWhatsAppAssistantAgentReader e IWhatsAppAssistantHistoryReader mediante CapabilityReadPorts, el prefijo del lock del agente, además de sus locks y la excepción de retención existente. El lector se retira con la carpeta del módulo; las pruebas de otras áreas consumen el aporte neutral sin nombrarlo. En ReaderOutputExceptions declara los dos modelos neutrales de puertos que sus lectores devuelven tal cual.
 
 ModuleBoundaryTests.WhatsApp verifica los IDs privados de contexto del canal mediante literales IL exactos: sólo WhatsApp puede interpretarlos. Conserva controles de dueño, módulo ajeno y núcleo, y permite capacidades neutrales o textos distintos; ambos IDs deben aparecer en su dueño para evitar un detector vacío.
+
+TemplateConfigurationTests.WhatsApp suma a la clase del núcleo las claves del módulo: la configuración versionada trae WhatsApp apagado, sin el número ni la cuenta de Meta de una instalación (B1).

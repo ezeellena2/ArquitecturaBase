@@ -407,8 +407,9 @@ Cosas que el pipeline no resuelve y que hoy impiden que la Api arranque con
 archivo que exige cada clave, está en la [guía de despliegue](../guides/despliegue.md#configuración-obligatoria-en-production).
 
 1. **SMTP.** `Email:Delivery` y `Email:Smtp:*`, con la contraseña como secret.
-2. **Google.** `Authentication:Google:ClientSecret` (el `ClientId` ya viene en `appsettings.json`), y agregar la URL
-   de producción a los redirect URIs autorizados en la consola de Google.
+2. **Google**, solo si se usa. La plantilla viene sin `Authentication:Google:ClientId`: Google queda apagado y la
+   Api arranca. Para prenderlo, el `ClientId` y el `ClientSecret` (como secret) del cliente OAuth del ambiente, y
+   agregar la URL de producción a los redirect URIs autorizados en la consola de Google.
 3. **`Authentication:Issuer`**, el origen público de la web (el que ve el navegador). Sin él la Api no arranca: de
    él salen el botón de las invitaciones por correo y los botones públicos de orientación de WhatsApp.
 4. **`Authentication:Clients:Web:RedirectUris` y `Authentication:Clients:Web:PostLogoutRedirectUris`**, al menos

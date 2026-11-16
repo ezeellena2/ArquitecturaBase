@@ -15,7 +15,7 @@ La colección `ArquitecturaBase.postman_collection.json` recorre el ingreso comp
 
 | Paso | Request | Qué pasa |
 |---|---|---|
-| 1 | 1. Account → Pedir código | 202. Con la configuración actual llega por Gmail; si `Email:Delivery` es `PickupDirectory`, se guarda como `.eml` en `src/ArquitecturaBase.Api/.emails/`. El código es la primera palabra del asunto. |
+| 1 | 1. Account → Pedir código | 202. Con la configuración de la plantilla se guarda como `.eml` en `src/ArquitecturaBase.Api/.emails/`; si la instalación cargó `Email:Delivery` en `Smtp`, llega por Gmail. El código es la primera palabra del asunto. |
 | 2 | Copiá el código en la variable `code` | |
 | 3 | 1. Account → Verificar código | 200. Postman guarda la cookie de sesión del servidor. |
 | 4 | 2. Connect → Authorize | Genera el PKCE y guarda el `authorizationCode` de la redirección. |
@@ -40,4 +40,4 @@ Requiere el secreto del cliente en user-secrets (ver el README principal).
 
 ## Emails reales con Gmail
 
-En desarrollo `Email:Delivery` está en `Smtp`: los emails se envían por Gmail y requieren su contraseña de aplicación en user-secrets. Para configurar el envío o pasar a archivos `.eml`, ver [Emails](../../README.md#emails). Al terminar de probar, ejecutá `aspire stop`.
+En desarrollo la plantilla trae `Email:Delivery` en `PickupDirectory`: los emails quedan como `.eml`. Para que salgan por Gmail, la instalación carga en sus user-secrets `Email:Delivery` en `Smtp`, la cuenta que envía y su contraseña de aplicación: ver [Emails](../../README.md#emails). Al terminar de probar, ejecutá `aspire stop`.

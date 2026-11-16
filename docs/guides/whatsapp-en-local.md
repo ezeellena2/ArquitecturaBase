@@ -23,7 +23,7 @@ En Development las migraciones se aplican al iniciar; en producción, bundle ant
 
 Cómo probar el acceso y la atención por WhatsApp en tu máquina: la configuración, los secretos, el túnel para recibir los webhooks de Meta y las plantillas. Las reglas del área (procesamiento de mensajes, historial y configuración completa con sus valores por defecto) están en [`docs/features/whatsapp.md`](../features/whatsapp.md); lo que pide WhatsApp en producción, en la [guía de despliegue](despliegue.md#configuración-obligatoria-en-production). Sin `WhatsApp:PhoneNumberId`, WhatsApp queda apagado y el resto del proyecto se levanta igual: nada de esto hace falta para `aspire run`.
 
-La instalación local usa la app de Meta `4601782356805744` y su número de prueba: envía los códigos solicitados desde la web y recibe los mensajes para atención manual. Los botones de acceso reconocidos orientan al login o registro públicos. Lo que no es secreto ya está en el repo; lo secreto va en los user-secrets de la Api, y nunca en el chat ni en un archivo versionado.
+La instalación local usa la app de Meta `4601782356805744` y su número de prueba: envía los códigos solicitados desde la web y recibe los mensajes para atención manual. Los botones de acceso reconocidos orientan al login o registro públicos. El repo trae WhatsApp apagado y sin los datos de una instalación: el número, la cuenta y los secretos van en los user-secrets de la Api, y nunca en el chat ni en un archivo versionado.
 
 ## MCP de Meta en Codex
 
@@ -33,21 +33,23 @@ Para usarlo, abrí este proyecto como confiable en Codex, reiniciá Codex para c
 
 ## Qué va en `appsettings` y qué en user-secrets
 
-La regla es la de siempre: **el secreto va en user-secrets, el resto en el repo**. Toda la configuración de WhatsApp cuelga de la sección `WhatsApp` y se lee **al arrancar**, así que después de cambiar cualquier valor —el token incluido— hay que reiniciar la Api.
+**El repo trae los valores por defecto; lo de cada instalación, sea secreto o no, va en user-secrets.** Así la plantilla viene con WhatsApp apagado y no lleva el número de nadie cuando se copia para otro negocio. Toda la configuración de WhatsApp cuelga de la sección `WhatsApp` y se lee **al arrancar**, así que después de cambiar cualquier valor —el token incluido— hay que reiniciar la Api.
 
 | Clave | Dónde | Valor en local | Qué es |
 |---|---|---|---|
-| `WhatsApp:PhoneNumberId` | `appsettings.Development.json` | `1340198875839831` | **El interruptor.** Es el id del número de la Graph API, no el número. Sin él, WhatsApp queda apagado y la app arranca igual; con él y sin token, la Api **no** arranca |
+| `WhatsApp:PhoneNumberId` | user-secrets | — | **El interruptor.** Es el id del número de la Graph API, no el número. Sin él, WhatsApp queda apagado y la app arranca igual; con él y sin token, la Api **no** arranca |
 | `WhatsApp:AccessToken` | user-secrets | — | el token del usuario del sistema |
 | `WhatsApp:WabaId` | user-secrets en esta instalación | — | cuenta de la misma conexión para publicar Flows; se guarda después de comprobar que contiene PhoneNumberId |
 | `WhatsApp:AppSecret` | user-secrets | — | con lo que Meta firma cada webhook |
 | `WhatsApp:VerifyToken` | user-secrets | — | la palabra de verificación del webhook |
-| `WhatsApp:DisplayPhoneNumber` | `appsettings.Development.json` | `15551632662` | el WhatsApp del negocio, solo dígitos, para el enlace "Volver a WhatsApp" |
-| `WhatsApp:SendArgentineMobilesWithoutNine` | `appsettings.Development.json` | `true` | **solo para el número de prueba**: su lista de destinatarios guarda los celulares argentinos sin el 9 y rechaza `+549…` con el error 131030. En producción va apagada; el número se sigue guardando con el 9 |
+| `WhatsApp:DisplayPhoneNumber` | user-secrets | — | el WhatsApp del negocio, solo dígitos, para el enlace "Volver a WhatsApp" |
+| `WhatsApp:SendArgentineMobilesWithoutNine` | user-secrets en esta instalación | `true` | **solo para el número de prueba**: su lista de destinatarios guarda los celulares argentinos sin el 9 y rechaza `+549…` con el error 131030. En producción va apagada; el número se sigue guardando con el 9 |
+
+Las que no son secretas se cargan desde la raíz del repo, una por comando, por ejemplo `dotnet user-secrets set "WhatsApp:PhoneNumberId" "<id del número>" --project src/ArquitecturaBase.Api`; los secretos, sin que se vean, como en la sección siguiente.
 
 El resto de las claves (la versión de la Graph API, los nombres de las plantillas, los países, el tope diario, la retención, la cola, los reintentos, el procesador y el rate limit del webhook) no hace falta tocarlas para probar en local: sus valores por defecto y para qué sirve cada una están en [`whatsapp.md`, "Configuración"](../features/whatsapp.md#configuración).
 
-`appsettings.Development.json` trae además `WhatsApp:BusinessAccountId` (`1658125822339116`) como anotación histórica del panel; ningún componente lee esa clave. Flows usa explícitamente `WhatsApp:WabaId` de la misma conexión. Antes de guardarlo, consultá `GET /{WABA_ID}/phone_numbers?fields=id` con el token existente en el header Authorization y la versión Graph configurada; recorré los cursores si hay más páginas y compará el ID con PhoneNumberId. No confundir el ID del negocio o de la app con el WABA. El worker vuelve a verificar pertenencia antes de cada efecto externo; falta de configuración o verificación bloquea publicación.
+Los user-secrets de esta instalación guardan además `WhatsApp:BusinessAccountId` como anotación histórica del panel; ningún componente lee esa clave. Flows usa explícitamente `WhatsApp:WabaId` de la misma conexión. Antes de guardarlo, consultá `GET /{WABA_ID}/phone_numbers?fields=id` con el token existente en el header Authorization y la versión Graph configurada; recorré los cursores si hay más páginas y compará el ID con PhoneNumberId. No confundir el ID del negocio o de la app con el WABA. El worker vuelve a verificar pertenencia antes de cada efecto externo; falta de configuración o verificación bloquea publicación.
 
 El 2026-10-10 se identificó el WABA en el Administrador de WhatsApp y se agregó `WhatsApp:WabaId` a los user-secrets de la API. El 2026-10-11 se volvió a comprobar por Graph v25.0, con una consulta paginada de sólo lectura, que contiene el `PhoneNumberId` configurado. El worker vuelve a verificar esa pertenencia antes de cada efecto externo de publicación. Estas consultas no crean, cargan ni publican Flows y no acreditan por sí solas el piloto real.
 

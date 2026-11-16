@@ -141,36 +141,57 @@ El detalle (el issuer, el proxy y el fallback del SPA) está en [backend.md, "Fr
 
 ## Configuración de desarrollo
 
-`src/ArquitecturaBase.Api/appsettings.Development.json` ya trae lo necesario para trabajar local:
+El repo trae la configuración de la plantilla, no la de una instalación: en Development, la Api arranca con WhatsApp y Google apagados y los correos escritos como archivos. Los únicos secretos que pide para arrancar son los anillos de claves de IA y de ARCA, mientras esos módulos estén: se generan una vez por instalación, como explican [configurar IA](docs/guides/configurar-ia.md) y [configurar ARCA](docs/guides/configurar-arca.md). `src/ArquitecturaBase.Api/appsettings.Development.json` trae lo necesario para trabajar local:
 - la clave HMAC de los códigos;
 - las redirect URIs del cliente `web`;
-- `Seed:AdminEmail`, el email que recibe el rol Admin al crear su cuenta;
-- los emails salen por Gmail, igual que en producción (ver **Emails**, abajo).
+- `Email:Delivery` en `PickupDirectory`: los correos quedan como archivos `.eml` (ver **Emails**, abajo).
 
-### Secretos (user-secrets de la Api)
+Lo de cada instalación va en los user-secrets de la Api, aunque no todo sea secreto: quién es el administrador inicial, desde qué cuenta salen los correos, el cliente de Google y el número de WhatsApp. Así no viaja con la plantilla cuando se copia para otro negocio.
 
-| Clave | Para qué | Cómo |
+### User-secrets de la Api
+
+Cada grupo de claves prende algo; sin él, la Api arranca igual, con eso apagado.
+
+| Clave | Para qué | Secreto |
 |---|---|---|
-| `Authentication:Google:ClientSecret` | ingreso con Google (obligatorio si hay `ClientId`) | `dotnet user-secrets set "Authentication:Google:ClientSecret" "<secreto>" --project src/ArquitecturaBase.Api` |
-| `Email:Smtp:Password` | enviar emails reales por Gmail | contraseña de aplicación: https://myaccount.google.com/apppasswords |
+| `Seed:AdminEmail` | el correo que recibe el rol Admin al crear su cuenta, en su primer ingreso | — |
+| `Email:Delivery` en `Smtp`, `Email:Smtp:UserName`, `Email:Smtp:FromAddress` y `Email:Smtp:Password` | enviar los correos de verdad, por Gmail (ver **Emails**) | `Email:Smtp:Password` |
+| `Authentication:Google:ClientId` y `Authentication:Google:ClientSecret` | el ingreso con Google. Sin `ClientId` queda apagado; con él y sin `ClientSecret`, la Api no arranca | `Authentication:Google:ClientSecret` |
+| `WhatsApp:PhoneNumberId`, `WhatsApp:AccessToken` y `WhatsApp:WabaId` | el ingreso y la atención por WhatsApp. `PhoneNumberId`, el id del número en Meta, es el interruptor: con él y sin `AccessToken`, la Api no arranca. `WabaId`, el de la cuenta, sirve para publicar Flows. El webhook suma `WhatsApp:AppSecret` y `WhatsApp:VerifyToken` ([WhatsApp en local](docs/guides/whatsapp-en-local.md)) | `WhatsApp:AccessToken`, `WhatsApp:AppSecret` y `WhatsApp:VerifyToken` |
+
+Se cargan desde la raíz del repo, una clave por comando:
+
+```
+dotnet user-secrets set "Seed:AdminEmail" "<tu correo>" --project src/ArquitecturaBase.Api
+dotnet user-secrets set "Authentication:Google:ClientId" "<id>.apps.googleusercontent.com" --project src/ArquitecturaBase.Api
+dotnet user-secrets set "Authentication:Google:ClientSecret" "<secreto>" --project src/ArquitecturaBase.Api
+dotnet user-secrets set "WhatsApp:PhoneNumberId" "<id del número>" --project src/ArquitecturaBase.Api
+dotnet user-secrets set "WhatsApp:WabaId" "<id de la cuenta>" --project src/ArquitecturaBase.Api
+dotnet user-secrets set "WhatsApp:AccessToken" "<token>" --project src/ArquitecturaBase.Api
+```
+
+Un secreto conviene cargarlo sin que quede a la vista en la consola ni en su historial: cómo, en [WhatsApp en local](docs/guides/whatsapp-en-local.md#los-tres-secretos-y-de-dónde-salen). Para ver qué claves quedaron cargadas, sin los valores, en PowerShell: `(dotnet user-secrets list --project src/ArquitecturaBase.Api) -replace ' = .*', ''`. Se leen al arrancar: después de cambiar una, reiniciá la Api.
 
 En Google Cloud Console, el cliente OAuth tiene que tener como URIs de redireccionamiento autorizados `https://localhost:7180/signin-google` (Api directa) y `https://localhost:5173/signin-google` (a través de Vite, Fase 3).
 
-El JSON de credenciales que descarga Google Cloud (`client_secret_*.json`) se guarda **fuera del repo**, en una carpeta tuya (por ejemplo `%USERPROFILE%\secrets\ArquitecturaBase\`); el `.gitignore` igual lo ignora, por las dudas. La Api no lee ese archivo: lo único que necesita de él es el `ClientSecret`, que va en user-secrets como indica la tabla (el `ClientId` no es secreto y está en `appsettings.json`).
+El JSON de credenciales que descarga Google Cloud (`client_secret_*.json`) se guarda **fuera del repo**, en una carpeta tuya (por ejemplo `%USERPROFILE%\secrets\ArquitecturaBase\`); el `.gitignore` igual lo ignora, por las dudas. La Api no lee ese archivo: lo único que necesita de él son el `ClientId` y el `ClientSecret`, que van en user-secrets como indica la tabla.
 
 ### Emails
 
-En desarrollo los emails **se envían de verdad**, por Gmail, igual que en producción: así el código de ingreso llega a la casilla y el flujo se prueba entero. `appsettings.Development.json` trae `Email:Delivery` en `Smtp` y la cuenta que envía; la contraseña va en user-secrets:
+En desarrollo, la plantilla escribe cada correo como un archivo `.eml` en `src/ArquitecturaBase.Api/.emails/` (carpeta ignorada por git): `appsettings.Development.json` trae `Email:Delivery` en `PickupDirectory`. El código de ingreso es la primera palabra del asunto. Sólo vale en Development y en los tests: en otro ambiente la Api no arranca así, porque nadie recibiría los correos.
+
+Para que lleguen de verdad a la casilla, por Gmail como en producción, y probar el flujo entero, la instalación carga en sus user-secrets la cuenta que envía:
 
 ```
+dotnet user-secrets set "Email:Delivery" "Smtp" --project src/ArquitecturaBase.Api
+dotnet user-secrets set "Email:Smtp:UserName" "<cuenta>@gmail.com" --project src/ArquitecturaBase.Api
+dotnet user-secrets set "Email:Smtp:FromAddress" "<cuenta>@gmail.com" --project src/ArquitecturaBase.Api
 dotnet user-secrets set "Email:Smtp:Password" "<contraseña de aplicación>" --project src/ArquitecturaBase.Api
 ```
 
-Es una **contraseña de aplicación** de Gmail (https://myaccount.google.com/apppasswords), no la contraseña de la cuenta ni el ClientSecret de OAuth: son tres cosas distintas. Sin ella la Api **no arranca**, porque `SmtpOptions` se valida al iniciar.
+La contraseña es una **contraseña de aplicación** de Gmail (https://myaccount.google.com/apppasswords), no la contraseña de la cuenta ni el ClientSecret de OAuth: son tres cosas distintas. Con `Email:Delivery` en `Smtp`, sin la cuenta o sin la contraseña la Api **no arranca**, porque `SmtpOptions` se valida al iniciar.
 
-Gmail reescribe el remitente a la cuenta que autentica, así que los correos salen desde `Email:Smtp:UserName` aunque `FromName` diga otra cosa. El límite es de unos 500 envíos por día.
-
-Para volver a no enviar nada y escribir archivos `.eml` en `src/ArquitecturaBase.Api/.emails/` (carpeta ignorada por git), alcanza con poner `Email:Delivery` en `PickupDirectory`. Sirve cuando no hay internet o no se quiere gastar la cuota. Sólo vale en Development y en los tests: en otro ambiente la Api no arranca así, porque nadie recibiría los correos.
+Gmail reescribe el remitente a la cuenta que autentica, así que los correos salen desde `Email:Smtp:UserName` aunque `FromName` diga otra cosa. El límite es de unos 500 envíos por día. Para volver a los `.eml`, sin internet o para no gastar la cuota, alcanza con poner `Email:Delivery` en `PickupDirectory`.
 
 ## Caché compartido
 
@@ -191,7 +212,7 @@ El modo de registro (`/configuracion/registro` en el front, `PATCH /api/settings
 
 El valor inicial, al crear la base, sale de `Registration:Mode`: **el `appsettings.json` actual configura `Open`**. `RegistrationOptions` usa `InviteOnly` únicamente si esa clave no está configurada. Después manda lo que diga la base: el seed no pisa la fila si ya existe. La única excepción es el administrador inicial (`Seed:AdminEmail`), que crea su cuenta en su primer ingreso, por código o con Google, en cualquier modo. En una base nueva configurada en `InviteOnly`, sin cuentas previas ni `Seed:AdminEmail`, nadie puede crear su cuenta. Las reglas del modo de registro, de las cuentas y de los roles están en [`docs/features/administracion.md`](docs/features/administracion.md); la intención explícita de ingreso o registro y la compatibilidad de pedidos antiguos, en [`identidad.md`](docs/features/identidad.md#ingreso-y-registro-explícitos-2026-09-30).
 
-WhatsApp viene apagado salvo que se configure: cómo prenderlo y probarlo está en [WhatsApp en local](docs/guides/whatsapp-en-local.md). Es un módulo opcional: un proyecto que no lo usa lo quita con [quitar WhatsApp](docs/guides/quitar-whatsapp.md).
+WhatsApp viene apagado: se prende con su número y su token en los [user-secrets de la Api](#user-secrets-de-la-api), y cómo probarlo, con el webhook y las plantillas, está en [WhatsApp en local](docs/guides/whatsapp-en-local.md). Es un módulo opcional: un proyecto que no lo usa lo quita con [quitar WhatsApp](docs/guides/quitar-whatsapp.md).
 
 ## Conectarse con DBeaver
 

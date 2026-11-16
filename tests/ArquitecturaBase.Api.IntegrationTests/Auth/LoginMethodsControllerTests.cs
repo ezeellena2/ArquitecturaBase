@@ -21,7 +21,7 @@ public sealed class LoginMethodsControllerTests(ApiFactory factory)
 
     /// <summary>
     /// Los nombres del contrato y la respuesta sin canal de teléfono, la de una copia sin módulos: Google según su
-    /// ClientId, que sale de appsettings.json, y WhatsApp apagado, sin países ni número. El test cambia el canal por el
+    /// ClientId, que pone el arnés, y WhatsApp apagado, sin países ni número. El test cambia el canal por el
     /// apagado para afirmar lo mismo con y sin el módulo.
     /// </summary>
     [Fact]
