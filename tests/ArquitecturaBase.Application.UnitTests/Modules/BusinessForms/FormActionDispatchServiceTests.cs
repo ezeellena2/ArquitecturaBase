@@ -85,6 +85,25 @@ public sealed class FormActionDispatchServiceTests
         Assert.NotNull((await service.ReserveAsync(known.Id, CancellationToken.None)).Value);
     }
 
+    // F28: every kind of action the rule editor accepts (the ones the policy lets a rule keep) is one the worker reserves.
+    public static TheoryData<string> EditorKinds() => [.. FormActionKinds.Known];
+
+    [Theory]
+    [MemberData(nameof(EditorKinds))]
+    public async Task The_worker_reserves_every_kind_of_action_the_rule_editor_accepts(string kind)
+    {
+        var fixture = new FormActionFixture();
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action(kind) with { RoleId = fixture.Rules.RoleId, Text = new Dictionary<string, string> { ["es"] = "Hola" } }])]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var run = Assert.Single(fixture.Runs.Runs);
+        Assert.Equal(kind, run.Kind);
+
+        await Dispatch(fixture).ReserveAsync(run.Id, CancellationToken.None);
+
+        // Taken by this version, whatever it then did with it: a kind it skips as unknown stays waiting with no fence.
+        Assert.True(run.Fence > 0);
+    }
+
     // Decision 4: a notice to a role goes to who is in it when it is sent; whoever left is skipped as «No aplica» and does not stop the rest.
     [Fact]
     public async Task A_role_notice_skips_as_not_applicable_who_left_the_role_since_the_capture()

@@ -53,7 +53,7 @@ En orden de peso; cada tarea lo repite.
 
 1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro, el contador para quien
-   administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 8, 10, 11 y 25.
+   administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 10 y 11.
 3. **El resto de la etapa 6:** F8, sin empezar.
 4. **La etapa 7:** F29, F30 y F25.
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
@@ -115,7 +115,7 @@ En orden de peso; cada tarea lo repite.
 8. **F28. El worker reserva sólo los tipos de acción que conoce.** Filtro de tipos en la búsqueda de trabajo y un `switch` de
    efectos sin rama por defecto, con un test que recorre los tipos que acepta el editor de reglas y otro donde un tipo desconocido
    sigue esperando. Chico.
-   Hecha el 2026-11-15 en `4dc53b94` (el worker reserva sólo los tipos que conoce, `FormActionKinds`, y el `switch` sin rama por defecto; el test recorre la reserva de un tipo desconocido, no los tipos del editor uno por uno). Falta ese test.
+   Hecha el 2026-11-15 en `4dc53b94` (el worker reserva sólo los tipos que conoce, `FormActionKinds`, y el `switch` sin rama por defecto; el test recorre la reserva de un tipo desconocido). Hecho el 2026-11-16 el test que recorre cada tipo que acepta el editor (`The_worker_reserves_every_kind_of_action_the_rule_editor_accepts`, sobre `FormActionKinds.Known`).
 9. **F19. Queda quién pidió reintentar o consultar.** El run guarda quién y cuándo pidió el reintento, el reintento por persona y
    la consulta, y el detalle de la respuesta lo muestra. Chico.
    Hecha el 2026-11-15 en `760fee98` (columnas en la migración de `4dc53b94`). El historial del front muestra quién pidió el último reintento o la consulta (`lastRequest`), hecho el 2026-11-16 en `511b6800` del front.
@@ -177,7 +177,7 @@ En orden de peso; cada tarea lo repite.
     antes las extracciones pendientes, y el pedido vence. Trivial. Hecha el 2026-11-15 en `14425785` (la guía) y `0c5ddba2` (el vencimiento).
 24. **F38. El número del menú cuenta sólo los documentos abiertos.** Lo que cubre el índice por estado y fecha. Trivial. Hecha el 2026-11-15 en `34b4e557`.
 25. **F40. La purga de documentos corre al arrancar y por lotes seguidos.** Una vuelta al arrancar y lotes mientras salgan llenos,
-    cada uno en su transacción y con un tope de tiempo; test con 250 vencidos. Chico. Hecha el 2026-11-15 en `a587c396`. Falta el test del worker al arrancar.
+    cada uno en su transacción y con un tope de tiempo; test con 250 vencidos. Chico. Hecha el 2026-11-15 en `a587c396`; el test del worker (una vuelta al arrancar, otra cada hora y una vuelta fallada que no corta la siguiente) es `FormReceivedDocumentRetentionBackgroundServiceTests`, hecho el 2026-11-16.
 
 ### Etapa 6: carga, planilla y catálogos
 
