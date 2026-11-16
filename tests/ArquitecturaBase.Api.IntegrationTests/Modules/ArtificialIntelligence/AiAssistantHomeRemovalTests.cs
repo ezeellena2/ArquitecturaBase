@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
@@ -11,6 +12,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Int
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Persistence.Repositories;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -127,6 +129,25 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         Assert.Equal(("completed", JsonValueKind.Null), await DocumentAsync(scenario, documentRequestId));
         Assert.Equal(("completed", JsonValueKind.Null), await TranscriptAsync(scenario, audioRequestId));
         Assert.Empty(await RetainedAsync(scenario, photoKey, audioKey));
+    }
+
+    // I2, review: the purge runs under the budget lock, so it finds a turn that names a reading by its whole key, an equality the filtered
+    // AttachmentKey index answers, never by a prefix of the column.
+    [Fact]
+    public async Task The_purge_finds_the_turns_that_name_a_reading_by_whole_keys()
+    {
+        var recorder = new AssistantReadCommandRecorder();
+        await using var scope = factory.Services.CreateAsyncScope();
+        await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
+            scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        await new AiAssistantRepository(db, factory.Clock).ListPurgeableAsync(now,
+            new(now.AddHours(-24), "home-audio", "home-document", "ai/assistant/documents/", [".pdf", ".jpg", ".png"]), 1, Ct);
+
+        var sql = Assert.Single(recorder.Commands);
+        Assert.Contains("\"AttachmentKey\" = ", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("left(", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(" LIKE ", sql, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<AiAssistantExecutionScenario> CreateAsync(DocumentReadingHandler provider, TimeProvider? clock = null)

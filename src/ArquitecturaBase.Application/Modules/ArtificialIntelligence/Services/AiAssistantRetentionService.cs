@@ -35,7 +35,8 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
             await repository.LockBudgetAsync(ct);
             var now = timeProvider.GetUtcNow().UtcDateTime;
             var turns = await repository.ListPurgeableAsync(now, new(now.AddHours(-UnnamedSourceHours), AiAssistantChannelPolicy.HomeAudioChannelId,
-                AiAssistantChannelPolicy.HomeDocumentChannelId, AiAssistantHomeDocumentPolicy.Prefix), limits.MaintenanceBatchSize, ct);
+                AiAssistantChannelPolicy.HomeDocumentChannelId, AiAssistantHomeDocumentPolicy.Prefix, AiAssistantHomeDocumentPolicy.KeyExtensions),
+                limits.MaintenanceBatchSize, ct);
             var retiring = await repository.ListDeletedOwnerConversationsAsync(limits.MaintenanceBatchSize - turns.Count, ct);
             var conversations = await repository.ListRemovableConversationsAsync(now, limits.MaintenanceBatchSize - turns.Count - retiring.Count, ct);
             foreach (var owner in turns.Select(t => t.OwnerUserId).Concat(retiring.Concat(conversations).Select(c => c.OwnerUserId)).Distinct().Order())

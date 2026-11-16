@@ -91,21 +91,23 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     // I2: a Home recording or reading that no turn of an active conversation named goes once it is old enough, like an orphan copy: a turn
     // names a recording by its request and holds the copy of a reading, whose key names the reading's request. IgnoreQueryFilters applies
     // to the whole query, the naming turns too, so they ask for an active conversation themselves: a purged turn of a removed one keeps its
-    // AudioRequestId and AttachmentKey. No index of its own: the lookup runs only for technical turns past the cut.
+    // AudioRequestId and AttachmentKey. It runs under the budget lock, so each naming lookup is an equality that a filtered index answers:
+    // AudioRequestId, or AttachmentKey with one whole key per extension. Only technical turns past the cut get there.
     public async Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(unnamed);
         var naming = dbContext.Set<AiAssistantTurn>();
+        var extensions = unnamed.DocumentKeyExtensions.ToArray();
         return await dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Where(turn => turn.ProtectedQuestion != null
             && (turn.ContentExpiresAtUtc <= nowUtc || turn.Conversation.State == AiConversationState.Removed
                 || dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == turn.OwnerUserId && user.IsDeleted)
                 || (turn.SubmittedAtUtc <= unnamed.SubmittedBeforeUtc
                     && ((turn.ChannelId == unnamed.AudioChannelId && !naming.Any(named => named.OwnerUserId == turn.OwnerUserId
                             && named.Conversation.State == AiConversationState.Active && named.AudioRequestId == turn.RequestId))
-                        || (turn.ChannelId == unnamed.DocumentChannelId && !naming.Any(named => named.OwnerUserId == turn.OwnerUserId
-                            && named.Conversation.State == AiConversationState.Active && named.AttachmentKey != null
-                            && named.AttachmentKey.StartsWith(unnamed.DocumentKeyPrefix + turn.RequestId.ToString().Replace("-", "") + ".")))))))
+                        || (turn.ChannelId == unnamed.DocumentChannelId && !extensions.Any(extension => naming.Any(named =>
+                            named.AttachmentKey == unnamed.DocumentKeyPrefix + turn.RequestId.ToString().Replace("-", "") + extension
+                            && named.OwnerUserId == turn.OwnerUserId && named.Conversation.State == AiConversationState.Active)))))))
             .OrderBy(turn => turn.ContentExpiresAtUtc).ThenBy(turn => turn.Id).Take(limit).ToListAsync(cancellationToken);
     }
 

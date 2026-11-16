@@ -18,8 +18,9 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 internal sealed class AiAssistantHomeDocumentPolicy(IPrivateFileStore files, IStructuredAttachmentReader reader, AiAssistantAccessGuard guard,
     IAiConnectionReader connections)
 {
-    // The purge tells a reading no turn named by this prefix (I2).
+    // The purge tells a reading no turn named by its whole key: this prefix, its request and one of these extensions (I2).
     public const string Prefix = "ai/assistant/documents/";
+    public static IReadOnlyList<string> KeyExtensions { get; } = [.. AiAssistantDocumentPolicy.MediaTypes.Select(Extension)];
 
     public static string Key(Guid requestId, string mediaType) => $"{Prefix}{requestId:N}{Extension(mediaType)}";
 
