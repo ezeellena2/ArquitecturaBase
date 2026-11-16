@@ -6,6 +6,7 @@ using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Persistence
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Persistence.Repositories;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
@@ -111,11 +112,15 @@ public sealed class AiAssistantRetentionPlanTests(ApiFactory factory)
         return recorder.Statements;
     }
 
-    // EXPLAIN of a statement as it ran; every node of its plan, nested ones too.
+    // EXPLAIN of a statement as it ran; every node of its plan, nested ones too. With a few thousand rows in a base the collection
+    // shares, a sequential scan of the receipts sometimes came out cheaper, so the plan is asked with sequential scans off: PostgreSQL
+    // still takes one only where no index answers the read. Without the new indexes it goes through older ones, so the test names them.
     private Task<List<JsonElement>> ExplainAsync(AssistantRecordedCommand statement) => factory.ExecuteDbContextAsync(async db =>
     {
-        await db.Database.OpenConnectionAsync(Ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(Ct);
+        await db.Database.ExecuteSqlRawAsync("SET LOCAL enable_seqscan = off", Ct);
         await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.Transaction = transaction.GetDbTransaction();
         command.CommandText = "EXPLAIN (FORMAT JSON) " + statement.Sql;
         foreach (var parameter in statement.Parameters) command.Parameters.Add(parameter.Clone());
         using var document = JsonDocument.Parse((string)(await command.ExecuteScalarAsync(Ct))!);
