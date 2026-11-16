@@ -37,9 +37,9 @@ public sealed class FormReceivedDocumentRowMigrationTests(ApiFactory factory)
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 10, new string('b', 64), null, 2, 1, FormReceivedDocumentRowKind.Unmatched,
                 null).Value;
             Assert.True(row.LeaveUnclassified("unknown", null, now).IsSuccess);
-            db.AddRange(document, row);
-            await db.SaveChangesAsync(Ct);
-            db.ChangeTracker.Clear();
+            // Only the columns of this schema (F31 adds ExtractionContextJson later, which the current model maps).
+            await InsertAsync(db, document, now);
+            await InsertAsync(db, row, now);
             var applied = await db.Database.GetAppliedMigrationsAsync(Ct);
 
             var error = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(Before(db), Ct));
@@ -62,6 +62,14 @@ public sealed class FormReceivedDocumentRowMigrationTests(ApiFactory factory)
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
     }
+
+    private static Task<int> InsertAsync(ApplicationDbContext db, FormReceivedDocument value, DateTime now) => db.Database.ExecuteSqlAsync($"""
+        INSERT INTO "FormReceivedDocuments" ("Id", "ChannelId", "SourceId", "SenderUserId", "ReceivedAtUtc", "StorageKey", "FileName", "MediaType", "Size", "Sha256",
+            "Pages", "State", "ReasonCode", "SearchText", "NotSendable", "SheetName", "RowNumber", "RowOrder", "RowKind", "DeleteAfterUtc", "Revision", "CreatedAtUtc")
+        VALUES ({value.Id}, {value.ChannelId}, {value.SourceId}, {value.SenderUserId}, {value.ReceivedAtUtc}, {value.StorageKey}, {value.FileName}, {value.MediaType},
+            {value.Size}, {value.Sha256}, {value.Pages}, {value.State.ToString()}, {value.ReasonCode}, {value.SearchText}, {value.NotSendable}, {value.SheetName},
+            {value.RowNumber}, {value.RowOrder}, {value.RowKind?.ToString()}, {value.DeleteAfterUtc}, {value.Revision}, {now})
+        """, Ct);
 
     // The migration right before this one, whichever it is.
     private static string Before(ApplicationDbContext db) =>
