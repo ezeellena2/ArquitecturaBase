@@ -369,6 +369,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglado el 2026-11-15** en `a765080f` (se eligió pedir «Ver respuestas»; la descripción del permiso y la regla escrita lo dicen).
 - Su texto en `Errors.resx` lo borró `6ff85b99` (F13, armado sobre una copia anterior) y volvió el 2026-11-15 en `974fea7c`.
 - Corregido tras la revisión adversarial del 2026-11-16 en `b9344a0c`: un aviso con `includePdf` o la copia de una emisión (`SendCopy`) manda todas las respuestas sin citar ninguna, así que guardar esa regla también pide «Ver respuestas» (`Forms.Rule.RecordsReadRequired`); la descripción del permiso, el texto del error y la regla escrita lo dicen.
+- Corregido el 2026-11-16 en `673d5bcc`: agregar un estándar cuyas reglas citan respuestas también pide «Ver respuestas».
 
 #### F6. Un PDF armado para atacar puede frenar la lectura de documentos de una copia y, por WhatsApp, todo lo que entra
 
