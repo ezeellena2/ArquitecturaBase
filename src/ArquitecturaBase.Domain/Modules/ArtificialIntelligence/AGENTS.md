@@ -8,7 +8,7 @@ El asistente agrega conversaciones privadas, turnos, consultas y recibos durable
 controlan estado/fence, cancelación confirmada y deadline explícito; un Running vencido con un paso
 reservado queda Uncertain y nunca vuelve a Pending. Removed es retirada funcional (no ISoftDeletable)
 para purgar contenido protegido después. Los recibos independientes conservan cuota/deduplicación
-tras la retirada. Expired sólo se alcanza sin un paso reservado: su recibo devuelve la cuota (I1). `Release` (I12) vuelve a Pending un Running sin paso, con el mismo fence; cancelado o vencido cierra como `Fail`, y con paso, Failed con `Interrupted`. Uso desconocido no equivale a cero; conservar contadores conocidos por paso.
+tras la retirada. Expired sólo se alcanza sin un paso reservado: su recibo devuelve la cuota (I1). `Release` (I12) vuelve a Pending un Running sin paso, con el mismo fence; cancelado o vencido cierra como `Fail`, y con paso, Failed con `Interrupted`. `Fail` con `Interrupted` de un turno que su persona canceló conserva el código de su corte (`ProviderUncertain` o `Canceled`). Uso desconocido no equivale a cero; conservar contadores conocidos por paso.
 
 El perfil de ejecución se sella una sola vez en Pending antes del claim, con máximo de 16384 bytes UTF-8. Repetir el mismo sello no muta la revisión; cambiarlo o intentar una primera captura en otro estado da conflicto. El canal de la conversación distingue Inicio de los canales aportados por sus dueños.
 

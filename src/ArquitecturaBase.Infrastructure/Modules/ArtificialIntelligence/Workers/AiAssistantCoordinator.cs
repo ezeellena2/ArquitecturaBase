@@ -74,15 +74,16 @@ internal sealed partial class AiAssistantCoordinator(
         // I12: stopped before reserving a step (the release closes a canceled or expired one as it is), or cut by the drain's end after one.
         bool Stopped() => !anyStep && stoppingToken.IsCancellationRequested;
         bool Drained() => drainToken.IsCancellationRequested && !deadline.IsCancellationRequested;
-        // A cancellation the drain's end caused carries the shutdown code; any other failure keeps its own.
-        string Cut(string code) => Drained() && code == AiAssistantErrors.Canceled.Code ? AiAssistantErrors.Interrupted.Code : code;
+        // I12, review: a failure once the drain ended is its cut, whatever code it brings: the shutdown code (a turn its person canceled
+        // keeps its usual code, AiAssistantTurn.Fail). Any other failure keeps its own.
+        string Cut(string code) => Drained() ? AiAssistantErrors.Interrupted.Code : code;
         try
         {
             Result<AiAssistantExecutionContextResponse> prepared;
             await using (var scope = scopes.CreateAsyncScope())
                 prepared = await scope.ServiceProvider.GetRequiredService<IAiAssistantExecutionService>().PrepareAsync(claim, beforeStep.Token);
             if (Stopped()) { await ReleaseAsync(claim, activity); return true; }
-            if (prepared.IsFailure) { await FailAsync(claim, activity, prepared.Error.Code, false); return true; }
+            if (prepared.IsFailure) { await FailAsync(claim, activity, Cut(prepared.Error.Code), false); return true; }
             var context = prepared.Value;
             AiAssistantTracing.Describe(activity, context);
             while (!execution.IsCancellationRequested)
@@ -93,7 +94,7 @@ internal sealed partial class AiAssistantCoordinator(
                     reserved = await scope.ServiceProvider.GetRequiredService<IAiAssistantDispatchService>()
                         .BeginProviderStepAsync(claim, anyStep ? execution.Token : beforeStep.Token);
                 if (reserved.IsFailure && Stopped()) { await ReleaseAsync(claim, activity); return true; }
-                if (reserved.IsFailure) { await FailAsync(claim, activity, reserved.Error.Code, false); return true; }
+                if (reserved.IsFailure) { await FailAsync(claim, activity, Cut(reserved.Error.Code), false); return true; }
                 // The engine may have closed the turn itself (a step limit, lost access, a cancellation or a deadline found on reserving).
                 if (!reserved.Value) { await ObserveOutcomeAsync(claim, activity); return true; }
                 anyStep = true;
@@ -110,7 +111,7 @@ internal sealed partial class AiAssistantCoordinator(
                     LogProviderFailed(logger, claim.TurnId, context.ProviderRequest.Provider, response.Error.Code, AiAssistantErrors.ProviderStatus(response.Error));
                     // I12: the drain's end cut the step: the shutdown code, still uncertain if it may have been sent.
                     var uncertain = response.Error.Code == AiAssistantErrors.ProviderUncertain.Code;
-                    await FailAsync(claim, activity, uncertain && Drained() ? AiAssistantErrors.Interrupted.Code : Cut(response.Error.Code), uncertain);
+                    await FailAsync(claim, activity, Cut(response.Error.Code), uncertain);
                     return true;
                 }
                 stepReserved = false;

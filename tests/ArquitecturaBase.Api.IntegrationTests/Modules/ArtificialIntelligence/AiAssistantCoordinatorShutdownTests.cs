@@ -125,6 +125,43 @@ public sealed class AiAssistantCoordinatorShutdownTests
         Assert.Equal((1, 0, 0), (fixture.ReleaseCalls, fixture.ProviderCalls, fixture.FailCalls));
     }
 
+    // I12, review: once the drain ended, a failure it caused carries the shutdown code whatever code it brings: a cut step that
+    // answers another code, or a capability that fails while advancing; neither was in flight.
+    [Fact]
+    public async Task A_failure_after_the_end_of_the_drain_carries_the_shutdown_code_whatever_code_the_step_brings()
+    {
+        using var stop = new CancellationTokenSource();
+        using var drain = new CancellationTokenSource();
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, null)
+        {
+            DuringProviderCall = async _ => { await stop.CancelAsync(); await drain.CancelAsync(); },
+            ProviderError = AiAssistantErrors.ContentUnavailable,
+        };
+        await using var services = Services(fixture);
+
+        Assert.True(await Coordinator(services, clock).ProcessNextAsync(stop.Token, drain.Token));
+
+        Assert.Equal((AiAssistantErrors.Interrupted.Code, false), (fixture.FailureCode, fixture.FailureWasUncertain));
+    }
+
+    [Fact]
+    public async Task A_capability_that_fails_after_the_end_of_the_drain_carries_the_shutdown_code()
+    {
+        using var stop = new CancellationTokenSource();
+        using var drain = new CancellationTokenSource();
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, () => { stop.Cancel(); drain.Cancel(); })
+        {
+            AdvanceError = AiAssistantErrors.ToolRejected,
+        };
+        await using var services = Services(fixture);
+
+        Assert.True(await Coordinator(services, clock).ProcessNextAsync(stop.Token, drain.Token));
+
+        Assert.Equal((AiAssistantErrors.Interrupted.Code, false), (fixture.FailureCode, fixture.FailureWasUncertain));
+    }
+
     [Fact]
     public async Task A_copy_that_stops_takes_no_new_turn()
     {

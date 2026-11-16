@@ -172,6 +172,9 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     public Result Fail(long fence, string code, bool uncertain, DateTime nowUtc)
     {
         if (State != AiAssistantTurnState.Running || Fence != fence) return AiAssistantErrors.FenceRejected;
+        // I12, review: the end of a copy's drain does not take over a turn its person canceled: it keeps the code of its cut.
+        if (CancelRequestedAtUtc is not null && code == AiAssistantErrors.Interrupted.Code)
+            code = uncertain ? AiAssistantErrors.ProviderUncertain.Code : AiAssistantErrors.Canceled.Code;
         SetTerminal(CancelRequestedAtUtc is not null ? AiAssistantTurnState.Canceled : uncertain ? AiAssistantTurnState.Uncertain :
             code == AiAssistantErrors.Expired.Code && ProviderSteps == 0 ? AiAssistantTurnState.Expired : AiAssistantTurnState.Failed, code, nowUtc);
         return Result.Success();

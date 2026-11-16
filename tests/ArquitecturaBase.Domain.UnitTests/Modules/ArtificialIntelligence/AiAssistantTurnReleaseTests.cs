@@ -59,6 +59,23 @@ public sealed class AiAssistantTurnReleaseTests
         Assert.Equal((AiAssistantTurnState.Expired, AiAssistantErrors.Expired.Code), (expired.State, expired.FailureCode));
     }
 
+    // I12, review: the person who canceled as the drain ended sees the cancellation with its usual code, not the shutdown's.
+    [Fact]
+    public void A_turn_its_person_canceled_keeps_its_usual_code_when_the_end_of_the_drain_cuts_it()
+    {
+        var inFlight = Claimed();
+        inFlight.BeginProviderStep(inFlight.Fence, Now.AddSeconds(2), 5);
+        inFlight.RequestCancellation(Now.AddSeconds(3));
+        var betweenSteps = Claimed();
+        betweenSteps.RequestCancellation(Now.AddSeconds(3));
+
+        Assert.True(inFlight.Fail(inFlight.Fence, AiAssistantErrors.Interrupted.Code, true, Now.AddSeconds(4)).IsSuccess);
+        Assert.True(betweenSteps.Fail(betweenSteps.Fence, AiAssistantErrors.Interrupted.Code, false, Now.AddSeconds(4)).IsSuccess);
+
+        Assert.Equal((AiAssistantTurnState.Canceled, AiAssistantErrors.ProviderUncertain.Code), (inFlight.State, inFlight.FailureCode));
+        Assert.Equal((AiAssistantTurnState.Canceled, AiAssistantErrors.Canceled.Code), (betweenSteps.State, betweenSteps.FailureCode));
+    }
+
     [Fact]
     public void Another_fence_or_a_finished_turn_is_rejected_without_changes()
     {

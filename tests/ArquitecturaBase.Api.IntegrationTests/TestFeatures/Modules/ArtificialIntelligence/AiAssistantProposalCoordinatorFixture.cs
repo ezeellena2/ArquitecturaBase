@@ -44,6 +44,8 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Func<CancellationToken, Task>? DuringProviderCall { get; init; }
     /// <summary>I12, review: runs once the claim landed, such as the copy's stop; a claim cut by its token is only seen as canceled.</summary>
     public Action? WhileClaiming { get; init; }
+    /// <summary>I12, review: the advance fails with this code, as a capability whose query failed.</summary>
+    public Error? AdvanceError { get; init; }
     /// <summary>I12, review: the release closes the turn (its person canceled it) instead of giving it back.</summary>
     public bool ReleaseClosesTheTurn { get; init; }
     public int ClaimCalls { get; private set; }
@@ -116,6 +118,7 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Task<Result<AiAssistantAdvanceResponse>> AdvanceAsync(AiAssistantExecutionContextResponse accepted, LlmConversationResponse response, CancellationToken cancellationToken)
     {
         stopAfterAdvance?.Invoke();
+        if (AdvanceError is { } error) return Task.FromResult(Result.Failure<AiAssistantAdvanceResponse>(error));
         return Task.FromResult(Result.Success(new AiAssistantAdvanceResponse(context, null, [], response.Usage) { Proposal = normalize || read ? null : Proposal,
             NormalizedAudio = normalize ? new("Fictitious visit", ["en"]) : null,
             DocumentReading = read ? new(StructuredDocumentReadability.Readable, null, "es", "| Monto | $ 1.000 |", false) : null }));
