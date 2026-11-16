@@ -1,16 +1,21 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Persistence.Repositories;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -86,6 +91,8 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         var (namedId, namedKey) = await ReadPhotoAsync(scenario);
         await SubmitAsync(scenario, Guid.NewGuid(), namedId);
         Assert.True(await scenario.ProcessNextAsync());
+        // A reading of the same person in another channel, WhatsApp's, that no Home turn names and that lasts a week.
+        var whatsApp = await ReadInWhatsAppAsync(scenario, clock.GetUtcNow().UtcDateTime);
 
         // A minute before the 24 hours, the purge keeps everything.
         clock.Advance(TimeSpan.FromHours(24) - TimeSpan.FromMinutes(1));
@@ -100,6 +107,7 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         Assert.Equal(("completed", JsonValueKind.Null), await TranscriptAsync(scenario, audioRequestId));
         Assert.Equal(("completed", JsonValueKind.Object), await DocumentAsync(scenario, namedId));
         Assert.Equal([namedKey], await RetainedAsync(scenario, unnamedKey, namedKey));
+        Assert.True(await HasContentAsync(scenario, whatsApp));
         using var late = await PostTurnAsync(scenario, Guid.NewGuid(), unnamedId, null);
         Assert.Equal("Ai.Assistant.Expired", (await late.ReadJsonAsync()).GetProperty("code").GetString());
     }
@@ -129,6 +137,30 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         Assert.Equal(("completed", JsonValueKind.Null), await DocumentAsync(scenario, documentRequestId));
         Assert.Equal(("completed", JsonValueKind.Null), await TranscriptAsync(scenario, audioRequestId));
         Assert.Empty(await RetainedAsync(scenario, photoKey, audioKey));
+    }
+
+    // I2, review: removing a conversation purges only what this person's turns named. Another person who read a photo under the same
+    // request, and named it in a conversation of their own, keeps the reading and the copy.
+    [Fact]
+    public async Task Removing_a_conversation_never_touches_another_persons_reading_under_the_same_request()
+    {
+        using var provider = DocumentReadingHandler.Json(DocumentReadingHandler.Completed(DocumentReadingHandler.Reading()));
+        await using var scenario = await CreateAsync(provider);
+        using var other = scenario.CreateClient(await PersonAsync(scenario));
+        other.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var (documentRequestId, photoKey) = await ReadPhotoAsync(scenario);
+        await ReadPhotoAsync(scenario, other, documentRequestId);
+        var removedId = (await SubmitAsync(scenario, Guid.NewGuid(), documentRequestId)).GetProperty("conversationId").GetGuid();
+        Assert.True(await scenario.ProcessNextAsync());
+        await SubmitAsync(scenario, Guid.NewGuid(), documentRequestId, client: other);
+        Assert.True(await scenario.ProcessNextAsync());
+
+        using (var removed = await scenario.Client.DeleteAsync($"/api/ai/assistant/conversations/{removedId}", Ct))
+            Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
+
+        Assert.Equal(("completed", JsonValueKind.Null), await DocumentAsync(scenario, documentRequestId));
+        Assert.Equal(("completed", JsonValueKind.Object), await DocumentAsync(scenario, documentRequestId, other));
+        Assert.Equal([photoKey], await RetainedAsync(scenario, photoKey));
     }
 
     // I2, review: two conversations name the same recording. Removing one purges its normalization, so nobody can listen to the recording
@@ -226,18 +258,60 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         return scenario;
     }
 
-    private static async Task<(Guid RequestId, string Key)> ReadPhotoAsync(AiAssistantExecutionScenario scenario)
+    private static async Task<(Guid RequestId, string Key)> ReadPhotoAsync(AiAssistantExecutionScenario scenario, HttpClient? client = null,
+        Guid? request = null)
     {
-        var requestId = Guid.NewGuid();
+        var requestId = request ?? Guid.NewGuid();
         var file = new ByteArrayContent(Jpeg);
         file.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
         using var upload = new MultipartFormDataContent { { new StringContent(requestId.ToString()), "requestId" }, { file, "file", "foto.jpg" } };
-        using (var accepted = await scenario.Client.PostAsync("/api/ai/assistant/documents", upload, Ct))
+        using (var accepted = await (client ?? scenario.Client).PostAsync("/api/ai/assistant/documents", upload, Ct))
             Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
         Assert.True(await scenario.ProcessNextAsync());
-        Assert.Equal(("completed", JsonValueKind.Object), await DocumentAsync(scenario, requestId));
+        Assert.Equal(("completed", JsonValueKind.Object), await DocumentAsync(scenario, requestId, client));
         return (requestId, $"ai/assistant/documents/{requestId:N}.jpg");
     }
+
+    // A PDF that WhatsApp has the engine read for the person (ReadDocument in its own channel), with its copy outside the Home keys.
+    private static async Task<Guid> ReadInWhatsAppAsync(AiAssistantExecutionScenario scenario, DateTime now)
+    {
+        byte[] pdf = [.. "%PDF-1.7 fictitious receipt"u8];
+        const string key = "whatsapp/documents/fictitious-receipt.pdf";
+        var owner = Guid.Parse(scenario.Client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var request = new AssistantOperationRequest(Guid.NewGuid(), new("whatsapp-assistant", owner, owner, "es", "UTC", new([], []), [], []), "", now,
+            now.AddDays(7))
+        {
+            Document = new(key, "comprobante.pdf", "application/pdf", pdf.Length, Convert.ToHexStringLower(SHA256.HashData(pdf)), 1, now.AddDays(7)),
+        };
+        var accepted = await scenario.ScopeAsync(async services =>
+        {
+            await services.GetRequiredService<IPrivateFileStore>().WriteOnceAsync(key, new MemoryStream(pdf), "application/pdf", Ct);
+            return await services.GetRequiredService<IAssistantOperations>().SubmitAsync(request, Ct);
+        });
+        Assert.True(accepted.IsSuccess, accepted.IsFailure ? accepted.Error.Code : null);
+        Assert.True(await scenario.ProcessNextAsync());
+        Assert.True(await HasContentAsync(scenario, request.RequestId));
+        return request.RequestId;
+    }
+
+    private static Task<bool> HasContentAsync(AiAssistantExecutionScenario scenario, Guid requestId) => ScopeDbAsync(scenario, db =>
+        db.Set<AiAssistantTurn>().IgnoreQueryFilters().AnyAsync(turn => turn.RequestId == requestId && turn.State == AiAssistantTurnState.Completed
+            && turn.ProtectedQuestion != null && turn.ProtectedAnswer != null, Ct));
+
+    private static Task<Guid> PersonAsync(AiAssistantExecutionScenario scenario) => scenario.ScopeAsync(async services =>
+    {
+        var id = Guid.Empty;
+        var result = await services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async ct =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            var person = await users.CreateAsync(Email.Create(TestEmails.Unique("assistant-removal")).Value, null, false, null, "es", ct);
+            await users.SetRolesAsync(person.Id, ["Assistant operator"], ct);
+            id = person.Id;
+            return Result.Success();
+        }, CommitPolicy.OnSuccess, Ct);
+        Assert.True(result.IsSuccess);
+        return id;
+    });
 
     private static async Task<(Guid RequestId, string Key)> NormalizeAsync(AiAssistantExecutionScenario scenario)
     {
@@ -253,22 +327,23 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
     }
 
     private static async Task<JsonElement> SubmitAsync(AiAssistantExecutionScenario scenario, Guid requestId, Guid? documentRequestId,
-        Guid? audioRequestId = null)
+        Guid? audioRequestId = null, HttpClient? client = null)
     {
-        using var response = await PostTurnAsync(scenario, requestId, documentRequestId, audioRequestId);
+        using var response = await PostTurnAsync(scenario, requestId, documentRequestId, audioRequestId, client);
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         return await response.ReadJsonAsync();
     }
 
     private static Task<HttpResponseMessage> PostTurnAsync(AiAssistantExecutionScenario scenario, Guid requestId, Guid? documentRequestId,
-        Guid? audioRequestId) => scenario.Client.PostAsJsonAsync("/api/ai/assistant/turns", new
+        Guid? audioRequestId, HttpClient? client = null) => (client ?? scenario.Client).PostAsJsonAsync("/api/ai/assistant/turns", new
     {
         requestId, question = "", documentRequestId, audioRequestId, expectedConnectionRevision = scenario.ConnectionRevision,
     }, Ct);
 
-    private static async Task<(string? State, JsonValueKind Document)> DocumentAsync(AiAssistantExecutionScenario scenario, Guid requestId)
+    private static async Task<(string? State, JsonValueKind Document)> DocumentAsync(AiAssistantExecutionScenario scenario, Guid requestId,
+        HttpClient? client = null)
     {
-        using var response = await scenario.Client.GetAsync($"/api/ai/assistant/documents/{requestId}", Ct);
+        using var response = await (client ?? scenario.Client).GetAsync($"/api/ai/assistant/documents/{requestId}", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.ReadJsonAsync();
         return (body.GetProperty("state").GetString(), body.GetProperty("document").ValueKind);
