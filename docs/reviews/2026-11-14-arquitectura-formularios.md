@@ -918,6 +918,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
 - **Arreglo:** una consulta por catálogo que devuelva cuáles de las opciones elegidas no están activas, conservando el orden para
   que el rechazo nombre la misma pregunta y el mismo ítem. Chico. Lo que destraba el lock es
   [WhatsApp H32](2026-11-12-arquitectura-whatsapp.md).
+- **Arreglado el 2026-11-16** en `23573b08`.
 
 #### F38. La bandeja y el número del menú recorren todos los documentos en cada vista
 
