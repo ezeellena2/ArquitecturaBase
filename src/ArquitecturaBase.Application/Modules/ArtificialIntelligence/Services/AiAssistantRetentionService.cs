@@ -43,12 +43,9 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
                 await repository.LockActorAsync(owner, ct);
             foreach (var conversation in turns.Select(t => t.ConversationId).Concat(retiring.Concat(conversations).Select(c => c.Id)).Distinct().Order())
                 await repository.LockConversationAsync(conversation, ct);
-            // I3: a deleted account retires its conversations even once they have no content left.
-            foreach (var conversation in retiring)
-            {
-                (await repository.GetActiveForConversationAsync(conversation.Id, ct))?.RequestCancellation(now);
-                conversation.Remove(now);
-            }
+            // I3: a deleted account retires its conversations even once they have no content left. An active turn always keeps its
+            // question, so the content purge below cancels it, in this batch or the next one.
+            foreach (var conversation in retiring) conversation.Remove(now);
             var deletedOwners = new HashSet<Guid>();
             foreach (var owner in turns.Select(t => t.OwnerUserId).Distinct())
                 if (await users.FindByIdAsync(owner, ct) is null) deletedOwners.Add(owner);

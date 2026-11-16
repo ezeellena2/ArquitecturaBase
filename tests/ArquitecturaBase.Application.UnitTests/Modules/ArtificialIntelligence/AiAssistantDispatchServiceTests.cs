@@ -110,19 +110,19 @@ public sealed partial class AiAssistantDispatchServiceTests
         Assert.Null(host.Store.Turn.ProtectedQuestion);
     }
 
+    // I3: a deleted owner's conversation is retired even with nothing left to purge. An active turn always keeps its question, so the
+    // content purge cancels it (the case above): the retirement does not look for one.
     [Fact]
-    public async Task A_deleted_owners_conversation_is_retired_and_its_active_turn_canceled_without_content_to_purge()
+    public async Task A_deleted_owners_conversation_is_retired_without_content_to_purge()
     {
         var host = new Host();
         host.Store.DeletedOwners = true;
-        host.Store.ActiveForConversation = host.Store.Turn;
         var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock,
             NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts());
         var result = await retention.PurgeBatchAsync(Ct);
         Assert.True(result.IsSuccess);
         Assert.Equal(1, result.Value);
         Assert.Equal(AiConversationState.Removed, host.Store.Conversation.State);
-        Assert.NotNull(host.Store.Turn.CancelRequestedAtUtc);
         Assert.False(host.Store.PhysicallyRemoved);
         Assert.Equal(1, host.Work.Commits);
     }
