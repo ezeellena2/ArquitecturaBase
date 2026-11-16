@@ -22,6 +22,11 @@ internal sealed class AiAssistantDispatchGuard(IAiAssistantRepository repository
             if (catalog.Find(reference) is { } definition)
                 conversation.RequirePermissions(definition.RequiredPermissions.Actor);
     }
+
+    // I4: a pending turn sealed with a value this version does not know is left for the version that knows it; if none takes it, it expires
+    // without an attempt and gives its quota back (I1).
+    public bool Understands(AiAssistantTurn turn) => !AiAssistantAccessGuard.IsUnknown(guard.ReadSeal(turn.ExecutionProfileJson));
+
     public async Task LockAsync(AiAssistantClaimResponse claim, CancellationToken ct)
     {
         await connections.LockAsync(ct);
@@ -35,7 +40,9 @@ internal sealed class AiAssistantDispatchGuard(IAiAssistantRepository repository
         var conversation = await repository.GetConversationAsync(turn.OwnerUserId, turn.ConversationId, ct);
         if (conversation is null) return AiAssistantErrors.NotFound;
         var profile = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
-        if (profile.IsFailure || !AiAssistantChannelPolicy.Matches(profile.Value, turn.OwnerUserId, conversation.ChannelId, turn.Culture, turn.TimeZoneId))
+        // A seal it does not understand is its own failure, never lost permissions that invite deleting a sound conversation (I4).
+        if (profile.IsFailure) return profile.Error;
+        if (!AiAssistantChannelPolicy.Matches(profile.Value, turn.OwnerUserId, conversation.ChannelId, turn.Culture, turn.TimeZoneId))
             return AiAssistantErrors.ContentBlocked;
         var actor = await guard.AuthorizeCapturedAsync(profile.Value.ChannelContext, ct);
         if (actor.IsFailure) return actor.Error;

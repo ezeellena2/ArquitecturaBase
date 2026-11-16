@@ -38,6 +38,10 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
     public AssistantCapabilityDefinition? Find(AssistantCapabilityReference capability) =>
         registry.TryGetValue(capability, out var entry) ? entry.Definition : null;
 
+    // I4: whether this version knows every capability a seal names, offered or preloaded; one it does not was sealed by a newer version.
+    public bool Knows(AssistantChannelContext context) =>
+        context.AllowedCapabilities.Concat(context.PreloadedCapabilities ?? []).All(registry.ContainsKey);
+
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
         registry.TryGetValue(capability, out var entry) ? entry.Source.ParseOutput(capability, outputJson) : AiAssistantErrors.ToolRejected;
 

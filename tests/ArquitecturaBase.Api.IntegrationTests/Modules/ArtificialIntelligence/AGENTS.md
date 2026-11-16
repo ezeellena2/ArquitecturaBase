@@ -48,6 +48,8 @@ AiAssistantUploadConcurrencyTests (I9) prueba los lugares de subida con un lecto
 
 AiAssistantHomeCatalogTests cuenta lo que ofrece Inicio con los módulos del host, para una cuenta con todos los permisos: con formularios, 12 definiciones sin planilla, 13 con ella y 12 con un documento (`propose-catalog@2` y `propose-form@2`, nunca la 1, y `propose-import@1` sólo con planilla). Sin el módulo de formularios se omite, como las composiciones de WhatsApp.
 
+AiAssistantUnknownSealTests (I4) sella en PostgreSQL un turno con una terminal futura: el claim toma el siguiente y lo deja pendiente, Get y Cancel dan `UnknownVersion`, y vence sin un intento y sin gastar la cuota.
+
 AiAssistantOperationContinuationTests recorre «Cambiar algo» con el motor real y PostgreSQL: la operación siguiente queda en la conversación de la anterior (ordinal 2) y el proveedor recibe la pregunta y la propuesta anteriores como historia; continuar una operación con turnos posteriores la suma al final (ordinal 3), y después de una cancelada (la que un canal reemplazó) espera mientras ésta está activa, y la historia trae la propuesta anterior sin el pedido cancelado.
 
 Las pruebas de documentos espejan las del audio: el contrato de `OpenAiDocumentReadingClient` con un HTTP ficticio que fija el cuerpo exacto (`input_file` o `input_image`, `store:false` y el esquema, byte a byte igual al que escribía el serializador) y el idioma tal como llega, el ruteo con la copia privada, el coordinador y las opciones; con PostgreSQL, AiAssistantDocumentReadingTests recorre la lectura con el proveedor simulado, el incierto, la copia cambiada, los cupos y el CHECK, y la migración su Up/Down/Up.

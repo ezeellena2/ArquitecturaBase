@@ -316,11 +316,12 @@ public sealed partial class AiAssistantAttachmentTests
         Assert.Equal(sealedKind, AiAssistantChannelPolicy.Read(json).Value.Attachment);
     }
 
+    // I4: a kind of file this version does not know was sealed by a newer one: it is left for that version, not read as damaged.
     [Fact]
-    public void A_seal_with_an_unknown_kind_of_file_is_not_read()
+    public void A_seal_with_an_unknown_kind_of_file_is_left_for_the_version_that_knows_it()
     {
         var profile = new AiAssistantExecutionProfileSnapshot("fixture-profile", 3, "capabilities-v1", 1, new AssistantOperationsFixture().Context)
             { Attachment = (AssistantAttachmentKind)9 };
-        Assert.Equal(AiAssistantErrors.ContentUnavailable, AiAssistantChannelPolicy.Read(JsonSerializer.Serialize(profile, AiAssistantResponsePolicy.JsonOptions)).Error);
+        Assert.Equal(AiAssistantErrors.UnknownVersion, AiAssistantChannelPolicy.Read(JsonSerializer.Serialize(profile, AiAssistantResponsePolicy.JsonOptions)).Error);
     }
 }

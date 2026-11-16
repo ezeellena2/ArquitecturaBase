@@ -34,7 +34,9 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var turn = await repository.GetTurnAsync(receipt.TurnId, ct);
         if (turn is null || conversation?.ChannelId != context.ChannelId || turn.ChannelId != context.ChannelId)
             return AiAssistantErrors.NotFound;
-        var captured = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
+        // I4: a value this version does not know is not «not found»: the version that knows it can cancel it.
+        var captured = guard.ReadSeal(turn.ExecutionProfileJson);
+        if (AiAssistantAccessGuard.IsUnknown(captured)) return captured.Error;
         if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, turn.OwnerUserId, context.ChannelId, turn.Culture, turn.TimeZoneId) ||
             !AiAssistantChannelPolicy.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
         turn.RequestCancellation(responsePolicy.ServerNowUtc);

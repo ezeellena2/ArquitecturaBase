@@ -241,7 +241,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) =>
             Task.FromResult(Receipt is { } receipt && receipt.OwnerUserId == ownerUserId && receipt.RequestId == requestId ? receipt : null);
         // The host's turn is already claimed: there is no pending work and nothing expired.
-        public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurn?>(null);
+        public Task<AiAssistantTurn?> GetPendingAsync(IReadOnlyCollection<Guid> skipped, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurn?>(null);
         public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, Guid? channelConversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
             Task.FromResult(ActiveForConversation is { } active && active.ConversationId == conversationId ? active : null);

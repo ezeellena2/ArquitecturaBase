@@ -167,6 +167,24 @@ public sealed class FormDocumentAuthoringServiceTests
         Assert.Empty(f.Proposals);
     }
 
+    // I4: a copy that does not know a value the operation was sealed with answers that it may pass: the request is not failed, and the
+    // version that knows it answers later.
+    [Fact]
+    public async Task Reading_an_operation_sealed_with_a_value_this_copy_does_not_know_keeps_the_request_as_it_was()
+    {
+        var f = new FormDocumentProposalFixture();
+        var requestId = Guid.NewGuid();
+        Assert.True((await f.Authoring().RequestAsync(new(requestId, f.Document().Id, null), Ct)).IsSuccess);
+        f.Engine.ReadFailure = Error.Conflict("Ai.Assistant.UnknownVersion", "Fictitious newer seal.", new Dictionary<string, object?> { ["retryable"] = true });
+
+        var unknown = await f.Authoring().GetAsync(requestId, Ct);
+        f.Engine.ReadFailure = null;
+        var later = await f.Authoring().GetAsync(requestId, Ct);
+
+        Assert.Equal(FormReceivedDocumentErrors.ProposalUnavailable, unknown.Error);
+        Assert.Equal(("pending", (string?)null), (later.Value.State, later.Value.FailureCode));
+    }
+
     [Fact]
     public async Task Reading_says_why_it_failed_when_the_assistant_proposed_no_form_or_the_engine_no_longer_knows_it()
     {

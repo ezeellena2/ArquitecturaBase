@@ -493,15 +493,20 @@ public sealed class WhatsAppAssistantReplyTests
     [Theory]
     [InlineData("running")]
     [InlineData("retryable")]
+    [InlineData("unknownVersion")]
     [InlineData("notFound")]
     public async Task What_is_pending_or_can_be_retried_does_not_hand_off(string outcome)
     {
         var arranged = await PendingAsync();
 
+        // I4: a copy that does not know a value the operation was sealed with answers that it may pass, like an active turn.
         if (outcome == "running") await FailAsync(arranged, "running");
-        else await arranged.Dispatch.CompleteAsync(arranged.Host.Context.Contact.Id, arranged.RequestId, Result.Failure<AssistantOperationResponse>(outcome == "retryable"
-            ? Error.Conflict("Ai.Assistant.ActiveTurn", "Fictitious active turn.", new Dictionary<string, object?> { ["retryable"] = true })
-            : Error.NotFound("Ai.Assistant.NotFound", "Fictitious unknown operation.")), Ct);
+        else await arranged.Dispatch.CompleteAsync(arranged.Host.Context.Contact.Id, arranged.RequestId, Result.Failure<AssistantOperationResponse>(outcome switch
+        {
+            "retryable" => Error.Conflict("Ai.Assistant.ActiveTurn", "Fictitious active turn.", new Dictionary<string, object?> { ["retryable"] = true }),
+            "unknownVersion" => Error.Conflict("Ai.Assistant.UnknownVersion", "Fictitious newer seal.", new Dictionary<string, object?> { ["retryable"] = true }),
+            _ => Error.NotFound("Ai.Assistant.NotFound", "Fictitious unknown operation."),
+        }), Ct);
 
         Assert.Equal((WhatsAppConversationMode.Assistant, false), (arranged.Host.Context.Contact.Mode, arranged.Host.Context.Contact.NeedsPerson));
         Assert.Equal(WhatsAppAssistantRequestState.Pending, Assert.Single(arranged.Host.Requests.Rows).State);

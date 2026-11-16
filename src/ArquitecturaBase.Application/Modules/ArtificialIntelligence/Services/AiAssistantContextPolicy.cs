@@ -20,7 +20,9 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         if (turn is null || turn.OwnerUserId != claim.OwnerUserId || turn.Fence != claim.Fence || turn.State != AiAssistantTurnState.Running)
             return AiAssistantErrors.FenceRejected;
         var profile = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
-        if (profile.IsFailure || !AiAssistantChannelPolicy.Matches(profile.Value, claim.OwnerUserId, turn.ChannelId, turn.Culture, turn.TimeZoneId))
+        // A seal it does not understand is its own failure, never lost permissions that invite deleting a sound conversation (I4).
+        if (profile.IsFailure) return profile.Error;
+        if (!AiAssistantChannelPolicy.Matches(profile.Value, claim.OwnerUserId, turn.ChannelId, turn.Culture, turn.TimeZoneId))
             return AiAssistantErrors.ContentBlocked;
         var actor = await guard.AuthorizeCapturedAsync(profile.Value.ChannelContext, cancellationToken);
         if (actor.IsFailure) return actor.Error;

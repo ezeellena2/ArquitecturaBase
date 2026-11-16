@@ -135,6 +135,7 @@
   <data name="Ai.Assistant.Unavailable" xml:space="preserve"><value>El asistente no está disponible con la configuración actual.</value></data>
   <data name="Ai.Assistant.ContentBlocked" xml:space="preserve"><value>Ya no tenés todos los permisos que requiere esta conversación. Podés eliminarla o iniciar otra.</value></data>
   <data name="Ai.Assistant.ContentUnavailable" xml:space="preserve"><value>No se pudo recuperar el contenido protegido. No repitas la generación automáticamente.</value></data>
+  <data name="Ai.Assistant.UnknownVersion" xml:space="preserve"><value>Esta consulta usa algo que esta versión de la aplicación todavía no conoce. Probá de nuevo en unos minutos.</value></data>
   <data name="Ai.Assistant.FenceRejected" xml:space="preserve"><value>La reserva de la operación ya no está vigente. Revisá el estado confirmado.</value></data>
   <data name="Ai.Assistant.Canceled" xml:space="preserve"><value>La consulta se canceló. El proveedor puede haber consumido recursos antes de la cancelación.</value></data>
   <data name="Ai.Assistant.Expired" xml:space="preserve"><value>La consulta venció. Si querés consultar de nuevo, iniciá otro intento.</value></data>

@@ -13,6 +13,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -1162,6 +1163,30 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
         scenario.Engine.ReadFailure = null;
         using var again = await reviewer.PutAsJsonAsync(path + "/form", new { requestId = Guid.NewGuid(), definitionId = scenario.Other.DefinitionId, expectedRevision = 3 }, Ct);
         Assert.Equal(HttpStatusCode.Accepted, again.StatusCode);
+    }
+
+    // I4: a copy that does not know a value the extraction was sealed with answers that it may pass; the document keeps reading, and the
+    // version that knows it answers later.
+    [Fact]
+    public async Task An_extraction_sealed_with_a_value_this_copy_does_not_know_keeps_reading()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var sent = await scenario.SendAsync(Ct);
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        var path = $"/api/forms/documents/{sent.Id}";
+        var requestId = Guid.NewGuid();
+        using var accepted = await reviewer.PutAsJsonAsync(path + "/form", new { requestId, definitionId = scenario.Other.DefinitionId, expectedRevision = 1 }, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+
+        scenario.Engine.ReadFailure = Error.Conflict("Ai.Assistant.UnknownVersion", "Fictitious newer seal.", new Dictionary<string, object?> { ["retryable"] = true });
+        using var unknown = await reviewer.GetAsync($"{path}/extraction?requestId={requestId}", Ct);
+        var reading = await (await reviewer.GetAsync(path, Ct)).ReadJsonAsync();
+        scenario.Engine.ReadFailure = null;
+        using var later = await reviewer.GetAsync($"{path}/extraction?requestId={requestId}", Ct);
+
+        Assert.NotEqual(HttpStatusCode.OK, unknown.StatusCode);
+        Assert.Equal((requestId, 2L), (reading.GetProperty("extraction").GetProperty("requestId").GetGuid(), reading.GetProperty("document").GetProperty("revision").GetInt64()));
+        Assert.Equal((requestId, "pending"), await ExtractionAsync(later));
     }
 
     [Fact]

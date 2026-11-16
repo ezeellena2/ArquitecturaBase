@@ -135,6 +135,7 @@
   <data name="Ai.Assistant.Unavailable" xml:space="preserve"><value>The assistant is unavailable with the current configuration.</value></data>
   <data name="Ai.Assistant.ContentBlocked" xml:space="preserve"><value>You no longer have all the permissions required for this conversation. You can delete it or start another one.</value></data>
   <data name="Ai.Assistant.ContentUnavailable" xml:space="preserve"><value>The protected content could not be recovered. Do not repeat generation automatically.</value></data>
+  <data name="Ai.Assistant.UnknownVersion" xml:space="preserve"><value>This question uses something this version of the application does not know yet. Try again in a few minutes.</value></data>
   <data name="Ai.Assistant.FenceRejected" xml:space="preserve"><value>The operation reservation is no longer valid. Review its confirmed state.</value></data>
   <data name="Ai.Assistant.Canceled" xml:space="preserve"><value>The question was canceled. The provider may have consumed resources before cancellation.</value></data>
   <data name="Ai.Assistant.Expired" xml:space="preserve"><value>The question expired. Start a new operation if you want to ask again.</value></data>

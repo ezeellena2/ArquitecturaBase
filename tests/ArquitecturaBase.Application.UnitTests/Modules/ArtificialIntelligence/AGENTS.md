@@ -44,4 +44,6 @@ HomeDocument (Etapa 3) prueba la clave, la subida (permiso, cuota de lectura ago
 
 StoredCopy (I9) compara la copia por bloques, leída de a pocos bytes y sin largo, y descarta la del mismo tamaño con otros bytes, más larga o más corta, también en las tres políticas de Inicio.
 
+UnknownSeal (I4) sella con un valor futuro cada parte del sello (propósito, archivo, modo, instrucciones, terminal, capacidad y precarga): la lectura lo distingue de un sello dañado, el claim lo deja pendiente y toma el siguiente, y Get, Cancel y la búsqueda de una propuesta dan `UnknownVersion`, sin descifrar; un sello dañado cierra con `ContentUnavailable`, no con `ContentBlocked`.
+
 Document (ReadDocument) espeja al audio: aceptación, replay, validación, que no toma ni espera el lugar de la interpretación, la capacidad, los cupos (por persona entre canales y de la instalación, fuera del global y de los de interpretaciones y audio), el pedido al proveedor, el avance, el cierre, Get, el aviso y `AiAssistantDocumentPolicy` (el descriptor, el idioma normalizado antes de validar y la lectura entera bajo su techo).

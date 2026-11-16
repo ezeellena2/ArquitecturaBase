@@ -25,7 +25,9 @@ internal sealed class AiAssistantProposalLookup(IAiAssistantReader reader, AiAss
             if (actorUserId == Guid.Empty || requestId == Guid.Empty || proposalId == Guid.Empty) return AiAssistantErrors.NotFound;
             var row = await reader.FindTurnByRequestAsync(actorUserId, requestId, cancellationToken);
             if (row is null || row.State != AiAssistantTurnState.Completed) return AiAssistantErrors.NotFound;
-            var captured = AiAssistantChannelPolicy.Read(row.ExecutionProfileJson);
+            // I4: a value this version does not know is not «not found»: the version that knows it answers.
+            var captured = guard.ReadSeal(row.ExecutionProfileJson);
+            if (AiAssistantAccessGuard.IsUnknown(captured)) return captured.Error;
             if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, row.OwnerUserId, row.ChannelId, row.Culture, row.TimeZoneId))
                 return AiAssistantErrors.NotFound;
             var context = captured.Value.ChannelContext;

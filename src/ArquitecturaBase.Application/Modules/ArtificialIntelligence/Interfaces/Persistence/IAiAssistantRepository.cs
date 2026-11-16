@@ -11,7 +11,8 @@ public interface IAiAssistantRepository
     Task<AiConversation?> GetConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken);
     Task<AiAssistantTurn?> GetTurnAsync(Guid turnId, CancellationToken cancellationToken);
     Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken);
-    Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken);
+    /// <summary>The oldest pending turn, but for those the claim skipped because this version does not understand them (I4).</summary>
+    Task<AiAssistantTurn?> GetPendingAsync(IReadOnlyCollection<Guid> skipped, CancellationToken cancellationToken);
     /// <summary>Returns the active actor/channel/conversation reservation; null preserves the unscoped group and audio normalization does not reserve it.</summary>
     Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, Guid? channelConversationId, CancellationToken cancellationToken);
     Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken);

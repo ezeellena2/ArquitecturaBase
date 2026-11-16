@@ -15,6 +15,10 @@ public static class AiAssistantErrors
     public static readonly Error Unavailable = Error.Conflict("Ai.Assistant.Unavailable", "The assistant is not available.");
     public static readonly Error ContentBlocked = Error.Forbidden("Ai.Assistant.ContentBlocked", "The conversation requires permissions that are no longer available.");
     public static readonly Error ContentUnavailable = Error.Failure("Ai.Assistant.ContentUnavailable", "The protected assistant content is unavailable.");
+    // I4: a seal with a value this version does not know (a purpose, a kind of file, a mode, instructions, a capability or a terminal) was
+    // written by a newer one. It is neither damaged nor absent: it may pass once the version that knows it answers.
+    public static readonly Error UnknownVersion = Error.Conflict("Ai.Assistant.UnknownVersion", "The operation was sealed with a value this version does not know.",
+        new Dictionary<string, object?> { ["retryable"] = true });
     public static readonly Error FenceRejected = Error.Conflict("Ai.Assistant.FenceRejected", "The execution reservation is no longer valid.");
     public static readonly Error Canceled = Error.Conflict("Ai.Assistant.Canceled", "Cancellation was confirmed before publication.");
     public static readonly Error Expired = Error.Conflict("Ai.Assistant.Expired", "The assistant operation expired.");

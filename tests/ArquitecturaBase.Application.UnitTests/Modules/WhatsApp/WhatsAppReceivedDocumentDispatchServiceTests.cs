@@ -773,6 +773,22 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         Assert.Empty(f.Registrations);
     }
 
+    // I4: a copy that does not know a value the reading was sealed with answers that it may pass; the version that knows it reads it later.
+    [Fact]
+    public async Task A_reading_sealed_with_a_value_this_copy_does_not_know_keeps_it_reading()
+    {
+        var f = new WhatsAppReceivedDocumentFixture();
+        var work = (await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).Value!;
+        var unknown = Error.Conflict("Ai.Assistant.UnknownVersion", "Fictitious newer seal.", new Dictionary<string, object?> { ["retryable"] = true });
+
+        Assert.True((await f.Dispatch.CompleteAsync(f.Contact.Id, work.RequestId, Result.Failure<AssistantOperationResponse>(unknown), Ct)).IsSuccess);
+
+        Assert.Equal((WhatsAppDocumentState.Reading, (string?)null), (f.Message.DocumentState, f.Message.DocumentFailureCode));
+        Assert.True((await f.Dispatch.CompleteAsync(f.Contact.Id, work.RequestId, WhatsAppReceivedDocumentFixture.Completed(work.RequestId, Reading), Ct)).IsSuccess);
+        Assert.NotNull(f.Message.DocumentReadingJson);
+        Assert.Empty(f.Registrations);
+    }
+
     // The quota leaves the document registered unclassified, from its copy, and not read; the person is told once (task 9).
     [Fact]
     public async Task Over_the_day_reading_quota_it_goes_to_the_inbox_unclassified_without_being_read()

@@ -38,6 +38,10 @@ internal sealed class AssistantOperationsFixture
     public Guid ActorId => Context.ActorUserId;
     public Guid SubjectId => Context.SubjectUserId!.Value;
     public AiAssistantOperations Service { get; }
+    // I4: what reads the seal and the catalog, for a dispatch or a lookup built over the same store.
+    public AiAssistantCapabilityCatalogPolicy Catalog { get; }
+    public AiAssistantAccessGuard Guard { get; }
+    public AiAssistantResponsePolicy Responses { get; }
     // I8, review: what the response policy logs about content that cannot be read, only ids.
     public FakeLogger<AiAssistantResponsePolicy> ResponseLog { get; } = new();
     // I7, review: the saved key's probes, one per request and after the checks in memory.
@@ -57,10 +61,10 @@ internal sealed class AssistantOperationsFixture
         AudioProfiles = audioQualified ? [new(AiProvider.OpenAI, "audio-model", "fixture-audio", 2, ["audio/ogg"], 25000000)] : [];
         DocumentProfiles = documentQualified
             ? [new(AiProvider.OpenAI, "vision-model", "fixture-document", 4, ["application/pdf", "image/jpeg", "image/png"], 10 * 1024 * 1024, 10)] : [];
-        var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
-        var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
+        var catalog = Catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
+        var guard = Guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
             new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), new AiConnectionCandidatePolicy(Secrets));
-        var responses = new AiAssistantResponsePolicy(Protector, Clock, catalog, ResponseLog);
+        var responses = Responses = new AiAssistantResponsePolicy(Protector, Clock, catalog, ResponseLog);
         var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, responses);
         Service = new(Store, guard, submissions, Work, Store, responses, NullLogger<AiAssistantOperations>.Instance);
     }
@@ -182,7 +186,8 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiAssistantTurn?> GetTurnAsync(Guid turn, CancellationToken ct) => Task.FromResult(Turns.SingleOrDefault(item => item.Id == turn));
     public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid actor, Guid request, CancellationToken ct) =>
         Task.FromResult(Receipts.SingleOrDefault(item => item.OwnerUserId == actor && item.RequestId == request && item.ExpiresAtUtc > clock.GetUtcNow().UtcDateTime));
-    public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken ct) => Task.FromResult(Turns.FirstOrDefault(item => item.State == AiAssistantTurnState.Pending));
+    public Task<AiAssistantTurn?> GetPendingAsync(IReadOnlyCollection<Guid> skipped, CancellationToken ct) =>
+        Task.FromResult(Turns.FirstOrDefault(item => item.State == AiAssistantTurnState.Pending && !skipped.Contains(item.Id)));
     public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid actor, string channelId, Guid? channelConversationId, CancellationToken ct) =>
         Task.FromResult(Turns.FirstOrDefault(item => item.OwnerUserId == actor && item.ChannelId == channelId && item.ChannelConversationId == channelConversationId && ReservesChannel(item)
             && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));

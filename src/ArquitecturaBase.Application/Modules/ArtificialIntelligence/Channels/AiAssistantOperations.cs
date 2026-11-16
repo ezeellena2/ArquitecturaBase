@@ -41,8 +41,10 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
         {
             ArgumentNullException.ThrowIfNull(context);
             var row = await reader.FindTurnByRequestAsync(context.ActorUserId, requestId, cancellationToken);
-            if (row is null || row.ChannelId == "home") return AiAssistantErrors.NotFound;
-            var captured = AiAssistantChannelPolicy.Read(row.ExecutionProfileJson);
+            if (row is null || row.ChannelId == "home" || row.ChannelId != context.ChannelId) return AiAssistantErrors.NotFound;
+            // I4: a value this version does not know is not «not found»: the version that knows it answers, and the channel waits for it.
+            var captured = guard.ReadSeal(row.ExecutionProfileJson);
+            if (AiAssistantAccessGuard.IsUnknown(captured)) return captured.Error;
             if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, row.OwnerUserId, row.ChannelId, row.Culture, row.TimeZoneId) ||
                 !AiAssistantChannelPolicy.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
             var access = await guard.AuthorizeCapturedAsync(captured.Value.ChannelContext, cancellationToken);
