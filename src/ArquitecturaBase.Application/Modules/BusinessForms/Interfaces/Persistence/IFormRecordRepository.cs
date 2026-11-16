@@ -12,7 +12,8 @@ public interface IFormRecordRepository
     Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken);
     Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken);
-    Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken);
+    /// <summary>Which of the options of a catalog are not active (or do not exist): one query for all of them.</summary>
+    Task<IReadOnlySet<Guid>> ListInactiveCatalogItemIdsAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> ListCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken);
     /// <summary>The record, tracked, to correct or void it under the definitions lock.</summary>
     Task<BusinessFormRecord?> GetRecordAsync(Guid recordId, CancellationToken cancellationToken);

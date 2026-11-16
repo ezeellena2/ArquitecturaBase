@@ -172,10 +172,15 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         var selected = FormRecordReferencePolicy.Chosen(schema, answers, offers);
         foreach (var catalogId in selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).Select(value => value.Offer.CatalogId).Distinct().Order())
             await records.LockCatalogAsync(catalogId, ct);
-        // An option chosen in several items is checked once, where it first appears, which names its question and item.
-        foreach (var value in selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).DistinctBy(value => (value.Offer.CatalogId, value.ChoiceId)))
-            if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.ChoiceId, ct))
-                return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.FieldId, value.Item);
+        // An option chosen in several items is checked once, where it first appears, which names its question and item: one query
+        // per catalog, and the first option in the order of the answers that is not active is the one rejected.
+        var distinct = selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).DistinctBy(value => (value.Offer.CatalogId, value.ChoiceId)).ToArray();
+        var inactive = new HashSet<(Guid CatalogId, Guid ItemId)>();
+        foreach (var group in distinct.GroupBy(value => value.Offer.CatalogId))
+            foreach (var itemId in await records.ListInactiveCatalogItemIdsAsync(group.Key, group.Select(value => value.ChoiceId).ToArray(), ct))
+                inactive.Add((group.Key, itemId));
+        if (distinct.FirstOrDefault(value => inactive.Contains((value.Offer.CatalogId, value.ChoiceId))) is { } rejected)
+            return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, rejected.FieldId, rejected.Item);
 
         var catalogFields = await FormCatalogFieldCapturePolicy.CaptureAsync(records, FormRecordReferencePolicy.ItemIds(selected), ct);
 

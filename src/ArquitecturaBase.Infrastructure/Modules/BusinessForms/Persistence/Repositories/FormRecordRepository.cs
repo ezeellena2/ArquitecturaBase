@@ -25,8 +25,12 @@ internal sealed class FormRecordRepository(ApplicationDbContext dbContext) : IFo
             && value.State == FormPublicationState.Published, cancellationToken);
     public Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync([FormAdvisoryLockKeys.Catalog(catalogId)], cancellationToken);
-    public Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken) =>
-        dbContext.Set<BusinessFormCatalogItem>().AnyAsync(item => item.CatalogId == catalogId && item.Id == itemId && item.IsActive, cancellationToken);
+    public async Task<IReadOnlySet<Guid>> ListInactiveCatalogItemIdsAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken)
+    {
+        var active = await dbContext.Set<BusinessFormCatalogItem>()
+            .Where(item => item.CatalogId == catalogId && itemIds.Contains(item.Id) && item.IsActive).Select(item => item.Id).ToListAsync(cancellationToken);
+        return itemIds.Except(active).ToHashSet();
+    }
     public async Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> ListCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken) =>
         await (from item in dbContext.Set<BusinessFormCatalogItem>()
                join catalog in dbContext.Set<BusinessFormCatalog>() on item.CatalogId equals catalog.Id

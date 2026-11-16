@@ -101,6 +101,22 @@ public sealed class FormRowsCaptureTests
 
         Assert.Equal("Completed", result.State);
         Assert.Equal([First, Second], f.Repository.ActivityReads.Select(read => read.ItemId));
+        Assert.Equal(1, f.Repository.ActivityQueries);
+    }
+
+    [Fact]
+    public async Task The_first_inactive_option_in_the_order_of_the_items_is_the_one_rejected()
+    {
+        var f = Block();
+        f.Repository.InactiveItems.Add(Third);
+        f.Repository.InactiveItems.Add(Second);
+
+        var result = await f.Sink.CaptureAsync(Request(f, Item(First, "1"), Item(Third, "2"), Item(Second, "3")), Ct);
+
+        Assert.Equal("Rejected", result.State);
+        Assert.Equal(FormRecordErrors.CatalogItemInactive.Code, result.ErrorCode);
+        Assert.Equal(1, result.RejectedRow);
+        Assert.Equal(1, f.Repository.ActivityQueries);
     }
 
     [Fact]

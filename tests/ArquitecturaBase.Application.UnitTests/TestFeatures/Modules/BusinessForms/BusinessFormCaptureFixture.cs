@@ -145,10 +145,12 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
         CatalogLocks.Add(catalogId);
         return Task.CompletedTask;
     }
-    public Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken)
+    public int ActivityQueries { get; private set; }
+    public Task<IReadOnlySet<Guid>> ListInactiveCatalogItemIdsAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken)
     {
-        ActivityReads.Add((catalogId, itemId));
-        return Task.FromResult(ItemActive && !InactiveItems.Contains(itemId));
+        ActivityQueries++;
+        ActivityReads.AddRange(itemIds.Select(itemId => (catalogId, itemId)));
+        return Task.FromResult<IReadOnlySet<Guid>>(itemIds.Where(itemId => !ItemActive || InactiveItems.Contains(itemId)).ToHashSet());
     }
     public void Add(BusinessFormRecordReference reference) => References.Add(reference);
     public List<BusinessFormRecord> Records { get; } = [];
