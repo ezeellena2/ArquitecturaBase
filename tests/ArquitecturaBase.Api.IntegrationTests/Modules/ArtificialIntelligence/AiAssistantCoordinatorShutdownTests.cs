@@ -110,6 +110,21 @@ public sealed class AiAssistantCoordinatorShutdownTests
         Assert.DoesNotContain(log.Collector.GetSnapshot(), entry => entry.Message.Contains("given back", StringComparison.Ordinal));
     }
 
+    // I12, review: the stop does not cut the claim (it was checked before): a commit that lands as it arrives is given back, never
+    // left running without an owner until it expires.
+    [Fact]
+    public async Task A_claim_that_lands_as_the_stop_arrives_gives_the_turn_back()
+    {
+        using var stop = new CancellationTokenSource();
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, null) { WhileClaiming = stop.Cancel };
+        await using var services = Services(fixture);
+
+        Assert.True(await Coordinator(services, clock).ProcessNextAsync(stop.Token, Ct));
+
+        Assert.Equal((1, 0, 0), (fixture.ReleaseCalls, fixture.ProviderCalls, fixture.FailCalls));
+    }
+
     [Fact]
     public async Task A_copy_that_stops_takes_no_new_turn()
     {

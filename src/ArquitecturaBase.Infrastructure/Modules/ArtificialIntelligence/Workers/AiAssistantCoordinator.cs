@@ -44,7 +44,9 @@ internal sealed partial class AiAssistantCoordinator(
         AiAssistantClaimResponse? claim;
         await using (var scope = scopes.CreateAsyncScope())
         {
-            var claimed = await scope.ServiceProvider.GetRequiredService<IAiAssistantDispatchService>().ClaimAsync(stoppingToken);
+            // I12, review: the stop, already checked, does not cut the claim: a commit that lands as it arrives would leave the turn running
+            // without an owner until it expires. A turn taken then goes back below; the drain's end still bounds the claim.
+            var claimed = await scope.ServiceProvider.GetRequiredService<IAiAssistantDispatchService>().ClaimAsync(drainToken);
             if (claimed.IsFailure) { RecordClaimFailure(); LogUnitRejected(logger, "claim", claimed.Error.Code); return false; }
             claim = claimed.Value;
         }

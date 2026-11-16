@@ -42,6 +42,8 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Action? WhilePreparing { get; init; }
     /// <summary>I12: the provider call, honoring its token like the transport: a cut call is uncertain.</summary>
     public Func<CancellationToken, Task>? DuringProviderCall { get; init; }
+    /// <summary>I12, review: runs once the claim landed, such as the copy's stop; a claim cut by its token is only seen as canceled.</summary>
+    public Action? WhileClaiming { get; init; }
     /// <summary>I12, review: the release closes the turn (its person canceled it) instead of giving it back.</summary>
     public bool ReleaseClosesTheTurn { get; init; }
     public int ClaimCalls { get; private set; }
@@ -72,6 +74,8 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
         ClaimCalls++;
         if (claimed) return Task.FromResult(Result.Success<AiAssistantClaimResponse?>(null));
         claimed = true;
+        WhileClaiming?.Invoke();
+        cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(Result.Success<AiAssistantClaimResponse?>(claim));
     }
     public Task<Result<bool>> BeginProviderStepAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken)
