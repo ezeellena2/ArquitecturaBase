@@ -66,6 +66,14 @@ En orden de peso; cada tarea lo repite.
    que reciben 403 en `PUT /api/roles` desde N1 (`Roles.Role.PermissionsNotHeld`). Varios agentes commitearon a la vez sobre
    copias distintas, y uno borró así el texto de F5: antes de cerrar, revisar que cada archivo compartido conserve lo de todos.
 
+8. **Menores pendientes de la revisión adversarial 2** (no se programan; una línea cada uno):
+   - 2b-1 (F15): con nodos viejos escribiendo durante el despliegue, un campo sellado sólo por una captura vieja no entra a `BusinessFormRecordCatalogFields` hasta que una captura nueva lo vuelva a sellar; falta un relleno idempotente en el despliegue siguiente o dejarlo documentado.
+   - 2b-2 (F15, migración 20261116111033): el INSERT usa `entry.value -> 'name'` y `->> 'key'` contra columnas NOT NULL; un `FieldValuesJson` viejo sin `name` o `key` aborta la migración (COALESCE o filtrar `entry.value ? 'key'`, o verificar con datos reales).
+   - 2b-3 (F31): un «no encontrado» del motor deja la extracción en `pending` hasta siete días y el revisor ve «leyendo»; acotar a un plazo menor si molesta.
+   - 2b-5 (migración 20261116114811): marca como avisadas todas las corridas Failed/Uncertain existentes; las que un nodo viejo deje en Failed después quedan sin marca y el nodo nuevo las anuncia (esperable).
+   - 2c-5 (F11): el limitador global sólo cubre endpoints con `ExportPolicy`; dos pedidos lentos de un usuario con permiso bloquean las exportaciones de todos (aceptado por diseño).
+   - 2c-6 (F47): el tope de 500 carpetas sólo se aplica al crear (`FormFolderTree.cs:22`); las carpetas de sistema del Agregar no lo cuentan.
+
 ### Etapa 1: los números (antes de la prueba integral)
 
 1. **F1. Los números con la región del idioma** (decisión 5). En la app, `entryForm.ts` lee el número con la región del idioma

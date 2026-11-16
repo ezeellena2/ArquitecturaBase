@@ -515,6 +515,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** medir el pico con una planilla de casi 100 MiB de estilos y de textos compartidos; bajar el tope descomprimido o
   contar también los estilos y los textos compartidos; y un tope global de importaciones a la vez por copia. Chico.
 - **Arreglado el 2026-11-15** en 2760dc30.
+- **Corregido tras la revisión adversarial del 2026-11-16** en `79c9d792`: los topes de estilos y textos compartidos se aplican sin distinguir mayúsculas y a las partes que `xl/_rels/workbook.xml.rels` nombra como tales.
 
 #### F13. Un revisor puede pasar un comprobante repetido sin enterarse
 
@@ -654,6 +655,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** resolver los catálogos por clave dentro del guardado, después del lock, y usar el que ya apareció; o derivar del
   pedido los ids del catálogo y sus opciones, para que el reintento tenga la misma huella. Chico a mediano.
 - **Arreglado el 2026-11-15** en fe6ed930.
+- **Corregido tras la revisión adversarial del 2026-11-16** en `96bee949`: la huella de la copia suma la carpeta elegida (sólo si hay una, para no invalidar lo ya guardado), y un repetido con otra carpeta da 409.
 
 #### F22. Por WhatsApp, «Crear borrador» que falla dice siempre «No pude armarlo»
 
@@ -693,6 +695,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   propuesta sí controla el nombre (`FormCatalogAssistantProposalService.cs:72,80`).
 - **Arreglo:** un id de pedido en la creación, que devuelva el mismo catálogo ante la repetición, como los borradores. Chico.
 - **Arreglado el 2026-11-15** en fb0545a0.
+- **Corregido tras la revisión adversarial del 2026-11-16** en `f8c6f6f3`: el pedido repetido se compara con el catálogo guardado (revisión sin cambios, textos, opciones por código y campos por clave) y, si no coincide, da 409 `Forms.Draft.RequestConflict`; las identidades se emparejan por código y clave; el de filtros devuelve los filtros guardados y da 409 si el id hizo otro tipo de catálogo.
 
 #### F25. La guía para quitar Formularios cuenta 26 tablas y son 29, y no dice qué pasa con ARCA
 
@@ -821,6 +824,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
 - **Arreglo:** guardar con el pedido las versiones con que se selló y rearmar el contexto con ésas, y tratar el 404 como incierto
   hasta un plazo (por ejemplo, el vencimiento de siete días del pedido). Chico.
 - **Arreglado el 2026-11-15** en `0c5ddba2`.
+- **Corregido tras la revisión adversarial del 2026-11-16** en `72f567e9`: un test fija la forma serializada del contexto sellado (`FormReceivedDocumentSealedContextTests`).
 
 #### F32. La reserva de una acción dura dos minutos y no se renueva: un efecto lento se retoma a mitad de camino
 
