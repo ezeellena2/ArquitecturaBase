@@ -193,6 +193,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   catálogo (`RoleReader.cs:109-111`), y el validador rechaza los desconocidos (`ValidationRules.cs:70-75`):
   responde 403 aunque sólo cambie la descripción. El front no edita Admin, así que el efecto es mínimo.
 - **Arreglo:** comparar sólo los códigos del catálogo. Trivial.
+- **Arreglado el 2026-11-16** en 2de0cd3d: Admin compara sólo los permisos del catálogo.
 
 #### B4. El enlace de ingreso sigue vivo sin nadie que lo emita
 
@@ -202,6 +203,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** retirar el emisor y las dos rutas, con su regla. Trivial. **Lo decidís vos:** cambia
   `identidad.md:43`.
 - **Decidido el 2026-11-14:** se retira ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16** en 44c731c6 (front 32bc6a00): se retiraron el emisor, las dos rutas de canje, la página
+  del front e `ISecureTokenGenerator`. Quedan la tabla, el lock `login-link:` y la invalidación de los pendientes, que
+  ya no tiene efecto.
 
 #### B5. Sin Formularios, el asistente de WhatsApp no anda
 
@@ -248,6 +252,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   Chico, con tests de integración con cuentas que tienen sólo cada permiso. **Lo decidís vos.**
 - **Decidido el 2026-11-14:** la regla entera: nadie da lo que no tiene, nadie actúa sobre una cuenta con más
   permisos que los suyos y sólo Admin edita «User» ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15** en 6f6e8c2d, con N25: la regla entera, con los permisos de la base leídos dentro del
+  límite; también cuenta desvincular el número de otra cuenta, y los permisos de «User» se toman como propios de
+  cualquiera que pide ([administración](../features/administracion.md)).
 
 #### N2. Usuarios y roles se guardan sin control de revisión: el último pisa al anterior
 
@@ -311,6 +318,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   Chico. **Lo decidís vos:** si se acepta que `LockedOut` revele la cuenta, y que el bloqueo por códigos deje de
   frenar a Google, que cambia la regla de `identidad.md:29`.
 - **Decidido el 2026-11-14:** las tres medidas juntas ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15** en 64b6ae9e, con N20: las tres medidas.
 
 #### N4. Restaurar una cuenta borrada le devuelve el acceso a su dueño anterior
 
@@ -331,6 +339,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   con el número solo. Chico. **Lo decidís vos:** cambia una regla documentada.
 - **Decidido el 2026-11-14:** al restaurar se quita lo que el alta no trajo, y la pantalla dice que se restauró
   ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15** en 14d0d4b6 (front 493a72f4). Además, Google se vincula por correo sólo a una cuenta con
+  el correo ya verificado (decidido el 2026-11-15): d7d7fa9e (front 10360f3d).
 
 #### N5. Con el correo caído, códigos e invitaciones se pierden en segundos y nadie se entera
 
@@ -477,6 +487,10 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   exige otro medio y conserva las sesiones a propósito.
 - **Arreglo:** pedir un código al medio que ya existe antes de agregar o reemplazar un correo, o de desvincular el
   número, y rechazar en el backend el reemplazo del correo, como ya hace el front. Chico.
+- **Arreglado el 2026-11-16** en 531d55c0 (front 5b72690c), con la decisión del 2026-11-15 «cada medio confirma»:
+  agregar un correo a una cuenta con número verificado pide también un código al número; vincular un número a una
+  cuenta con correo verificado, uno al correo; desvincular el número pide un código al correo, y el backend rechaza
+  reemplazar un correo verificado desde el perfil.
 
 #### N12. Cerrar sesión deja abiertas las otras pestañas
 
@@ -490,6 +504,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   `Logout_revokes_the_tokens_and_closes_the_session` prueba una sola. Cerrar sesiones a distancia es una propuesta
   sin decidir (`verificacion-y-produccion.md:107-113`).
 - **Arreglo:** avisar el cierre a las demás pestañas con `BroadcastChannel`. Chico.
+- **Arreglado el 2026-11-15** en el front (3199dedb), y la regla en 860c6c04.
 
 #### N13. No queda historia de quién cambió roles, permisos o cuentas
 
@@ -516,6 +531,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   `EmailRegistrationTests.cs:33-39,47` prueba que arranca así en Production.
 - **Arreglo:** que no arranque con ese modo fuera de Development y Testing, como ya pasa con el origen público
   (`EmailRegistration.cs:34-38`). Trivial.
+- **Arreglado el 2026-11-16** en 42cb2297.
 
 #### N15. Los archivos privados no tienen respaldo ni borrado temporal
 
@@ -562,6 +578,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** validar `ForwardedHeaders` al arrancar fuera de Development; los chequeos con el encabezado `Host`,
   o mantener `*` y escribir que el ingress ya filtra por host; interpretar `KnownProxies` con `ValidateOnStart`;
   y fijar unos 25 segundos de apagado contra 40 a 60 de la plataforma. Trivial a chico.
+- **Arreglado el 2026-11-16** en bc618e93: `AllowedHosts` sigue en `*` y la guía dice que el ingress filtra por host.
 
 #### N18. La resiliencia por defecto reintentaría un POST en un cliente nuevo
 
@@ -586,6 +603,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Evidencia:** `CachingRegistration.cs:41-52` y `SystemSettingsCache.cs:11-12`; la guía lo advierte
   (`despliegue.md:121`).
 - **Arreglo:** exigir `Caching:KeyPrefix` fuera de Development y Testing, con `ValidateOnStart`. Trivial.
+- **Arreglado el 2026-11-16** en 390d1a4a.
 
 #### N20. El límite por IP no agrupa IPv6
 
@@ -594,6 +612,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   (`WhatsAppCodeAddressLimiter.cs:37-45`). Agrupar por /64 no alcanza contra un /48, y los límites siguen siendo
   de cada copia (H26).
 - **Arreglo:** la misma normalización que WhatsApp. Trivial.
+- **Arreglado el 2026-11-15** en 64b6ae9e, con N3, con la pieza `AddressPartition`.
 
 #### N21. Números sin la región de quien lee
 
@@ -657,6 +676,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo, si se quiere:** que la guarda rechace quitarle Admin a esa cuenta, o cambiarle el correo, con un
   mensaje que diga que hay que cambiar `Seed:AdminEmail`. Trivial.
 - **Decidido el 2026-11-14:** se cierra con la guarda ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15** en 6f6e8c2d, con N1: darle a otra cuenta el correo de `Seed:AdminEmail` también cuenta
+  como darle Admin.
 
 #### N26. Un modelo con respuestas de personas no redacta su `ToString`
 

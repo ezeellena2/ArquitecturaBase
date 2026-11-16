@@ -56,16 +56,22 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 1. **N1. Nadie da lo que no tiene** (decisión 2). Una regla en cuentas y en roles, evaluada dentro del límite con los
    permisos efectivos de quien pide:
    - nadie da ni quita un permiso, o un rol con permisos, que no tiene, ni en el alta ni en la edición;
-   - nadie actúa sobre una cuenta con permisos que él no tiene: cambiarle el correo o el número, desactivarla o borrarla;
+   - nadie actúa sobre una cuenta con permisos que él no tiene: cambiarle el correo o el número (también desvincularlo,
+     `DELETE /api/users/{id}/whatsapp`), desactivarla o borrarla;
    - sólo Admin edita los permisos de «User».
 
-   `RoleService` pasa a saber quién pide, y cada rechazo es un error propio, traducido.
+   `RoleService` pasa a saber quién pide, y cada rechazo es un error propio, traducido. Los permisos efectivos se leen de
+   la base adentro del límite con `IRoleReader` (suma `ListRolesForUserAsync`: los roles de una cuenta con sus permisos, en una
+   sola consulta, para compararlos por id), no del caché. Los tests de
+   integración que llaman a los servicios sin sesión (`LastAdminLockTests` y el del servicio en
+   `RoleRepositoryTransactionTests`) pasan a llamarlos como un administrador.
    [Administración](../features/administracion.md) suma la regla, y dejan de contradecirla el texto de `Errors.resx:62` (O8)
    y las descripciones de los dos permisos (`Permissions.resx:24,26`). Tests de integración con cuentas que tienen sólo cada permiso: no se tilda Admin, no le cambia
    el correo a un administrador y no le da todo a «User». Chico.
 2. **N25. El administrador inicial no pierde Admin desde la pantalla** (decisión 9). La guarda rechaza quitarle Admin o
    cambiarle el correo a la cuenta de `Seed:AdminEmail`, con un mensaje que dice que hay que cambiar esa clave. Va después de
-   N1 porque toca la misma guarda (`UserGuard`). La regla va en [administración](../features/administracion.md), y la del
+   N1 porque toca la misma guarda (`UserGuard`). Por la misma razón, darle a otra cuenta ese correo (en el alta o la
+   edición) cuenta para N1 como darle Admin: el arranque se lo daría. La regla va en [administración](../features/administracion.md), y la del
    seed en [despliegue](../guides/despliegue.md) la nombra. Trivial.
 3. **N4. Restaurar sin el acceso anterior** (decisión 4). Al restaurar se quita lo que el alta no trajo (correo, número y
    logins externos), y la respuesta dice que se restauró, para que la pantalla lo muestre en vez de «creado». Cambia
@@ -82,11 +88,25 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 6. **N20. El límite por IP agrupa IPv6 por /64**, con la normalización que ya usa WhatsApp (`WhatsAppCodeAddressLimiter`), en
    una pieza del núcleo que reusa N7. Trivial.
 7. **N12. Cerrar sesión cierra las demás pestañas.** El front avisa el cierre a las otras pestañas con `BroadcastChannel`, y
-   cada una deja sus tokens y vuelve al ingreso. Cambia el cierre de sesión en [identidad](../features/identidad.md). Chico.
+   cada una revoca su propia autorización con su `id_token_hint` (el cierre del servidor revoca sólo la de quien cierra),
+   deja sus tokens y vuelve al ingreso. Cambia el cierre de sesión en [identidad](../features/identidad.md). Chico.
 8. **B4. Se retira el enlace de ingreso** (decisión 10): el emisor (`LoginLinkIssuer`), las dos rutas de canje con lo que el
    front tenga para ellas, sus tests y su regla (`identidad.md:43`). La tabla `LoginLinks` queda, y la vacía la retención de
    la tarea 21. Se va también `ISecureTokenGenerator`, que sólo usaba el enlace; quedan el lock `login-link:` por cuenta y la
    invalidación de los pendientes (`PhoneNumberLinker`, `AccountAccessRevoker`). Trivial.
+
+**Hecha el 2026-11-15 y el 2026-11-16:**
+- N1 y N25 en 6f6e8c2d. Los permisos de «User», que recibe toda cuenta, cuentan como propios de cualquiera que pide.
+- N4 en 14d0d4b6 (front 493a72f4). Además, Google se vincula por correo sólo a una cuenta con el correo ya verificado
+  (decidido el 2026-11-15): d7d7fa9e (front 10360f3d).
+- N11 en 531d55c0 (front 5b72690c), con la decisión del 2026-11-15, «cada medio confirma»: agregar un correo con el número
+  verificado pide también un código al número; vincular un número con el correo verificado, uno al correo; desvincular el
+  número, uno al correo; y un correo o un número ya verificados no se reemplazan desde el perfil.
+- N3 y N20 en 64b6ae9e.
+- N12 en el front (3199dedb), y su regla en 860c6c04.
+- B4 en 44c731c6 (front 32bc6a00). La invalidación de los enlaces pendientes queda sin efecto, porque ya no se emite
+  ninguno; se puede ir con la tabla en la tarea 21.
+- Las tareas 1 a 7 pasaron por la revisión adversarial; B4, que sólo retira código, no.
 
 ### Etapa 2: ediciones simultáneas y su historia
 
