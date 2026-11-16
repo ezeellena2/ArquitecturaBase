@@ -25,5 +25,17 @@ public interface IUserInvitationRepository
     /// </summary>
     Task<UserInvitation?> GetLatestSentAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// N7: cuándo se mandaron las últimas <paramref name="count"/> invitaciones de ese canal después de
+    /// <paramref name="sinceUtc"/>, del más nuevo al más viejo, a cualquier cuenta y les haya ido como les haya ido. Con el
+    /// correo, el tope diario de todo lo que sale por correo, que comparten con los códigos.
+    /// </summary>
+    Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
+        UserInvitationChannel channel, DateTime sinceUtc, int count, CancellationToken cancellationToken);
+
+    /// <summary>Lo mismo, sólo de las que mandó <paramref name="sentBy"/>: el tope diario de cada administrador.</summary>
+    Task<IReadOnlyList<DateTime>> ListLatestSentTimesBySenderAsync(
+        UserInvitationChannel channel, Guid sentBy, DateTime sinceUtc, int count, CancellationToken cancellationToken);
+
     void Add(UserInvitation invitation);
 }

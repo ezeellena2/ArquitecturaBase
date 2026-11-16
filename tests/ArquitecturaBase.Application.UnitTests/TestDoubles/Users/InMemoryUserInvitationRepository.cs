@@ -40,5 +40,23 @@ internal sealed class InMemoryUserInvitationRepository : IUserInvitationReposito
             .MaxBy(invitation => invitation.SentAtUtc));
     }
 
+    public Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
+        UserInvitationChannel channel, DateTime sinceUtc, int count, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DateTime>>(Invitations
+            .Where(invitation => invitation.Channel == channel && invitation.SentAtUtc > sinceUtc)
+            .Select(invitation => invitation.SentAtUtc)
+            .OrderDescending()
+            .Take(count)
+            .ToList());
+
+    public Task<IReadOnlyList<DateTime>> ListLatestSentTimesBySenderAsync(
+        UserInvitationChannel channel, Guid sentBy, DateTime sinceUtc, int count, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DateTime>>(Invitations
+            .Where(invitation => invitation.Channel == channel && invitation.SentBy == sentBy && invitation.SentAtUtc > sinceUtc)
+            .Select(invitation => invitation.SentAtUtc)
+            .OrderDescending()
+            .Take(count)
+            .ToList());
+
     public void Add(UserInvitation invitation) => Invitations.Add(invitation);
 }

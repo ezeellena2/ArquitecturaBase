@@ -53,8 +53,10 @@ public interface ILoginCodeRepository
     /// <summary>
     /// Cuándo se mandaron los últimos <paramref name="count"/> códigos de ese canal después de
     /// <paramref name="sinceUtc"/>, del más nuevo al más viejo: a cualquier destino y con cualquier propósito. Solo
-    /// cuentan los que salieron (<see cref="LoginCode.SentAtUtc"/>). Es lo que se le paga al canal, y lo usa el tope
-    /// diario de WhatsApp (sección 13 del spec del ingreso con WhatsApp).
+    /// cuentan los que salieron (<see cref="LoginCode.SentAtUtc"/>), que es lo que gasta el canal: lo usan el tope diario de
+    /// WhatsApp (sección 13 del spec del ingreso con WhatsApp), en cada pedido de un código por teléfono, y el de todos del
+    /// correo (N7), en cada código o invitación por correo. Lee el índice parcial <c>(Channel, SentAtUtc)</c> de los que
+    /// salieron, que suma N31 (tarea 21 del plan del núcleo).
     /// </summary>
     Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
         LoginCodeChannel channel,
@@ -64,11 +66,25 @@ public interface ILoginCodeRepository
 
     /// <summary>
     /// Lo mismo, sólo de los códigos que pidió <paramref name="requestedByUserId"/> (<see cref="LoginCode.RequestedByUserId"/>):
-    /// el tope por cuenta de los códigos para vincular un número.
+    /// los topes por cuenta de los códigos del perfil, el de WhatsApp para vincular un número y el del correo (N7). Lee el
+    /// índice por <c>RequestedByUserId</c> que suma N31 (tarea 21 del plan del núcleo).
     /// </summary>
     Task<IReadOnlyList<DateTime>> ListLatestSentTimesByRequesterAsync(
         LoginCodeChannel channel,
         Guid requestedByUserId,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// N7: cuándo se pidieron los últimos <paramref name="count"/> códigos de ese canal desde <paramref name="address"/>
+    /// (<see cref="LoginCode.RequestedFromAddress"/>, la dirección agrupada) después de <paramref name="sinceUtc"/>, del
+    /// más nuevo al más viejo: a cualquier destino, con cualquier propósito y hayan salido o no. El tope diario por
+    /// dirección de los códigos por correo.
+    /// </summary>
+    Task<IReadOnlyList<DateTime>> ListLatestRequestTimesFromAddressAsync(
+        LoginCodeChannel channel,
+        string address,
         DateTime sinceUtc,
         int count,
         CancellationToken cancellationToken);

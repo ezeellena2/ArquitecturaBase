@@ -10,6 +10,7 @@ public static class LoginCodeErrors
     public const string TooManyAttemptsCode = "Auth.LoginCode.TooManyAttempts";
     public const string ResendTooSoonCode = "Auth.LoginCode.ResendTooSoon";
     public const string TooManyRequestsCode = "Auth.LoginCode.TooManyRequests";
+    public const string DailyLimitReachedCode = "Auth.LoginCode.DailyLimitReached";
 
     public const string AttemptsLeftKey = "attemptsLeft";
     public const string RetryAfterKey = "retryAfter";
@@ -37,5 +38,15 @@ public static class LoginCodeErrors
         Error.TooManyRequests(
             TooManyRequestsCode,
             "Too many codes were requested.",
+            new Dictionary<string, object?> { [RetryAfterKey] = retryAfterSeconds });
+
+    /// <summary>
+    /// N7: un tope diario de los códigos por correo (el de la dirección, el de la cuenta en el perfil o el de todos, por
+    /// debajo del cupo de la cuenta de correo). Es el mismo para los tres y no depende del destino: no dice si tiene cuenta.
+    /// </summary>
+    public static Error DailyLimitReached(int retryAfterSeconds) =>
+        Error.TooManyRequests(
+            DailyLimitReachedCode,
+            "The daily limit of codes by email was reached.",
             new Dictionary<string, object?> { [RetryAfterKey] = retryAfterSeconds });
 }

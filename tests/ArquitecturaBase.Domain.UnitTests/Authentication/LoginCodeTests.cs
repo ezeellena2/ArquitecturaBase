@@ -47,6 +47,18 @@ public sealed class LoginCodeTests
         Assert.Null(verification.SentAtUtc);
     }
 
+    // N7: el tope diario por dirección cuenta los códigos de la misma dirección agrupada; sin dirección conocida, null.
+    [Fact]
+    public void Issued_code_keeps_the_grouped_address_that_requested_it()
+    {
+        var code = LoginCode.Issue(Ana, LoginCodePurpose.SignIn, null, Hash, Now, Lifetime, 5, requestedFromAddress: "2001:db8:1:2::/64");
+
+        Assert.Equal("2001:db8:1:2::/64", code.RequestedFromAddress);
+        Assert.Null(Issue().RequestedFromAddress);
+        Assert.Throws<ArgumentException>(() =>
+            LoginCode.Issue(Ana, LoginCodePurpose.SignIn, null, Hash, Now, Lifetime, 5, new string('1', LoginCode.MaxRequestedFromAddressLength + 1)));
+    }
+
     [Fact]
     public void Issue_rejects_invalid_arguments()
     {

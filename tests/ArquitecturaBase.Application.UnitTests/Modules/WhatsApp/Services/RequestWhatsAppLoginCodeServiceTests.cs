@@ -423,7 +423,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
             Codes.InTransaction = () => UnitOfWork.InTransaction;
             Service = new WhatsAppLoginCodeService(
                 new WhatsAppCodeIssuer(
-                    new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), new FakeLoginCodeHasher(), codeOptions, Clock),
+                    new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), new FakeLoginCodeHasher(), codeOptions, new FakeRequestInfo(), Clock),
                     new WhatsAppCodeQuotaGuard(Codes, whatsAppOptions, new FakeRequestInfo(), Addresses, Clock, NullLogger<WhatsAppCodeQuotaGuard>.Instance),
                     Accounts,
                     Parser,

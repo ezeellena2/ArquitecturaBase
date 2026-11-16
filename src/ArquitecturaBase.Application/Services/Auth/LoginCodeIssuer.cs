@@ -1,4 +1,6 @@
+using ArquitecturaBase.Application.Common.RateLimiting;
 using ArquitecturaBase.Application.Configuration.Auth;
+using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Integrations.Security;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authentication;
@@ -11,15 +13,17 @@ namespace ArquitecturaBase.Application.Services.Auth;
 /// El único que emite un código, igual para un correo que para un número, para entrar o para vincular el destino desde el
 /// perfil: pone en fila los pedidos del destino, aplica los límites por destino (sección 5.3 del spec y 13 del spec del
 /// ingreso con WhatsApp), invalida los códigos del mismo propósito que seguían activos y agrega el nuevo. Mandarlo, y
-/// marcarlo como enviado, es de cada caso de uso: el canal y a quién se le manda lo deciden ellos. El tope diario de un
-/// canal que se paga (WhatsApp) es de su módulo, que lo mira antes de llamar acá. El límite por IP lo aplica el rate
-/// limiter de la Api.
+/// marcarlo como enviado, es de cada caso de uso: el canal y a quién se le manda lo deciden ellos. Cada código por correo
+/// guarda la dirección agrupada de quien lo pidió (N7); uno por teléfono no, porque nadie la lee y es un dato personal. Los topes diarios de un canal los mira quien lo pide, antes de llamar acá:
+/// los del correo, <see cref="EmailQuotaGuard"/>; el de un canal que se paga (WhatsApp), su módulo. El límite por IP lo
+/// aplica el rate limiter de la Api.
 /// </summary>
 internal sealed class LoginCodeIssuer(
     ILoginCodeRepository loginCodes,
     ILoginCodeGenerator codeGenerator,
     ILoginCodeHasher codeHasher,
     IOptions<LoginCodeOptions> options,
+    IRequestInfo request,
     TimeProvider timeProvider)
 {
     /// <summary>Un código para entrar: todavía no es de ninguna cuenta.</summary>
@@ -84,7 +88,8 @@ internal sealed class LoginCodeIssuer(
             codeHasher.Hash(destination, purpose, code),
             nowUtc,
             TimeSpan.FromMinutes(settings.LifetimeMinutes),
-            settings.MaxAttempts);
+            settings.MaxAttempts,
+            destination.Channel is LoginCodeChannel.Email ? AddressPartition.OfKnown(request.IpAddress) : null);
 
         loginCodes.Add(loginCode);
 

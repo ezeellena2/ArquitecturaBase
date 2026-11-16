@@ -506,7 +506,10 @@ public sealed class ProfileEmailServiceTests
             var currentUser = new FakeCurrentUser { UserId = userId };
             var hasher = new FakeLoginCodeHasher();
             var issuer = new DestinationCodeIssuer(
-                new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options, Clock), Renderer, Queue);
+                new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), hasher, _options, new FakeRequestInfo(), Clock),
+                EmailQuotaGuards.For(Codes, Clock),
+                Renderer,
+                Queue);
 
             var emailLinker = new ProfileEmailLinker(
                 Accounts,

@@ -63,8 +63,9 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
             .Select(code => code.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
-    // Sin índice propio: recorre los códigos del canal de las últimas horas, y el tope se consulta una vez por pedido
-    // de código por teléfono. Si la tabla crece mucho, un índice parcial sobre SentAtUtc para el canal Phone.
+    // La consultan el tope diario de WhatsApp, en cada pedido de un código por teléfono, y el de todos del correo (N7), en
+    // cada código o invitación por correo. Va por el índice parcial (Channel, SentAtUtc) WHERE SentAtUtc IS NOT NULL que
+    // suma N31 con la purga de N16 (tarea 21 del plan del núcleo); hasta entonces recorre la tabla.
     public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
         LoginCodeChannel channel,
         DateTime sinceUtc,
@@ -77,6 +78,8 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
             .Take(count)
             .ToListAsync(cancellationToken);
 
+    // Los topes por cuenta de los códigos del perfil, el de WhatsApp y el del correo (N7). Va por el índice de
+    // RequestedByUserId que suma N31 (tarea 21 del plan del núcleo); hasta entonces recorre la tabla.
     public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesByRequesterAsync(
         LoginCodeChannel channel,
         Guid requestedByUserId,
@@ -87,6 +90,20 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
             .Where(code => code.Channel == channel && code.RequestedByUserId == requestedByUserId && code.SentAtUtc > sinceUtc)
             .OrderByDescending(code => code.SentAtUtc)
             .Select(code => code.SentAtUtc!.Value)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
+    // N7: por el índice de la dirección y la fecha. Cuenta también los que no salieron: el tope no distingue destinos.
+    public async Task<IReadOnlyList<DateTime>> ListLatestRequestTimesFromAddressAsync(
+        LoginCodeChannel channel,
+        string address,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken) =>
+        await dbContext.LoginCodes
+            .Where(code => code.RequestedFromAddress == address && code.CreatedAtUtc > sinceUtc && code.Channel == channel)
+            .OrderByDescending(code => code.CreatedAtUtc)
+            .Select(code => code.CreatedAtUtc)
             .Take(count)
             .ToListAsync(cancellationToken);
 

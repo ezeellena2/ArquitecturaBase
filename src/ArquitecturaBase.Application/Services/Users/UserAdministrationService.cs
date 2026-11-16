@@ -157,8 +157,12 @@ internal sealed class UserAdministrationService(
         if (request.Invitation?.Channel is { } requestedChannel)
         {
             // Toma el lock de invitaciones de la cuenta antes de agregar y encolar: la cola de WhatsApp lo pide para
-            // encontrar la invitación después del commit.
-            await invitations.SendAsync(account, requestedChannel, cancellationToken);
+            // encontrar la invitación después del commit. En un tope diario del correo (N7) se deshace también el alta.
+            var sent = await invitations.SendAsync(account, requestedChannel, cancellationToken);
+            if (sent.IsFailure)
+            {
+                return sent.Error;
+            }
         }
 
         return new CreateUserResponse(account.Id, created.Value.Restored);
@@ -282,7 +286,6 @@ internal sealed class UserAdministrationService(
         }
 
         // Toma otra vez el lock de invitaciones de la cuenta (es reentrante) y encola antes del commit.
-        await invitations.SendAsync(user, channel, cancellationToken);
-        return Result.Success();
+        return await invitations.SendAsync(user, channel, cancellationToken);
     }
 }

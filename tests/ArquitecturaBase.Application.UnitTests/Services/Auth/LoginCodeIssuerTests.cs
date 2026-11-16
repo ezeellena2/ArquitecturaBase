@@ -37,11 +37,54 @@ public sealed class LoginCodeIssuerTests
                 new FakeLoginCodeGenerator(),
                 new FakeLoginCodeHasher(),
                 Options.Create(new LoginCodeOptions()),
+                new FakeRequestInfo(),
                 new FakeTimeProvider(Now))
             .IssueSignInCodeAsync(LoginCodeDestination.ForPhone(PhoneNumber.Create("+5493515550199").Value), Ct);
 
         Assert.True(issued.IsSuccess);
         Assert.Equal(["+5493515550199"], codes.LockedDestinations);
         Assert.Equal(4, codes.Codes.Count);
+    }
+
+    // N7: every email code keeps the grouped address that requested it, which the daily limit per address of the email
+    // codes counts in the database. Without a known address it keeps none.
+    [Theory]
+    [InlineData("2001:db8:1:2:aaaa::10", "2001:db8:1:2::/64")]
+    [InlineData("203.0.113.10", "203.0.113.10")]
+    [InlineData(null, null)]
+    public async Task An_issued_code_keeps_the_grouped_address_of_the_request(string? ipAddress, string? expected)
+    {
+        var codes = new InMemoryLoginCodeRepository();
+
+        var issued = await new LoginCodeIssuer(
+                codes,
+                new FakeLoginCodeGenerator(),
+                new FakeLoginCodeHasher(),
+                Options.Create(new LoginCodeOptions()),
+                new FakeRequestInfo { IpAddress = ipAddress },
+                new FakeTimeProvider(Now))
+            .IssueSignInCodeAsync(LoginCodeDestination.ForEmail(Email.Create("ana@example.com").Value), Ct);
+
+        Assert.Equal(expected, Assert.Single(codes.Codes).RequestedFromAddress);
+        Assert.Same(issued.Value.LoginCode, codes.Codes[0]);
+    }
+
+    // Nobody reads the address of a code by phone (WhatsApp keeps its own limit per address in memory), and it is personal
+    // data: it is not kept.
+    [Fact]
+    public async Task A_code_by_phone_keeps_no_address()
+    {
+        var codes = new InMemoryLoginCodeRepository();
+
+        await new LoginCodeIssuer(
+                codes,
+                new FakeLoginCodeGenerator(),
+                new FakeLoginCodeHasher(),
+                Options.Create(new LoginCodeOptions()),
+                new FakeRequestInfo { IpAddress = "203.0.113.10" },
+                new FakeTimeProvider(Now))
+            .IssueSignInCodeAsync(LoginCodeDestination.ForPhone(PhoneNumber.Create("+5493515550199").Value), Ct);
+
+        Assert.Null(Assert.Single(codes.Codes).RequestedFromAddress);
     }
 }

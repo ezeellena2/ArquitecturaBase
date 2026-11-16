@@ -35,6 +35,7 @@
   <data name="Auth.LoginCode.TooManyAttempts" xml:space="preserve"><value>Too many attempts for this code. Request a new one.</value></data>
   <data name="Auth.LoginCode.ResendTooSoon" xml:space="preserve"><value>Wait a moment before requesting another code.</value></data>
   <data name="Auth.LoginCode.TooManyRequests" xml:space="preserve"><value>You requested too many codes. Try again later.</value></data>
+  <data name="Auth.LoginCode.DailyLimitReached" xml:space="preserve"><value>No more codes can be sent today. Try again later.</value></data>
   <data name="Auth.Account.Disabled" xml:space="preserve"><value>Your account is disabled. Contact an administrator.</value></data>
   <data name="Auth.Account.LockedOut" xml:space="preserve"><value>Your account is locked for a few minutes after too many failed attempts.</value></data>
   <data name="Auth.Account.NotInvited" xml:space="preserve"><value>You don't have access to this system yet. To sign in, ask an administrator for an invitation.</value></data>
@@ -66,6 +67,7 @@
   <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirm that the person agreed to receive WhatsApp messages.</value></data>
   <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>To invite by WhatsApp, enter the name of the person.</value></data>
   <data name="Users.Invitation.TooManyRequests" xml:space="preserve"><value>Wait a minute before inviting this person again.</value></data>
+  <data name="Users.Invitation.DailyLimitReached" xml:space="preserve"><value>No more invitations can be sent by email today, and nothing was saved. If you are adding someone, you can add them without an invitation and send it later.</value></data>
   <data name="Users.Invitation.UserInactive" xml:space="preserve"><value>The account is deactivated: activate it before inviting it.</value></data>
   <data name="Roles.Role.NotFound" xml:space="preserve"><value>We couldn't find the role.</value></data>
   <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>A role with that name already exists.</value></data>

@@ -15,6 +15,7 @@ El enlace de ingreso se retiró el 2026-11-16 (B4, `identidad.md`): no se emite 
 - Consumos, intentos y auditoría que deben persistir incluso al fallar requieren `OnAnyResult`; emisión y verificación se serializan con sus locks.
 - Los helpers no abren límites. Los efectos de sesión que exigen datos confirmados van después del commit.
 - Antes de reutilizar un emisor/verificador, revisá propósito, destino, plazo, reenvío y anonimato de la respuesta.
+- Un código o una invitación por correo pasa antes por `EmailQuotaGuard` (N7): los topes diarios por dirección, por cuenta, por administrador y el de todos, contados en la base; en el de todos, los códigos frenan antes de la reserva de las invitaciones. El de la dirección cuenta también lo que se emite y no sale, así no depende del destino. El de todos cuenta sólo lo que sale, y en `InviteOnly`, con un único lugar libre, dice si un correo tiene cuenta: es un costo aceptado ([identidad](../../../../docs/features/identidad.md)), no un modelo para un tope nuevo.
 
 ## Verificación y ejemplos
 

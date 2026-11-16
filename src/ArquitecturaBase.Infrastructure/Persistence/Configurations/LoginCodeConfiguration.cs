@@ -22,10 +22,17 @@ internal sealed class LoginCodeConfiguration : IEntityTypeConfiguration<LoginCod
         builder.Property(code => code.Channel).HasConversion<string>().HasMaxLength(ChannelMaxLength);
         builder.Property(code => code.Purpose).HasConversion<string>().HasMaxLength(PurposeMaxLength);
         builder.Property(code => code.CodeHash).HasMaxLength(CodeHashMaxLength);
+        builder.Property(code => code.RequestedFromAddress).HasMaxLength(LoginCode.MaxRequestedFromAddressLength);
         builder.Ignore(code => code.AttemptsLeft);
 
         // Todas las búsquedas son por destino, del código más nuevo al más viejo. El propósito no va en el índice:
         // los límites buscan por destino solo, y un destino tiene pocas filas por las que filtrar.
         builder.HasIndex(code => new { code.Destination, code.CreatedAtUtc });
+
+        // N7: el tope diario por dirección de los códigos por correo cuenta los de una dirección en las últimas 24 horas,
+        // en cada pedido de un código por correo. Una dirección tiene pocas filas por día (el tope), y sin el índice cada
+        // pedido recorrería la tabla. Los códigos sin dirección conocida no se buscan por ella.
+        builder.HasIndex(code => new { code.RequestedFromAddress, code.CreatedAtUtc })
+            .HasFilter("\"RequestedFromAddress\" IS NOT NULL");
     }
 }

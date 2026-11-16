@@ -218,6 +218,13 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
         // Sin validación de SMTP: los emails quedan en memoria (EmailSender).
         builder.UseSetting("Email:Delivery", "PickupDirectory");
 
+        // N7: la corrida entera manda miles de correos con el mismo reloj, y el administrador del arnés invita en muchos
+        // tests. Los topes diarios del correo se prueban con una Api aparte (EmailQuotaEndpointsTests).
+        builder.UseSetting("Email:DailyLimit", "1000000");
+        builder.UseSetting("Email:DailyCodeLimitPerAddress", "1000000");
+        builder.UseSetting("Email:DailyProfileCodeLimitPerAccount", "1000000");
+        builder.UseSetting("Email:DailyInvitationLimitPerAdministrator", "1000000");
+
         builder.UseSetting("Seed:AdminEmail", AdminEmail);
 
         // El arnés arranca abierto: casi todos los tests de las fases 1 a 3 ingresan con un correo nuevo y esperan

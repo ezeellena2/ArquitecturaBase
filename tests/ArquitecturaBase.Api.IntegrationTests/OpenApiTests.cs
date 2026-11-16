@@ -179,7 +179,7 @@ public sealed class OpenApiTests(ApiFactory factory)
         AssertErrors(paths, "get", "/api/roles/{id}", "401", "403", "404", "500");
 
         // El 404 y el 409 los declara la acción: un rol pedido que no existe, y el correo o el número de otra cuenta.
-        AssertErrors(paths, "post", "/api/users", "400", "401", "403", "404", "409", "500");
+        AssertErrors(paths, "post", "/api/users", "400", "401", "403", "404", "409", "429", "500");
 
         // [Authorize] solo pide sesión, así que nunca responde 403. El 404 lo declara el controller: la cuenta de la
         // sesión puede haberse borrado.

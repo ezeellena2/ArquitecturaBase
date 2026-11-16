@@ -11,11 +11,13 @@ namespace ArquitecturaBase.Application.Services.Auth;
 /// <summary>
 /// El pedido de un código para entrar por correo, ya validado: emite el código con <see cref="LoginCodeIssuer"/> y se lo
 /// manda a la cuenta o a quien todavía puede crear una. Corre dentro del límite de <see cref="LoginCodeService"/>: no
-/// guarda, y lo que encola queda marcado en la fila antes del commit. El pedido por un número lo da el módulo del canal
-/// (con WhatsApp, su módulo), con el mismo emisor.
+/// guarda, y lo que encola queda marcado en la fila antes del commit. Antes de emitir mira los topes diarios del correo
+/// (N7, <see cref="EmailQuotaGuard"/>): el de la dirección y el de todos, que responden igual tenga o no cuenta el correo.
+/// El pedido por un número lo da el módulo del canal (con WhatsApp, su módulo), con el mismo emisor.
 /// </summary>
 internal sealed class SignInCodeIssuer(
     LoginCodeIssuer issuer,
+    EmailQuotaGuard emailQuota,
     IUserReader users,
     IEmailTemplateRenderer templateRenderer,
     IEmailQueue emailQueue,
@@ -36,6 +38,13 @@ internal sealed class SignInCodeIssuer(
         if (user is { IsActive: false })
         {
             return AccountErrors.Disabled;
+        }
+
+        // N7: se mira con cualquier destino, antes de saber si el código sale; el de la dirección cuenta también los que no
+        // salen (un correo sin cuenta en InviteOnly), así ningún tope dice qué correos tienen cuenta.
+        if (await emailQuota.CheckCodeAsync(requestedByUserId: null, cancellationToken) is { } quotaError)
+        {
+            return quotaError;
         }
 
         var issued = await issuer.IssueSignInCodeAsync(LoginCodeDestination.ForEmail(email), cancellationToken);

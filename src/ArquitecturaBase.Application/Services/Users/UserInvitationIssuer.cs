@@ -18,12 +18,13 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// trae el núcleo (un botón a /login, y la persona entra con el código de siempre), y WhatsApp, que trae su módulo (la
 /// plantilla con «Quiero entrar»: al tocarlo, recibe orientación pública a /login y después pide un código). Expone pasos separados para que el servicio los intercale: las reglas (<see cref="Check"/>), el lock
 /// del reenvío (<see cref="LockAsync"/>), la espera entre dos (<see cref="WaitBeforeAnotherAsync"/>) y el envío
-/// (<see cref="SendAsync"/>). No abre ni confirma transacciones.
+/// (<see cref="SendAsync"/>), que mira antes los topes diarios del correo (N7). No abre ni confirma transacciones.
 /// </summary>
 internal sealed class UserInvitationIssuer(
     IUserInvitationRepository invitations,
     IEnumerable<IInvitationChannel> channels,
     ICurrentUser currentUser,
+    EmailQuotaGuard emailQuota,
     TimeProvider timeProvider)
 {
     /// <summary>
@@ -72,8 +73,11 @@ internal sealed class UserInvitationIssuer(
     /// haya mandado el mensaje antes de que se confirme. Si la cola del canal no toma el mensaje, el canal deja la
     /// invitación guardada como no enviada: el alta no se deshace por un envío que falló, el admin la reenvía y el reenvío
     /// no espera, porque la espera se cuenta solo desde una invitación que salió (<see cref="WaitBeforeAnotherAsync"/>).
+    /// Una por correo mira antes los topes diarios del correo, el del administrador y el de todos (N7, <see cref="EmailQuotaGuard"/>):
+    /// en el tope responde <c>Users.Invitation.DailyLimitReached</c> sin guardar ni encolar nada, y quien llama deshace lo
+    /// demás (el alta, con su límite OnSuccess). El correo es el canal del núcleo, y su cupo es de la cuenta que manda.
     /// </summary>
-    public async Task SendAsync(UserAccount user, UserInvitationChannel channel, CancellationToken cancellationToken)
+    public async Task<Result> SendAsync(UserAccount user, UserInvitationChannel channel, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -86,10 +90,16 @@ internal sealed class UserInvitationIssuer(
 
         await invitations.LockAccountAsync(user.Id, cancellationToken);
 
+        if (channel is UserInvitationChannel.Email && await emailQuota.CheckInvitationAsync(sentBy, cancellationToken) is { } quotaError)
+        {
+            return quotaError;
+        }
+
         var invitation = UserInvitation.Send(user.Id, channel, sentBy, nowUtc, adapter.RecordsConsent);
         invitations.Add(invitation);
 
         adapter.Enqueue(user, invitation, culture);
+        return Result.Success();
     }
 
     // Uno por canal, o ninguno: dos del mismo canal serían un error de registro, y SingleOrDefault lo hace saltar.

@@ -115,12 +115,19 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("RequestedByUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("RequestedFromAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateTime?>("SentAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Destination", "CreatedAtUtc");
+
+                    b.HasIndex("RequestedFromAddress", "CreatedAtUtc")
+                        .HasFilter("\"RequestedFromAddress\" IS NOT NULL");
 
                     b.ToTable("LoginCodes");
                 });

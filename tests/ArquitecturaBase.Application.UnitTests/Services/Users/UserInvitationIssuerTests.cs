@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Configuration.Auth;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Services.Users;
@@ -81,6 +82,44 @@ public sealed class UserInvitationIssuerTests
             UserInvitationChannel.Email, consent: false, null, hasEmail: true, hasPhone: false, InvitationFields.OfResend));
     }
 
-    private UserInvitationIssuer Issuer(params IInvitationChannel[] channels) =>
-        new(_invitations, channels, _admin, new FakeTimeProvider(Now));
+    // N7: an invitation by email spends the daily limit of its administrator and the one of everyone; it is checked before
+    // saving or enqueuing anything, and the rejection keeps nothing.
+    [Fact]
+    public async Task An_administrator_at_the_daily_limit_of_invitations_by_email_sends_none_and_keeps_none()
+    {
+        var channel = new FakeInvitationChannel(UserInvitationChannel.Email);
+        var user = _accounts.AddUser(email: "ana@example.com", culture: "es");
+        _invitations.Add(UserInvitation.ByEmail(Guid.CreateVersion7(), _admin.UserId!.Value, Now.UtcDateTime.AddHours(-1)));
+
+        var result = await Issuer(new EmailQuotaOptions { DailyInvitationLimitPerAdministrator = 1 }, channel)
+            .SendAsync(user, UserInvitationChannel.Email, Ct);
+
+        Assert.Equal(UserInvitationErrors.DailyLimitReachedCode, result.Error.Code);
+        Assert.Equal(23 * 60 * 60, result.Error.Metadata![UserInvitationErrors.RetryAfterKey]);
+        Assert.Single(_invitations.Invitations);
+        Assert.Empty(channel.Enqueued);
+    }
+
+    // The email quota is of the email account: an invitation by WhatsApp does not look at it.
+    [Fact]
+    public async Task An_invitation_by_whatsapp_does_not_look_at_the_limits_of_the_email()
+    {
+        var channel = new FakeInvitationChannel(UserInvitationChannel.WhatsApp, recordsConsent: true);
+        var user = _accounts.AddUser(email: null, culture: "es", phoneNumber: "+5493515550101");
+        _invitations.Add(UserInvitation.ByEmail(Guid.CreateVersion7(), _admin.UserId!.Value, Now.UtcDateTime.AddHours(-1)));
+
+        var result = await Issuer(new EmailQuotaOptions { DailyLimit = 1, DailyInvitationLimitPerAdministrator = 1 }, channel)
+            .SendAsync(user, UserInvitationChannel.WhatsApp, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(channel.Enqueued);
+    }
+
+    private UserInvitationIssuer Issuer(params IInvitationChannel[] channels) => Issuer(new EmailQuotaOptions(), channels);
+
+    private UserInvitationIssuer Issuer(EmailQuotaOptions quota, params IInvitationChannel[] channels)
+    {
+        var clock = new FakeTimeProvider(Now);
+        return new(_invitations, channels, _admin, EmailQuotaGuards.For(new InMemoryLoginCodeRepository(), clock, _invitations, quota), clock);
+    }
 }

@@ -124,7 +124,7 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 | `ForwardedHeaders:TrustAll`, o `:KnownProxies` / `:KnownNetworks` | detrás de un proxy: a quién se le creen `X-Forwarded-For` y `X-Forwarded-Proto`. En Container Apps, `TrustAll=true`, solo porque Kestrel no se alcanza por fuera del ingress | `ArquitecturaBase.Api/Hosting/ForwardedHeadersExtensions.cs` | no arranca (validación de opciones), fuera de Development y Testing; tampoco con una entrada que no sea una IP o una red CIDR. Sin ellos, la IP y el esquema serían los del proxy: OpenIddict rechazaría el ingreso por HTTP y el límite por IP juntaría a todos |
 | `WhatsApp:PhoneNumberId`, `WhatsApp:AccessToken` y, para el webhook, `WhatsApp:AppSecret` con `WhatsApp:VerifyToken` | solo si se prende WhatsApp: `PhoneNumberId` es el interruptor, y el webhook necesita los dos secretos juntos | `ArquitecturaBase.Infrastructure/Modules/WhatsApp/WhatsAppInfrastructureRegistration.cs`, `WhatsAppOptionsValidator.cs` | sin `PhoneNumberId`, WhatsApp queda apagado y la Api arranca; con él y sin token, o con un solo secreto del webhook, no arranca |
 
-`AllowedHosts` queda en `*`: el que filtra por host es el ingress o el proxy, y el porqué está en [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `RequestLimits:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity`) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
+`AllowedHosts` queda en `*`: el que filtra por host es el ingress o el proxy, y el porqué está en [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados), junto con lo de `X-Forwarded-Host`. El resto de las claves (`Authentication:LoginCode:*`, `RateLimiting:*`, `RequestLimits:*`, `WhatsApp:*` sin los de arriba, `Email:QueueCapacity` y los topes `Email:Daily*` del [cupo del correo](#cupo-del-correo)) trae valores por defecto válidos en `appsettings.json` o en sus clases de opciones.
 
 ## Redis
 
@@ -157,6 +157,31 @@ Corren antes de la autenticación, que ya consulta la base (OpenIddict valida el
 cada token), y responden el 429 de siempre, con `Retry-After`. Cada réplica cuenta los suyos. La IP es la que dejan los
 [encabezados reenviados](#proxy-y-encabezados-reenviados): sin ellos, todos compartirían la del proxy. Una oficina
 detrás de una sola IP comparte la ventana de lo anónimo; si no alcanza, se sube `AnonymousPermitLimit`.
+
+## Cupo del correo
+
+Producción manda con Gmail (decisión del 2026-11-14, N7). Gmail le da a una cuenta gratuita unos 500 correos por día (a
+una de Google Workspace, unos 2.000); pasado el cupo rechaza el remitente hasta por 24 horas, y no sale ningún correo: ni
+códigos, ni invitaciones, ni los avisos de los módulos. Antes de desplegar, anotá acá el cupo de la cuenta que se use y
+fijá `Email:DailyLimit` por debajo, con lugar para los demás correos del sistema (los avisos de Formularios y de ARCA no
+cuentan en los topes). Los topes cuentan en 24 horas móviles, en la base, así que valen para todas las réplicas y
+sobreviven a un reinicio; los mira `EmailQuotaGuard` ([identidad](../features/identidad.md),
+[administración](../features/administracion.md)):
+
+| Clave | Por defecto | Qué limita |
+|---|---|---|
+| `Email:DailyLimit` | 400 | los correos con un código o una invitación que salen, entre todos. Los códigos por correo frenan antes, en este tope menos `Email:DailyInvitationReserve` (350 por defecto), y las invitaciones llegan hasta acá; cada uno responde 429 hasta que se libere un lugar. Desde el 80 % del tope (320 por defecto) queda un Warning de `EmailQuotaGuard` en el log, una vez por día en cada réplica, y al llegar al tope, otro |
+| `Email:DailyInvitationReserve` | 50 | los lugares de `Email:DailyLimit` que quedan sólo para las invitaciones, así un abuso anónimo de los códigos no deja a los administradores sin invitar. Va por debajo de `Email:DailyLimit`; 0 la apaga. Con la reserva por debajo del 20 % del tope, el aviso del 80 % sale antes de que frenen los códigos |
+| `Email:DailyCodeLimitPerAddress` | 50 | los códigos por correo que se piden desde una misma IP (una IPv6, por su /64), salgan o no. Una oficina detrás de una sola IP lo comparte: si no alcanza, se sube |
+| `Email:DailyProfileCodeLimitPerAccount` | 10 | los códigos por correo que una cuenta pide desde su perfil |
+| `Email:DailyInvitationLimitPerAdministrator` | 100 | las invitaciones por correo de un administrador. Para una carga inicial grande se sube, sin pasar `Email:DailyLimit` |
+
+Un tope menor que 1, una reserva negativa o una que no quede por debajo de `Email:DailyLimit` no arranca (validación de opciones). Si el cupo se agota igual (otro sistema que usa la misma
+cuenta, un tope mal fijado), `/health` marca `email` en Degraded cuando Gmail rechaza el remitente
+([colas](#colas-transaccionales)). Un abuso desde muchas direcciones puede agotar los lugares de los códigos y dejar a todos sin
+códigos por correo hasta que se libere (las invitaciones siguen con su reserva): es el costo aceptado de seguir con Gmail, y
+un proveedor transaccional con su cupo medido lo saca. En `InviteOnly`, el mismo abuso, con un único lugar libre, deja ver
+si un correo tiene cuenta, también un costo aceptado ([identidad](../features/identidad.md)).
 
 ## Certificados de OpenIddict
 
@@ -221,4 +246,5 @@ Nada de esto se probó todavía contra Azure real.
 - [ ] `ForwardedHeaders` declarado, `AllowedHosts` en `*` con el ingress o el proxy filtrando por host y conservando el `Host` público, y el plazo de apagado de la Container App en 60 s ([Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados)).
 - [ ] Los PFX de firma, cifrado de tokens y Data Protection respaldados aparte de PostgreSQL, junto a sus contraseñas.
 - [ ] El destino de OpenTelemetry del ambiente y la alerta de 5xx ([Logs, trazas y alertas](#logs-trazas-y-alertas)).
+- [ ] El cupo diario de la cuenta de correo anotado y `Email:DailyLimit` por debajo ([Cupo del correo](#cupo-del-correo)).
 - [ ] Después del primer arranque: el dueño entra con el correo de `Seed:AdminEmail` y queda como Admin.

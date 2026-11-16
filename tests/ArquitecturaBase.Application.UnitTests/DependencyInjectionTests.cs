@@ -316,6 +316,34 @@ public sealed partial class DependencyInjectionTests
         Assert.Contains(nameof(LoginCodeOptions.MaxAttempts), exception.Message, StringComparison.Ordinal);
     }
 
+    // N7: the invitation reserve stays below the limit of everyone, so codes by email keep some room.
+    [Theory]
+    [InlineData("400", "400")]
+    [InlineData("10", "50")]
+    public void An_invitation_reserve_that_leaves_no_room_for_codes_is_rejected(string dailyLimit, string reserve)
+    {
+        using var provider = BuildProviderWithConfiguration(new()
+        {
+            ["Email:DailyLimit"] = dailyLimit,
+            ["Email:DailyInvitationReserve"] = reserve,
+        });
+
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<EmailQuotaOptions>>().Value);
+
+        Assert.Contains(nameof(EmailQuotaOptions.DailyInvitationReserve), exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_default_invitation_reserve_leaves_codes_most_of_the_limit_of_everyone()
+    {
+        using var provider = BuildProviderWithConfiguration([]);
+
+        var quota = provider.GetRequiredService<IOptions<EmailQuotaOptions>>().Value;
+
+        Assert.Equal((400, 50), (quota.DailyLimit, quota.DailyInvitationReserve));
+    }
+
     private static ServiceProvider BuildProviderWithConfiguration(Dictionary<string, string?> settings)
     {
         var services = new ServiceCollection();

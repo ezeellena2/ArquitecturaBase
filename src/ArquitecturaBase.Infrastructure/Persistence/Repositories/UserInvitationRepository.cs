@@ -23,5 +23,25 @@ internal sealed class UserInvitationRepository(ApplicationDbContext dbContext) :
             .ThenByDescending(invitation => invitation.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    // N7: sin índice propio; las invitaciones son pocas (las manda un administrador, de a una) y se cuentan una vez por
+    // invitación o código por correo.
+    public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
+        UserInvitationChannel channel, DateTime sinceUtc, int count, CancellationToken cancellationToken) =>
+        await dbContext.UserInvitations
+            .Where(invitation => invitation.Channel == channel && invitation.SentAtUtc > sinceUtc)
+            .OrderByDescending(invitation => invitation.SentAtUtc)
+            .Select(invitation => invitation.SentAtUtc)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesBySenderAsync(
+        UserInvitationChannel channel, Guid sentBy, DateTime sinceUtc, int count, CancellationToken cancellationToken) =>
+        await dbContext.UserInvitations
+            .Where(invitation => invitation.Channel == channel && invitation.SentBy == sentBy && invitation.SentAtUtc > sinceUtc)
+            .OrderByDescending(invitation => invitation.SentAtUtc)
+            .Select(invitation => invitation.SentAtUtc)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
     public void Add(UserInvitation invitation) => dbContext.UserInvitations.Add(invitation);
 }

@@ -441,7 +441,7 @@ public sealed class ProfileWhatsAppServiceTests
             });
             var linker = new WhatsAppContactLinker(Contacts);
             var issuer = new WhatsAppCodeIssuer(
-                new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, _options, Clock),
+                new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, _options, new FakeRequestInfo(), Clock),
                 new WhatsAppCodeQuotaGuard(codes, whatsAppOptions, new FakeRequestInfo(), new FakeWhatsAppCodeAddressLimiter(), Clock,
                     NullLogger<WhatsAppCodeQuotaGuard>.Instance),
                 Accounts,
@@ -538,6 +538,10 @@ public sealed class ProfileWhatsAppServiceTests
         public Task<IReadOnlyList<DateTime>> ListLatestSentTimesByRequesterAsync(LoginCodeChannel channel, Guid requestedByUserId,
             DateTime sinceUtc, int count, CancellationToken cancellationToken) =>
             inner.ListLatestSentTimesByRequesterAsync(channel, requestedByUserId, sinceUtc, count, cancellationToken);
+
+        public Task<IReadOnlyList<DateTime>> ListLatestRequestTimesFromAddressAsync(LoginCodeChannel channel, string address,
+            DateTime sinceUtc, int count, CancellationToken cancellationToken) =>
+            inner.ListLatestRequestTimesFromAddressAsync(channel, address, sinceUtc, count, cancellationToken);
 
         public void Add(LoginCode loginCode) => inner.Add(loginCode);
     }

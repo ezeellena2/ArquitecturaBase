@@ -13,6 +13,9 @@ namespace ArquitecturaBase.Domain.Authentication;
 /// </summary>
 public sealed class LoginCode : Entity
 {
+    /// <summary>Lo más largo de una dirección agrupada: una IPv6 escrita entera y su "/64".</summary>
+    public const int MaxRequestedFromAddressLength = 64;
+
     // Para EF Core.
     private LoginCode()
     {
@@ -27,7 +30,8 @@ public sealed class LoginCode : Entity
         string codeHash,
         DateTime createdAtUtc,
         DateTime expiresAtUtc,
-        int maxAttempts)
+        int maxAttempts,
+        string? requestedFromAddress)
     {
         Destination = destination.Value;
         Channel = destination.Channel;
@@ -37,6 +41,7 @@ public sealed class LoginCode : Entity
         CreatedAtUtc = createdAtUtc;
         ExpiresAtUtc = expiresAtUtc;
         MaxAttempts = maxAttempts;
+        RequestedFromAddress = requestedFromAddress;
     }
 
     /// <summary>El correo normalizado o el número en formato internacional.</summary>
@@ -51,6 +56,14 @@ public sealed class LoginCode : Entity
     /// <see cref="LoginCodePurpose.ConfirmChange"/>; null en los de ingreso.
     /// </summary>
     public Guid? RequestedByUserId { get; private set; }
+
+    /// <summary>
+    /// N7: en un código por correo, la dirección de quien lo pidió, agrupada como en los límites por IP (una IPv4 entera,
+    /// una IPv6 por su /64), o null si no se conocía. La cuenta el tope diario por dirección de los códigos por correo, que
+    /// lee la base: vale para todas las copias y sobrevive a un reinicio. Un código por teléfono no la guarda: nadie la lee
+    /// y es un dato personal.
+    /// </summary>
+    public string? RequestedFromAddress { get; private set; }
 
     public string CodeHash { get; private set; }
 
@@ -78,7 +91,8 @@ public sealed class LoginCode : Entity
     /// <summary>
     /// Emite un código. La cuenta que lo pide es obligatoria con <see cref="LoginCodePurpose.VerifyDestination"/> y
     /// <see cref="LoginCodePurpose.ConfirmChange"/>, y no se admite con <see cref="LoginCodePurpose.SignIn"/>: un código
-    /// para entrar todavía no es de ninguna cuenta.
+    /// para entrar todavía no es de ninguna cuenta. <paramref name="requestedFromAddress"/> es la dirección agrupada de
+    /// quien lo pide (<see cref="RequestedFromAddress"/>).
     /// </summary>
     public static LoginCode Issue(
         LoginCodeDestination destination,
@@ -87,12 +101,19 @@ public sealed class LoginCode : Entity
         string codeHash,
         DateTime nowUtc,
         TimeSpan lifetime,
-        int maxAttempts)
+        int maxAttempts,
+        string? requestedFromAddress = null)
     {
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentException.ThrowIfNullOrWhiteSpace(codeHash);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(lifetime, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxAttempts, 1);
+
+        if (requestedFromAddress is { Length: > MaxRequestedFromAddressLength })
+        {
+            throw new ArgumentException(
+                $"The address cannot be longer than {MaxRequestedFromAddressLength} characters.", nameof(requestedFromAddress));
+        }
 
         switch (purpose)
         {
@@ -112,7 +133,7 @@ public sealed class LoginCode : Entity
                 throw new ArgumentOutOfRangeException(nameof(purpose), purpose, "Unknown login code purpose.");
         }
 
-        return new LoginCode(destination, purpose, requestedByUserId, codeHash, nowUtc, nowUtc + lifetime, maxAttempts);
+        return new LoginCode(destination, purpose, requestedByUserId, codeHash, nowUtc, nowUtc + lifetime, maxAttempts, requestedFromAddress);
     }
 
     public bool IsActive(DateTime nowUtc) =>

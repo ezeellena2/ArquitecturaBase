@@ -93,6 +93,19 @@ internal sealed class InMemoryLoginCodeRepository : ILoginCodeRepository
             .Take(count)
             .ToList());
 
+    public Task<IReadOnlyList<DateTime>> ListLatestRequestTimesFromAddressAsync(
+        LoginCodeChannel channel,
+        string address,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DateTime>>(Codes
+            .Where(code => code.Channel == channel && code.RequestedFromAddress == address && code.CreatedAtUtc > sinceUtc)
+            .Select(code => code.CreatedAtUtc)
+            .OrderDescending()
+            .Take(count)
+            .ToList());
+
     public void Add(LoginCode loginCode) => Codes.Add(loginCode);
 
     private IEnumerable<LoginCode> CodesOf(LoginCodeDestination destination) =>

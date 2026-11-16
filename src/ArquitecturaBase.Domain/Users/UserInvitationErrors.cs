@@ -8,6 +8,7 @@ public static class UserInvitationErrors
     public const string ConsentRequiredCode = "Users.Invitation.ConsentRequired";
     public const string NameRequiredCode = "Users.Invitation.NameRequired";
     public const string TooManyRequestsCode = "Users.Invitation.TooManyRequests";
+    public const string DailyLimitReachedCode = "Users.Invitation.DailyLimitReached";
     public const string UserInactiveCode = "Users.Invitation.UserInactive";
 
     /// <summary>La misma clave que los límites de los códigos y de los enlaces: el front lee siempre "retryAfter".</summary>
@@ -37,5 +38,15 @@ public static class UserInvitationErrors
         Error.TooManyRequests(
             TooManyRequestsCode,
             "The account was invited less than a minute ago.",
+            new Dictionary<string, object?> { [RetryAfterKey] = retryAfterSeconds });
+
+    /// <summary>
+    /// N7: un tope diario de las invitaciones por correo, el del administrador o el de todo lo que sale por correo (por
+    /// debajo del cupo de la cuenta de correo, que comparte con los códigos).
+    /// </summary>
+    public static Error DailyLimitReached(int retryAfterSeconds) =>
+        Error.TooManyRequests(
+            DailyLimitReachedCode,
+            "The daily limit of invitations by email was reached.",
             new Dictionary<string, object?> { [RetryAfterKey] = retryAfterSeconds });
 }

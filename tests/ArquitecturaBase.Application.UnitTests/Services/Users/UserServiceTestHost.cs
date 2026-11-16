@@ -131,7 +131,8 @@ internal class UserServiceTestHost
             .. moduleInvitationChannels,
         ];
 
-        var invitationIssuer = new UserInvitationIssuer(Invitations, invitationChannels, CurrentUser, Clock);
+        var invitationIssuer = new UserInvitationIssuer(
+            Invitations, invitationChannels, CurrentUser, EmailQuotaGuards.For(Destinations, Clock, Invitations), Clock);
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
         var contacts = new UserContactLinker(
             Accounts,

@@ -14,10 +14,12 @@ namespace ArquitecturaBase.Application.Services.Auth;
 /// ingreso con WhatsApp), o con que confirma con su correo verificado un cambio del número: emite el código con <see cref="LoginCodeIssuer"/>, que sigue siendo el único que emite, y se
 /// lo manda a ese correo. Lo verifica <see cref="DestinationCodeVerifier"/>, igual que el de un número, que pide el
 /// módulo del canal (con WhatsApp, su módulo). Corre dentro del límite del punto de entrada, con OnSuccess: no guarda, y
-/// lo que encola queda marcado en la fila antes del commit.
+/// lo que encola queda marcado en la fila antes del commit. Antes de emitir mira los topes diarios del correo (N7,
+/// <see cref="EmailQuotaGuard"/>): el de la dirección, el de la cuenta y el de todos.
 /// </summary>
 internal sealed class DestinationCodeIssuer(
     LoginCodeIssuer issuer,
+    EmailQuotaGuard emailQuota,
     IEmailTemplateRenderer templateRenderer,
     IEmailQueue emailQueue)
 {
@@ -67,6 +69,11 @@ internal sealed class DestinationCodeIssuer(
         Func<string, string, int, CultureInfo, EmailMessage> render,
         CancellationToken cancellationToken)
     {
+        if (await emailQuota.CheckCodeAsync(user.Id, cancellationToken) is { } quotaError)
+        {
+            return quotaError;
+        }
+
         var destination = LoginCodeDestination.ForEmail(email);
         var issued = purpose is LoginCodePurpose.ConfirmChange
             ? await issuer.IssueConfirmationCodeAsync(destination, user.Id, cancellationToken)

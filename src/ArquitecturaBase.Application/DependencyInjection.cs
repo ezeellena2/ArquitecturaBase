@@ -26,6 +26,15 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // N7: los topes diarios del correo, de la sección Email que Infrastructure lee para mandarlos.
+        services.AddOptions<EmailQuotaOptions>()
+            .BindConfiguration(EmailQuotaOptions.SectionName)
+            .ValidateDataAnnotations()
+            .Validate(
+                quota => quota.DailyInvitationReserve < quota.DailyLimit,
+                "Email:DailyInvitationReserve must be lower than Email:DailyLimit, so codes by email keep some room.")
+            .ValidateOnStart();
+
         // Los puertos hacia un módulo opcional. El canal telefónico, apagado: un módulo que da el canal lo reemplaza, en
         // cualquier orden. Los canales de invitación, uno por canal: el núcleo trae el correo y cada módulo suma el suyo.
         services.TryAddSingleton<IPhoneChannel, DisabledPhoneChannel>();
@@ -64,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<PhoneNumberLinker>();
         services.AddScoped<AccountAccessRevoker>();
         services.AddScoped<LoginCodeIssuer>();
+        services.AddScoped<EmailQuotaGuard>();
         services.AddScoped<SignInCodeIssuer>();
         services.AddScoped<LoginCodeVerifier>();
         services.AddScoped<LoginAuditRecorder>();

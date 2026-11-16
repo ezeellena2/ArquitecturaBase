@@ -54,6 +54,8 @@ internal static class EmailRegistration
 
         // El nombre de los correos es el del sistema: lo usan también los mensajes del bot de WhatsApp.
         services.AddSingleton<IAppName, AppName>();
+        // N7: los avisos del tope diario del correo, uno por día en cada copia.
+        services.AddSingleton<IEmailQuotaWarnings, EmailQuotaWarnings>();
 
         services.AddScoped<DurableMessageStore>();
         services.AddScoped<EmailQueue>(provider => new EmailQueue(provider.GetRequiredService<IOptions<EmailOptions>>(), provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EmailQueue>>(), provider.GetRequiredService<DurableMessageStore>()));

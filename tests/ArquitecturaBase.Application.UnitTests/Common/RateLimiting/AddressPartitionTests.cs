@@ -41,4 +41,17 @@ public sealed class AddressPartitionTests
     {
         Assert.Equal("not-an-address", AddressPartition.Of("not-an-address"));
     }
+
+    // N7: what a code by email keeps of the address that requested it. Without a known address there is nothing to keep,
+    // and it does not share a place with anyone.
+    [Theory]
+    [InlineData("2001:db8:1:2:aaaa::10", "2001:db8:1:2::/64")]
+    [InlineData("::ffff:203.0.113.10", "203.0.113.10")]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("not-an-address", null)]
+    public void A_known_address_is_kept_by_its_partition_and_an_unknown_one_is_null(string? address, string? expected)
+    {
+        Assert.Equal(expected, AddressPartition.OfKnown(address));
+    }
 }

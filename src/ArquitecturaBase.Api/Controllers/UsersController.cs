@@ -73,6 +73,8 @@ public sealed class UsersController(
     // 409.
     [ProducesProblem(StatusCodes.Status404NotFound)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
+    // Con invitación por correo, el tope diario del administrador o el de todo el correo (N7): el alta se deshace.
+    [ProducesProblem(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateUserHttpRequest request, CancellationToken cancellationToken) =>
         (await administration.CreateUserAsync(new CreateUserRequest(
             request.Email,
@@ -104,7 +106,8 @@ public sealed class UsersController(
     [HttpPost("{id:guid}/invitation")]
     [HasPermission(Permissions.Users.Manage)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
-    // Sin [EnableRateLimiting]: el 429 es de la espera entre dos invitaciones de la misma cuenta.
+    // Sin [EnableRateLimiting]: el 429 es de la espera entre dos invitaciones de la misma cuenta o, por correo, de los topes
+    // diarios del correo (N7).
     [ProducesProblem(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> SendInvitation(
         [FromRoute] Guid id,
