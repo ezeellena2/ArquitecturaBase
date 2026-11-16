@@ -12,7 +12,7 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
         builder.HasKey(turn => turn.Id);
         builder.Property(turn => turn.ChannelId).HasMaxLength(AiConversation.MaximumChannelIdLength).IsRequired().HasDefaultValue("home");
         builder.Property(turn => turn.State).HasConversion<string>().HasMaxLength(20);
-        builder.Property(turn => turn.Provider).HasConversion<string>().HasMaxLength(20);
+        builder.Property(turn => turn.Provider).HasConversion(new AiProviderConverter()).HasMaxLength(20);
         builder.Property(turn => turn.Stage).HasMaxLength(20);
         builder.Property(turn => turn.Culture).HasMaxLength(10);
         builder.Property(turn => turn.TimeZoneId).HasMaxLength(100);

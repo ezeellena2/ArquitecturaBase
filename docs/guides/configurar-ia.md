@@ -182,6 +182,13 @@ latencia de un despliegue. Anthropic sigue pendiente de una prueba real. Nunca a
 reales a fixtures ni suites. La [revisión inicial](../reviews/2026-10-02-configuracion-llm.md)
 conserva el alcance de las pruebas de conexión.
 
+Un proveedor nuevo se guarda recién un despliegue después de la versión que ya lo lee (I4, la regla de
+[despliegue](despliegue.md)). Si igual una copia encuentra guardado uno que no conoce, por ejemplo al volver a la imagen
+anterior, nada responde 500: la pantalla de la conexión la muestra vacía y Pausada, con su revisión y un aviso, el
+asistente queda no disponible (`paused`), la prueba y el catálogo no mandan la clave guardada a otro proveedor y los
+turnos sellados con ese proveedor quedan para la versión que lo conoce. Para seguir con esta versión, elegí un proveedor,
+cargá su clave y guardá; si no, volvé a la versión que lo conoce.
+
 ## Habilitar el asistente
 
 Aplicá la cadena de migraciones vigente mediante el bundle antes de activar esta versión;

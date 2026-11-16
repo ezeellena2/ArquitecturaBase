@@ -10,5 +10,5 @@ internal sealed class AiConnectionChangeRecorder(IAiChangeFingerprint fingerprin
         AiConnectionChange.Create(request.RequestId, operatorId, fingerprint.Create(request, fingerprint.ActiveKeyId),
             fingerprint.ActiveKeyId, connection, timeProvider.GetUtcNow().UtcDateTime);
     public static AiConnectionChangeResponse Response(AiConnectionChange change) => new(change.RequestId,
-        new AiConnectionResponse(change.Provider, change.Model, change.HasCredential, change.Enabled, change.Revision));
+        AiConnectionResponse.Of(change.Provider, change.Model, change.HasCredential, change.Enabled, change.Revision));
 }

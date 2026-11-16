@@ -9,7 +9,7 @@ internal sealed class AiConnectionConfiguration : IEntityTypeConfiguration<AiCon
         builder.ToTable("AiConnections", table => table.HasCheckConstraint("CK_AiConnections_Scope", "\"Scope\" = 1"));
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.Scope).IsUnique();
-        builder.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20);
+        builder.Property(x => x.Provider).HasConversion(new AiProviderConverter()).HasMaxLength(20);
         builder.Property(x => x.Model).HasMaxLength(150);
         builder.Property(x => x.ProtectedApiKey).HasMaxLength(6000);
         builder.Property(x => x.Revision).IsConcurrencyToken();

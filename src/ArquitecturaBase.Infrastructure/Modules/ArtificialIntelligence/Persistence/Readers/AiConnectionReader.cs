@@ -6,14 +6,16 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Persistence.Readers;
 internal sealed class AiConnectionReader(ApplicationDbContext dbContext, TimeProvider timeProvider) : IAiConnectionReader
 {
+    // I4: a provider this version does not know reads paused, so nothing offers, accepts or runs a turn with it.
     public async Task<AiConnectionRow> FindAsync(CancellationToken cancellationToken) =>
         await dbContext.Set<AiConnection>().AsNoTracking().Select(x => new AiConnectionRow(x.Provider, x.Model, x.ProtectedApiKey, x.Enabled, x.Revision))
-            .SingleOrDefaultAsync(cancellationToken) ?? new AiConnectionRow(AiProvider.OpenAI, "", null, false, 0);
+            .SingleOrDefaultAsync(cancellationToken) is { } row ? AiProviders.IsSupported(row.Provider) ? row : row with { Enabled = false }
+            : new AiConnectionRow(AiProvider.OpenAI, "", null, false, 0);
     public Task<AiConnectionChangeResponse?> FindChangeAsync(Guid operatorId, Guid requestId, CancellationToken cancellationToken)
     {
         var cutoff = timeProvider.GetUtcNow().UtcDateTime.AddDays(-30);
         return dbContext.Set<AiConnectionChange>().AsNoTracking().Where(x => x.OperatorId == operatorId && x.RequestId == requestId && x.CreatedAtUtc >= cutoff)
-            .Select(x => new AiConnectionChangeResponse(x.RequestId, new AiConnectionResponse(x.Provider, x.Model, x.HasCredential, x.Enabled, x.Revision)))
+            .Select(x => new AiConnectionChangeResponse(x.RequestId, AiConnectionResponse.Of(x.Provider, x.Model, x.HasCredential, x.Enabled, x.Revision)))
             .SingleOrDefaultAsync(cancellationToken);
     }
 }

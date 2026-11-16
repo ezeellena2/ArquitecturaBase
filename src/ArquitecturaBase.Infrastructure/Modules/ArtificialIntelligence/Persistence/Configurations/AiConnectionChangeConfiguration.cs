@@ -10,7 +10,7 @@ internal sealed class AiConnectionChangeConfiguration : IEntityTypeConfiguration
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => new { x.OperatorId, x.RequestId }).IsUnique();
         builder.HasIndex(x => x.CreatedAtUtc);
-        builder.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20);
+        builder.Property(x => x.Provider).HasConversion(new AiProviderConverter()).HasMaxLength(20);
         builder.Property(x => x.Model).HasMaxLength(150);
         builder.Property(x => x.Fingerprint).HasMaxLength(44);
         builder.Property(x => x.KeyId).HasMaxLength(32);

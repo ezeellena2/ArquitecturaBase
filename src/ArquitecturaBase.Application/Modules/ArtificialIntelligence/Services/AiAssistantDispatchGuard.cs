@@ -24,8 +24,9 @@ internal sealed class AiAssistantDispatchGuard(IAiAssistantRepository repository
     }
 
     // I4: a pending turn sealed with a value this version does not know is left for the version that knows it; if none takes it, it expires
-    // without an attempt and gives its quota back (I1).
-    public bool Understands(AiAssistantTurn turn) => !AiAssistantAccessGuard.IsUnknown(guard.ReadSeal(turn.ExecutionProfileJson));
+    // without an attempt and gives its quota back (I1). A provider it does not know is the same (I4, the provider).
+    public bool Understands(AiAssistantTurn turn) =>
+        AiProviders.IsSupported(turn.Provider) && !AiAssistantAccessGuard.IsUnknown(guard.ReadSeal(turn.ExecutionProfileJson));
 
     public async Task LockAsync(AiAssistantClaimResponse claim, CancellationToken ct)
     {
