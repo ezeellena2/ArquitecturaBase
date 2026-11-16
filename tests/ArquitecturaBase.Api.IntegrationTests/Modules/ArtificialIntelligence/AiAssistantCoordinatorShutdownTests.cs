@@ -6,7 +6,9 @@ using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 
@@ -71,6 +73,22 @@ public sealed class AiAssistantCoordinatorShutdownTests
         Assert.Equal((0, 0), (fixture.CompleteCalls, fixture.ReleaseCalls));
     }
 
+    // I12, review: a release that closes the turn (its person canceled it meanwhile) did not give it back.
+    [Fact]
+    public async Task A_release_that_closes_the_turn_is_not_logged_as_given_back()
+    {
+        using var stop = new CancellationTokenSource();
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, null) { WhilePreparing = stop.Cancel, ReleaseClosesTheTurn = true };
+        var log = new FakeLogger<AiAssistantCoordinator>();
+        await using var services = Services(fixture);
+
+        Assert.True(await Coordinator(services, clock, log).ProcessNextAsync(stop.Token, Ct));
+
+        Assert.Equal(1, fixture.ReleaseCalls);
+        Assert.DoesNotContain(log.Collector.GetSnapshot(), entry => entry.Message.Contains("given back", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task A_copy_that_stops_takes_no_new_turn()
     {
@@ -131,9 +149,9 @@ public sealed class AiAssistantCoordinatorShutdownTests
         return services.BuildServiceProvider();
     }
 
-    private static AiAssistantCoordinator Coordinator(ServiceProvider services, FakeTimeProvider clock) =>
+    private static AiAssistantCoordinator Coordinator(ServiceProvider services, FakeTimeProvider clock, ILogger<AiAssistantCoordinator>? logger = null) =>
         new(services.GetRequiredService<IServiceScopeFactory>(), MatchingKeyRing.Instance, clock, Options.Create(new AiAssistantOptions()),
-            NullLogger<AiAssistantCoordinator>.Instance);
+            logger ?? NullLogger<AiAssistantCoordinator>.Instance);
 
     private sealed class StoppingLifetime : IHostApplicationLifetime, IDisposable
     {

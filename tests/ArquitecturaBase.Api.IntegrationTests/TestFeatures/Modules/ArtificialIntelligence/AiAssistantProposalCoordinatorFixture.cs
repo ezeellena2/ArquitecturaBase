@@ -42,6 +42,8 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Action? WhilePreparing { get; init; }
     /// <summary>I12: the provider call, honoring its token like the transport: a cut call is uncertain.</summary>
     public Func<CancellationToken, Task>? DuringProviderCall { get; init; }
+    /// <summary>I12, review: the release closes the turn (its person canceled it) instead of giving it back.</summary>
+    public bool ReleaseClosesTheTurn { get; init; }
     public int ClaimCalls { get; private set; }
     public int ReleaseCalls { get; private set; }
     public Guid TurnId => claim.TurnId;
@@ -137,13 +139,13 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
         FailureWasUncertain = uncertain;
         return Task.FromResult(Result.Success());
     }
-    public Task<Result> ReleaseAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken)
+    public Task<Result<bool>> ReleaseAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken)
     {
         ReleaseCalls++;
-        return Task.FromResult(Result.Success());
+        return Task.FromResult(Result.Success(!ReleaseClosesTheTurn));
     }
     private AiAssistantTurnRow Row => CompleteCalls > 0 ? context.Turn with { State = AiAssistantTurnState.Completed }
-        : ReleaseCalls > 0 ? context.Turn with { State = AiAssistantTurnState.Pending } : context.Turn;
+        : ReleaseCalls > 0 ? context.Turn with { State = ReleaseClosesTheTurn ? AiAssistantTurnState.Canceled : AiAssistantTurnState.Pending } : context.Turn;
     public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) =>
         FailFirstMonitorRead && Interlocked.Increment(ref monitorReads) == 1
             ? throw new TimeoutException("Fictional brief database outage.")

@@ -10,7 +10,7 @@ public sealed partial class AiAssistantDispatchServiceTests
     {
         var host = new NeutralHost(false);
 
-        Assert.True((await host.Service.ReleaseAsync(host.Claim, Ct)).IsSuccess);
+        Assert.True((await host.Service.ReleaseAsync(host.Claim, Ct)).Value);
 
         Assert.Equal((AiAssistantTurnState.Pending, null), (host.Store.Turn.State, host.Store.Turn.FailureCode));
         Assert.Equal(1, host.Work.Commits);
@@ -23,7 +23,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         var host = new NeutralHost(false);
         Assert.True((await host.Service.BeginProviderStepAsync(host.Claim, Ct)).Value);
 
-        Assert.True((await host.Service.ReleaseAsync(host.Claim, Ct)).IsSuccess);
+        Assert.False((await host.Service.ReleaseAsync(host.Claim, Ct)).Value);
 
         Assert.Equal((AiAssistantTurnState.Failed, AiAssistantErrors.Interrupted.Code), (host.Store.Turn.State, host.Store.Turn.FailureCode));
         Assert.Equal("fixture-manual", Assert.Single(host.CompletionSignal.Channels));

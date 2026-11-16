@@ -199,10 +199,11 @@ internal sealed partial class AiAssistantCoordinator(
     }
 
     // I12: back to pending for another copy, with the bounded persistence of a close; the activity ends without an outcome while it waits.
+    // Review: only a turn that went back is counted and logged as given back; one the release closed (canceled, expired) is not.
     private async Task ReleaseAsync(AiAssistantClaimResponse claim, Activity? activity)
     {
         var released = await PersistFinalAsync((service, token) => service.ReleaseAsync(claim, token));
-        if (released?.IsSuccess == true) { Releases.Add(1); LogReleased(logger, claim.TurnId); }
+        if (released is { IsSuccess: true, Value: true }) { Releases.Add(1); LogReleased(logger, claim.TurnId); }
         if (released?.IsFailure != true) await ObserveOutcomeAsync(claim, activity);
     }
 
@@ -222,7 +223,8 @@ internal sealed partial class AiAssistantCoordinator(
         catch (Exception exception) { LogExecutionFailed(logger, claim.TurnId, exception.GetType().Name); }
     }
 
-    private async Task<Result?> PersistFinalAsync(Func<IAiAssistantDispatchService, CancellationToken, Task<Result>> persist)
+    private async Task<TResult?> PersistFinalAsync<TResult>(Func<IAiAssistantDispatchService, CancellationToken, Task<TResult>> persist)
+        where TResult : Result
     {
         // A result already exists: only persistence is repeated, in a fresh scope with the original fence.
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.CompletionPersistenceSeconds), timeProvider);
