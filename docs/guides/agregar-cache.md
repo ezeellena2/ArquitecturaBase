@@ -29,7 +29,7 @@ cache.GetOrCreateInOwnScopeAsync<ApplicationDbContext, int, RegistrationMode>(
 
 AppHost entrega `ConnectionStrings:cache`. Fuera de Aspire configurá `ConnectionStrings__cache` como secreto y provisioná Redis por separado, con TLS y red privada en producción.
 
-`Caching:KeyPrefix` coincide entre réplicas y difiere entre instalaciones y ambientes. Sin valor explícito se deriva de aplicación, ambiente y nombre de la base. Si compartís Redis entre instalaciones con nombres de base iguales, definilo explícitamente. Las pruebas derivan su prefijo de la base de prueba.
+`Caching:KeyPrefix` coincide entre réplicas y difiere entre instalaciones y ambientes. Fuera de Development y Testing es obligatorio: sin él la Api no arranca. En esos dos se deriva de aplicación, ambiente y nombre de la base, y las pruebas derivan el suyo de la base de prueba.
 
 Opciones validadas: `MaximumPayloadBytes` (1 MiB por defecto, máximo 16 MiB), `LeaseSeconds` (15), `WaitSeconds` (30) y `RetryMilliseconds` (25). Conexión y comandos tienen timeout de 3 segundos. Un resultado grande se devuelve sin guardar. Un dueño que pierde su lease no publica ni libera la de otro; las leases de llenado de caché no se renuevan. Una fábrica lenta puede repetirse después de 15 segundos: debe ser de solo lectura. La espera total se cancela a los 30 segundos y la fábrica debe respetar esa cancelación.
 

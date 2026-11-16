@@ -174,7 +174,7 @@ Para volver a no enviar nada y escribir archivos `.eml` en `src/ArquitecturaBase
 
 ## Caché compartido
 
-Permisos por rol, modo de registro y preferencias generales de presentación usan Redis directo, sin HybridCache ni nivel local. AppHost entrega `ConnectionStrings:cache`; fuera de Aspire hay que provisionar Redis y configurar `ConnectionStrings__cache` como secreto. Las réplicas comparten `Caching__KeyPrefix`; cada instalación y ambiente usa uno distinto. Redis participa en `/health` y queda fuera de `/alive`.
+Permisos por rol, modo de registro y preferencias generales de presentación usan Redis directo, sin HybridCache ni nivel local. AppHost entrega `ConnectionStrings:cache`; fuera de Aspire hay que provisionar Redis y configurar `ConnectionStrings__cache` como secreto. Las réplicas comparten `Caching__KeyPrefix`; cada instalación y ambiente usa uno distinto, y fuera de Development y Testing es obligatorio. Redis participa en `/health` y queda fuera de `/alive`.
 
 Una funcionalidad nueva sigue [agregar-cache.md](docs/guides/agregar-cache.md): fábrica en scope propio, TTL, invalidación después del commit y pruebas entre instancias. Las garantías de permisos, coordinación, fallas y métricas están en [backend.md](docs/architecture/backend.md#caché-compartido-en-redis); la conexión de producción, en [despliegue.md](docs/guides/despliegue.md#redis).
 

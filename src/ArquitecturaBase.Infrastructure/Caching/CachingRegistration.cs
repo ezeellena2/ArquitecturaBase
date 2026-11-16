@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Caching;
+using ArquitecturaBase.Infrastructure.Identity.OpenIddict;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -10,6 +11,12 @@ namespace ArquitecturaBase.Infrastructure.Caching;
 public static class CachingRegistration
 {
     public const string ConnectionName = "cache";
+
+    /// <summary>Sin un valor: dice qué clave falta, para qué sirve y cómo se elige.</summary>
+    public const string MissingKeyPrefixMessage =
+        "Missing Caching:KeyPrefix: outside Development and Testing each installation and environment sets its own Redis "
+        + "key prefix, the same in all its replicas, so that two installations that share a Redis server do not read each "
+        + "other's settings. Set it to something like '<installation>:<environment>'.";
 
     public static TBuilder AddRedisCaching<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
@@ -34,20 +41,28 @@ public static class CachingRegistration
 
     internal static IServiceCollection AddCaching(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
+        // Sólo Development y Testing derivan el prefijo (N19): aplicación, ambiente y base no distinguen dos instalaciones
+        // que comparten Redis con bases del mismo nombre, y una leería el modo de registro y la presentación de la otra.
+        // En otro ambiente, sin Caching:KeyPrefix la Api no arranca.
+        var derivesKeyPrefix = environment.IsDevelopment()
+            || environment.IsEnvironment(OpenIddictRegistration.TestingEnvironment);
+
         services.AddOptions<RedisCacheOptions>()
             .BindConfiguration(RedisCacheOptions.SectionName)
             .Configure(options =>
             {
-                if (string.IsNullOrWhiteSpace(options.KeyPrefix))
+                if (derivesKeyPrefix && string.IsNullOrWhiteSpace(options.KeyPrefix))
                 {
                     var database = new NpgsqlConnectionStringBuilder(configuration.GetConnectionString(DependencyInjection.DatabaseConnectionName)).Database;
                     options.KeyPrefix = $"{environment.ApplicationName}:{environment.EnvironmentName}:{database}";
                 }
             })
             .ValidateDataAnnotations()
-            .Validate(options => options.KeyPrefix.Length <= 256
+            .Validate(options => !string.IsNullOrWhiteSpace(options.KeyPrefix), MissingKeyPrefixMessage)
+            // Un null ("KeyPrefix": null) ya lo rechaza la anterior; sin derivarlo, puede llegar hasta acá.
+            .Validate(options => options.KeyPrefix is null || (options.KeyPrefix.Length <= 256
                 && !options.KeyPrefix.Contains('{', StringComparison.Ordinal)
-                && !options.KeyPrefix.Contains('}', StringComparison.Ordinal),
+                && !options.KeyPrefix.Contains('}', StringComparison.Ordinal)),
                 "Caching:KeyPrefix must be at most 256 characters and cannot contain hash-tag delimiters.")
             .ValidateOnStart();
 

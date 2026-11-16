@@ -110,6 +110,7 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 |---|---|---|---|
 | `ConnectionStrings:appdb` | la cadena de Postgres | `ArquitecturaBase.Infrastructure/Persistence/PersistenceRegistration.cs` (el nombre, en `DependencyInjection.cs`) | no arranca: lanza al crear el contexto, en el chequeo de migraciones |
 | `ConnectionStrings:cache` | conexión de Redis, como secreto; TLS y acceso privado en producción | `ArquitecturaBase.Infrastructure/Caching/CachingRegistration.cs` | no arranca sin conexión configurada; Redis inaccesible falla el descarte del seed |
+| `Caching:KeyPrefix` | el prefijo de las claves de Redis: uno por instalación y ambiente, igual en todas las réplicas (por ejemplo `acme:production`) | `ArquitecturaBase.Infrastructure/Caching/CachingRegistration.cs` | no arranca (validación de opciones). Sólo Development y Testing lo derivan de aplicación, ambiente y base |
 | `Authentication:LoginCode:HashKey` | al menos 32 bytes aleatorios en base64 (`openssl rand -base64 48`) | `ArquitecturaBase.Infrastructure/Security/LoginCodeHashOptions.cs`, registrado en `DependencyInjection.cs` | no arranca (validación de opciones) |
 | `Authentication:Certificates:Signing:Base64` o `:Path`, y `:Password` | el PFX de firma de OpenIddict; `Base64` gana sobre `Path` | `ArquitecturaBase.Infrastructure/Identity/OpenIddict/CertificateLoader.cs`, llamado en `OpenIddictRegistration.cs` | no arranca: se lee al registrar los servicios |
 | `Authentication:Certificates:Encryption:Base64` o `:Path`, y `:Password` | el PFX de cifrado, igual que el anterior | los mismos | igual |
@@ -127,7 +128,7 @@ Fuera de Aspire la Api no recibe nada sola. Con variables de entorno, el `:` se 
 
 ## Redis
 
-El despliegue actual fuera de Aspire debe provisionar Redis por separado. El AppHost levanta `redis:8.6` solo para desarrollo; ni el pipeline de imagen ni las instrucciones previas de Azure crean un servidor Redis. Antes de desplegar esta versión, configurá `ConnectionStrings__cache` como secreto del orquestador y acceso privado con TLS, y `Caching__KeyPrefix` con un valor compartido entre las réplicas y distinto por instalación/ambiente. Sin prefijo explícito se usa aplicación, ambiente y nombre de la base, que no distingue instalaciones con nombres de base iguales.
+El despliegue actual fuera de Aspire debe provisionar Redis por separado. El AppHost levanta `redis:8.6` solo para desarrollo; ni el pipeline de imagen ni las instrucciones previas de Azure crean un servidor Redis. Antes de desplegar esta versión, configurá `ConnectionStrings__cache` como secreto del orquestador y acceso privado con TLS, y `Caching__KeyPrefix` con un valor compartido entre las réplicas y distinto por instalación/ambiente. Sin prefijo la Api no arranca: sólo Development y Testing lo derivan de aplicación, ambiente y nombre de la base, que no distingue instalaciones que comparten Redis con bases del mismo nombre.
 
 Redis guarda valores reconstruibles: no requiere persistencia para recuperar el producto. Dimensioná memoria y una política de expulsión para TTLs, y monitoreá las métricas del caché; no guarda tokens, códigos ni claves de Data Protection. Sus datos usan formato de clave `v1`; una revisión del formato en un despliegue debe permitir que las versiones de Api que conviven lean sus propias claves.
 

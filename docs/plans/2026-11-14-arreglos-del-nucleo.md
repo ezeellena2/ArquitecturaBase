@@ -166,8 +166,9 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     host, para que los chequeos de Container Apps, que mandan la IP del pod, no reciban 400. El apagado de la Api queda en
     unos 25 segundos, contra 40 a 60 de la Container App. Cambian [despliegue](../guides/despliegue.md) y
     [Azure](../deploy/azure-setup.md). Trivial a chico.
-18. **N19. `Caching:KeyPrefix` es obligatorio fuera de Development y Testing**, con `ValidateOnStart`; cambia
-    `despliegue.md:121`. Trivial.
+18. **N19. `Caching:KeyPrefix` es obligatorio fuera de Development y Testing**, con `ValidateOnStart`; cambian la sección
+    Redis y la tabla de [despliegue](../guides/despliegue.md), y lo que repite el prefijo derivado (`backend.md`,
+    `agregar-cache.md` y el README). Trivial.
 19. **N18. La resiliencia por defecto no reintenta un POST.** Se saca el handler de los valores por defecto de
     `ServiceDefaults`, porque ningún cliente lo usa tal cual; los 14 clientes que hoy lo quitan quedan igual. Un control:
     ningún cliente con nombre repite un POST ante un 503. Trivial.
