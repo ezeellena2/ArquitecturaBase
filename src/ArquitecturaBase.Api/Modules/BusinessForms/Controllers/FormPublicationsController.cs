@@ -38,7 +38,7 @@ public sealed class FormPublicationsController(IFormPublicationAcceptanceService
         return Result.Success(response).ToAcceptedResult(this);
     }
     [HttpGet("{requestId:guid}")]
-    [EnableRateLimiting(BusinessFormsApiRegistration.MetaReadPolicy)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
     [ProducesResponseType<FormPublicationStatusResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get([FromRoute] Guid id, [FromRoute] Guid requestId, CancellationToken cancellationToken) =>

@@ -8,7 +8,7 @@ public static class BusinessFormsApiRegistration
     public const string ExportPolicy = "forms-export";
     public const string FilesReadPolicy = "forms-files-read";
     public const string WritePolicy = "forms-write";
-    // The official preview and the status of a publication ask Meta several times per request: ten a minute per person (F17).
+    // The official preview asks Meta several times per request: ten a minute per person (F17). The status of a publication only asks Meta when the operation failed or is uncertain, so its polling stays on ReadPolicy.
     public const string MetaReadPolicy = "forms-meta-read";
     // Exports and imports (records and catalogs) heavy enough to hold the copy's memory: at most this many at once per copy (F11, F12).
     public const int GlobalExportLimit = 2;
