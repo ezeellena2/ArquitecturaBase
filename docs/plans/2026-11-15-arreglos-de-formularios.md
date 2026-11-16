@@ -57,7 +57,7 @@ En orden de peso; cada tarea lo repite.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro, el contador para quien
    administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F19, que el detalle muestre quién pidió el último
    reintento o la consulta; de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 8, 10, 11 y 25.
-3. **El resto de la etapa 6:** F8, F15, F16, F33 y F37, sin empezar.
+3. **El resto de la etapa 6:** F8, F15, F16 y F37, sin empezar.
 4. **La etapa 7:** F29, F30 y F25.
 5. **F7-1**, de la revisión adversarial del 2026-11-15 sobre F3, F6 y F7: la bandeja de documentos agrupa también por temas sin
    revisar (`FormReceivedDocumentReader.GroupsAsync` tiene que pedir `ReviewedAtUtc`).
@@ -203,7 +203,7 @@ En orden de peso; cada tarea lo repite.
     falta de permiso. Chico. Hecha el 2026-11-15 en `ec9d212c`.
 33. **F24. Crear un catálogo es idempotente.** Un id de pedido en la creación, como los borradores. Chico. Hecha el 2026-11-15 en `fb0545a0` (backend) y `133b4686` (front). El id de pedido quedó opcional, porque unos 69 tests crean catálogos sin él; el front siempre lo manda.
 34. **F33. El índice por fecha de las respuestas.** Por formulario y fecha de recepción, sobre las vigentes; lo demás de F33 queda
-    para gran escala. Trivial. Sin empezar.
+    para gran escala. Trivial. Hecha el 2026-11-16 en `38b8db06` (`IX_BusinessFormRecords_Current_DefinitionId_SubmittedAtUtc`).
 35. **F37. La captura revisa las opciones elegidas por lote.** Una consulta por catálogo que conserva el orden del rechazo. Chico. Sin empezar.
 36. **F47. El menú arma el índice de carpetas una vez.** Y las carpetas suman un tope, con su error. Chico. Hecha el 2026-11-15 en `64874daf`.
 

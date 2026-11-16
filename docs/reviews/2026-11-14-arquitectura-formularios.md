@@ -853,6 +853,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   administrado; índices de valor por pregunta, con cada condición escrita desde los valores; un conteo acotado («más de
   10.000») en formularios grandes; la navegación por clave; el total de «Formularios» desde un contador; y los conteos de filtros
   con un solo `GROUP BY`. Grande, por partes.
+- **Arreglado el 2026-11-16** en `38b8db06` (en parte: el índice por formulario y fecha de recepción sobre las vigentes; lo demás queda para gran escala).
 
 #### F34. Un aviso a un rol no tiene tope de personas: se arma entero en la captura, bajo el lock global
 
