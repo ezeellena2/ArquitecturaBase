@@ -185,7 +185,7 @@ conserva el alcance de las pruebas de conexión.
 Un proveedor nuevo se guarda recién un despliegue después de la versión que ya lo lee (I4, la regla de
 [despliegue](despliegue.md)). Si igual una copia encuentra guardado uno que no conoce, por ejemplo al volver a la imagen
 anterior, nada responde 500: la pantalla de la conexión la muestra vacía y Pausada, con su revisión y un aviso, el
-asistente queda no disponible (`paused`), la prueba y el catálogo no mandan la clave guardada a otro proveedor y los
+asistente queda no disponible (`paused`), la clave guardada nunca va a otro proveedor (guardar sin tocarla la descarta, y la prueba y el catálogo piden una) y los
 turnos sellados con ese proveedor quedan para la versión que lo conoce. Para seguir con esta versión, elegí un proveedor,
 cargá su clave y guardá; si no, volvé a la versión que lo conoce.
 

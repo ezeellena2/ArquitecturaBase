@@ -48,9 +48,9 @@ public sealed class AiConnectionUnsupportedProviderTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, bootstrap.StatusCode);
         Assert.Equal("paused", (await bootstrap.ReadJsonAsync()).GetProperty("availability").GetString());
         Assert.Equal("paused", availability.State);
-        // The saved key is never sent to a provider this version knows.
+        // The saved key is never sent to a provider this version knows: for it there is no key to keep (I4, review).
         Assert.Equal(HttpStatusCode.BadRequest, probe.StatusCode);
-        Assert.Equal(AiConnectionErrors.ProviderChanged.Code, (await probe.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.Equal(AiConnectionErrors.CredentialRequired.Code, (await probe.ReadJsonAsync()).GetProperty("code").GetString());
         Assert.True(claimed.IsSuccess);
         Assert.Null(claimed.Value);
         Assert.Equal(HttpStatusCode.OK, turn.StatusCode);
@@ -67,5 +67,26 @@ public sealed class AiConnectionUnsupportedProviderTests(ApiFactory factory)
             replaced.GetProperty("unsupportedProvider").GetBoolean()));
         Assert.Equal(AiProvider.OpenAI, await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>()
             .Set<AiConnection>().Select(row => row.Provider).SingleAsync(Ct)));
+    }
+
+    // The screen shows it as OpenAI without a key and paused; whoever writes a model and saves sends Keep, which drops the saved key
+    // instead of answering ProviderChanged for a change nobody made (I4, review).
+    [Fact]
+    public async Task Saving_without_touching_the_key_of_a_future_provider_saves_without_it()
+    {
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary");
+        await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database
+            .ExecuteSqlAsync($"""UPDATE "AiConnections" SET "Provider" = 'Gemini'""", Ct));
+
+        using var saved = await scenario.Client.PutAsJsonAsync("/api/ai/connection", new { provider = "OpenAI", model = "fictional-model",
+            credentialChange = "Keep", apiKey = (string?)null, enabled = false, expectedRevision = scenario.ConnectionRevision, requestId = Guid.NewGuid() }, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var shown = (await saved.ReadJsonAsync()).GetProperty("connection");
+        Assert.Equal(("OpenAI", "fictional-model", false, false, false), (shown.GetProperty("provider").GetString(), shown.GetProperty("model").GetString(),
+            shown.GetProperty("hasCredential").GetBoolean(), shown.GetProperty("enabled").GetBoolean(), shown.GetProperty("unsupportedProvider").GetBoolean()));
+        var row = await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<AiConnection>().AsNoTracking()
+            .Select(connection => new { connection.Provider, connection.ProtectedApiKey }).SingleAsync(Ct));
+        Assert.Equal((AiProvider.OpenAI, (string?)null), (row.Provider, row.ProtectedApiKey));
     }
 }

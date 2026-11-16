@@ -5,8 +5,10 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 internal sealed class AiConnectionCandidatePolicy(IAiSecretProtector protector)
 {
+    // I4: the key of a provider this version does not know serves no other one and is never sent: keeping it drops it, as Remove does.
     public Result<string?> Resolve(AiConnectionRow current, AiProvider provider, AiCredentialChange change, string? apiKey)
     {
+        if (change == AiCredentialChange.Keep && !AiProviders.IsSupported(current.Provider)) return Result.Success<string?>(null);
         if (change == AiCredentialChange.Keep && current.ProtectedApiKey is not null && provider != current.Provider)
             return AiConnectionErrors.ProviderChanged;
         return change switch

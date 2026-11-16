@@ -109,6 +109,28 @@ public sealed class AiConnectionServiceTests
         Assert.Equal("protected:fake-key", host.Store.Connection!.ProtectedApiKey);
     }
 
+    // I4: the screen shows a provider this version does not know as OpenAI without a key; saving without touching the key drops the
+    // saved one, which serves no other provider, instead of asking to replace or remove a key nobody sees (I4, review).
+    [Fact]
+    public async Task Keeping_the_key_of_a_provider_this_version_does_not_know_saves_without_it()
+    {
+        using var host = new Host();
+        await host.Service.UpdateAsync(Request(), Ct);
+        typeof(AiConnection).GetProperty(nameof(AiConnection.Provider))!.SetValue(host.Store.Connection, AiProviders.Unsupported);
+        var test = host.Provider.GetRequiredService<IAiConnectionTestService>();
+
+        // The test, like the save, finds no key to keep: it is never sent to another provider.
+        var probe = await test.TestAsync(new(AiProvider.OpenAI, "model", AiCredentialChange.Keep, null, 1), Ct);
+        var result = await host.Service.UpdateAsync(Request() with
+            { ExpectedRevision = 1, CredentialChange = AiCredentialChange.Keep, ApiKey = null, Enabled = false }, Ct);
+
+        Assert.Equal(AiConnectionErrors.CredentialRequired, probe.Error);
+        Assert.Equal(0, host.Client.Calls);
+        Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Code : null);
+        Assert.Equal((AiProvider.OpenAI, (string?)null, false, 2L), (host.Store.Connection!.Provider, host.Store.Connection.ProtectedApiKey,
+            host.Store.Connection.Enabled, host.Store.Connection.Revision));
+    }
+
     [Fact]
     public async Task Validation_rejects_header_injection_before_opening_a_transaction()
     {

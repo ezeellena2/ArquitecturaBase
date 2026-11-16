@@ -52,7 +52,7 @@ AiAssistantUnknownSealTests (I4) sella en PostgreSQL un turno con una terminal f
 
 AiAssistantSealedVersionTests (I4) sella en PostgreSQL una extracción de Formularios y un turno de WhatsApp, con sus ids y sin importar los módulos, con la versión 1 de una capacidad y los recupera con el contexto de una 2 ficticia (`RaisedVersionAssistantSource`): la consulta, el replay, el claim y la cancelación.
 
-AiConnectionUnsupportedProviderTests (I4) guarda en PostgreSQL una conexión y un turno con un proveedor futuro: la pantalla lo muestra sin 500, vacío y pausado con `unsupportedProvider`, el bootstrap y la disponibilidad dan `paused`, la prueba con `Keep` da `ProviderChanged`, el claim no lo toma, el turno se sigue leyendo y guardar con OpenAI lo reemplaza.
+AiConnectionUnsupportedProviderTests (I4) guarda en PostgreSQL una conexión y un turno con un proveedor futuro: la pantalla lo muestra sin 500, vacío y pausado con `unsupportedProvider`, el bootstrap y la disponibilidad dan `paused`, guardar con `Keep` lo guarda sin la clave y la prueba con `Keep` da `CredentialRequired`, el claim no lo toma, el turno se sigue leyendo y guardar con OpenAI lo reemplaza.
 
 AiAssistantOperationContinuationTests recorre «Cambiar algo» con el motor real y PostgreSQL: la operación siguiente queda en la conversación de la anterior (ordinal 2) y el proveedor recibe la pregunta y la propuesta anteriores como historia; continuar una operación con turnos posteriores la suma al final (ordinal 3), y después de una cancelada (la que un canal reemplazó) espera mientras ésta está activa, y la historia trae la propuesta anterior sin el pedido cancelado.
 
