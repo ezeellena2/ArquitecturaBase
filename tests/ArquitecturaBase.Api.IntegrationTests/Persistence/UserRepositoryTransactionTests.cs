@@ -313,7 +313,8 @@ public sealed class UserRepositoryTransactionTests(ApiFactory factory)
         public Task RemoveEmailAsync(Guid id, CancellationToken cancellationToken) =>
             inner.RemoveEmailAsync(id, cancellationToken);
 
-        public async Task SetRolesAsync(Guid id, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
+        public async Task<RoleAssignment> SetRolesAsync(
+            Guid id, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
         {
             Assert.Equal(userId, id);
             Assert.NotNull(db.Database.CurrentTransaction);

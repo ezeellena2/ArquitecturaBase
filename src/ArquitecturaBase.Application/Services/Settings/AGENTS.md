@@ -10,6 +10,7 @@ Antes de tocar esto, leé [`docs/features/administracion.md`](../../../../docs/f
 
 - La validación se ejecuta antes del límite; la escritura usa el repositorio y un único commit.
 - El PATCH admite uno o más ajustes: valida todo el pedido antes de modificar y aplica el conjunto con una sola revisión. Conservá el lock y expectedRevision, sin guardar por campo.
+- Un cambio del modo de registro deja su historia con `AdministrativeChangeRecorder` en el mismo límite, sólo si el cambio pasó y el modo es otro (N13, [administración](../../../../docs/features/administracion.md)).
 - El descarte del caché se hace después de confirmar. Una falla de Redis no convierte el cambio confirmado en rollback.
 - Los valores de configuración inicial son del seed, no una segunda fuente para lecturas de negocio.
 

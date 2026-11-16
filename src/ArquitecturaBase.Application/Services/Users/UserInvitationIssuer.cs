@@ -22,6 +22,7 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// </summary>
 internal sealed class UserInvitationIssuer(
     IUserInvitationRepository invitations,
+    IUserReader users,
     IEnumerable<IInvitationChannel> channels,
     ICurrentUser currentUser,
     EmailQuotaGuard emailQuota,
@@ -52,11 +53,14 @@ internal sealed class UserInvitationIssuer(
     }
 
     /// <summary>
-    /// El primer lock del reenvío, antes de leer la cuenta: dos reenvíos de la misma cuenta pasan de a uno y el segundo ve
-    /// el guardado del primero. <see cref="SendAsync"/> lo vuelve a tomar (es reentrante).
+    /// El primer lock del reenvío y, después, la cuenta leída bajo él (null si no existe): dos reenvíos de la misma cuenta
+    /// pasan de a uno y el segundo ve el guardado del primero. <see cref="SendAsync"/> lo vuelve a tomar (es reentrante).
     /// </summary>
-    public Task LockAsync(Guid userId, CancellationToken cancellationToken) =>
-        invitations.LockAccountAsync(userId, cancellationToken);
+    public async Task<UserAccount?> LockAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        await invitations.LockAccountAsync(userId, cancellationToken);
+        return await users.FindByIdAsync(userId, cancellationToken);
+    }
 
     /// <summary>
     /// Cuánto falta para poder mandarle otra invitación a <paramref name="userId"/>, contado desde la última que salió;

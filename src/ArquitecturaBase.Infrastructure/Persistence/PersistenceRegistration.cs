@@ -44,6 +44,7 @@ internal static class PersistenceRegistration
 
         services.AddScoped<ILoginCodeRepository, LoginCodeRepository>();
         services.AddScoped<ILoginAuditRepository, LoginAuditRepository>();
+        services.AddScoped<IAdministrativeChangeRepository, AdministrativeChangeRepository>();
         services.AddScoped<ILoginLinkRepository, LoginLinkRepository>();
         services.AddScoped<IUserInvitationRepository, UserInvitationRepository>();
         services.AddScoped<IUserRepository, UserRepository>();

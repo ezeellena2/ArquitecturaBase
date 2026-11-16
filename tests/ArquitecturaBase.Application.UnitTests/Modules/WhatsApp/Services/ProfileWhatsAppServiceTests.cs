@@ -590,7 +590,8 @@ public sealed class ProfileWhatsAppServiceTests
         public Task SetEmailAsync(Guid userId, Email email, bool confirmed, CancellationToken cancellationToken) =>
             inner.SetEmailAsync(userId, email, confirmed, cancellationToken);
 
-        public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken) =>
+        public Task<RoleAssignment> SetRolesAsync(
+            Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken) =>
             inner.SetRolesAsync(userId, roles, cancellationToken);
 
         public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>

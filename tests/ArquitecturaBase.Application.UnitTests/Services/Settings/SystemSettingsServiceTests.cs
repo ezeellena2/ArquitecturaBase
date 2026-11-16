@@ -3,10 +3,14 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Settings;
 using ArquitecturaBase.Application.Services.Settings;
+using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Settings;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
+using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 
@@ -49,6 +53,40 @@ public sealed class SystemSettingsServiceTests
         Assert.Equal(RegistrationMode.Open, fixture.Settings.RegistrationMode);
         Assert.Equal(2, fixture.Settings.Revision);
         Assert.Equal(["commit", "invalidate"], fixture.Events);
+    }
+
+    [Fact]
+    public async Task Changing_the_registration_mode_records_who_did_it_from_what_to_what_in_the_same_transaction()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+
+        var result = await fixture.Service.UpdateSectionAsync(new(1, RegistrationMode: RegistrationMode.Open), Ct);
+
+        Assert.True(result.IsSuccess);
+        var change = Assert.Single(fixture.Changes.Changes);
+        Assert.Equal(AdministrativeChangeKind.RegistrationModeChanged, change.Kind);
+        Assert.Equal(fixture.CurrentUser.UserId, change.ActorUserId);
+        Assert.Equal(fixture.Settings.Id, change.TargetId);
+        Assert.Equal("InviteOnly", change.Before);
+        Assert.Equal("Open", change.After);
+        Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime, change.OccurredAtUtc);
+    }
+
+    [Fact]
+    public async Task A_rejected_or_unchanged_registration_mode_leaves_no_history()
+    {
+        var stale = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+        stale.Settings.SetRegistrationMode(RegistrationMode.Open);
+        var other = new Fixture { Settings = SystemSettings.Create(RegistrationMode.Open) };
+
+        Assert.Equal(
+            SettingsErrors.RevisionConflict,
+            (await stale.Service.UpdateSectionAsync(new(1, RegistrationMode: RegistrationMode.InviteOnly), Ct)).Error);
+        Assert.True((await other.Service.UpdateSectionAsync(
+            new(1, DefaultPageSize: 50, RegistrationMode: RegistrationMode.Open), Ct)).IsSuccess);
+
+        Assert.Empty(stale.Changes.Changes);
+        Assert.Empty(other.Changes.Changes);
     }
 
     [Fact]
@@ -233,13 +271,21 @@ public sealed class SystemSettingsServiceTests
             _repository = new FakeRepository(this);
             _cache = new FakeCache(this);
             UnitOfWork = new FakeUnitOfWork(Events);
+            Changes.InTransaction = () => UnitOfWork.InTransaction;
             Service = new SystemSettingsService(
                 _repository,
                 _cache,
                 UnitOfWork,
                 RequestValidators.For(new UpdateSystemSettingsSectionRequestValidator()),
-                Logger, new FakeReader(), capabilities);
+                Logger, new FakeReader(), new AdministrativeChangeRecorder(Changes, CurrentUser, Clock), capabilities);
         }
+
+        public InMemoryAdministrativeChangeRepository Changes { get; } = new();
+
+        public FakeCurrentUser CurrentUser { get; } = new() { UserId = Guid.CreateVersion7() };
+
+        public Microsoft.Extensions.Time.Testing.FakeTimeProvider Clock { get; } =
+            new(new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero));
 
         public FakeUnitOfWork UnitOfWork { get; }
 

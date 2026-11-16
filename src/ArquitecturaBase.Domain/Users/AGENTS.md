@@ -7,6 +7,7 @@ Contiene reglas puras de cuenta, invitaciones y sus errores. La entidad técnica
 - Conservá las reglas del último administrador y del último medio de ingreso; probalas como invariantes.
 - Una invitación y un ingreso son hechos distintos: el envío no verifica automáticamente correo ni teléfono.
 - Las invitaciones expresan canal, consumo y estado de envío sin depender de proveedores. Las operaciones que leen otras cuentas se coordinan en Application.
+- `AdministrativeChange` es la historia de los cambios administrativos: una fila por dato que cambió, que no se modifica; del correo y del número guarda el estado, nunca el dato (N13).
 
 ## Referencias
 

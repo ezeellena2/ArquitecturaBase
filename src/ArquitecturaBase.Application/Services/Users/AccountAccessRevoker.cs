@@ -16,14 +16,21 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// los activos porque la cuenta sigue con acceso, acá caen también los vencidos.
 /// </summary>
 /// <remarks>
-/// Quien llama ya tomó el lock de enlaces de la cuenta (<see cref="ILoginLinkRepository.LockAccountAsync"/>, directo o
-/// con <see cref="PhoneNumberLinker.LockAsync"/>): sin él, un enlace emitido en paralelo quedaría fuera de la
-/// revocación. El lock queda afuera porque el orden global (primero los locks de los participantes del número, después
-/// la cuenta) lo decide quien llama.
+/// Quien llama ya tomó el lock de enlaces de la cuenta (<see cref="LockAsync"/>, o
+/// <see cref="PhoneNumberLinker.LockAsync"/>, que lo toma después de los participantes del número): sin él, un enlace
+/// emitido en paralelo quedaría fuera de la revocación. El lock es un paso aparte porque el orden global (primero los
+/// locks de los participantes del número, después la cuenta) lo decide quien llama.
 /// </remarks>
 internal sealed class AccountAccessRevoker(
     ILoginLinkRepository loginLinks, ISignInService signIn, TimeProvider timeProvider)
 {
+    /// <summary>
+    /// El lock de enlaces de la cuenta (<see cref="ILoginLinkRepository.LockAccountAsync"/>), hasta el final del límite:
+    /// pone en fila la revocación con la emisión y el canje de enlaces de la cuenta.
+    /// </summary>
+    public Task LockAsync(Guid userId, CancellationToken cancellationToken) =>
+        loginLinks.LockAccountAsync(userId, cancellationToken);
+
     public async Task RevokeAsync(Guid userId, CancellationToken cancellationToken)
     {
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;

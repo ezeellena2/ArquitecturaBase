@@ -3,12 +3,14 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Application.Services.Roles;
+using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.Validation.Roles;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.Users;
 using Microsoft.Extensions.Logging.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Services.Roles;
@@ -51,6 +53,106 @@ public sealed class RoleServiceWriteTests
         Assert.Equal([Permissions.Users.Read, Permissions.Roles.Read], fixture.Repository.WrittenPermissions);
         Assert.Equal(["create", "commit"], fixture.Events);
         Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
+    }
+
+    [Fact]
+    public async Task Create_records_who_created_the_role_with_its_permissions_in_the_same_transaction()
+    {
+        var fixture = new Fixture();
+
+        var result = await fixture.Service.CreateAsync(
+            new CreateRoleRequest("Mesa", "Atiende", [Permissions.Users.Read, Permissions.Roles.Read]), Ct);
+
+        Assert.True(result.IsSuccess);
+        var change = Assert.Single(fixture.Changes.Changes);
+        Assert.Equal(AdministrativeChangeKind.RoleCreated, change.Kind);
+        Assert.Equal(fixture.CurrentUser.UserId, change.ActorUserId);
+        Assert.Equal(result.Value, change.TargetId);
+        Assert.Equal("Mesa", change.TargetName);
+        Assert.Equal([Permissions.Roles.Read, Permissions.Users.Read], change.Added);
+        Assert.Equal("Atiende", change.After);
+        Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime, change.OccurredAtUtc);
+    }
+
+    [Fact]
+    public async Task Update_records_the_new_name_description_and_the_permissions_given_and_taken()
+    {
+        var fixture = new Fixture();
+        fixture.Reader.Role = NewRole("Mesa", permissions: [Permissions.Users.Read, Permissions.Roles.Read]);
+
+        var result = await fixture.Service.UpdateAsync(
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Mesa de ayuda", "Atiende",
+                [Permissions.Users.Read, Permissions.Users.Manage], 1), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Collection(
+            fixture.Changes.Changes,
+            renamed =>
+            {
+                Assert.Equal(AdministrativeChangeKind.RoleRenamed, renamed.Kind);
+                Assert.Equal(("Mesa", "Mesa de ayuda"), (renamed.Before, renamed.After));
+            },
+            described =>
+            {
+                Assert.Equal(AdministrativeChangeKind.RoleDescriptionChanged, described.Kind);
+                Assert.Equal((null, "Atiende"), (described.Before, described.After));
+            },
+            permissions =>
+            {
+                Assert.Equal(AdministrativeChangeKind.RolePermissionsChanged, permissions.Kind);
+                Assert.Equal("Mesa de ayuda", permissions.TargetName);
+                Assert.Equal([Permissions.Users.Manage], permissions.Added);
+                Assert.Equal([Permissions.Roles.Read], permissions.Removed);
+            });
+        Assert.All(fixture.Changes.Changes, change => Assert.Equal(fixture.Reader.Role.Id, change.TargetId));
+    }
+
+    [Fact]
+    public async Task Saving_the_same_role_or_a_rejected_change_leaves_no_history()
+    {
+        var fixture = new Fixture();
+        fixture.Reader.Role = NewRole("Mesa", permissions: [Permissions.Users.Read]);
+
+        var same = await fixture.Service.UpdateAsync(
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Mesa", null, [Permissions.Users.Read], 1), Ct);
+        var stale = await fixture.Service.UpdateAsync(
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Otra", null, [], 7), Ct);
+        fixture.ActAs(RoleManagersRole());
+        var notHeld = await fixture.Service.CreateAsync(
+            new CreateRoleRequest("Mesa 2", null, [Permissions.Users.Manage]), Ct);
+
+        Assert.True(same.IsSuccess);
+        Assert.Equal(RoleErrors.RevisionConflict, stale.Error);
+        Assert.Equal(RoleErrors.PermissionsNotHeld, notHeld.Error);
+        Assert.Empty(fixture.Changes.Changes);
+    }
+
+    [Fact]
+    public async Task Delete_records_the_permissions_the_role_had()
+    {
+        var fixture = new Fixture();
+        fixture.Reader.Role = NewRole("Mesa", permissions: [Permissions.Users.Read, Permissions.Roles.Read]);
+
+        var result = await fixture.Service.DeleteAsync(new DeleteRoleRequest(fixture.Reader.Role.Id), Ct);
+
+        Assert.True(result.IsSuccess);
+        var change = Assert.Single(fixture.Changes.Changes);
+        Assert.Equal(AdministrativeChangeKind.RoleDeleted, change.Kind);
+        Assert.Equal(fixture.Reader.Role.Id, change.TargetId);
+        Assert.Equal("Mesa", change.TargetName);
+        Assert.Equal([Permissions.Roles.Read, Permissions.Users.Read], change.Removed);
+    }
+
+    [Fact]
+    public async Task Deleting_a_role_with_accounts_leaves_no_history()
+    {
+        var fixture = new Fixture();
+        fixture.Reader.Role = NewRole("Mesa", userCount: 2);
+
+        var result = await fixture.Service.DeleteAsync(new DeleteRoleRequest(fixture.Reader.Role.Id), Ct);
+
+        Assert.Equal(RoleErrors.HasUsers(2).Code, result.Error.Code);
+        Assert.Empty(fixture.Changes.Changes);
     }
 
     [Fact]
@@ -291,6 +393,7 @@ public sealed class RoleServiceWriteTests
 
             // Como RoleRepository: escribir fuera del límite lanza, aunque los eventos y el commit queden en el mismo orden.
             Repository.InTransaction = () => UnitOfWork.InTransaction;
+            Changes.InTransaction = () => UnitOfWork.InTransaction;
             Service = new RoleService(
                 Reader,
                 Repository,
@@ -299,8 +402,14 @@ public sealed class RoleServiceWriteTests
                 UnitOfWork,
                 Catalog,
                 new PermissionDelegationGuard(CurrentUser, Reader, Catalog, new FakeInitialAdmin()),
+                new AdministrativeChangeRecorder(Changes, CurrentUser, Clock),
                 Logger);
         }
+
+        public InMemoryAdministrativeChangeRepository Changes { get; } = new();
+
+        public Microsoft.Extensions.Time.Testing.FakeTimeProvider Clock { get; } =
+            new(new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero));
 
         public Application.Channels.PermissionCatalog Catalog { get; } = new([]);
 

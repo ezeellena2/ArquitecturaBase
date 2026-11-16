@@ -55,9 +55,10 @@ public interface IUserRepository
     /// que haya al menos uno lo valida Application antes. El UserName es el Id de la cuenta, así cambiar el correo o el
     /// número no cambia nada más. El correo queda confirmado, porque ambos ingresos lo verifican; el número, según
     /// <paramref name="phoneConfirmed"/>: uno que carga un administrador queda sin verificar hasta que la persona entra con
-    /// él. Le asigna el rol Admin si el correo es el configurado en Seed:AdminEmail, y User si no. Si Identity o la base lo
-    /// rechazan lanza una excepción: el caso de uso buscó antes la cuenta por su correo y su número, así que un rechazo es
-    /// un error de programación.
+    /// él. Le asigna el rol Admin si el correo es el configurado en Seed:AdminEmail, y User si no; el Admin deja su fila en
+    /// la historia de los cambios administrativos, sin actor, como el seed (N13). Si Identity o la base lo rechazan lanza
+    /// una excepción: el caso de uso buscó antes la cuenta por su correo y su número, así que un rechazo es un error de
+    /// programación.
     /// </summary>
     Task<UserAccount> CreateAsync(
         Email? email,
@@ -129,8 +130,11 @@ public interface IUserRepository
     /// </summary>
     Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken);
 
-    /// <summary>Deja la cuenta exactamente con esos roles: agrega los que faltan y saca los que sobran.</summary>
-    Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken);
+    /// <summary>
+    /// Deja la cuenta exactamente con esos roles: agrega los que faltan y saca los que sobran, y devuelve cuáles, para la
+    /// historia de los cambios administrativos (N13).
+    /// </summary>
+    Task<RoleAssignment> SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken);
 
     Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken);
 

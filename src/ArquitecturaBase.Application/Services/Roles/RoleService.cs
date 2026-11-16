@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Roles;
+using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,8 @@ namespace ArquitecturaBase.Application.Services.Roles;
 /// Lecturas y cambios de roles, con sus reglas. Es el área de referencia del límite transaccional: cada escritura valida
 /// afuera y corre en un solo ExecuteInTransactionAsync. Los permisos no tienen caché que invalidar: cada pedido los lee de
 /// la base (N9 y N33, 2026-11-16). Quien pide sólo da o quita los permisos que tiene, y los de User sólo los cambia Admin
-/// (<see cref="PermissionDelegationGuard"/>, que sabe quién pide y lee sus permisos de la base adentro del límite).
+/// (<see cref="PermissionDelegationGuard"/>, que sabe quién pide y lee sus permisos de la base adentro del límite). Cada
+/// alta, edición o borrado deja su historia en el mismo límite (<see cref="AdministrativeChangeRecorder"/>, N13).
 /// </summary>
 internal sealed class RoleService(
     IRoleReader roles,
@@ -24,6 +26,7 @@ internal sealed class RoleService(
     IUnitOfWork unitOfWork,
     IPermissionCatalog catalog,
     PermissionDelegationGuard delegation,
+    AdministrativeChangeRecorder changes,
     ILogger<RoleService> logger) : IRoleService
 {
     public Task<Result<IReadOnlyCollection<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken) =>
@@ -150,7 +153,9 @@ internal sealed class RoleService(
         }
 
         // RoleManager autoguarda el rol y cada claim: dentro de la transacción, o se guarda todo o no se guarda nada.
-        return await repository.CreateAsync(name, request.Description, permissions, cancellationToken);
+        var roleId = await repository.CreateAsync(name, request.Description, permissions, cancellationToken);
+        changes.RoleCreated(roleId, name, request.Description, permissions);
+        return roleId;
     }
 
     private async Task<Result> UpdateCoreAsync(UpdateRoleRequest request, CancellationToken cancellationToken)
@@ -217,6 +222,7 @@ internal sealed class RoleService(
 
         // RoleManager autoguarda el rol y cada claim: dentro de la transacción, o se guarda todo o no se guarda nada.
         await repository.UpdateAsync(role.Id, name, request.Description, permissions, cancellationToken);
+        changes.RoleUpdated(role, name, request.Description, permissions);
         return Result.Success();
     }
 
@@ -241,7 +247,9 @@ internal sealed class RoleService(
             return RoleErrors.HasUsers(role.UserCount);
         }
 
+        // El borrado es físico y se lleva los permisos: la historia guarda los que tenía.
         await repository.DeleteAsync(role.Id, cancellationToken);
+        changes.RoleDeleted(role);
         return Result.Success();
     }
 

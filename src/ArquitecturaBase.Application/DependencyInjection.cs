@@ -77,6 +77,7 @@ public static class DependencyInjection
         services.AddScoped<SignInCodeIssuer>();
         services.AddScoped<LoginCodeVerifier>();
         services.AddScoped<LoginAuditRecorder>();
+        services.AddScoped<AdministrativeChangeRecorder>();
         services.AddScoped<AccountCreationPolicy>();
         services.AddScoped<UserContactLinker>();
         services.AddScoped<UserInvitationIssuer>();

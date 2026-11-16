@@ -352,13 +352,18 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
     public Task RemovePhoneAsync(Guid userId, CancellationToken cancellationToken) =>
         Update(userId, user => user with { PhoneNumber = null, PhoneNumberConfirmed = false });
 
-    public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
+    public Task<RoleAssignment> SetRolesAsync(
+        Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
     {
         TransactionGuard.Require(InTransaction);
         OnSetRoles?.Invoke();
 
+        var current = _roles.GetValueOrDefault(userId) ?? [];
+        var assignment = new RoleAssignment(
+            [.. roles.Except(current, StringComparer.Ordinal)], [.. current.Except(roles, StringComparer.Ordinal)]);
+
         // Como el repositorio: quitar o agregar un rol avanza la revisión de la cuenta.
-        if (!(_roles.GetValueOrDefault(userId) ?? []).ToHashSet(StringComparer.Ordinal).SetEquals(roles))
+        if (!current.ToHashSet(StringComparer.Ordinal).SetEquals(roles))
         {
             var index = _users.FindIndex(user => user.Id == userId);
             _users[index] = _users[index] with { Revision = _users[index].Revision + 1 };
@@ -366,7 +371,7 @@ internal sealed class InMemoryUserAccounts : IUserReader, IUserRepository
 
         _roles[userId] = [.. roles];
 
-        return Task.CompletedTask;
+        return Task.FromResult(assignment);
     }
 
     public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>

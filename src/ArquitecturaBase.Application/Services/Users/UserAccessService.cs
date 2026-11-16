@@ -11,15 +11,16 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// Lo que corta el acceso de una cuenta desde la administración: desactivarla (o activarla), borrarla y desvincular su
 /// número. Cada método abre un solo límite con <see cref="CommitPolicy.OnSuccess"/>; al desactivar, borrar o quitar un
 /// número ajeno, corta además todo acceso ya emitido con <see cref="AccountAccessRevoker"/>, después de tomar el lock de
-/// enlaces de la cuenta, que dura lo que el límite.
+/// enlaces de la cuenta, que dura lo que el límite. Cada cambio deja su historia en el mismo límite, al final
+/// (<see cref="AdministrativeChangeRecorder"/>, N13).
 /// </summary>
 internal sealed class UserAccessService(
     IUserReader users,
     IUserRepository repository,
     UserGuard guard,
-    ILoginLinkRepository loginLinks,
     PhoneNumberLinker phoneLinker,
     AccountAccessRevoker accessRevoker,
+    AdministrativeChangeRecorder changes,
     IUnitOfWork unitOfWork,
     ILogger<UserAccessService> logger) : IUserAccessService
 {
@@ -48,7 +49,7 @@ internal sealed class UserAccessService(
         if (!isActive)
         {
             // Pone en fila la revocación con la emisión y el canje de enlaces de la cuenta.
-            await loginLinks.LockAccountAsync(userId, cancellationToken);
+            await accessRevoker.LockAsync(userId, cancellationToken);
         }
 
         // Activar y desactivar a la vez pasan de a uno sobre la fila, y gana el último: sin el lock, el segundo guardado
@@ -76,13 +77,14 @@ internal sealed class UserAccessService(
             await accessRevoker.RevokeAsync(userId, cancellationToken);
         }
 
+        changes.StatusChanged(user, isActive);
         return Result.Success();
     }
 
     private async Task<Result> DeleteCoreAsync(Guid userId, CancellationToken cancellationToken)
     {
         // Pone en fila la revocación con la emisión y el canje de enlaces de la cuenta.
-        await loginLinks.LockAccountAsync(userId, cancellationToken);
+        await accessRevoker.LockAsync(userId, cancellationToken);
         await repository.LockAsync(userId, cancellationToken);
 
         if (await users.FindByIdAsync(userId, cancellationToken) is not { } user)
@@ -99,6 +101,7 @@ internal sealed class UserAccessService(
         // Antes del borrado: después, el filtro global ya no encuentra la cuenta para renovarle el stamp.
         await accessRevoker.RevokeAsync(userId, cancellationToken);
         await repository.DeleteAsync(userId, cancellationToken);
+        changes.Deleted(user);
         return Result.Success();
     }
 
@@ -137,6 +140,8 @@ internal sealed class UserAccessService(
         {
             await accessRevoker.RevokeAsync(userId, cancellationToken);
         }
+
+        changes.PhoneChanged(user, present: false, verified: false);
         return Result.Success();
     }
 }

@@ -35,6 +35,7 @@ internal class UserServiceTestHost
     public InMemoryUserAccounts Accounts { get; } = new();
     public FakeSignInService SignIn { get; } = new();
     public InMemoryUserInvitationRepository Invitations { get; } = new();
+    public InMemoryAdministrativeChangeRepository Changes { get; } = new();
     public FakeUserInvitationReader InvitationReader { get; } = new();
     public FakeLogger<UserQueryService> QueryLogger { get; } = new();
     public FakeLogger<UserAdministrationService> AdministrationLogger { get; } = new();
@@ -102,6 +103,7 @@ internal class UserServiceTestHost
         SignIn.InTransaction = () => UnitOfWork.InTransaction;
         Destinations.InTransaction = () => UnitOfWork.InTransaction;
         Invitations.InTransaction = () => UnitOfWork.InTransaction;
+        Changes.InTransaction = () => UnitOfWork.InTransaction;
         Links.InTransaction = () => UnitOfWork.InTransaction;
         RoleReader = new FakeRoleReader(Accounts) { InTransaction = () => UnitOfWork.InTransaction };
         Accounts.SetRoles(CurrentUser.UserId!.Value, SystemRoles.Admin);
@@ -132,7 +134,8 @@ internal class UserServiceTestHost
         ];
 
         var invitationIssuer = new UserInvitationIssuer(
-            Invitations, invitationChannels, CurrentUser, EmailQuotaGuards.For(Destinations, Clock, Invitations), Clock);
+            Invitations, Accounts, invitationChannels, CurrentUser, EmailQuotaGuards.For(Destinations, Clock, Invitations), Clock);
+        var changes = new AdministrativeChangeRecorder(Changes, CurrentUser, Clock);
         var revoker = new AccountAccessRevoker(Links, SignIn, Clock);
         var contacts = new UserContactLinker(
             Accounts,
@@ -153,10 +156,10 @@ internal class UserServiceTestHost
             QueryLogger);
         Administration = new UserAdministrationService(
             Accounts,
-            Accounts,
             contacts,
             invitationIssuer,
             guard,
+            changes,
             RequestValidators.For(
                 new CreateUserRequestValidator(),
                 new UpdateUserRequestValidator(),
@@ -164,7 +167,7 @@ internal class UserServiceTestHost
             UnitOfWork,
             AdministrationLogger);
         Access = new UserAccessService(
-            Accounts, Accounts, guard, Links, phoneLinker, revoker, UnitOfWork, AccessLogger);
+            Accounts, Accounts, guard, phoneLinker, revoker, changes, UnitOfWork, AccessLogger);
         var codeOptions = Options.Create(new LoginCodeOptions());
         var codeHasher = new FakeLoginCodeHasher();
         ProfilePhone = new ProfilePhoneService(

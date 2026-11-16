@@ -4940,6 +4940,55 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Users.AdministrativeChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.PrimitiveCollection<string[]>("Added")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("After")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Before")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.PrimitiveCollection<string[]>("Removed")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId", "OccurredAtUtc");
+
+                    b.HasIndex("TargetId", "OccurredAtUtc");
+
+                    b.ToTable("AdministrativeChanges");
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Users.UserInvitation", b =>
                 {
                     b.Property<Guid>("Id")

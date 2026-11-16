@@ -15,14 +15,15 @@ namespace ArquitecturaBase.Application.Services.Users;
 /// abre un solo límite con <see cref="CommitPolicy.OnSuccess"/>: los locks preceden a las escrituras de Identity, que
 /// autoguardan en esa misma transacción, y un error de negocio la deshace entera. El correo y el número los manejan los
 /// pasos de <see cref="UserContactLinker"/>, y la invitación, los de <see cref="UserInvitationIssuer"/>, intercalados en
-/// el orden de cada caso de uso.
+/// el orden de cada caso de uso. Los roles, la restauración, el correo y el número dejan su historia al final del trabajo,
+/// en el mismo límite (<see cref="AdministrativeChangeRecorder"/>, N13).
 /// </summary>
 internal sealed class UserAdministrationService(
-    IUserReader users,
     IUserRepository userRepository,
     UserContactLinker contacts,
     UserInvitationIssuer invitations,
     UserGuard guard,
+    AdministrativeChangeRecorder changes,
     IRequestValidator validator,
     IUnitOfWork unitOfWork,
     ILogger<UserAdministrationService> logger) : IUserAdministrationService
@@ -143,7 +144,7 @@ internal sealed class UserAdministrationService(
         }
 
         var account = created.Value.Account;
-        await userRepository.SetRolesAsync(account.Id, requestedRoles, cancellationToken);
+        var assignment = await userRepository.SetRolesAsync(account.Id, requestedRoles, cancellationToken);
 
         // Otra vez, con lo que quedó: los roles asignados, por id, y el correo de la cuenta. Una restaurada tiene sólo el
         // correo del alta (N4): si era la de Seed:AdminEmail y se restauró por el número, ya no lo tiene. Un rechazo
@@ -163,6 +164,20 @@ internal sealed class UserAdministrationService(
             {
                 return sent.Error;
             }
+        }
+
+        // Una cuenta nueva nace con los roles del alta. Una restaurada vuelve con ellos (todos, en la fila de la
+        // restauración), cambia los que tenía antes de borrarse y queda con el correo y el número del alta (N4): cada uno
+        // que cambió, o que perdió la verificación, deja su fila.
+        if (created.Value.Deleted is { } deleted)
+        {
+            changes.Restored(account.Id, requestedRoles);
+            changes.RolesChanged(account.Id, assignment.Added, assignment.Removed);
+            changes.ContactChanged(deleted, account);
+        }
+        else
+        {
+            changes.RolesChanged(account.Id, requestedRoles, []);
         }
 
         return new CreateUserResponse(account.Id, created.Value.Restored);
@@ -186,12 +201,10 @@ internal sealed class UserAdministrationService(
         }
 
         var (email, phone) = (emailResult.Value, phoneResult.Value);
-        await contacts.LockAsync(request.UserId, email, phone, cancellationToken);
 
         // La fila de la cuenta, después de los locks de los destinos y del número: dos ediciones, el perfil, la
         // activación o el borrado pasan de a uno, y la revisión se compara con lo que confirmó el anterior (N2).
-        await userRepository.LockAsync(request.UserId, cancellationToken);
-        var user = await users.FindByIdAsync(request.UserId, cancellationToken);
+        var user = await contacts.LockAsync(request.UserId, email, phone, cancellationToken);
         if (user is null)
         {
             return UserErrors.NotFound;
@@ -238,7 +251,7 @@ internal sealed class UserAdministrationService(
         }
 
         await userRepository.SetDisplayNameAsync(user.Id, request.DisplayName, cancellationToken);
-        await userRepository.SetRolesAsync(user.Id, requestedRoles, cancellationToken);
+        var assignment = await userRepository.SetRolesAsync(user.Id, requestedRoles, cancellationToken);
 
         // SetRolesAsync busca cada rol por nombre: se vuelve a comprobar con los que la cuenta tiene ahora, por id.
         var assigned = await guard.EnsureAssignedRolesAsync(user, allowed.Value, cancellationToken);
@@ -247,15 +260,31 @@ internal sealed class UserAdministrationService(
             return assigned.Error;
         }
 
-        return await contacts.ChangeAsync(user.Id, newEmail, newPhone, cancellationToken);
+        var changed = await contacts.ChangeAsync(user.Id, newEmail, newPhone, cancellationToken);
+        if (changed.IsFailure)
+        {
+            return changed;
+        }
+
+        // Lo que carga un administrador queda sin verificar. Del correo y del número, sólo el estado.
+        changes.RolesChanged(user.Id, assignment.Added, assignment.Removed);
+        if (newEmail is not null)
+        {
+            changes.EmailChanged(user, present: true, verified: false);
+        }
+
+        if (newPhone is not null)
+        {
+            changes.PhoneChanged(user, present: true, verified: false);
+        }
+
+        return Result.Success();
     }
 
     private async Task<Result> SendInvitationCoreAsync(SendUserInvitationRequest request, CancellationToken cancellationToken)
     {
         // Dos reenvíos de la misma cuenta pasan de a uno y el segundo ve el guardado del primero.
-        await invitations.LockAsync(request.UserId, cancellationToken);
-
-        var user = await users.FindByIdAsync(request.UserId, cancellationToken);
+        var user = await invitations.LockAsync(request.UserId, cancellationToken);
         if (user is null)
         {
             return UserErrors.NotFound;

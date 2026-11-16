@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
@@ -22,7 +23,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Repositories;
 internal sealed class UserRepository(
     UserManager<ApplicationUser> userManager,
     ApplicationDbContext dbContext,
-    IInitialAdmin initialAdmin) : IUserRepository
+    IInitialAdmin initialAdmin,
+    IAdministrativeChangeRepository changes,
+    TimeProvider timeProvider) : IUserRepository
 {
     public Task LockExternalSignInAsync(
         Email email, string provider, string providerKey, CancellationToken cancellationToken)
@@ -69,7 +72,8 @@ internal sealed class UserRepository(
         dbContext.RequireTransaction();
 
         return await CreateUserAsync(
-            NewUser(email, emailConfirmed: email is not null, phone, phoneConfirmed, displayName, culture, timeZoneId), email);
+            NewUser(email, emailConfirmed: email is not null, phone, phoneConfirmed, displayName, culture, timeZoneId), email,
+            signingIn: true);
     }
 
     public async Task<UserAccount> CreateUnverifiedAsync(
@@ -88,7 +92,7 @@ internal sealed class UserRepository(
         // este guardado (savepoint en la transacción del caso de uso) y se despega la entidad para no reintentarla.
         try
         {
-            return await CreateUserAsync(user, email);
+            return await CreateUserAsync(user, email, signingIn: false);
         }
         catch (DbUpdateException exception) when (UniqueViolations.Translate(exception) is { } unique)
         {
@@ -183,7 +187,8 @@ internal sealed class UserRepository(
         (await userManager.UpdateAsync(user)).EnsureSucceeded("remove the phone number");
     }
 
-    public async Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
+    public async Task<RoleAssignment> SetRolesAsync(
+        Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();
         ArgumentNullException.ThrowIfNull(roles);
@@ -208,6 +213,8 @@ internal sealed class UserRepository(
         {
             (await userManager.AddToRolesAsync(user, added)).EnsureSucceeded("assign the roles");
         }
+
+        return new RoleAssignment(added, removed);
     }
 
     public async Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
@@ -281,12 +288,22 @@ internal sealed class UserRepository(
         string culture, string timeZoneId) =>
         ApplicationUser.Create(email?.Value, emailConfirmed, phone?.Value, phoneConfirmed, displayName, culture, timeZoneId);
 
-    private async Task<UserAccount> CreateUserAsync(ApplicationUser user, Email? email)
+    // La cuenta de Seed:AdminEmail que nace en su primer ingreso (signingIn) recibe Admin por la configuración, como en el
+    // seed: deja su historia sin actor (N13). El alta de un administrador (CreateUnverifiedAsync) deja la suya, con los
+    // roles que pidió, en UserAdministrationService.
+    private async Task<UserAccount> CreateUserAsync(ApplicationUser user, Email? email, bool signingIn)
     {
+        var isInitialAdmin = email is not null && initialAdmin.IsInitialAdmin(email);
         (await userManager.CreateAsync(user)).EnsureSucceeded("create the user");
-        (await userManager.AddToRoleAsync(
-            user, email is not null && initialAdmin.IsInitialAdmin(email) ? SystemRoles.Admin : SystemRoles.User))
+        (await userManager.AddToRoleAsync(user, isInitialAdmin ? SystemRoles.Admin : SystemRoles.User))
             .EnsureSucceeded("assign the initial role");
+
+        if (isInitialAdmin && signingIn)
+        {
+            changes.Add(AdministrativeChange.Create(
+                AdministrativeChangeKind.UserRolesChanged, actorUserId: null, user.Id, timeProvider.GetUtcNow().UtcDateTime,
+                added: [SystemRoles.Admin]));
+        }
 
         return ApplicationUserMapper.ToAccount(user);
     }

@@ -16,6 +16,7 @@ El perfil sigue además [`docs/features/identidad.md`](../../../../docs/features
 - Alta y edición tienen efectos distintos: cargar un destino no equivale a verificarlo. El perfil propio reemplaza los campos previstos del contrato.
 - El alta que restaura una cuenta borrada la deja sólo con el correo y el número que trajo (lo distinto se reemplaza), sin verificar, sin logins externos, con las preferencias de una cuenta nueva y con todo acceso cortado otra vez (N4, `UserContactLinker.RestoreAsync`). La respuesta dice que se restauró. Restaurando por el correo, entra quien controla el buzón, con el código: Google no se vincula a un correo sin confirmar (decisión del 2026-11-15, `ExternalLoginService`; administracion.md e identidad.md).
 - Los participantes del número se avisan desde `PhoneNumberLinker` en el límite existente, sin guardar por su cuenta.
+- Cada cambio administrativo (roles de una cuenta, estado, borrado, restauración, correo o número desde la administración; también los de un rol y el modo de registro) deja su fila con `AdministrativeChangeRecorder` al final del trabajo, en el mismo límite, sólo si cambió algo; del correo y del número, sólo el estado (N13, administracion.md).
 - Roles, sesiones y datos del perfil invalidan o revocan solo los efectos definidos por el caso; probá también invitaciones y fallas de entrega.
 
 ## Verificación y ejemplos

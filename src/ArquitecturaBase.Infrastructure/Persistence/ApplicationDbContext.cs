@@ -31,6 +31,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
 
     public DbSet<UserInvitation> UserInvitations => Set<UserInvitation>();
 
+    public DbSet<AdministrativeChange> AdministrativeChanges => Set<AdministrativeChange>();
+
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder builder)

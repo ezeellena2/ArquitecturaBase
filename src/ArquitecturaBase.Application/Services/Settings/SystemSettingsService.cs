@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Models.Settings;
+using ArquitecturaBase.Application.Services.Users;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Settings;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ internal sealed class SystemSettingsService(
     IRequestValidator validator,
     ILogger<SystemSettingsService> logger,
     ISystemSettingsReader reader,
+    AdministrativeChangeRecorder changes,
     IEnumerable<IClientCapabilitySource>? capabilitySources = null) : ISystemSettingsService
 {
     /// <summary>El panel lee la fila guardada, no la lectura cacheada del camino de ingreso.</summary>
@@ -74,8 +76,16 @@ internal sealed class SystemSettingsService(
                 var appearance = request.Appearance is { } colors
                     ? new AppearancePalette(colors.PrimaryColor, colors.MenuColor, colors.HeaderColor, colors.AlternateRowColor)
                     : null;
-                return settings.Update(request.DefaultCulture, request.DefaultTimeZoneId,
+                // El modo de registro deja su historia en el mismo límite, sólo si el cambio pasó (N13).
+                var modeBefore = settings.RegistrationMode;
+                var updated = settings.Update(request.DefaultCulture, request.DefaultTimeZoneId,
                     request.DefaultPageSize, request.RegistrationMode, appearance);
+                if (updated.IsSuccess)
+                {
+                    changes.RegistrationModeChanged(settings.Id, modeBefore, settings.RegistrationMode);
+                }
+
+                return updated;
             }, CommitPolicy.OnSuccess, cancellationToken);
 
             if (result.IsSuccess)

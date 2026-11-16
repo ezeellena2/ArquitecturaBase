@@ -236,6 +236,10 @@ public sealed class RoleServiceTests
                 reader,
                 new Application.Channels.PermissionCatalog([]),
                 new TestDoubles.Auth.FakeInitialAdmin()),
+            new Application.Services.Users.AdministrativeChangeRecorder(
+                new TestDoubles.Users.InMemoryAdministrativeChangeRepository(),
+                new TestDoubles.Auth.FakeCurrentUser(),
+                TimeProvider.System),
             logger);
 
     private sealed class UnusedRoleRepository : IRoleRepository

@@ -120,6 +120,6 @@ public sealed class UserInvitationIssuerTests
     private UserInvitationIssuer Issuer(EmailQuotaOptions quota, params IInvitationChannel[] channels)
     {
         var clock = new FakeTimeProvider(Now);
-        return new(_invitations, channels, _admin, EmailQuotaGuards.For(new InMemoryLoginCodeRepository(), clock, _invitations, quota), clock);
+        return new(_invitations, new InMemoryUserAccounts(), channels, _admin, EmailQuotaGuards.For(new InMemoryLoginCodeRepository(), clock, _invitations, quota), clock);
     }
 }

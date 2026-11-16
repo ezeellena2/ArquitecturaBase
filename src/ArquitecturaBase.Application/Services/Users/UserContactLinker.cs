@@ -102,17 +102,23 @@ internal sealed class UserContactLinker(
     }
 
     /// <summary>
-    /// Los locks de la edición: los destinos (<see cref="LockDestinationsAsync"/>) y, con número, los de los participantes
-    /// y después los enlaces de la cuenta (<see cref="PhoneNumberLinker.LockAsync"/>): el mismo orden del bot y del perfil.
-    /// Quien llama lee la cuenta después.
+    /// Los locks de la edición: los destinos (<see cref="LockDestinationsAsync"/>), con número los de los participantes y
+    /// después los enlaces de la cuenta (<see cref="PhoneNumberLinker.LockAsync"/>), y al final la fila de la cuenta
+    /// (<see cref="IUserRepository.LockAsync"/>): el mismo orden del bot y del perfil. Devuelve la cuenta leída bajo todos
+    /// ellos, o null si no existe: dos ediciones, el perfil, la activación o el borrado pasan de a uno, y la revisión se
+    /// compara con lo que confirmó el anterior (N2).
     /// </summary>
-    public async Task LockAsync(Guid userId, Email? email, PhoneNumber? phone, CancellationToken cancellationToken)
+    public async Task<UserAccount?> LockAsync(
+        Guid userId, Email? email, PhoneNumber? phone, CancellationToken cancellationToken)
     {
         await LockDestinationsAsync(email, phone, cancellationToken);
         if (phone is not null)
         {
             await phoneLinker.LockAsync(userId, phone, cancellationToken);
         }
+
+        await userRepository.LockAsync(userId, cancellationToken);
+        return await users.FindByIdAsync(userId, cancellationToken);
     }
 
     /// <summary>
@@ -142,7 +148,7 @@ internal sealed class UserContactLinker(
                 var preferences = await accountCreation.GetPreferencesAsync(fromCurrentRequest: false, cancellationToken);
                 var account = await userRepository.CreateUnverifiedAsync(
                     email, phone, displayName, preferences.DefaultCulture, cancellationToken, preferences.DefaultTimeZoneId);
-                return new CreatedAccount(account, Restored: false);
+                return new CreatedAccount(account, Deleted: null);
             }
             catch (UniqueConstraintViolationException)
             {
@@ -310,6 +316,6 @@ internal sealed class UserContactLinker(
 
         var restored = await users.FindByIdAsync(deleted.Id, cancellationToken)
             ?? throw new InvalidOperationException("The restored account was not found.");
-        return new CreatedAccount(restored, Restored: true);
+        return new CreatedAccount(restored, deleted);
     }
 }

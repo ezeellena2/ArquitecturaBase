@@ -611,7 +611,8 @@ public sealed class ProfileEmailServiceTests
         public Task SetPhoneAsync(Guid userId, PhoneNumber phone, bool confirmed, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken) =>
+        public Task<RoleAssignment> SetRolesAsync(
+            Guid userId, IReadOnlyCollection<string> roles, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task SetDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken) =>
