@@ -18,7 +18,7 @@ Los turnos acumulan AudioSeconds informado como metadata nullable, independiente
 
 Los recibos nuevos exigen canal e IsAudio explícitos; ambos son nullable únicamente para atribución histórica no demostrable. Permanecen independientes del contenido y conservan cuota tras retirarlo. `IsDocument` marca la lectura de un documento (falso en los anteriores) y nunca acompaña a un audio.
 
-TraceParent (I10) guarda una sola vez el contexto de traza de quien aceptó el turno, sólo con forma W3C.
+TraceParent (I10) guarda una sola vez el contexto de traza de quien aceptó el turno: `RecordTrace` sólo exige el largo de un `traceparent` W3C (55); uno ilegible lo ignora el coordinador al continuarlo.
 
 ChannelConversationId conserva sólo la identidad opaca de conversación aportada al crear el turno; no cambia al reclamar, cerrar ni purgar contenido. No es ConversationId del motor ni un permiso o una identidad heredada.
 
