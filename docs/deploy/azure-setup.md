@@ -3,13 +3,13 @@
 Receta técnica de recursos para `.github/workflows/deploy.yml`. Para este ambiente de pruebas, empezá por [Azure dev](azure-dev.md): explica conceptos, etapas, región/tamaños pendientes y la configuración exacta de GitHub. Los bloques Bash se ejecutan en Azure Cloud Shell con Bash; no copiarlos directamente en PowerShell.
 El pipeline no crea recursos: solo sube una imagen nueva y actualiza la aplicación.
 
-Este procedimiento prepara Container Apps, PostgreSQL y el registry. **También hace falta Redis**:
-provisionarlo con red privada/TLS y configurar `ConnectionStrings__cache` y `Caching__KeyPrefix`
+Este procedimiento prepara Container Apps, PostgreSQL, el registry y el almacenamiento de archivos privados. **También hace
+falta Redis**: provisionarlo con red privada/TLS y configurar `ConnectionStrings__cache` y `Caching__KeyPrefix`
 según la [guía de despliegue](../guides/despliegue.md#redis). Los comandos de esta guía no crean
-ese recurso ni Blob Storage. El workflow ya compila y empaqueta el front con la API; su ejecución real en Azure sigue en los [pendientes](../plans/verificacion-y-produccion.md).
+ese recurso. El workflow ya compila y empaqueta el front con la API; su ejecución real en Azure sigue en los [pendientes](../plans/verificacion-y-produccion.md).
 
 > **Costo.** Container Apps tiene una cuota gratuita mensual, pero PostgreSQL Flexible
-> Server, el registry y Redis pueden generar cargos. Revisá los precios de la región y los
+> Server, el registry, el almacenamiento y Redis pueden generar cargos. Revisá los precios de la región y los
 > recursos elegidos antes de crearlos; esta guía no fija una estimación mensual. Si es solo para probar, borrá el grupo de
 > recursos al terminar: `az group delete --name rg-arquitecturabase-dev --yes`.
 
@@ -43,6 +43,7 @@ APP=ca-arquitecturabase-dev
 PG=psql-arquitecturabase-dev
 PG_ADMIN=pgadmin
 PG_PASSWORD="<poné-una-contraseña-fuerte-acá>"
+ST=starqbasedev
 ```
 
 Reemplazá `REGION_ELEGIDA` y revisá disponibilidad y precios antes de ejecutar. Estos nombres son ejemplos; ACR, PostgreSQL y Storage pueden requerir sufijos únicos.
@@ -115,6 +116,17 @@ de ingreso, invitaciones y orientación) no lo tienen: lo que quedó pendiente e
 sólo se frena levantando la copia sin `WhatsApp:PhoneNumberId`, con el módulo apagado. El ensayo de una restauración
 sigue pendiente en [verificación y producción](../plans/verificacion-y-produccion.md).
 
+**Los archivos no vuelven con la base.** Restaurá el contenedor de [archivos privados](#archivos-privados) a la misma hora,
+o la copia queda con filas que apuntan a archivos que no están y con archivos sin fila, que la limpieza borra a las 24
+horas. A diferencia de la base, el contenedor se restaura en el lugar: todo lo que cambió en la cuenta después de esa hora
+vuelve atrás, también en la instalación que sigue andando. Por eso el ensayo se hace en el ambiente de prueba, y en
+producción se decide junto con la base. La hora común no puede ser más vieja que el plazo más corto: 7 días de la base y
+13 del contenedor. Sin `--blob-range` vuelve atrás la cuenta entera, que sólo tiene ese contenedor.
+
+```bash
+az storage blob restore --resource-group $RG --account-name $ST --time-to-restore "2026-11-13T12:00:00Z"
+```
+
 **Con ARCA,** la copia puede no conocer comprobantes que ARCA autorizó después de la hora restaurada:
 1. Levantala con la cola (`Arca__Invoicing__Worker__ProcessInBackground=false`) y las acciones de formularios
    (`BusinessForms__ActionWorker__ProcessInBackground=false`) apagadas.
@@ -157,6 +169,42 @@ APP_IDENTITY=$(az containerapp show --resource-group $RG --name $APP --query ide
 
 ```bash
 az containerapp registry set --resource-group $RG --name $APP --server $ACR.azurecr.io --identity system
+```
+
+### Archivos privados
+
+Las fotos y los documentos de las respuestas, los PDF de ARCA y los archivos del asistente van a un contenedor privado de
+Blob Storage (`FileStorage`, [ADR 0012](../decisions/0012-azure-blob-como-primer-proveedor-de-archivos.md)). La Api no lo
+crea al arrancar. Borrar un objeto es definitivo salvo que la cuenta lo guarde: con borrado temporal, versionado y feed de
+cambios, un archivo que la limpieza borró por error se recupera durante 14 días, y el contenedor se puede volver a una
+hora junto con la base ([restaurar](#restaurar-a-un-momento-dado)). El nombre de la cuenta es único en todo Azure, de 3 a
+24 minúsculas y números.
+
+```bash
+az storage account create --resource-group $RG --name $ST --location $LOCATION --kind StorageV2 --sku Standard_LRS --allow-blob-public-access false --allow-shared-key-access false --min-tls-version TLS1_2
+```
+
+```bash
+az storage account blob-service-properties update --resource-group $RG --account-name $ST --enable-delete-retention true --delete-retention-days 14 --enable-container-delete-retention true --container-delete-retention-days 14 --enable-versioning true --enable-change-feed true --change-feed-days 14 --enable-restore-policy true --restore-days 13
+```
+
+El plazo de restauración tiene que ser menor que el del borrado temporal. Con el versionado, un archivo borrado o
+reescrito queda como versión anterior y no vence solo: no le pongas una regla de ciclo de vida que borre versiones, porque
+rompe la restauración, ni una que borre archivos por antigüedad, porque los de una respuesta duran lo que dura la
+respuesta. Borrar los datos de una persona (H14) tiene que borrar también sus versiones.
+
+```bash
+az storage container-rm create --resource-group $RG --storage-account $ST --name files-content --public-access off
+```
+
+La Api entra con su identidad, sin claves ni SAS, y sólo a ese contenedor:
+
+```bash
+APP_IDENTITY=$(az containerapp show --resource-group $RG --name $APP --query identity.principalId --output tsv) && ST_ID=$(az storage account show --resource-group $RG --name $ST --query id --output tsv) && az role assignment create --assignee $APP_IDENTITY --role "Storage Blob Data Contributor" --scope "$ST_ID/blobServices/default/containers/files-content"
+```
+
+```bash
+az containerapp update --resource-group $RG --name $APP --set-env-vars FileStorage__Enabled=true FileStorage__CredentialMode=ManagedIdentity FileStorage__ServiceUri=https://$ST.blob.core.windows.net/ FileStorage__ContentContainer=files-content
 ```
 
 ### Probes

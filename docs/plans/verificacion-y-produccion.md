@@ -155,7 +155,10 @@ La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-pe
 - [ ] Revisar egress y retención de las cuentas OpenAI y Anthropic antes de usar datos reales
   (`store:false` no es retención cero). Hasta entonces, el piloto usa datos ficticios.
 - [ ] Restaurar en un ambiente aislado la base, el anillo de claves y el `InstallationId`, y comprobar que se
-  descifran la credencial, los comprobantes y el contenido del asistente antes de habilitar tráfico.
+  descifran la credencial, los comprobantes y el contenido del asistente antes de habilitar tráfico. El contenedor de
+  archivos privados se restaura a la misma hora que la base ([Azure](../deploy/azure-setup.md#restaurar-a-un-momento-dado)),
+  y se comprueba que abren una foto de una respuesta, un PDF de ARCA y un archivo del asistente, y que un archivo borrado
+  por la limpieza se recupera del borrado temporal (N15).
 - [ ] Probar una segunda instalación independiente (base, anillo e ID, UserSecretsId, prefijo de Redis,
   origen y credenciales propios) y comprobar que no comparte nada con la primera.
 - [ ] En el despliegue: anillo de IA en secrets o Key Vault, el destino de OpenTelemetry y la alerta de 5xx, como
