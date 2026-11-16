@@ -225,6 +225,18 @@ y 51) en verde; en el front, tsc, lint y vitest de la feature (252).
     entera. Test: con el límite tomado, la subida siguiente recibe 429. El costo del lector de Formularios con fotos grandes
     lo mira su revisión. Chico a mediano.
 
+**Hecha el 2026-11-15:** I1 en 734eac9a y f096d255, I14 en 3993227a y 1881ab06, I13 en 45ef6b5e, 6bcac225 y cf1f056b,
+B2 en 1db62122, 2f75ee9f y cd3ef78f (front bd8ded44 y 2b26f070, y la guía en 6c954948), e I9 en 2c9303c4 y f2c58ed5; el
+segundo commit de cada uno corrige lo que encontró su revisión adversarial. El tope de pendientes quedó en 4 y no en 8: con
+turnos de 60 a 80 segundos es lo que cuatro carriles empiezan antes de que venza. I9 toma el lugar después del permiso, uno
+por persona y con un plazo para el cuerpo. Quedó para después: que la prueba de la tanda falle con un solo carril (pide
+rehacer el proveedor ficticio de integración), la clave de la copia guardada que no depende de la persona y la copia
+huérfana de dos subidas del mismo pedido con distinto tipo, las dos anteriores y sin camino desde la app. Un apagado prolijo
+cierra como fallido un turno tomado sin paso reservado y ese cupo no se devuelve: lo resuelve la tarea 24. Build sin
+advertencias, Domain 1187, Application 6226 y Architecture 229 enteros en una copia de HEAD; integración de IA (485), de
+WhatsApp (155) y de Formularios (61) con I1 e I14, y de las rutas que cambiaron con I13, B2 e I9, en verde; en el front,
+tsc, lint y vitest de la feature (253).
+
 ### Etapa 4: lo que se borra
 
 17. **I2. Borrar una conversación borra sus lecturas y transcripciones** (decisión 3). Al borrar una conversación de Inicio,

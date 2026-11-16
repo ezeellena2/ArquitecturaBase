@@ -210,6 +210,9 @@ cambiarla lo decidís vos.
   (`front:src/shared/api/httpClient.ts:58-61,77-78`) y ante el 404 vuelve a subir (`front:src/features/artificial-intelligence/hooks/useAssistantDocument.ts:72-81`).
 - **Arreglo:** para la lectura y el audio de Inicio, consultar por persona e identificador sin exigir idioma ni zona; y que
   el audio descarte el pedido ante un conflicto, como el documento. Chico.
+- **Arreglado el 2026-11-15 en 1db62122, 2f75ee9f y cd3ef78f (front bd8ded44 y 2b26f070):** `home-audio` y `home-document`
+  se consultan y se recuperan por persona e identificador, sin idioma ni zona; otra persona con el mismo identificador no
+  encuentra ni toma la operación, y el audio descarta su pedido ante un 409 como el documento.
 
 #### B3. Una falla pasajera de la base cancela la consulta en curso
 
@@ -278,6 +281,10 @@ cambiarla lo decidís vos.
     turnos largos (trivial), o rechazar por capacidad cuando la fila no llega a empezar (mediano).
 
   **Decidido el 2026-11-14:** devuelve el cupo y el tope de pendientes se calibra ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-15 en 734eac9a y f096d255:** el recibo de un turno que terminó vencido, que el dominio sólo alcanza
+  sin ningún paso reservado, sigue deduplicando pero no cuenta en las cuotas; el tope de pendientes pasa a 4, lo que cuatro
+  carriles con turnos de 80 segundos empiezan antes de que venza (`RunningCapacity × floor(120 / turno largo)`; 8 con
+  turnos de menos de 60 segundos).
 
 #### I2. Borrar una conversación deja la foto, su texto leído, la grabación y su transcripción
 
@@ -485,6 +492,10 @@ cambiarla lo decidís vos.
 - **Arreglo:** un limitador de concurrencia por copia para las rutas de subida, con 429 y espera; una sola copia en memoria y
   la relectura con un hash incremental. Chico a mediano. Si el lector decodifica la foto entera (hasta 32 Mpx, unos 128 MiB),
   lo mira la revisión de Formularios.
+- **Arreglado el 2026-11-15 en 2c9303c4 y f2c58ed5:** las tres rutas que reciben archivos toman un lugar después del
+  permiso y de la ventana por persona: uno por persona y cuatro por copia, con una cola corta, 429 con espera y un plazo
+  para recibir el cuerpo; el archivo se lee una vez a un arreglo de su largo y la copia guardada se compara por bloques con
+  un hash incremental.
 
 #### I10. No se puede seguir una consulta a través del motor, y el sondeo llena el log
 
@@ -559,6 +570,9 @@ cambiarla lo decidís vos.
   (`AiAssistantHomeAudioTests.cs:150-162`).
 - **Arreglo:** lo mismo que los documentos: ante el conflicto, volver a consultar y devolver esa transcripción si el archivo
   coincide, y comparar el archivo en el reintento; con los dos tests espejo. Chico.
+- **Arreglado el 2026-11-15 en 45ef6b5e, 6bcac225 y cf1f056b:** el audio compara la grabación con el descriptor (SHA-256,
+  tamaño y tipo) y da 409 si es otra mientras la normalización conserve su contenido; ante el choque de la aceptación
+  vuelve a consultar y devuelve esa normalización, y una falla de esa consulta se responde tal cual.
 
 #### I14. Con el cupo agotado, cada envío igual lee y guarda el archivo
 
@@ -572,6 +586,9 @@ cambiarla lo decidís vos.
   la limpieza borra a las 24 horas (`PrivateFileCleanupService.cs:16-34`).
 - **Arreglo:** una revisión barata, sin candados, del cupo, la capacidad y el perfil antes de leer y guardar, con el mismo
   error; la aceptación sigue mandando. Chico.
+- **Arreglado el 2026-11-15 en 3993227a y 1881ab06:** las tres rutas revisan sin candados el cupo, la capacidad y, en el
+  audio, el perfil, después del reintento y de los controles de permiso y almacenamiento y antes de leer o guardar; si
+  rechaza, buscan otra vez el reintento, así dos subidas del mismo pedido terminan en una operación.
 
 #### I15. En Inicio el modelo no sabe qué día es, y nadie le pide fechas con números
 
