@@ -51,12 +51,9 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 
 En orden de peso; cada tarea lo repite.
 
-1. **El front del estado «No aplica»** (F2 y tarea 10). El backend ya marca así al aviso que no puede salir porque la ventana de
-   24 horas está cerrada y a quien dejó el rol, pero el front no lo conoce (`recipientStates` en `workflow.ts`, validado con un
-   objeto estricto): el historial de una respuesta con un aviso así no pasaría la validación. Va primero, con su texto y su test.
+1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro, el contador para quien
-   administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F19, que el detalle muestre quién pidió el último
-   reintento o la consulta; de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 8, 10, 11 y 25.
+   administra reglas y el aviso a quien cargó (lo espera ARCA H11); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 8, 10, 11 y 25.
 3. **El resto de la etapa 6:** F8, F15, F16 y F37, sin empezar.
 4. **La etapa 7:** F29, F30 y F25.
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
@@ -114,14 +111,14 @@ En orden de peso; cada tarea lo repite.
    puede salir porque la ventana de 24 horas está cerrada queda «No aplica» para esa persona, con su motivo, y no frena lo que
    sigue. Cambian las reglas del motor de acciones en [formularios](../features/formularios.md). Tests con `FakeTimeProvider`: un
    PDF en duda se confirma solo sin volver a generarse, y un aviso con la ventana cerrada deja seguir la regla. Mediano.
-   Hecha en parte el 2026-11-15 en `4dc53b94`: consulta sola con espera creciente y aviso «No aplica» por la ventana de 24 horas cerrada. Faltan la marca «Con acciones por resolver» de la planilla (con su filtro y el contador para quien administra reglas, que cambian el contrato y el front) y el aviso a quien cargó cuando su regla se frena. Falta también el front del estado «No aplica», que va primero.
+   Hecha en parte el 2026-11-15 en `4dc53b94`: consulta sola con espera creciente y aviso «No aplica» por la ventana de 24 horas cerrada. Faltan la marca «Con acciones por resolver» de la planilla (con su filtro y el contador para quien administra reglas, que cambian el contrato y el front) y el aviso a quien cargó cuando su regla se frena. El front del estado «No aplica» quedó hecho el 2026-11-16 en `511b6800` del front (`recipientStates`, su texto en es y en, tono neutro y su motivo).
 8. **F28. El worker reserva sólo los tipos de acción que conoce.** Filtro de tipos en la búsqueda de trabajo y un `switch` de
    efectos sin rama por defecto, con un test que recorre los tipos que acepta el editor de reglas y otro donde un tipo desconocido
    sigue esperando. Chico.
    Hecha el 2026-11-15 en `4dc53b94` (el worker reserva sólo los tipos que conoce, `FormActionKinds`, y el `switch` sin rama por defecto; el test recorre la reserva de un tipo desconocido, no los tipos del editor uno por uno). Falta ese test.
 9. **F19. Queda quién pidió reintentar o consultar.** El run guarda quién y cuándo pidió el reintento, el reintento por persona y
    la consulta, y el detalle de la respuesta lo muestra. Chico.
-   Hecha el 2026-11-15 en `760fee98` (columnas en la migración de `4dc53b94`). Falta que el detalle del front muestre quién pidió el último reintento o la consulta.
+   Hecha el 2026-11-15 en `760fee98` (columnas en la migración de `4dc53b94`). El historial del front muestra quién pidió el último reintento o la consulta (`lastRequest`), hecho el 2026-11-16 en `511b6800` del front.
 10. **Tres reglas escritas** (decisión 4). Las horas del PDF van en la zona de la cuenta de quien cargó, con su nombre, en lugar de
     UTC (cambia `formularios.md:425` y los textos de `Pdf.resx`); el aviso a un rol saltea al mandar, como «No aplica», a quien ya
     no es del rol (cambia `formularios.md:271`); y ante un toque viejo en «¿La emito?», quien cargó recibe una vez «Esa respuesta
