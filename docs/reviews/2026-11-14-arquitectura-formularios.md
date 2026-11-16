@@ -435,6 +435,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** no guardar como recibo los rechazos que pueden cambiar (una versión que la copia no entiende, un permiso perdido
   en una carrera), o que el front arme un pedido nuevo después de un 400 sin errores por pregunta; y textos de esos dos errores
   que sirvan también en la app. Chico.
+- **Arreglado el 2026-11-16** en `aba97b16` (el permiso perdido en una carrera no deja recibo; el front arma un pedido nuevo tras un 400 sin errores por pregunta; textos sin «sesión» ni «cuenta vinculada»).
 
 #### F9. Un documento propuesto que nadie revisa no se borra nunca
 

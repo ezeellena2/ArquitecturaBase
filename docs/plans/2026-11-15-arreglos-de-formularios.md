@@ -54,7 +54,7 @@ En orden de peso; cada tarea lo repite.
 1. **El front del estado «No aplica»** (F2 y tarea 10). Hecho el 2026-11-16 en `511b6800` del front.
 2. **El resto de la etapa 3:** de F2, la marca «Con acciones por resolver» de la planilla con su filtro y el contador para quien
    administra reglas (el aviso a quien cargó, que esperaba ARCA H11, quedó hecho el 2026-11-16); de F18, la fuente de trazas; y los tests que quedaron sin escribir en las tareas 10 y 11.
-3. **El resto de la etapa 6:** F8, sin empezar.
+3. **El resto de la etapa 6:** nada.
 4. **La etapa 7:** F29, F30 y F25.
 6. **La segunda revisión adversarial**, sobre F4, F5, F20, la etapa 3, F9, F13, F31, F40 y la etapa 6. Mira también que el estado
    «No aplica» se empieza a escribir en la misma versión que lo trae, contra la regla de la [guía de migración](../guides/migracion.md)
@@ -183,7 +183,7 @@ En orden de peso; cada tarea lo repite.
 
 26. **F8. Un rechazo pasajero de la captura no queda pegado.** No se guarda como recibo un rechazo que puede cambiar (una versión
     que la copia no entiende, un permiso perdido en una carrera), o el front arma un pedido nuevo tras un 400 sin errores por
-    pregunta; y los textos de esos dos errores sirven también en la app. Chico. Sin empezar.
+    pregunta; y los textos de esos dos errores sirven también en la app. Chico. Hecha el 2026-11-16 en `aba97b16`: el permiso perdido en una carrera (`AuthorizationChanged`, `Forbidden`) ya no deja recibo y el front de la app arma un pedido nuevo tras un 400 sin errores por pregunta (`useFormEntrySubmit` y el de la corrección); los textos de `ReplayConflict` y `AuthorizationChanged` ya no hablan de la sesión ni de la cuenta vinculada. Una versión que la copia vieja no entiende sigue guardando su recibo en esa copia, que no se puede cambiar: lo cubre el pedido nuevo del front.
 27. **F11. Un tope de exportaciones a la vez por copia.** Un limitador global (por ejemplo, dos a la vez) con 429 y `Retry-After`.
     Escribir el XLSX por partes queda para gran escala. Chico. Hecha el 2026-11-15 en `13eb9b41`.
 28. **F12. La planilla que se infla no pasa.** Se cuentan también los estilos y los textos compartidos, o baja el tope descomprimido,
