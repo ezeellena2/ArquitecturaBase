@@ -164,7 +164,7 @@ tarea, y al verificarla aparecieron dos regresiones, también corregidas (F6-1 y
     Hecha el 2026-11-15 en `5f2bb56d`.
 16. **F17. La vista oficial tiene su propio límite.** Un límite propio para la vista oficial y la consulta del estado, la
     verificación reutilizada unos minutos, un plazo para la consulta del estado y el mismo tope de opciones que el Flow. Chico.
-    Hecha el 2026-11-15 en `9f027356`. Quedó anotado: la verificación en Meta no se reutiliza unos minutos (vive en `WhatsAppFlowStatusService` y reusarla pide un caché con Redis, ADR 0009); y el tope de opciones de la vista no cambia, porque la oferta del Flow lee lo mismo (`BusinessFormCatalog.MaxItems`) cuando elige primero por un campo y la vista necesita todos los valores para mostrar los primeros 20; el costo lo acota el límite de 10 por minuto.
+    Hecha el 2026-11-15 en `9f027356`. Quedó anotado: la verificación en Meta no se reutiliza unos minutos (vive en `WhatsAppFlowStatusService` y reusarla pide un caché con Redis, ADR 0009); y el tope de opciones de la vista no cambia, porque la oferta del Flow lee lo mismo (`BusinessFormCatalog.MaxItems`) cuando elige primero por un campo y la vista necesita todos los valores para mostrar los primeros 20; el costo lo acota el límite de 10 por minuto. La consulta de una publicación en curso había quedado con el límite de Meta y daba 429 al sondear: vuelve al de lectura en `4fce41dc`.
 17. **F48. La lista de formularios del asistente se ordena por nombre antes de cortar.** Y el tope de 100 queda escrito. Trivial.
     Hecha el 2026-11-15 en `e590dc95`.
 

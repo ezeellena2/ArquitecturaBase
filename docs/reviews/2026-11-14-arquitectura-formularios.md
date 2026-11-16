@@ -604,6 +604,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   para la vista el mismo tope de opciones que el Flow. Chico. **Prueba que lo resuelve:** medir los encabezados de uso de Meta
   con la cuenta real.
 - **Arreglado el 2026-11-15** en `9f027356` (límite propio y plazo; la verificación reutilizada y el tope de opciones quedaron anotados en el plan).
+- **Corregido el 2026-11-16** en `4fce41dc`: la consulta de una publicación en curso vuelve al límite de lectura; el de Meta queda en la vista oficial, porque la consulta sólo le pregunta a Meta con la operación fallida o en duda.
 
 #### F18. Una respuesta no se puede seguir de la captura al aviso: el worker no continúa la traza y sus logs no dicen de qué hablan
 
