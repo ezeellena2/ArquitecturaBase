@@ -25,8 +25,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Hosting;
 /// el cliente web, Data Protection efímero, el reloj falso y lo que sume la parte de cada módulo): prueba las ramas por
 /// ambiente (los certificados de OpenIddict, la validación del origen público, sin migrar ni OpenAPI, HSTS, el chequeo
 /// de migraciones y el seed), no la lista de configuración obligatoria de producción. Lo que Production pide y el arnés
-/// no trae se pone acá: los certificados, que se generan, y el correo por SMTP, porque los .eml sólo valen en Development
-/// y Testing (N14); los correos siguen en memoria, porque el arnés reemplaza el envío.
+/// no trae se pone acá: los certificados, que se generan, el correo por SMTP, porque los .eml sólo valen en Development
+/// y Testing (N14), y el proxy de confianza (N17); los correos siguen en memoria, porque el arnés reemplaza el envío.
 /// </para>
 /// </summary>
 [Collection(ApiTestGroup.Name)]
@@ -128,6 +128,7 @@ public sealed class ProductionStartupTests(ApiFactory factory)
         .UseSetting("Email:Smtp:UserName", "sender@example.com")
         .UseSetting("Email:Smtp:Password", "unused")
         .UseSetting("Email:Smtp:FromAddress", "sender@example.com")
+        .UseSetting("ForwardedHeaders:TrustAll", "true")
         .ConfigureTestServices(services => services.Replace(ServiceDescriptor.Scoped<ApplicationDbContext>(serviceProvider =>
             new ApplicationDbContext(serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>())))));
 

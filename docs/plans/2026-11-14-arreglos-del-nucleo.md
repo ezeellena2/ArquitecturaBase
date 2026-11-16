@@ -160,8 +160,9 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     - Si `/health` pasa a ser interna, el smoke del despliegue mira el `healthState` que ya consulta.
 
     Chico.
-17. **N17. El arranque frena la configuración de producción incompleta.** Valida `ForwardedHeaders` fuera de Development e
-    interpreta `KnownProxies` con `ValidateOnStart`. `AllowedHosts` sigue en `*`, y la guía dice que el ingress ya filtra por
+17. **N17. El arranque frena la configuración de producción incompleta.** Valida `ForwardedHeaders` fuera de Development y
+    Testing (el arnés prueba cada caso con su propia configuración, como el origen público) e interpreta `KnownProxies` y
+    `KnownNetworks` con `ValidateOnStart`. `AllowedHosts` sigue en `*`, y la guía dice que el ingress ya filtra por
     host, para que los chequeos de Container Apps, que mandan la IP del pod, no reciban 400. El apagado de la Api queda en
     unos 25 segundos, contra 40 a 60 de la Container App. Cambian [despliegue](../guides/despliegue.md) y
     [Azure](../deploy/azure-setup.md). Trivial a chico.

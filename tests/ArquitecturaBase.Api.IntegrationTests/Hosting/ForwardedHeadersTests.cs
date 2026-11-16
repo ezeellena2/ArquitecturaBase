@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Hosting;
@@ -102,15 +104,16 @@ public sealed class ForwardedHeadersTests(ApiFactory factory)
         Assert.Empty(options.KnownIPNetworks);
     }
 
+    // Al arrancar, con las demás opciones (N17): antes de comprobar las migraciones y sembrar, no al armar el pipeline.
     [Theory]
     [InlineData("ForwardedHeaders:KnownProxies:0", "not-an-ip")]
     [InlineData("ForwardedHeaders:KnownNetworks:0", "not-a-network")]
-    public void Invalid_trust_entries_fail_fast(string key, string value)
+    public void Invalid_trust_entries_stop_the_start(string key, string value)
     {
         using var services = CreateServices((key, value));
 
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value);
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => services.GetRequiredService<IStartupValidator>().Validate());
 
         Assert.Contains(key, exception.Message, StringComparison.Ordinal);
     }
@@ -122,10 +125,38 @@ public sealed class ForwardedHeadersTests(ApiFactory factory)
             ("ForwardedHeaders:TrustAll", "true"),
             ("ForwardedHeaders:KnownProxies:0", "203.0.113.7"));
 
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => services.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value);
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => services.GetRequiredService<IStartupValidator>().Validate());
 
         Assert.Contains("TrustAll", exception.Message, StringComparison.Ordinal);
+    }
+
+    // Sin un proxy de confianza, el esquema y la IP serían los del proxy: OpenIddict rechazaría el ingreso por HTTP y el
+    // límite por IP juntaría a todos (N17).
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    public void Outside_development_and_testing_the_api_does_not_start_without_a_trusted_proxy(string environment)
+    {
+        using var services = CreateServices(environment);
+
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => services.GetRequiredService<IStartupValidator>().Validate());
+
+        Assert.Contains(Api.Hosting.ForwardedHeadersExtensions.MissingTrustedProxyMessage, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Production", "ForwardedHeaders:TrustAll", "true")]
+    [InlineData("Production", "ForwardedHeaders:KnownProxies:0", "10.0.0.4")]
+    [InlineData("Production", "ForwardedHeaders:KnownNetworks:0", "10.0.0.0/8")]
+    [InlineData("Development", "ForwardedHeaders:TrustAll", "false")]
+    [InlineData("Testing", "ForwardedHeaders:TrustAll", "false")]
+    public void The_api_starts_with_a_trusted_proxy_or_in_development_and_testing(string environment, string key, string value)
+    {
+        using var services = CreateServices(environment, (key, value));
+
+        services.GetRequiredService<IStartupValidator>().Validate();
     }
 
     private WebApplicationFactory<Program> CreateApi(
@@ -149,16 +180,30 @@ public sealed class ForwardedHeadersTests(ApiFactory factory)
             AllowAutoRedirect = false,
         });
 
-    private static ServiceProvider CreateServices(params (string Key, string Value)[] values)
+    private static ServiceProvider CreateServices(params (string Key, string Value)[] values) =>
+        CreateServices("Production", values);
+
+    private static ServiceProvider CreateServices(string environment, params (string Key, string Value)[] values)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(values.Select(value =>
                 new KeyValuePair<string, string?>(value.Key, value.Value)))
             .Build();
         var services = new ServiceCollection();
-        services.AddTrustedForwardedHeaders(configuration);
+        services.AddTrustedForwardedHeaders(configuration, new TestHostEnvironment { EnvironmentName = environment });
 
         return services.BuildServiceProvider();
+    }
+
+    private sealed class TestHostEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = "Testing";
+
+        public string ApplicationName { get; set; } = "Tests";
+
+        public string ContentRootPath { get; set; } = Path.GetTempPath();
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     private sealed class RemoteIpStartupFilter(IPAddress remoteIpAddress) : IStartupFilter

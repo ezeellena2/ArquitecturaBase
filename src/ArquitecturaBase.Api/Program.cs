@@ -23,7 +23,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.AddRedisCaching();
 
-builder.Services.AddTrustedForwardedHeaders(builder.Configuration);
+builder.Services.AddTrustedForwardedHeaders(builder.Configuration, builder.Environment);
+
+// Hasta 25 s para terminar los pedidos en curso y frenar los workers, contra los 60 que la Container App da antes de matar
+// la réplica (terminationGracePeriodSeconds, docs/deploy/azure-setup.md). Con los 30 por defecto de los dos no había margen.
+builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(25));
 
 builder.Services
     .AddApplication()

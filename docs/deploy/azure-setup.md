@@ -198,6 +198,12 @@ probes:
     timeoutSeconds: 5
 ```
 
+Y dentro de `properties.template`, el plazo de apagado:
+
+```yaml
+terminationGracePeriodSeconds: 60
+```
+
 ```bash
 az containerapp update --resource-group $RG --name $APP --yaml app.yaml
 ```
@@ -210,6 +216,11 @@ Los valores respetan los límites de Container Apps: `failureThreshold` admite h
   seguidos (30 s) la réplica sale del tráfico; con una sola réplica, la app deja de atender hasta que la
   dependencia vuelve. Sin Redis ya fallaban casi todos los pedidos de `/api`, porque los permisos pasan por el caché.
 - **Liveness** reinicia después de tres fallos seguidos (90 s).
+- **Apagado:** la Api se toma hasta 25 s para terminar lo que tiene en curso, y la plataforma le da 60 antes de matarla.
+  Con los 30 por defecto de los dos no quedaba margen.
+- **Host:** los probes mandan como `Host` la IP de la réplica. Por eso `AllowedHosts` queda en `*`: el ingress ya filtra
+  por host, porque sólo le pasa a la app los pedidos dirigidos a su FQDN y a sus dominios propios. Restringirlo en la Api
+  haría que los probes recibieran 400 y la revisión nueva nunca quedara lista.
 
 La imagen de ejemplo no es la Api y puede no pasar estos probes; el primer despliegue la reemplaza.
 
@@ -234,7 +245,7 @@ az containerapp update --resource-group $RG --name $APP --set-env-vars ASPNETCOR
 > `ConnectionStrings__appdb` es `ConnectionStrings:appdb`.
 > `ForwardedHeaders__TrustAll=true` es seguro acá porque Kestrel sólo recibe tráfico a través del ingress de
 > Container Apps. No hay que usarlo si la aplicación también queda accesible directamente: en ese caso se declaran
-> `ForwardedHeaders:KnownProxies` o `ForwardedHeaders:KnownNetworks` (CIDR).
+> `ForwardedHeaders:KnownProxies` o `ForwardedHeaders:KnownNetworks` (CIDR). Sin ninguno de los tres, la Api no arranca.
 
 Este ejemplo carga solo PostgreSQL, HMAC y confianza del proxy. Faltan Redis, Google, SMTP,
 el origen público y el cliente `web`: completar la [tabla de configuración](../guides/despliegue.md#configuración-obligatoria-en-production)

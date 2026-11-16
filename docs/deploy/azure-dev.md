@@ -151,13 +151,13 @@ Con ORIGIN=https://<fqdn-de-la-container-app>:
 | Email__Smtp__Password | secretref a contraseña del proveedor |
 | Seed__AdminEmail | Correo del titular que creará su cuenta Admin |
 | ForwardedHeaders__TrustAll | true con acceso a Kestrel solo por ingress de Container Apps |
-| AllowedHosts | FQDN público, sin https:// ni ruta |
+| AllowedHosts | no se define: queda en `*`, porque el ingress ya filtra por host ([por qué](../guides/despliegue.md#proxy-y-encabezados-reenviados)) |
 
 Los nombres exactos de SMTP se contrastan con la [tabla canónica](../guides/despliegue.md#configuración-obligatoria-en-production) y appsettings.json. WhatsApp queda apagado hasta configurar su cuenta/webhook de dev. Los PFX son certificados de tokens, distintos del HTTPS que ofrece Azure.
 
 La identidad de la Container App recibe AcrPull sobre el registry. GitHub recibe permisos de despliegue distintos: subir imágenes, actualizar la app y abrir/cerrar el firewall de PostgreSQL. Contributor sobre el grupo dev simplifica el arranque; declarar además AcrPush sobre el registry hace explícito el permiso de publicar imágenes y permite acotar Contributor más adelante. Esta receta usa el modo RBAC clásico, sin ABAC; los roles de repositorio para ABAC son distintos. [Roles de ACR](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-rbac-built-in-roles-overview).
 
-Configurar los probes de la [receta](azure-setup.md#probes): Startup y Liveness en /alive, Readiness en /health. El workflow no despliega sin ellos: sin readiness, Azure asignaría tráfico a una revisión sin base o sin Redis antes de la comprobación final. Un smoke test no reemplaza una prueba de ingreso en el navegador.
+Configurar los probes de la [receta](azure-setup.md#probes): Startup y Liveness en /alive, Readiness en /health, y el plazo de apagado de 60 s. El workflow no despliega sin los probes: sin readiness, Azure asignaría tráfico a una revisión sin base o sin Redis antes de la comprobación final. Un smoke test no reemplaza una prueba de ingreso en el navegador.
 
 ## Etapa 4: conectar GitHub con Azure
 
