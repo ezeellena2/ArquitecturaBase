@@ -31,6 +31,8 @@ public static class AiAssistantErrors
     // I5: an exception of the engine itself, outside the provider call: never blamed on the provider.
     public static readonly Error ExecutionFailed = Error.Failure("Ai.Assistant.ExecutionFailed", "The operation failed outside the provider call.");
     public static readonly Error ProviderUncertain = Error.Failure("Ai.Assistant.ProviderUncertain", "The provider request may have been sent without a confirmed result.");
+    // I12: the copy running the operation stopped after reserving a step; one without a step goes back to pending instead.
+    public static readonly Error Interrupted = Error.Failure("Ai.Assistant.Interrupted", "The copy running the operation stopped after it reached the provider.");
     public static readonly Error ProviderRejected = Error.Conflict("Ai.Assistant.ProviderRejected", "The provider rejected the request.");
     public static readonly Error ProviderIncomplete = Error.Conflict("Ai.Assistant.ProviderIncomplete", "The provider returned an incomplete result.");
     // I6: what the provider answered, by its HTTP status and never by its body, each with a text for whoever administers it.

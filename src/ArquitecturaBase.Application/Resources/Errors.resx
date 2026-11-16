@@ -150,6 +150,7 @@
   <data name="Ai.Assistant.ToolRejected" xml:space="preserve"><value>La fuente solicitada no está autorizada o sus argumentos no son válidos.</value></data>
   <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>No pudimos conectarnos con el proveedor y no se envió nada. Probá de nuevo; si sigue, revisá la red del servidor hacia el proveedor.</value></data>
   <data name="Ai.Assistant.ProviderUncertain" xml:space="preserve"><value>La consulta pudo enviarse al proveedor, pero no hay un resultado confirmado. Revisá el posible consumo antes de iniciar otra.</value></data>
+  <data name="Ai.Assistant.Interrupted" xml:space="preserve"><value>La consulta se cortó porque el servicio se reinició antes de terminarla, cuando ya podía haber llegado al proveedor: revisá el posible consumo antes de iniciar otra.</value></data>
   <data name="Ai.Assistant.ProviderRejected" xml:space="preserve"><value>El proveedor rechazó la consulta. Revisá la conexión y el modelo configurados.</value></data>
   <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>El proveedor devolvió una respuesta incompleta. No se publicó ni se amplió el límite automáticamente.</value></data>
   <data name="Ai.Assistant.ExecutionFailed" xml:space="preserve"><value>La consulta no se completó por una falla del sistema, no del proveedor. Podés iniciar otra.</value></data>

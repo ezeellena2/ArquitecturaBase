@@ -20,6 +20,8 @@ HomeAttachmentReader reemplaza el puerto neutral del dueño de los archivos para
 
 DocumentReadingHandler y DocumentReadingClient son los dobles de la lectura de documentos: guardan el cuerpo exacto o el pedido y responden lo que dice la prueba; sus bytes no califican un PDF ni una foto reales.
 
+`StoppingExecutionService` (I12) envuelve la ejecución real de la copia que se apaga mientras prepara; el fixture del coordinador suma `WhilePreparing` y `DuringProviderCall`.
+
 `FailingReadAssistantSource` es una lectura cuya base falla siempre (`FictionalDbException`, I5).
 
 `RaisedVersionAssistantSource` registra una versión ficticia de una capacidad, junto a la que se conserva (I4); rechaza toda llamada, y un turno sellado con la anterior nunca la corre.

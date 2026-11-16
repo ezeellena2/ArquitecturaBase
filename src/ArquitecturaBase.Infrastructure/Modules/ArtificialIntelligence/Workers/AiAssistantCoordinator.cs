@@ -24,20 +24,27 @@ internal sealed partial class AiAssistantCoordinator(
     private static readonly Counter<long> Steps = Meter.CreateCounter<long>("ai.assistant.provider.steps");
     private static readonly Counter<long> Outcomes = Meter.CreateCounter<long>("ai.assistant.outcomes");
     private static readonly Counter<long> CloseFailures = Meter.CreateCounter<long>("ai.assistant.persistence.failures");
+    private static readonly Counter<long> Releases = Meter.CreateCounter<long>("ai.assistant.releases");
     private static readonly Counter<long> UnknownUsage = Meter.CreateCounter<long>("ai.assistant.usage.unknown");
     private static readonly Counter<long> InputTokens = Meter.CreateCounter<long>("ai.assistant.tokens.input");
     private static readonly Counter<long> OutputTokens = Meter.CreateCounter<long>("ai.assistant.tokens.output");
     private static readonly Histogram<double> Duration = Meter.CreateHistogram<double>("ai.assistant.duration", "s");
 
-    public async Task<bool> ProcessNextAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Takes and runs the next turn. I12: <paramref name="stoppingToken"/> is the copy's stop: it takes no turn, and one that has not
+    /// reserved a step goes back to pending for another copy. <paramref name="drainToken"/> is the end of the drain: it cuts what still
+    /// runs, a step included, with the shutdown code. Without it, a turn that reserved a step runs until it ends or its deadline.
+    /// </summary>
+    public async Task<bool> ProcessNextAsync(CancellationToken stoppingToken, CancellationToken drainToken = default)
     {
+        if (stoppingToken.IsCancellationRequested) return false;
         // I17, review: the readiness only takes a copy out of HTTP traffic. One whose key ring does not match the others' (or could not
         // verify it yet) takes no turn: it could not read the saved key, or would answer encrypting with a key the others do not have.
-        if (!await keyRing.MatchesAsync(cancellationToken)) return false;
+        if (!await keyRing.MatchesAsync(stoppingToken)) return false;
         AiAssistantClaimResponse? claim;
         await using (var scope = scopes.CreateAsyncScope())
         {
-            var claimed = await scope.ServiceProvider.GetRequiredService<IAiAssistantDispatchService>().ClaimAsync(cancellationToken);
+            var claimed = await scope.ServiceProvider.GetRequiredService<IAiAssistantDispatchService>().ClaimAsync(stoppingToken);
             if (claimed.IsFailure) { RecordClaimFailure(); LogUnitRejected(logger, "claim", claimed.Error.Code); return false; }
             claim = claimed.Value;
         }
@@ -53,28 +60,41 @@ internal sealed partial class AiAssistantCoordinator(
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(claim.Culture);
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(claim.Culture);
         using var deadline = new CancellationTokenSource(Remaining(claim), timeProvider);
-        using var execution = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        using var execution = CancellationTokenSource.CreateLinkedTokenSource(drainToken, deadline.Token);
+        // I12: until this attempt reserves a step, the stop also cuts it, and the turn goes back to pending.
+        using var beforeStep = CancellationTokenSource.CreateLinkedTokenSource(execution.Token, stoppingToken);
         using var monitoring = CancellationTokenSource.CreateLinkedTokenSource(execution.Token);
         var monitor = ObserveCancellationAsync(claim, execution, monitoring.Token);
+        var anyStep = false;
         var stepReserved = false;
         var providerMayHaveBeenSent = false;
         LlmConversationUsage? knownUsage = null;
+        // I12: stopped before reserving a step (the release closes a canceled or expired one as it is), or cut by the drain's end after one.
+        bool Stopped() => !anyStep && stoppingToken.IsCancellationRequested;
+        bool Drained() => drainToken.IsCancellationRequested && !deadline.IsCancellationRequested;
+        // A cancellation the drain's end caused carries the shutdown code; any other failure keeps its own.
+        string Cut(string code) => Drained() && code == AiAssistantErrors.Canceled.Code ? AiAssistantErrors.Interrupted.Code : code;
         try
         {
             Result<AiAssistantExecutionContextResponse> prepared;
             await using (var scope = scopes.CreateAsyncScope())
-                prepared = await scope.ServiceProvider.GetRequiredService<IAiAssistantExecutionService>().PrepareAsync(claim, execution.Token);
+                prepared = await scope.ServiceProvider.GetRequiredService<IAiAssistantExecutionService>().PrepareAsync(claim, beforeStep.Token);
+            if (Stopped()) { await ReleaseAsync(claim, activity); return true; }
             if (prepared.IsFailure) { await FailAsync(claim, activity, prepared.Error.Code, false); return true; }
             var context = prepared.Value;
             AiAssistantTracing.Describe(activity, context);
             while (!execution.IsCancellationRequested)
             {
+                if (Stopped()) { await ReleaseAsync(claim, activity); return true; }
                 Result<bool> reserved;
                 await using (var scope = scopes.CreateAsyncScope())
-                    reserved = await scope.ServiceProvider.GetRequiredService<IAiAssistantDispatchService>().BeginProviderStepAsync(claim, execution.Token);
+                    reserved = await scope.ServiceProvider.GetRequiredService<IAiAssistantDispatchService>()
+                        .BeginProviderStepAsync(claim, anyStep ? execution.Token : beforeStep.Token);
+                if (reserved.IsFailure && Stopped()) { await ReleaseAsync(claim, activity); return true; }
                 if (reserved.IsFailure) { await FailAsync(claim, activity, reserved.Error.Code, false); return true; }
                 // The engine may have closed the turn itself (a step limit, lost access, a cancellation or a deadline found on reserving).
                 if (!reserved.Value) { await ObserveOutcomeAsync(claim, activity); return true; }
+                anyStep = true;
                 stepReserved = true;
                 providerMayHaveBeenSent = true;
                 knownUsage = null;
@@ -86,7 +106,9 @@ internal sealed partial class AiAssistantCoordinator(
                 {
                     // I6: the code and the HTTP status the provider answered, with the turn and the provider; never its body.
                     LogProviderFailed(logger, claim.TurnId, context.ProviderRequest.Provider, response.Error.Code, AiAssistantErrors.ProviderStatus(response.Error));
-                    await FailAsync(claim, activity, response.Error.Code, response.Error.Code == AiAssistantErrors.ProviderUncertain.Code);
+                    // I12: the drain's end cut the step: the shutdown code, still uncertain if it may have been sent.
+                    var uncertain = response.Error.Code == AiAssistantErrors.ProviderUncertain.Code;
+                    await FailAsync(claim, activity, uncertain && Drained() ? AiAssistantErrors.Interrupted.Code : Cut(response.Error.Code), uncertain);
                     return true;
                 }
                 stepReserved = false;
@@ -98,7 +120,7 @@ internal sealed partial class AiAssistantCoordinator(
                 Result<AiAssistantAdvanceResponse> advanced;
                 await using (var scope = scopes.CreateAsyncScope())
                     advanced = await scope.ServiceProvider.GetRequiredService<IAiAssistantExecutionService>().AdvanceAsync(context, response.Value, execution.Token);
-                if (advanced.IsFailure) { await FailAsync(claim, activity, advanced.Error.Code, false, knownUsage); return true; }
+                if (advanced.IsFailure) { await FailAsync(claim, activity, Cut(advanced.Error.Code), false, knownUsage); return true; }
                 var progress = advanced.Value;
                 if (progress.IsComplete)
                 {
@@ -111,18 +133,19 @@ internal sealed partial class AiAssistantCoordinator(
                 Result recorded;
                 await using (var scope = scopes.CreateAsyncScope())
                     recorded = await scope.ServiceProvider.GetRequiredService<IAiAssistantDispatchService>().RecordProgressAsync(claim, progress, execution.Token);
-                if (recorded.IsFailure) { await FailAsync(claim, activity, recorded.Error.Code, false, knownUsage); return true; }
+                if (recorded.IsFailure) { await FailAsync(claim, activity, Cut(recorded.Error.Code), false, knownUsage); return true; }
                 knownUsage = null;
                 context = progress.Context;
             }
-            await FailAsync(claim, activity, deadline.IsCancellationRequested ? AiAssistantErrors.Expired.Code : AiAssistantErrors.Canceled.Code, stepReserved);
+            await FailAsync(claim, activity, deadline.IsCancellationRequested ? AiAssistantErrors.Expired.Code : Cut(AiAssistantErrors.Canceled.Code), stepReserved);
         }
         catch (Exception exception)
         {
             // After a committed external-step reservation, absence of a response cannot establish that it was not sent. Anything else is
             // the engine's own failure (I5): ProviderUnavailable comes only from the provider call.
             LogExecutionFailed(logger, claim.TurnId, exception.GetType().Name);
-            await FailAsync(claim, activity, providerMayHaveBeenSent ? AiAssistantErrors.ProviderUncertain.Code
+            if (Stopped()) await ReleaseAsync(claim, activity);
+            else await FailAsync(claim, activity, Drained() ? AiAssistantErrors.Interrupted.Code : providerMayHaveBeenSent ? AiAssistantErrors.ProviderUncertain.Code
                 : execution.IsCancellationRequested ? AiAssistantErrors.Canceled.Code : AiAssistantErrors.ExecutionFailed.Code, providerMayHaveBeenSent, knownUsage);
         }
         finally
@@ -175,6 +198,14 @@ internal sealed partial class AiAssistantCoordinator(
         if (failed?.IsFailure != true) await ObserveOutcomeAsync(claim, activity);
     }
 
+    // I12: back to pending for another copy, with the bounded persistence of a close; the activity ends without an outcome while it waits.
+    private async Task ReleaseAsync(AiAssistantClaimResponse claim, Activity? activity)
+    {
+        var released = await PersistFinalAsync((service, token) => service.ReleaseAsync(claim, token));
+        if (released?.IsSuccess == true) { Releases.Add(1); LogReleased(logger, claim.TurnId); }
+        if (released?.IsFailure != true) await ObserveOutcomeAsync(claim, activity);
+    }
+
     // I10: the outcome and the turn's activity follow what was saved, whoever closed the turn; one not yet finished is neither counted nor marked.
     private async Task ObserveOutcomeAsync(AiAssistantClaimResponse claim, Activity? activity)
     {
@@ -215,6 +246,8 @@ internal sealed partial class AiAssistantCoordinator(
 
     private static readonly Func<ILogger, Guid, IDisposable?> TurnScope = LoggerMessage.DefineScope<Guid>("Assistant turn {AssistantTurnId}");
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "Assistant turn {TurnId} was given back: the copy stopped before it reserved a step.")]
+    private static partial void LogReleased(ILogger logger, Guid turnId);
     [LoggerMessage(Level = LogLevel.Warning, Message = "Assistant unit {Unit} was rejected with {Code}.")]
     private static partial void LogUnitRejected(ILogger logger, string unit, string code);
     [LoggerMessage(Level = LogLevel.Warning, Message = "Assistant turn {TurnId} stopped with {ExceptionType}; no provider request is repeated.")]

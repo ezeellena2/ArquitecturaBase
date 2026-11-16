@@ -10,4 +10,6 @@ public interface IAiAssistantDispatchService
     Task<Result> RecordProgressAsync(AiAssistantClaimResponse claim, AiAssistantAdvanceResponse progress, CancellationToken cancellationToken);
     Task<Result> CompleteAsync(AiAssistantClaimResponse claim, AiAssistantAdvanceResponse completion, CancellationToken cancellationToken);
     Task<Result> FailAsync(AiAssistantClaimResponse claim, string failureCode, bool uncertain, CancellationToken cancellationToken, LlmConversationUsage? usage = null);
+    /// <summary>I12: the copy that stops gives back the turn it took without a reserved step, pending again for another copy.</summary>
+    Task<Result> ReleaseAsync(AiAssistantClaimResponse claim, CancellationToken cancellationToken);
 }

@@ -202,6 +202,24 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
             return outcome;
         });
 
+    // I12: back to pending under the same locks and fence; one that cannot go back (canceled, past its deadline or with a step) closes,
+    // and only then is the channel woken.
+    public Task<Result> ReleaseAsync(AiAssistantClaimResponse claim, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "ReleaseAsync", async () =>
+        {
+            AiAssistantTurn? terminalTurn = null;
+            var outcome = await unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                await dispatchGuard.LockAsync(claim, ct);
+                var turn = await repository.GetTurnAsync(claim.TurnId, ct);
+                terminalTurn = turn;
+                if (turn is null) return Result.Failure(AiAssistantErrors.FenceRejected);
+                return turn.Release(claim.Fence, timeProvider.GetUtcNow().UtcDateTime);
+            }, CommitPolicy.OnSuccess, cancellationToken);
+            if (outcome.IsSuccess) NotifyTerminal(terminalTurn);
+            return outcome;
+        });
+
     private void NotifyTerminal(AiAssistantTurn? turn)
     {
         if (turn is { State: AiAssistantTurnState.Completed or AiAssistantTurnState.Failed or AiAssistantTurnState.Uncertain

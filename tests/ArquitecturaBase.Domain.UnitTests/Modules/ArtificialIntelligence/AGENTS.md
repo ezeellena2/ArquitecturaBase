@@ -14,4 +14,6 @@ AudioUsage prueba duración informada, cero explícito, acumulación y conservac
 
 Attachment prueba la clave acotada, lo que se mandó (SHA-256 y tamaño), lo cifrado obligatorio y la purga que conserva lo que está en claro.
 
+Release (I12) prueba la vuelta a Pending sin paso y el fence de la copia que se apaga, el vencimiento posterior, el cierre con paso, cancelado o vencido.
+
 RequestReceipt prueba el recibo de una lectura (`IsDocument`), que nunca es de audio a la vez.

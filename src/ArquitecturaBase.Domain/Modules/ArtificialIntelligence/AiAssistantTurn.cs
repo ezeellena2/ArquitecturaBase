@@ -177,6 +177,25 @@ public sealed class AiAssistantTurn : Entity, IAuditable
         return Result.Success();
     }
 
+    /// <summary>
+    /// I12: the copy that stops gives back the turn it took and has not reserved a step for: pending again, for another copy, whose
+    /// claim advances the fence, so the one that stopped cannot write over it. One canceled or past its deadline closes as
+    /// <see cref="Fail"/> would; one with a step reserved never goes back (the step was counted) and ends with the shutdown code.
+    /// </summary>
+    public Result Release(long fence, DateTime nowUtc)
+    {
+        if (State != AiAssistantTurnState.Running || Fence != fence) return AiAssistantErrors.FenceRejected;
+        var valid = VerifyFence(fence, nowUtc);
+        if (valid.IsFailure) return Fail(fence, valid.Error.Code, false, nowUtc);
+        if (ProviderSteps > 0) return Fail(fence, AiAssistantErrors.Interrupted.Code, false, nowUtc);
+        State = AiAssistantTurnState.Pending;
+        Stage = "pending";
+        AttemptId = null;
+        DeadlineAtUtc = null;
+        AdvanceRevision();
+        return Result.Success();
+    }
+
     public void RecordUsage(long? inputTokens, long? outputTokens, decimal? audioSeconds = null)
     {
         if (audioSeconds is not null) AudioSeconds = checked((AudioSeconds ?? 0) + audioSeconds.Value);

@@ -15,6 +15,7 @@ capacidades y proveedor; la marca lo guardado: si el turno no terminó completo,
 (límite de pasos, acceso, salida inválida); sin terminar, nada. Etiquetas: turno, canal, propósito, proveedor y capacidades con versión,
 nunca contenido. El Id del turno va en el scope de los logs del worker. El sondeo de cancelación corre fuera de la actividad.
 I17: sin un anillo que coincida con `AiKeyRingControls` (o mientras no se pudo verificar), `ProcessNextAsync` no toma turnos.
+I12: el worker frena con `ApplicationStopping` y vacía `HostOptions.ShutdownTimeout` menos el cierre (`DrainTime`). `ProcessNextAsync(stop, drain)`: con el stop no toma turnos y devuelve a pendiente (`ReleaseAsync`) lo que no reservó paso; el fin del vaciado corta con `Ai.Assistant.Interrupted`.
 
 Los schedulers usan TimeProvider y tokens de parada. Logs y métricas contienen estados, códigos,
 duraciones e IDs operativos; nunca preguntas, respuestas, resultados ni credenciales.

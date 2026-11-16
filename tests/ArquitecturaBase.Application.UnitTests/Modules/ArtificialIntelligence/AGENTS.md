@@ -22,6 +22,8 @@ AudioOperations/Execution prueban el mismo Submit/Prepare/Dispatch/Complete/Get 
 
 ChannelQuota verifica Inicio y canales separados, interpretación/audio independientes, replay antes de cuota y persistencia del cupo sin contenido; la capacidad global y el límite de instalación conservan sus pruebas.
 
+Dispatch.Release (I12): la vuelta a pendiente sin aviso, el cierre con paso que avisa y otro fence.
+
 Dispatch y AudioCompletionSignal comprueban el aviso neutral con ChannelId ficticio opaco después del commit, incluidos cierres terminales por guards. Un rollback o Result fallido no avisa; un cierre conocido puede reiterar el aviso coalescente y los turnos activos conservan la recuperación periódica.
 
 ConversationReservation comprueba Manual con dos ámbitos del mismo actor, con/sin Subject, exclusión del mismo ámbito, Get/Cancel sellados, replay antes de cuota y cuota compartida entre ámbitos. El fallback null conserva la reserva previa; NormalizeAudio mantiene sus controles existentes.

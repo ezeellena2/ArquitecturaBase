@@ -38,6 +38,12 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public bool FailFirstMonitorRead { get; init; }
     /// <summary>I5: preparing the turn throws, as a bug or a failure of the engine itself before anything reaches the provider.</summary>
     public Exception? PrepareFailure { get; init; }
+    /// <summary>I12: runs while the turn prepares, before any step, such as the copy's stop.</summary>
+    public Action? WhilePreparing { get; init; }
+    /// <summary>I12: the provider call, honoring its token like the transport: a cut call is uncertain.</summary>
+    public Func<CancellationToken, Task>? DuringProviderCall { get; init; }
+    public int ClaimCalls { get; private set; }
+    public int ReleaseCalls { get; private set; }
     public Guid TurnId => claim.TurnId;
     public AiAssistantProposalCoordinatorFixture(TimeProvider clock, Action? stopAfterAdvance, bool normalize = false, bool read = false)
     {
@@ -61,6 +67,7 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     }
     public Task<Result<AiAssistantClaimResponse?>> ClaimAsync(CancellationToken cancellationToken)
     {
+        ClaimCalls++;
         if (claimed) return Task.FromResult(Result.Success<AiAssistantClaimResponse?>(null));
         claimed = true;
         return Task.FromResult(Result.Success<AiAssistantClaimResponse?>(claim));
@@ -70,12 +77,20 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
         BeginCalls++;
         return Task.FromResult(Result.Success(BeginCalls == 1));
     }
-    public Task<Result<AiAssistantExecutionContextResponse>> PrepareAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken) =>
-        PrepareFailure is { } failure ? throw failure : Task.FromResult(Result.Success(context));
+    public Task<Result<AiAssistantExecutionContextResponse>> PrepareAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken)
+    {
+        WhilePreparing?.Invoke();
+        return PrepareFailure is { } failure ? throw failure : Task.FromResult(Result.Success(context));
+    }
     public async Task<Result<LlmConversationResponse>> CallProviderAsync(AiAssistantExecutionContextResponse accepted, CancellationToken cancellationToken)
     {
         ProviderCalls++;
         if (FailFirstMonitorRead) await AnswerAfterTwoMonitorReadsAsync(cancellationToken);
+        if (DuringProviderCall is { } during)
+        {
+            try { await during(cancellationToken); }
+            catch (OperationCanceledException) { return AiAssistantErrors.ProviderUncertain; }
+        }
         if (ProviderError is { } error) return Result.Failure<LlmConversationResponse>(error);
         if (read) return new LlmConversationResponse(LlmDocumentReadingResponse.Read, [], null, new(1200, 300));
         return new LlmConversationResponse(normalize ? "normalizedAudio" : "tools", [], null, normalize ? new(null, null) { AudioSeconds = 2.75m } : new(10, 2));
@@ -122,7 +137,13 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
         FailureWasUncertain = uncertain;
         return Task.FromResult(Result.Success());
     }
-    private AiAssistantTurnRow Row => CompleteCalls > 0 ? context.Turn with { State = AiAssistantTurnState.Completed } : context.Turn;
+    public Task<Result> ReleaseAsync(AiAssistantClaimResponse accepted, CancellationToken cancellationToken)
+    {
+        ReleaseCalls++;
+        return Task.FromResult(Result.Success());
+    }
+    private AiAssistantTurnRow Row => CompleteCalls > 0 ? context.Turn with { State = AiAssistantTurnState.Completed }
+        : ReleaseCalls > 0 ? context.Turn with { State = AiAssistantTurnState.Pending } : context.Turn;
     public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) =>
         FailFirstMonitorRead && Interlocked.Increment(ref monitorReads) == 1
             ? throw new TimeoutException("Fictional brief database outage.")

@@ -150,6 +150,7 @@
   <data name="Ai.Assistant.ToolRejected" xml:space="preserve"><value>The requested source is not authorized or its arguments are invalid.</value></data>
   <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>We could not connect to the provider and nothing was sent. Try again; if it persists, check the server's network to the provider.</value></data>
   <data name="Ai.Assistant.ProviderUncertain" xml:space="preserve"><value>The question may have reached the provider, but no result was confirmed. Review possible usage before starting another operation.</value></data>
+  <data name="Ai.Assistant.Interrupted" xml:space="preserve"><value>The question was cut off because the service restarted before it finished, when it may already have reached the provider: review possible usage before starting another one.</value></data>
   <data name="Ai.Assistant.ProviderRejected" xml:space="preserve"><value>The provider rejected the question. Review the configured connection and model.</value></data>
   <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>The provider returned an incomplete response. It was not published and its limit was not increased automatically.</value></data>
   <data name="Ai.Assistant.ExecutionFailed" xml:space="preserve"><value>The question did not complete because of a system failure, not the provider. You can start another one.</value></data>
