@@ -66,6 +66,53 @@ public sealed class AiAssistantTraceTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_turn_the_engine_fails_when_it_runs_out_of_provider_steps_marks_its_activity_with_that_code()
+    {
+        var stopped = new ConcurrentBag<Activity>();
+        using var listener = Listen(stopped);
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary", services =>
+            services.PostConfigure<AiAssistantOptions>(options => options.Limits = options.Limits with { ProviderSteps = 1 }));
+        var trace = ActivityTraceId.CreateRandom();
+        var requestId = Guid.NewGuid();
+        await SubmitAsync(scenario, requestId, trace);
+
+        // The provider asks for a capability, and the step that would close the turn is one more than its limit.
+        Assert.True(await scenario.ProcessNextAsync());
+
+        Assert.Equal((AiAssistantTurnState.Failed, "Ai.Assistant.LimitExceeded"), await OutcomeAsync(scenario, requestId));
+        var activity = Assert.Single(stopped, item => item.OperationName == "ai.assistant.turn" && item.TraceId == trace);
+        Assert.Equal((ActivityStatusCode.Error, "Ai.Assistant.LimitExceeded"), (activity.Status, activity.StatusDescription));
+    }
+
+    [Fact]
+    public async Task A_turn_the_engine_fails_when_its_connection_changes_during_the_answer_marks_its_activity_with_that_code()
+    {
+        var stopped = new ConcurrentBag<Activity>();
+        using var listener = Listen(stopped);
+        await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary");
+        scenario.Handler.BeforeAnswer = async call =>
+        {
+            if (call != 2) return;
+            using var paused = await scenario.Client.PutAsJsonAsync("/api/ai/connection", new
+            {
+                requestId = Guid.NewGuid(), provider = "OpenAI", model = "fictional-model", credentialChange = "Keep", enabled = false,
+                expectedRevision = scenario.ConnectionRevision,
+            }, Ct);
+            Assert.Equal(HttpStatusCode.OK, paused.StatusCode);
+        };
+        var trace = ActivityTraceId.CreateRandom();
+        var requestId = Guid.NewGuid();
+        await SubmitAsync(scenario, requestId, trace);
+
+        // The answer arrives, and the closing finds the connection changed.
+        Assert.True(await scenario.ProcessNextAsync());
+
+        Assert.Equal((AiAssistantTurnState.Failed, "Ai.Assistant.ConnectionChanged"), await OutcomeAsync(scenario, requestId));
+        var activity = Assert.Single(stopped, item => item.OperationName == "ai.assistant.turn" && item.TraceId == trace);
+        Assert.Equal((ActivityStatusCode.Error, "Ai.Assistant.ConnectionChanged"), (activity.Status, activity.StatusDescription));
+    }
+
+    [Fact]
     public async Task A_stored_trace_that_cannot_be_read_never_holds_the_turn_back()
     {
         var stopped = new ConcurrentBag<Activity>();
@@ -149,6 +196,14 @@ public sealed class AiAssistantTraceTests(ApiFactory factory)
     private static Task<TraceRow> FindAsync(AiAssistantExecutionScenario scenario, Guid requestId) =>
         scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<AiAssistantTurn>()
             .Where(item => item.RequestId == requestId).Select(item => new TraceRow(item.Id, item.TraceParent)).SingleAsync(Ct));
+
+    private static Task<(AiAssistantTurnState, string?)> OutcomeAsync(AiAssistantExecutionScenario scenario, Guid requestId) =>
+        scenario.ScopeAsync(async services =>
+        {
+            var row = await services.GetRequiredService<ApplicationDbContext>().Set<AiAssistantTurn>()
+                .Where(item => item.RequestId == requestId).Select(item => new { item.State, item.FailureCode }).SingleAsync(Ct);
+            return (row.State, row.FailureCode);
+        });
 
     private sealed record TraceRow(Guid Id, string? TraceParent);
 }

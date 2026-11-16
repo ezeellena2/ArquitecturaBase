@@ -18,6 +18,8 @@ internal sealed class AiAssistantExecutionProviderHandler(AiProvider provider, s
     public List<int> ActiveTransactionsDuringHttp { get; } = [];
     /// <summary>I10: the trace each call to the provider ran in.</summary>
     public List<ActivityTraceId?> Traces { get; } = [];
+    /// <summary>I10: runs before answering the call with this number (from 1), as a connection that changes during it or a held call.</summary>
+    public Func<int, Task>? BeforeAnswer { get; set; }
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Traces.Add(Activity.Current?.TraceId);
@@ -30,6 +32,7 @@ internal sealed class AiAssistantExecutionProviderHandler(AiProvider provider, s
         if (RefuseConnection) throw new HttpRequestException(HttpRequestError.ConnectionError, "Fictional refused connection.");
         var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
         using (json) Requests.Add(json.RootElement.Clone());
+        if (BeforeAnswer is { } beforeAnswer) await beforeAnswer(Requests.Count);
         if (FailWith is { } status)
             return new(status) { Content = new StringContent("{\"error\":{\"message\":\"private provider body\"}}", Encoding.UTF8, "application/json") };
         Assert.Equal("fictional-model", Requests[^1].GetProperty("model").GetString());

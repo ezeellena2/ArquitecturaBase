@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
+using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 
@@ -38,10 +39,13 @@ internal static class AiAssistantTracing
             .Select(capability => $"{capability.Id}@{capability.Version}").ToArray());
     }
 
-    /// <summary>Marks the turn's activity, the current one wherever the coordinator records a failure, with the failure's code.</summary>
-    public static void MarkFailed(string code)
+    /// <summary>
+    /// Marks the turn's activity by what was saved: a turn that ended other than completed, also one the engine closed on its own (a step
+    /// limit, lost access, an answer it could not verify), is an error with its code; one not yet finished is left as it is.
+    /// </summary>
+    public static void MarkOutcome(Activity? activity, AiAssistantTurnState state, string? failureCode)
     {
-        if (Activity.Current is { } activity && activity.Source == Source)
-            activity.SetStatus(ActivityStatusCode.Error, code);
+        if (activity is null || state is AiAssistantTurnState.Pending or AiAssistantTurnState.Running or AiAssistantTurnState.Completed) return;
+        activity.SetStatus(ActivityStatusCode.Error, failureCode);
     }
 }

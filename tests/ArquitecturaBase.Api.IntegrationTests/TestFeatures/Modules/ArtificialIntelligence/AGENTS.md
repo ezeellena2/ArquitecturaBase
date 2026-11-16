@@ -24,4 +24,4 @@ DocumentReadingHandler y DocumentReadingClient son los dobles de la lectura de d
 
 `RaisedVersionAssistantSource` registra una versión ficticia de una capacidad, junto a la que se conserva (I4); rechaza toda llamada, y un turno sellado con la anterior nunca la corre.
 
-`AiAssistantExecutionProviderHandler` responde también un estado o rechaza la conexión (`FailWith`, `RefuseConnection`), y `ProviderConnectionFailure` usa el handler del registro con una conexión que nunca llega (nombre, rechazo, TLS o plazo de conexión), sin red (I6).
+`AiAssistantExecutionProviderHandler` responde también un estado o rechaza la conexión (`FailWith`, `RefuseConnection`), corre algo antes de responder una llamada (`BeforeAnswer`, I10), y `ProviderConnectionFailure` usa el handler del registro con una conexión que nunca llega (nombre, rechazo, TLS o plazo de conexión), sin red (I6).
