@@ -1,6 +1,6 @@
 # Arreglos de la revisión de arquitectura del núcleo
 
-Decididos el 2026-11-14 y sin programar. Salen de la [revisión de arquitectura del núcleo](../reviews/2026-11-14-arquitectura-nucleo.md),
+Decididos el 2026-11-14 y programados el 15 y el 16/11: las 31 tareas están commiteadas, y falta la prueba integral. Salen de la [revisión de arquitectura del núcleo](../reviews/2026-11-14-arquitectura-nucleo.md),
 que tiene el escenario, la evidencia (archivo y línea en `23797fff`) y el esfuerzo de cada hallazgo, y de las
 [decisiones del usuario](../reviews/2026-11-14-arquitectura-nucleo.md#decisiones-del-2026-11-14), que no se vuelven a preguntar.
 El núcleo no tenía un plan propio donde anexarlos; el pendiente de retención de
@@ -24,7 +24,7 @@ El núcleo no tenía un plan propio donde anexarlos; el pendiente de retención 
   vuelve a leer sus archivos antes de empezar.
 - **Sin revisor:** el cupo semanal estaba en 85 % al escribirlo, así que el plan se contrastó sólo con la revisión, sin un
   revisor contra el código. La primera tarea de cada etapa relee el código de sus hallazgos y corrige el plan si hace falta.
-- **Sin datos que convertir:** no hay producción. La revisión nueva de usuarios y roles arranca en 0 en las filas que ya
+- **Sin datos que convertir:** no hay producción. La revisión nueva de usuarios y roles arranca en 1 en las filas que ya
   existen, y la retención corre igual sobre los datos de desarrollo.
 - **Cuándo:** antes de la prueba integral, como eligió el usuario el 2026-11-14, para probar todo una sola vez. Arranca
   cuando lo permita el cupo semanal, que se reinicia el 17/11 a las 23:59, de a una etapa y mirándolo antes de cada una. B1
@@ -148,6 +148,15 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     logs. No tiene pantalla: verla sería una pantalla nueva, que se dibuja antes. La regla va en
     [administración](../features/administracion.md). Chico a mediano.
 
+**Hecha el 2026-11-16:**
+- N2, B2 y O4 en ede20d37 (front 98bbacbe), después de dos revisiones adversariales, una del backend y otra del front. El
+  front resuelve solo un 409 cuando no cambió nada de lo que su guardado reemplaza; si cambió, conserva el borrador y ofrece
+  revisar, con la mezcla de a uno de roles y permisos. El test de persistencia que N2 dejó viejo, en 29c72596.
+- B3 en 2de0cd3d.
+- N13 en 7b5d24eb, después de su revisión adversarial. La revisión sumó el rastro de la restauración (el correo, el número
+  y los roles con que vuelve la cuenta) y el del Admin que recibe `Seed:AdminEmail` en su primer ingreso.
+- Los tests de Formularios que cambiaban los permisos de un rol sin tenerlos y sin revisión, en 47b6d8a1.
+
 ### Etapa 3: el correo
 
 12. **N5, N8 y O3. El correo no se pierde ni sale dos veces.**
@@ -186,6 +195,15 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     [identidad](../features/identidad.md). Chico.
 14. **N14. El modo `.eml` sólo en Development y Testing.** Fuera de esos ambientes la Api no arranca con `PickupDirectory`,
     como ya pasa con el origen público, y cambia el test que hoy prueba que arranca así en Production. Trivial.
+
+**Hecha el 2026-11-16:**
+- N5, N8 y O3 en e7ce1bbc (front d16e21a0).
+- N7 en 882b8717 (front c7fd7551), después de su revisión adversarial, que sumó:
+  - una reserva de 50 invitaciones dentro del tope de todos, para que un abuso anónimo no las deje afuera;
+  - el oráculo de InviteOnly, escrito con su costo en [identidad](../features/identidad.md);
+  - la dirección, guardada sólo en los códigos por correo;
+  - y las esperas largas, mostradas en horas y minutos.
+- N14 en 42cb2297.
 
 ### Etapa 4: Redis, la salud y el arranque
 
@@ -255,6 +273,11 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     una alerta de 5xx. Completa lo que figura a medias en [verificación y producción](verificacion-y-produccion.md). Trivial
     a chico.
 
+**Hecha el 2026-11-16:**
+- N9, N33 y O12 en 8815e4cc (front 20698a7f), con el ADR 0032.
+- N6 en 997a9983, N17 en bc618e93, N19 en 390d1a4a, N18 en bc74b2ca y N10 en 848ced95.
+- N6, N10, N17 y N19 se terminan de comprobar en el primer despliegue a Azure.
+
 ### Etapa 5: datos, archivos y retención
 
 21. **N16 y N31. Los datos del ingreso se purgan** (decisión 8). Un worker de retención que borra por lotes, porque el
@@ -279,6 +302,14 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     con borrado temporal (por ejemplo, 14 días), versionado y feed de cambios, y el ensayo de restauración de H15 restaura
     base y contenedor juntos ([verificación y producción](verificacion-y-produccion.md)). Chico.
 24. **N30. El front deja de pedir los conteos que no muestra** en cada búsqueda de Usuarios (`UsersFilterBar.tsx`). Trivial.
+
+**Hecha el 2026-11-16:**
+- N16 y N31 en 12eb2a28, después de su revisión adversarial, que sumó la poda de OpenIddict por tramos, el lock que no
+  espera y el control ampliado. El identificador escrito de los intentos fallidos también se olvida a los 12 meses, porque
+  nadie lo lee; se decidió al programarla.
+- N28 en 9be27c20.
+- N15 en e870c645.
+- N30 en el front (9dd88005).
 
 ### Etapa 6: lo trivial y la documentación
 
@@ -308,6 +339,17 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     tienen uno dejan la fila para otra copia. Lleva el test de un nombre desconocido; la regla ya está en
     `Models/StructuredData/AGENTS.md`. Los enums propios de WhatsApp son lo que falta de H25, en el
     [plan de la bandeja](2026-10-01-bandeja-whatsapp.md). Chico.
+
+**Hecha el 2026-11-16:**
+- B1 en b3d864fa. Antes, los valores de esta PC pasaron a sus user-secrets: el correo, `Seed:AdminEmail`, Google,
+  WhatsApp y `Email:Delivery` en `Smtp`. Para arrancar siguen pidiendo secretos los anillos de claves de IA y de ARCA, que
+  es una regla de esos módulos.
+- B5 en 3083af18.
+- N21 en ea6739df (front cf059e74).
+- N22 en f8ffddf5 (front 6a71e6ef), con su `AGENTS.md` en 5ecd8926.
+- N23 en d794610c.
+- N26 en 1e330082.
+- N27 en 93f643c1.
 
 **Cierre.** Cada regla que cambió queda en su fuente, y la revisión anota qué commit arregló cada hallazgo. Las decisiones
 van a las fuentes de las [premisas](../architecture/premisas-de-la-plantilla.md), y el plan se retira con la

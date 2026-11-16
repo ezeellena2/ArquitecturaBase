@@ -178,6 +178,11 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   (`verificacion-y-produccion.md:159`).
 - **Arreglo:** que la configuración versionada venga apagada y sin datos de esta instalación (los de acá, en
   user-secrets), y que el README nombre el token. Trivial.
+- **Arreglado el 2026-11-16** en b3d864fa: la configuración versionada no trae el correo personal, `Seed:AdminEmail`,
+  el `ClientId` de Google ni los ids de WhatsApp (queda apagado), y en desarrollo el correo va a `.eml`; los valores
+  de esta PC pasaron a sus user-secrets antes, y el README dice qué carga cada instalación.
+  `TemplateConfigurationTests` lo fija. Para arrancar siguen pidiendo secretos los anillos de claves de IA y de ARCA,
+  una regla de esos módulos.
 
 #### B2. El editor de roles descarta sin avisar los permisos que su catálogo no conoce
 
@@ -186,6 +191,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   catálogo que cargó y los quita, sin aviso.
 - **Evidencia:** `front:src/features/roles/pages/RoleEditorPage.tsx:314-321`.
 - **Arreglo:** lo cierra la revisión de N2, más un aviso de lo que se descarta. Chico.
+- **Arreglado el 2026-11-16** en el front (98bbacbe), con N2: el editor de roles avisa qué permisos que su catálogo no
+  conoce descartaría antes de guardar, y la revisión impide pisar los de otro.
 
 #### B3. Después de quitar un módulo, el rol Admin no se puede editar por la API
 
@@ -218,6 +225,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   (`AiAssistantCapabilityCatalogPolicy.cs:53-56`). La guía dice otra cosa (`quitar-formularios.md:9-11`).
 - **Arreglo:** que WhatsApp pida las capacidades de formularios sólo si están instaladas, con un test que componga
   WhatsApp e IA sin Formularios, y corregir la guía. Chico.
+- **Arreglado el 2026-11-16** en 3083af18: WhatsApp pide sólo las capacidades `forms.*` que alguna fuente instalada
+  declara, con un test que compone WhatsApp e IA sin las fuentes de Formularios.
 
 ### Hoy, con una sola copia
 
@@ -292,6 +301,12 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   - retirar el PUT de ajustes, con su regla y sus tests, y corregir la receta.
 
   Mediano.
+- **Arreglado el 2026-11-16** en ede20d37 (front 98bbacbe), con O4, después de dos revisiones adversariales (backend y
+  front): una revisión `long` en cuentas y roles que avanzan sólo sus ediciones, venga de donde venga (también el
+  seed), con la fila tomada `FOR UPDATE` antes de comparar y 409 traducido; el borrado de un rol choca con una
+  asignación (`FOR KEY SHARE`); el perfil usa el mismo control; el ingreso por código toma la fila de la cuenta; y se
+  retiró el PUT de ajustes. En el front, un 409 sin nada ajeno se resuelve solo, y si no, se conserva el borrador y se
+  ofrece revisar, con la mezcla de a uno de roles y permisos.
 
 #### N3. Cualquiera puede bloquear la cuenta de otro y saber si existe
 
@@ -370,6 +385,10 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   - contadores de enviados y descartados, y el id en el log.
 
   Mediano.
+- **Arreglado el 2026-11-16** en e7ce1bbc (front d16e21a0), con N8 y O3, después de una revisión adversarial: un
+  intento por reserva, y una falla antes del cuerpo vuelve a la fila con espera creciente hasta vencer; el chequeo
+  `email` en Degraded también con el remitente rechazado (el cupo de Gmail), y la invitación sin noticias pasa a
+  `Uncertain` cuando vence su fila.
 
 #### N6. `/health` es pública y el pool de conexiones no está dimensionado para la base
 
@@ -395,6 +414,11 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   - si `/health` pasa a ser interna, el smoke mira el `healthState` que ya consulta.
 
   Chico.
+- **Arreglado el 2026-11-16** en 997a9983. El chequeo de la base ya usaba el pool: en Npgsql para EF 10,
+  `CanConnectAsync` corre `SELECT 1` con una conexión del pool, y un test lo fija. Lo nuevo: `/health` guarda su
+  resultado 2 segundos; un límite anónimo por IP (300 por minuto, agrupado por /64), uno de concurrencia por réplica
+  (100 más 100 en cola, sin contar los probes) y un tope de cuerpo de 1 MiB, que las subidas superan con su propio
+  `[RequestSizeLimit]`; y `Maximum Pool Size=15` en la cadena de Azure.
 
 #### N7. Los códigos por correo no tienen tope diario y pueden agotar el cupo del proveedor
 
@@ -417,6 +441,12 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   invitaciones por administrador. Chico. Para producción, un proveedor transaccional con su cupo medido.
 - **Decidido el 2026-11-14:** van los topes, y el correo de producción sigue en Gmail, con su cupo escrito en la
   guía y el tope global por debajo ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16** en 882b8717 (front c7fd7551), después de una revisión adversarial: se cuenta en la base
+  todo código por correo que sale, con un tope diario por dirección agrupada por /64 (50), uno por cuenta para los
+  códigos del perfil (10), uno de invitaciones por administrador (100) y uno de todos (400, aviso al 80 %), con 50
+  reservados a las invitaciones para que un abuso anónimo no las deje afuera. El oráculo que queda (en InviteOnly, el
+  tope de todos sube sólo con cuentas que existen) está escrito con su costo en `identidad.md`. El front muestra las
+  esperas largas en horas y minutos. Los índices de N31 que usan sus consultas van con la tarea 21.
 
 #### N8. Un correo se pierde en un despliegue o sale dos veces si el servidor tarda
 
@@ -437,6 +467,10 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   devolver lo que esperaba su reintento o se cortó antes de mandar el cuerpo; reintentar sólo las fallas de
   conexión, de autenticación y las 4xx, y tomar como incierto, sin repetirlo, un corte durante el envío; con su
   test sobre la cola durable. Chico.
+- **Arreglado el 2026-11-16** en e7ce1bbc, con N5: el envío tiene 12 s propios y el token del apagado sólo corta antes
+  del cuerpo; lo cortado vuelve a la cola; un corte durante el envío queda incierto y no se repite; el host frena los
+  workers a la vez y el peor caso cabe en sus 25 s; y el correo de un código vence en la cola con su `ResendCooldown`,
+  para que el viejo no llegue después del nuevo.
 
 #### N9. Con Redis caído no responde nada, ni la pantalla de ingreso ni los webhooks
 
@@ -462,6 +496,11 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   también los 502 y 504 del ingress.
 - **Decidido el 2026-11-14:** degradar de verdad, con la enmienda del ADR 0009
   ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16** en 8815e4cc (front 20698a7f), con N33 y O12, después de una revisión adversarial, con el
+  [ADR 0032](../decisions/0032-sin-redis-la-app-sigue.md), que enmienda el 0009 y el 0010: `/health` marca Redis en
+  Degraded; los permisos se leen de la base con una consulta por pedido, sin caché, y se retiró `InvalidateRoleAsync`;
+  los ajustes caen a la base con Redis caído o colgado (un Warning por minuto); el seed no frena el arranque; y el
+  front tiene un texto propio para un 5xx sin código. El código por WhatsApp no sale hasta que vuelve Redis.
 
 #### N10. El código de error que ve la persona no se puede rastrear en producción
 
@@ -475,6 +514,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   lleva quién. Figura a medias en `verificacion-y-produccion.md:161`. La traza de punta a punta es H19.
 - **Arreglo:** en Production, la consola en JSON con scopes; el id del usuario en un scope; el exportador
   documentado en la guía de despliegue y una alerta de 5xx. Trivial a chico.
+- **Arreglado el 2026-11-16** en 848ced95: fuera de Development y Testing la consola escribe JSON con scopes, el id de
+  quien pide va en un scope (también en el log del 500), y la guía de despliegue explica el exportador y la alerta de
+  5xx. Falta configurarlos en el primer despliegue.
 
 #### N11. Agregar o cambiar el correo desde el perfil no pide confirmar con el medio que ya existe
 
@@ -520,6 +562,11 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   que tenía), asignación de roles, estado, borrado y cambio de correo o de número de una cuenta, y modo de
   registro; el seed queda con el actor vacío. Sin el cambio de correo, la toma de cuentas de N1 no deja rastro.
   Chico a mediano.
+- **Arreglado el 2026-11-16** en 7b5d24eb, después de una revisión adversarial: la tabla `AdministrativeChanges`,
+  escrita en el mismo límite, registra una fila por dato que cambió en roles (alta, nombre, descripción, permisos y
+  borrado con sus permisos), cuentas (roles, estado, borrado, restauración con sus roles y el correo o el número que
+  cambian) y modo de registro, también el seed y el Admin que recibe `Seed:AdminEmail` en su primer ingreso, sin
+  actor. Del correo y del número guarda sólo el estado. Sin pantalla.
 
 #### N14. El modo `.eml` se puede prender en producción
 
@@ -544,6 +591,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   incluye el contenedor (`verificacion-y-produccion.md:157`).
 - **Arreglo:** crear el contenedor en la guía con borrado temporal (por ejemplo, 14 días), versionado y feed de
   cambios, y restaurar base y contenedor juntos en el ensayo de H15. Chico.
+- **Arreglado el 2026-11-16** en e870c645: la guía de Azure crea el almacenamiento con borrado temporal y versionado
+  por 14 días, feed de cambios y restauración a un momento, y el ensayo de H15 restaura base y contenedor juntos. Los
+  comandos no se probaron contra una cuenta real.
 
 #### N16. Los datos del ingreso no se purgan nunca
 
@@ -561,6 +611,12 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   borre o anonimice los `LoginAudits` y corra la poda de OpenIddict. Mediano. **Lo decidís vos:** los plazos.
 - **Decidido el 2026-11-14:** códigos y enlaces, 30 días; `LoginAudits`, 12 meses y después sin la IP; la poda de
   OpenIddict, a los 14 días de vencidos ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16** en 12eb2a28, después de una revisión adversarial: un worker diario borra por lotes los
+  códigos y enlaces de más de 30 días y las invitaciones de más de 30 que no son la última de su cuenta; los
+  `LoginAudits` de más de 12 meses quedan sin IP, sin navegador y, si fallaron, sin el identificador escrito; y
+  OpenIddict se poda por tramos de un día a los 14 días de vencido. Un lock por lote que no espera evita que dos
+  copias corran juntas. `PersonalDataRetentionTests` exige que cada tabla del núcleo con datos personales diga quién
+  la purga o por qué se conserva.
 
 #### N17. El arranque deja pasar configuración de producción incompleta
 
@@ -592,6 +648,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   los tests son por cliente (`WhatsAppRegistrationTests.cs:222-246`). El núcleo no registra clientes.
 - **Arreglo:** sacar el handler de los valores por defecto, porque ningún cliente lo usa tal cual; o
   `DisableForUnsafeHttpMethods` y un test que recorra los clientes con nombre. Trivial.
+- **Arreglado el 2026-11-16** en bc74b2ca: ServiceDefaults sólo agrega service discovery, y un test recorre los
+  clientes con nombre.
 
 #### N19. El prefijo de Redis de una instalación es opcional
 
@@ -624,6 +682,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   afuera `InvariantCulture` a propósito.
 - **Arreglo:** `DisplayNumbers` con la cultura del pedido y `formatNumber` en el front. Esos valores son también la
   evidencia que lee el modelo: conviene confirmarlo en la prueba del asistente. Trivial.
+- **Arreglado el 2026-11-16** en ea6739df (front cf059e74): `DisplayNumbers` con la cultura del pedido en las dos
+  fuentes y `formatNumber` en Roles. Que el modelo lea «1.234» se confirma en la prueba del asistente.
 
 #### N22. Un texto del núcleo nombra a WhatsApp, y dos versiones apagadas dicen «no se encontró»
 
@@ -640,6 +700,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   capacidad no existe, y nadie decide por ese código.
 - **Arreglo:** códigos neutrales en el núcleo para «no hay almacenamiento» y «falta el objeto» (el de WhatsApp, en
   su módulo), con su lugar en el front; para las versiones apagadas alcanza con corregir el `AGENTS.md`. Chico.
+- **Arreglado el 2026-11-16** en f8ffddf5 (front 6a71e6ef), y el `AGENTS.md` de las versiones apagadas en 5ecd8926:
+  `Files.Storage.Unavailable` y `Files.Content.Missing` en el núcleo, `WhatsApp.Media.Unavailable` en su módulo, y los
+  reintentos de WhatsApp aceptan los dos. El texto de `Files.Content.HashMismatch` tampoco nombra a WhatsApp.
 
 #### N23. Los permisos de un módulo quitado vuelven en algunos roles
 
@@ -654,6 +717,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   [ADR 0010](../decisions/0010-catalogo-de-permisos-extensible.md) acepta que queden sin efecto, no que vuelvan.
 - **Arreglo:** al quitar un módulo, una migración que borre sus permisos y avance la versión de cada rol; o, más
   proporcional, un paso en la guía para volver a agregarlo: «revisá los roles». Chico.
+- **Arreglado el 2026-11-16** en d794610c: las cuatro guías para quitar un módulo piden revisar los roles al volver a
+  agregarlo.
 
 #### N24. La invitación sale en el idioma general del sistema
 
@@ -688,6 +753,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** redactarlo, y un control sobre los records de `Models/StructuredData` y `Models/Assistant` que mire
   las propiedades de valor (hoy 41 de 152 no redactan, casi todos con sólo ids) o lleve una lista de excepciones.
   Trivial.
+- **Arreglado el 2026-11-16** en 1e330082: se redactan `StructuredRecordReadValue` y las dos filas de planilla, y
+  `NeutralModelRedactionTests` mira los records de `Models/StructuredData` y `Models/Assistant`, con sus excepciones
+  justificadas.
 
 ### Con varias copias
 
@@ -733,6 +801,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   en lugar de borrarse; el correo y la cola de acceso leen estricto; un motivo de lectura desconocido se lee como `Other`; y
   las guías piden escribir lo nuevo un despliegue después. Faltan los demás enums de los modelos neutros que los módulos
   guardan por nombre ([tarea 31](../plans/2026-11-14-arreglos-del-nucleo.md#etapa-6-lo-trivial-y-la-documentación)).
+- **Arreglado el 2026-11-16** en 93f643c1 (lo que faltaba): `StructuredDocumentReadability` no tiene valor neutro, así
+  que una lectura con una legibilidad desconocida queda para la copia que la conoce.
 
 #### N28. La limpieza de archivos corre en cada copia, recorre todo el contenedor y puede borrar una foto recién subida
 
@@ -754,6 +824,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   que espera confirmación (mediano: el ADR 0018 pide justificar ese staging, y a esa escala se justifica).
 - **Decidido el 2026-11-14:** el ETag entra con «Hoy»; la lease, antes de pasar de una réplica; listar sólo lo
   pendiente, a gran escala ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16** en 9be27c20 (el ETag): la limpieza borra con la versión del listado
+  (`DeleteIfUnchangedAsync`, If-Match en Azure), y un objeto que se volvió a subir con la misma clave queda. La lease
+  y listar sólo lo pendiente quedan para más de una réplica.
 
 ### A gran escala
 
@@ -791,6 +864,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   antes, medir con un millón de filas.
 - **Decidido el 2026-11-14:** dejar de pedir los conteos que no se muestran entra con «Hoy»; el resto, cuando haya
   volumen real ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16** en el front (9dd88005), lo que tocaba hoy: las opciones de los filtros se piden una vez
+  por visita y no en cada búsqueda.
 
 #### N31. El tope diario de WhatsApp recorre toda la tabla de códigos
 
@@ -801,6 +876,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** índices parciales `(Channel, SentAtUtc) WHERE SentAtUtc IS NOT NULL` y por `RequestedByUserId`, con la
   purga de N16. Trivial.
 - **Decidido el 2026-11-14:** entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16** en 12eb2a28, con N16: los índices parciales de `LoginCodes` por `(Channel, SentAtUtc)` y
+  por `(RequestedByUserId, Channel, SentAtUtc)`, que también usan los topes de N7.
 
 #### N32. Cada lectura de roles vuelve a contar a todas las personas
 
@@ -829,6 +906,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   asistente. Chico.
 - **Decidido el 2026-11-14:** se resuelve con N9, que lee los permisos con una sola consulta en el contexto del
   pedido, y entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-14)).
+- **Arreglado el 2026-11-16** en 8815e4cc, con N9: una consulta indexada por persona y por pedido, en la conexión del
+  pedido.
 
 #### N34. Las migraciones no tienen un control que impida bloquear tablas grandes
 
@@ -1078,6 +1157,9 @@ cambian con su arreglo, no antes: N3 y B4, en [identidad](../features/identidad.
   [plan de los arreglos del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md), que se programa antes de la prueba
   integral, como elegiste el mismo día. La lease de N28 va antes de pasar de una réplica; el resto de gran escala, cuando
   haya volumen real que medir.
+- **Programado el 15 y el 16/11:** las 31 tareas están commiteadas, y cada hallazgo de arriba dice en qué commit. Pasaron
+  por la revisión adversarial las etapas 1 a 3 y las tareas 15 y 21. Falta la prueba integral, con los pasos de la prueba
+  a mano de lo que cambió.
 - **Lo que ya estaba anotado:**
   - la retención de N16, en [verificación y producción](../plans/verificacion-y-produccion.md);
   - la exportación de telemetría de N10, a medias, en el mismo plan;
