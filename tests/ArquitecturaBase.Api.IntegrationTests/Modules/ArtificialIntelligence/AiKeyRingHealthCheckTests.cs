@@ -83,6 +83,23 @@ public sealed class AiKeyRingHealthCheckTests(ApiFactory factory)
         Assert.Empty(scenario.Handler.Requests);
     }
 
+    // I17, review: two copies that start at once on an empty table. The lock puts them in line and the second compares with the control
+    // the first wrote: neither breaks the unique index and both are ready. The ring is the factory's, so the rows it writes back are the
+    // same ones the other tests read.
+    [Fact]
+    public async Task Two_copies_that_start_at_once_on_an_empty_table_are_both_ready()
+    {
+        await factory.ExecuteDbContextAsync(dbContext => dbContext.Set<AiKeyRingControl>().ExecuteDeleteAsync(Ct));
+        await using var first = factory.WithWebHostBuilder(_ => { });
+        await using var second = factory.WithWebHostBuilder(_ => { });
+        var checks = new[] { first, second }.Select(copy => copy.Services.GetRequiredService<HealthCheckService>()).ToArray();
+
+        var reports = await Task.WhenAll(checks.Select(check => check.CheckHealthAsync(entry => entry.Name == AiKeyRingHealthCheck.Name, Ct)));
+
+        Assert.All(reports, report => Assert.Equal(HealthStatus.Healthy, report.Entries[AiKeyRingHealthCheck.Name].Status));
+        Assert.Equal([KeyId], await factory.ExecuteDbContextAsync(dbContext => dbContext.Set<AiKeyRingControl>().Select(control => control.KeyId).ToListAsync(Ct)));
+    }
+
     private static AiKeyRing Ring(string installationId, string activeKeyId) => new(Options.Create(new AiSecretProtectionOptions
     {
         InstallationId = installationId, ActiveKeyId = activeKeyId,
