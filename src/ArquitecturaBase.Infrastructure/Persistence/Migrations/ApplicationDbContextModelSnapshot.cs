@@ -2712,6 +2712,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex(new[] { "DefinitionId", "Number" }, "IX_BusinessFormRecords_Current_DefinitionId_Number")
                         .HasFilter("\"ReplacedByRecordId\" IS NULL");
 
+                    b.HasIndex(new[] { "DefinitionId", "SubmittedAtUtc" }, "IX_BusinessFormRecords_Current_DefinitionId_SubmittedAtUtc")
+                        .HasFilter("\"ReplacedByRecordId\" IS NULL");
+
                     b.ToTable("BusinessFormRecords", null, t =>
                         {
                             t.HasCheckConstraint("CK_BusinessFormRecords_Correction", "(\"ReplacesRecordId\" IS NULL) = (\"OriginalReceiptId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectedByUserId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectionReason\" IS NULL)");

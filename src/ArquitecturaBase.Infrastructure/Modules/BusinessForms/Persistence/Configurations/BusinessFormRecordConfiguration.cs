@@ -23,6 +23,9 @@ internal sealed class BusinessFormRecordConfiguration : IEntityTypeConfiguration
         // unique index above filters the originals and cannot serve them: without this one, each sorts the whole form.
         builder.HasIndex(value => new { value.DefinitionId, value.Number }, "IX_BusinessFormRecords_Current_DefinitionId_Number")
             .HasFilter("\"ReplacedByRecordId\" IS NULL");
+        // Sorting or filtering the table by the date a response was received reads the current ones by that date.
+        builder.HasIndex(value => new { value.DefinitionId, value.SubmittedAtUtc }, "IX_BusinessFormRecords_Current_DefinitionId_SubmittedAtUtc")
+            .HasFilter("\"ReplacedByRecordId\" IS NULL");
         // Whoever only loads sees their own responses, and the person facet counts each actor's.
         builder.HasIndex(value => new { value.DefinitionId, value.ActorUserId, value.Number });
         builder.HasIndex(value => value.ReplacesRecordId).IsUnique().HasFilter("\"ReplacesRecordId\" IS NOT NULL");
