@@ -17,6 +17,12 @@ internal static class EmailRegistration
         + "invitations by email link to its login page. Set it to the address that the browser sees, not the one of "
         + "the Api behind the proxy.";
 
+    /// <summary>Los .eml quedan en el disco de la copia: nadie los recibe, se pierden al desplegar y guardan los códigos.</summary>
+    public const string PickupDirectoryOutsideDevelopmentMessage =
+        "Email:Delivery is PickupDirectory, which writes the emails as .eml files on the local disk: it is only allowed in "
+        + "Development and Testing, because elsewhere nobody would receive them. Set Email:Delivery to Smtp and the "
+        + "Email:Smtp keys.";
+
     public static IServiceCollection AddEmails(this IServiceCollection services, IHostEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(environment);
@@ -30,11 +36,13 @@ internal static class EmailRegistration
         // cualquier despliegue, con el webhook de WhatsApp o sin él: sin la dirección, fallaría recién la primera, y con
         // ella el alta que la pedía. Mejor que la Api no arranque y diga qué falta. Fuera de Development y Testing, como
         // los certificados de OpenIddict: en Development la trae appsettings.Development.json, y en Testing la pone el
-        // arnés.
+        // arnés. Por lo mismo, los .eml sólo valen ahí (N14): en otro ambiente cada correo quedaría en el disco de la copia
+        // y se daría por enviado.
         if (!environment.IsDevelopment() && !environment.IsEnvironment(OpenIddictRegistration.TestingEnvironment))
         {
             services.AddOptions<EmailOptions>()
-                .Validate<IPublicOrigin>((_, publicOrigin) => publicOrigin.Value is not null, MissingPublicOriginMessage);
+                .Validate<IPublicOrigin>((_, publicOrigin) => publicOrigin.Value is not null, MissingPublicOriginMessage)
+                .Validate(options => options.Delivery == EmailDelivery.Smtp, PickupDirectoryOutsideDevelopmentMessage);
         }
 
         services.AddOptions<SmtpOptions>()

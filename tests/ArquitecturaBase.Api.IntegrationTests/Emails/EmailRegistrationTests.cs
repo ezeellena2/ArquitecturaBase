@@ -14,7 +14,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Emails;
 /// (<c>Authentication:Issuer</c>). Fuera de Development y Testing, sin esa dirección la Api no arranca: si no, la primera
 /// invitación fallaría recién al mandarla, y el alta que la pedía tampoco quedaría. Corre el mismo validador que el host
 /// antes de arrancar (<see cref="IStartupValidator"/>), como WhatsAppMessageRetentionTests: un despliegue de producción
-/// entero necesitaría los certificados de OpenIddict.
+/// entero necesitaría los certificados de OpenIddict. Por lo mismo, fuera de esos ambientes no arranca con los correos en
+/// archivos .eml (N14): se escribirían en el disco de la copia, nadie los recibiría y se darían por enviados.
 /// </summary>
 public sealed class EmailRegistrationTests
 {
@@ -38,13 +39,39 @@ public sealed class EmailRegistrationTests
         provider.GetRequiredService<IStartupValidator>().Validate();
     }
 
-    private static ServiceProvider BuildProvider(string environment, string? issuer)
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    public void Outside_development_and_testing_the_api_does_not_start_writing_emails_to_files(string environment)
+    {
+        using var provider = BuildProvider(environment, issuer: "https://app.example.com/", delivery: "PickupDirectory");
+
+        var exception = Assert.ThrowsAny<Exception>(() => provider.GetRequiredService<IStartupValidator>().Validate());
+
+        Assert.Contains(EmailRegistration.PickupDirectoryOutsideDevelopmentMessage, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Testing")]
+    public void In_development_and_testing_emails_can_be_written_to_files(string environment)
+    {
+        using var provider = BuildProvider(environment, issuer: null, delivery: "PickupDirectory");
+
+        provider.GetRequiredService<IStartupValidator>().Validate();
+    }
+
+    private static ServiceProvider BuildProvider(string environment, string? issuer, string delivery = "Smtp")
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                // Sin SMTP, que se valida aparte y pediría sus propias claves.
-                ["Email:Delivery"] = "PickupDirectory",
+                ["Email:Delivery"] = delivery,
+                ["Email:Smtp:Host"] = "smtp.example.com",
+                ["Email:Smtp:UserName"] = "sender@example.com",
+                ["Email:Smtp:Password"] = "app-password",
+                ["Email:Smtp:FromName"] = "Example",
+                ["Email:Smtp:FromAddress"] = "sender@example.com",
                 ["Authentication:Issuer"] = issuer,
             })
             .Build();
