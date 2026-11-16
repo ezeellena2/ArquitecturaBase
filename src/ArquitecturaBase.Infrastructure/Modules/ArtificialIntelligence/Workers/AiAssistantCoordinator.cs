@@ -142,10 +142,11 @@ internal sealed partial class AiAssistantCoordinator(
         catch (Exception exception)
         {
             // After a committed external-step reservation, absence of a response cannot establish that it was not sent. Anything else is
-            // the engine's own failure (I5): ProviderUnavailable comes only from the provider call.
+            // the engine's own failure (I5): ProviderUnavailable comes only from the provider call. I12, review: the stop's cut is no
+            // failure: the turn goes back to pending and the release logs it.
+            if (Stopped()) { await ReleaseAsync(claim, activity); return true; }
             LogExecutionFailed(logger, claim.TurnId, exception.GetType().Name);
-            if (Stopped()) await ReleaseAsync(claim, activity);
-            else await FailAsync(claim, activity, Drained() ? AiAssistantErrors.Interrupted.Code : providerMayHaveBeenSent ? AiAssistantErrors.ProviderUncertain.Code
+            await FailAsync(claim, activity, Drained() ? AiAssistantErrors.Interrupted.Code : providerMayHaveBeenSent ? AiAssistantErrors.ProviderUncertain.Code
                 : execution.IsCancellationRequested ? AiAssistantErrors.Canceled.Code : AiAssistantErrors.ExecutionFailed.Code, providerMayHaveBeenSent, knownUsage);
         }
         finally

@@ -73,6 +73,27 @@ public sealed class AiAssistantCoordinatorShutdownTests
         Assert.Equal((0, 0), (fixture.CompleteCalls, fixture.ReleaseCalls));
     }
 
+    // I12, review: the stop that cuts the preparation (or the reservation) is not a failure of the turn: it goes back without a warning.
+    [Fact]
+    public async Task A_stop_that_cuts_the_preparation_gives_the_turn_back_without_a_warning()
+    {
+        using var stop = new CancellationTokenSource();
+        var clock = new FakeTimeProvider();
+        var fixture = new AiAssistantProposalCoordinatorFixture(clock, null)
+        {
+            WhilePreparing = stop.Cancel,
+            PrepareFailure = new OperationCanceledException(stop.Token),
+        };
+        var log = new FakeLogger<AiAssistantCoordinator>();
+        await using var services = Services(fixture);
+
+        Assert.True(await Coordinator(services, clock, log).ProcessNextAsync(stop.Token, Ct));
+
+        Assert.Equal((1, 0), (fixture.ReleaseCalls, fixture.FailCalls));
+        Assert.DoesNotContain(log.Collector.GetSnapshot(), entry => entry.Level >= LogLevel.Warning);
+        Assert.Contains(log.Collector.GetSnapshot(), entry => entry.Message.Contains("given back", StringComparison.Ordinal));
+    }
+
     // I12, review: a release that closes the turn (its person canceled it meanwhile) did not give it back.
     [Fact]
     public async Task A_release_that_closes_the_turn_is_not_logged_as_given_back()
