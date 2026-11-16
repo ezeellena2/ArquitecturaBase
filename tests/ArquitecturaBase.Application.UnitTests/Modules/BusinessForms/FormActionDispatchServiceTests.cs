@@ -153,6 +153,28 @@ public sealed class FormActionDispatchServiceTests
         Assert.Single(fixture.Runs.Tasks);
     }
 
+    // B3: whoever loaded the response cannot decide it, so a role whose only member is its author has nobody who can decide either.
+    [Fact]
+    public async Task Requesting_approval_from_a_role_whose_only_member_loaded_the_response_fails_like_one_without_members()
+    {
+        var fixture = new FormActionFixture();
+        var rule = new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action("RequestApproval") with { RoleId = fixture.Rules.RoleId }]);
+        var (record, snapshot) = fixture.Capture([rule]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        Assert.Equal([record.ActorUserId], fixture.Recipients.People.Keys);
+        var service = Dispatch(fixture);
+        var run = Assert.Single(fixture.Runs.Runs);
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Equal((FormActionRunState.Failed, FormRuleErrors.RoleWithoutMembers.Code, true), (run.State, run.FailureCode, run.CanRetry));
+        Assert.Empty(fixture.Runs.Tasks);
+        var other = Guid.NewGuid();
+        fixture.Recipients.People[other] = new(other, "es", "Other");
+        Assert.True(run.RequestRetry(fixture.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+        Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Equal(FormActionRunState.Completed, run.State);
+        Assert.Single(fixture.Runs.Tasks);
+    }
+
     [Fact]
     public async Task What_needs_a_decision_is_not_consulted_on_its_own()
     {
@@ -175,6 +197,8 @@ public sealed class FormActionDispatchServiceTests
         var rule = new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action("RequestApproval") with { RoleId = fixture.Rules.RoleId }]);
         var (record, snapshot) = fixture.Capture([rule]);
         await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var approver = Guid.NewGuid();
+        fixture.Recipients.People[approver] = new(approver, "es", "Approver");
         var run = Assert.Single(fixture.Runs.Runs);
         var boundary = new FakeUnitOfWork { OnCommit = () =>
         {
@@ -202,6 +226,8 @@ public sealed class FormActionDispatchServiceTests
             [FormActionFixture.Action("RequestApproval") with { RoleId = fixture.Rules.RoleId }])).ToArray();
         var (record, snapshot) = fixture.Capture(rules);
         await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var approver = Guid.NewGuid();
+        fixture.Recipients.People[approver] = new(approver, "es", "Approver");
         var service = Dispatch(fixture);
         foreach (var run in fixture.Runs.Runs) Assert.Null((await service.ReserveAsync(run.Id, CancellationToken.None)).Value);
         Assert.Single(fixture.Runs.Tasks);

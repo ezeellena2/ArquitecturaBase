@@ -46,7 +46,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
                 return Result.Success<FormActionWorkResponse?>(null);
             }
             // B3: a task nobody can decide is not opened: the action fails with its own reason, and retries once the role has someone.
-            if((await roles.MembersAsync(snapshot.ApprovalRoleId!.Value,ct)).Count==0)
+            // Whoever loaded the response and whoever corrected it cannot decide it, so they do not count.
+            if(!(await roles.MembersAsync(snapshot.ApprovalRoleId!.Value,ct)).Any(member=>member!=target.ActorUserId&&member!=target.CorrectedByUserId))
             {
                 run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,FormRuleErrors.RoleWithoutMembers.Code,true);
                 return Result.Success<FormActionWorkResponse?>(null);
