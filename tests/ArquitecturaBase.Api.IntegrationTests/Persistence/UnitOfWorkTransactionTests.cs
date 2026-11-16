@@ -131,6 +131,9 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
             () => services.GetRequiredService<ILoginCodeRepository>().LockDestinationAsync(LoginCodeDestination.ForEmail(email), Ct),
             () => services.GetRequiredService<IUserRepository>().LockExternalSignInAsync(email, "Google", "k", Ct),
             () => services.GetRequiredService<IUserRepository>().LockAdminsAsync(Ct),
+            () => services.GetRequiredService<IUserRepository>().LockAsync(userId, Ct),
+            () => services.GetRequiredService<IRoleRepository>().LockAsync(userId, Ct),
+            () => services.GetRequiredService<IRoleRepository>().LockForAssignmentAsync([SystemRoles.Admin], Ct),
         ];
 
         foreach (var takeLock in locks)
@@ -179,13 +182,14 @@ public sealed class UnitOfWorkTransactionTests(ApiFactory factory)
             [nameof(IUserRepository.DeleteAsync)] = () => users.DeleteAsync(account.Id, Ct),
         };
 
-        // LockExternalSignInAsync y LockAdminsAsync son locks, no escrituras: los cubre
+        // LockExternalSignInAsync, LockAdminsAsync y LockAsync son locks, no escrituras: los cubre
         // Locks_outside_the_boundary_throw_even_without_keys.
         Assert.Equal(
             typeof(IUserRepository).GetMethods()
                 .Select(method => method.Name)
                 .Where(name => name != nameof(IUserRepository.LockExternalSignInAsync)
-                    && name != nameof(IUserRepository.LockAdminsAsync))
+                    && name != nameof(IUserRepository.LockAdminsAsync)
+                    && name != nameof(IUserRepository.LockAsync))
                 .Order(StringComparer.Ordinal),
             writes.Keys.Order(StringComparer.Ordinal));
 
