@@ -93,8 +93,11 @@ public sealed class AiAssistantUnknownSealTests
         var dispatch = Dispatch(f);
 
         var claimed = await dispatch.ClaimAsync(Ct);
+        // I4, review: one query of the pending turns in order, chosen in memory, not one per skipped turn under the installation's lock.
+        var queries = f.Store.PendingQueries;
         var next = await dispatch.ClaimAsync(Ct);
 
+        Assert.Equal(1, queries);
         Assert.Equal(known.Id, claimed.Value?.TurnId);
         Assert.Equal(AiAssistantTurnState.Running, known.State);
         Assert.True(next.IsSuccess);

@@ -23,14 +23,10 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
         var outcome = await unitOfWork.ExecuteInTransactionAsync<Result<AiAssistantClaimResponse?>>(async ct =>
         {
             await dispatchGuard.LockInstallationAsync(ct);
-            // I4: what this version does not understand stays pending for the version that does, and the next one is taken.
-            var skipped = new List<Guid>();
-            var turn = await repository.GetPendingAsync(skipped, ct);
-            while (turn is not null && !dispatchGuard.Understands(turn))
-            {
-                skipped.Add(turn.Id);
-                turn = await repository.GetPendingAsync(skipped, ct);
-            }
+            // I4: what this version does not understand stays pending for the version that does, and the next one is taken: the pending ones
+            // in order, in one query (at most the pending capacity, plus one), chosen in memory (I4, review).
+            var pending = await repository.ListPendingAsync(limits.PendingCapacity + 1, ct);
+            var turn = pending.FirstOrDefault(dispatchGuard.Understands);
             terminalTurn = turn;
             if (turn is null) return Result.Success<AiAssistantClaimResponse?>(null);
             await repository.LockActorAsync(turn.OwnerUserId, ct);

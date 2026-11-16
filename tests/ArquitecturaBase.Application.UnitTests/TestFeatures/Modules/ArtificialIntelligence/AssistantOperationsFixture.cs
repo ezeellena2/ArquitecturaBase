@@ -186,8 +186,13 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiAssistantTurn?> GetTurnAsync(Guid turn, CancellationToken ct) => Task.FromResult(Turns.SingleOrDefault(item => item.Id == turn));
     public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid actor, Guid request, CancellationToken ct) =>
         Task.FromResult(Receipts.SingleOrDefault(item => item.OwnerUserId == actor && item.RequestId == request && item.ExpiresAtUtc > clock.GetUtcNow().UtcDateTime));
-    public Task<AiAssistantTurn?> GetPendingAsync(IReadOnlyCollection<Guid> skipped, CancellationToken ct) =>
-        Task.FromResult(Turns.FirstOrDefault(item => item.State == AiAssistantTurnState.Pending && !skipped.Contains(item.Id)));
+    // I4, review: how many times the claim asked for pending turns.
+    public int PendingQueries { get; private set; }
+    public Task<IReadOnlyList<AiAssistantTurn>> ListPendingAsync(int limit, CancellationToken ct)
+    {
+        PendingQueries++;
+        return Task.FromResult<IReadOnlyList<AiAssistantTurn>>(Turns.Where(item => item.State == AiAssistantTurnState.Pending).Take(limit).ToArray());
+    }
     public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid actor, string channelId, Guid? channelConversationId, CancellationToken ct) =>
         Task.FromResult(Turns.FirstOrDefault(item => item.OwnerUserId == actor && item.ChannelId == channelId && item.ChannelConversationId == channelConversationId && ReservesChannel(item)
             && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));

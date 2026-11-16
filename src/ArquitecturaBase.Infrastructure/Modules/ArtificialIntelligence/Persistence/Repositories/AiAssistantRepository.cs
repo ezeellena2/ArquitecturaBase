@@ -26,9 +26,9 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
         return dbContext.Set<AiAssistantRequestReceipt>().SingleOrDefaultAsync(receipt =>
             receipt.OwnerUserId == ownerUserId && receipt.RequestId == requestId && receipt.ExpiresAtUtc > nowUtc, cancellationToken);
     }
-    public Task<AiAssistantTurn?> GetPendingAsync(IReadOnlyCollection<Guid> skipped, CancellationToken cancellationToken) =>
-        dbContext.Set<AiAssistantTurn>().Where(turn => turn.State == AiAssistantTurnState.Pending && !skipped.Contains(turn.Id))
-            .OrderBy(turn => turn.SubmittedAtUtc).ThenBy(turn => turn.Id).FirstOrDefaultAsync(cancellationToken);
+    public async Task<IReadOnlyList<AiAssistantTurn>> ListPendingAsync(int limit, CancellationToken cancellationToken) =>
+        await dbContext.Set<AiAssistantTurn>().Where(turn => turn.State == AiAssistantTurnState.Pending)
+            .OrderBy(turn => turn.SubmittedAtUtc).ThenBy(turn => turn.Id).Take(limit).ToListAsync(cancellationToken);
     public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, Guid? channelConversationId, CancellationToken cancellationToken) =>
         ActiveForActorChannel(ownerUserId, channelId, channelConversationId).FirstOrDefaultAsync(cancellationToken);
     private IQueryable<AiAssistantTurn> ActiveForActorChannel(Guid ownerUserId, string channelId, Guid? channelConversationId) =>
