@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Resources;
@@ -15,7 +16,8 @@ namespace ArquitecturaBase.Application.Channels;
 /// <summary>
 /// La invitación por correo, el canal que trae el núcleo: un botón a /login, y la persona entra con el código de
 /// siempre. Pide solo que la cuenta tenga correo y no guarda consentimiento. AddApplication lo registra con
-/// TryAddEnumerable, al lado de los canales de los módulos. No abre ni confirma transacciones.
+/// TryAddEnumerable, al lado de los canales de los módulos. No abre ni confirma transacciones. El correo lleva su
+/// invitación: el worker de la cola anota si salió, si no o si no se sabe (<see cref="EmailInvitationDeliveryStatusSource"/>).
 /// </summary>
 internal sealed partial class EmailInvitationChannel(
     IEmailQueue emailQueue,
@@ -44,8 +46,11 @@ internal sealed partial class EmailInvitationChannel(
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(invitation);
 
-        if (!emailQueue.TryEnqueue(
-            emailTemplates.RenderInvitation(user.Email!, user.DisplayName, LoginUrl(), CultureInfo.GetCultureInfo(culture))))
+        // N5: the email carries its invitation, so the worker records whether it went out, did not or may have arrived.
+        var email = emailTemplates.RenderInvitation(user.Email!, user.DisplayName, LoginUrl(), CultureInfo.GetCultureInfo(culture))
+            with { Invitation = new EmailInvitationReference(user.Id, invitation.Id) };
+
+        if (!emailQueue.TryEnqueue(email))
         {
             invitation.MarkSendFailed();
             LogEmailNotQueued(logger);

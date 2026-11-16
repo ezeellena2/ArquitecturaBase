@@ -21,13 +21,16 @@ public sealed class EmailQueueTests
         var queue = new EmailQueue(Options.Create(new EmailOptions { QueueCapacity = Capacity }), logger);
 
         // Sin nadie que lea: el correo que sobra no puede dejar esperando al pedido de código.
-        var accepted = Enumerable.Range(1, Capacity + 1).Select(number => queue.TryEnqueue(Message(number))).ToList();
+        var messages = Enumerable.Range(1, Capacity + 1).Select(Message).ToList();
+        var accepted = messages.Select(queue.TryEnqueue).ToList();
 
         Assert.Equal([true, true, true, false], accepted);
         Assert.Equal(Capacity, await CountQueuedAsync(queue));
         var record = Assert.Single(logger.Collector.GetSnapshot());
         Assert.Equal(LogLevel.Warning, record.Level);
         Assert.DoesNotContain("@example.com", record.Message, StringComparison.Ordinal);
+        // O3: with the id of the email that did not go in.
+        Assert.Contains(messages[^1].Id.ToString(), record.Message, StringComparison.Ordinal);
     }
 
     [Fact]

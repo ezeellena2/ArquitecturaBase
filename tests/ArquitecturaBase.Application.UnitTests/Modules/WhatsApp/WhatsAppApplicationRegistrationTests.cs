@@ -78,7 +78,8 @@ public sealed class WhatsAppApplicationRegistrationTests
     public void An_invitation_channel_is_registered_once_per_channel()
     {
         // El correo lo trae el núcleo y WhatsApp, el módulo, los dos con TryAddEnumerable: aunque el registro del módulo se
-        // llame dos veces, queda uno por canal, y una sola fuente del estado de entrega, la de WhatsApp.
+        // llame dos veces, queda uno por canal, y una fuente del estado de entrega por canal: la del correo, que da la cola (N5),
+        // y la de WhatsApp.
         var services = new ServiceCollection();
         services.AddApplication().AddWhatsAppApplication().AddWhatsAppApplication();
 
@@ -88,9 +89,11 @@ public sealed class WhatsAppApplicationRegistrationTests
             channels.Select(descriptor => descriptor.ImplementationType));
         Assert.All(channels, descriptor => Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime));
 
-        var source = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IInvitationDeliveryStatusSource));
-        Assert.Equal(typeof(WhatsAppInvitationDeliveryStatusSource), source.ImplementationType);
-        Assert.Equal(ServiceLifetime.Scoped, source.Lifetime);
+        var sources = services.Where(descriptor => descriptor.ServiceType == typeof(IInvitationDeliveryStatusSource)).ToArray();
+        Assert.Equal(
+            [typeof(EmailInvitationDeliveryStatusSource), typeof(WhatsAppInvitationDeliveryStatusSource)],
+            sources.Select(descriptor => descriptor.ImplementationType));
+        Assert.All(sources, descriptor => Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime));
     }
 
     [Fact]
@@ -110,14 +113,15 @@ public sealed class WhatsAppApplicationRegistrationTests
     }
 
     [Fact]
-    public void Without_the_module_invitations_go_only_by_email_and_nothing_follows_their_delivery()
+    public void Without_the_module_invitations_go_only_by_email_and_only_the_queue_follows_their_delivery()
     {
         var services = new ServiceCollection();
         services.AddApplication();
 
         var channel = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IInvitationChannel));
         Assert.Equal(typeof(EmailInvitationChannel), channel.ImplementationType);
-        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IInvitationDeliveryStatusSource));
+        var source = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IInvitationDeliveryStatusSource));
+        Assert.Equal(typeof(EmailInvitationDeliveryStatusSource), source.ImplementationType);
     }
 
     private static bool IsOfTheModule(Type type) =>

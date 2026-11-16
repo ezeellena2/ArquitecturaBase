@@ -30,6 +30,7 @@ builder.Services.AddTrustedForwardedHeaders(builder.Configuration, builder.Envir
 // Hasta 25 s para terminar los pedidos en curso y frenar los workers, contra los 60 que la Container App da antes de matar
 // la réplica (terminationGracePeriodSeconds, docs/deploy/azure-setup.md). Con los 30 por defecto de los dos no había margen.
 builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(25));
+builder.Services.Configure<HostOptions>(options => options.ServicesStopConcurrently = true); // N8: cada worker frena enseguida, no en fila.
 
 builder.Services
     .AddApplication()

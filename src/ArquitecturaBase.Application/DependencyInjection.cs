@@ -49,6 +49,8 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, RolesSystemQuerySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, HelpSystemQuerySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IInvitationChannel, EmailInvitationChannel>());
+        // N5: the state of an invitation by email comes from the queue.
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IInvitationDeliveryStatusSource, EmailInvitationDeliveryStatusSource>());
 
         // Los helpers y casos de uso se registran explícitamente para mantener visible la composición.
         services.AddScoped<ArquitecturaBase.Application.Interfaces.Services.IPrivateFileCleanupService, ArquitecturaBase.Application.Services.Files.PrivateFileCleanupService>();
@@ -56,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<PermissionDelegationGuard>();
         services.AddScoped<ProfileEmailLinker>();
         services.AddScoped<IDeliveryQueueService, DeliveryQueueService>();
+        services.AddScoped<IEmailDeliveryService, EmailDeliveryService>();
         services.AddScoped<DestinationCodeIssuer>();
         services.AddScoped<DestinationCodeVerifier>();
         services.AddScoped<PhoneNumberLinker>();

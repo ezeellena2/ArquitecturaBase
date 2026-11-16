@@ -40,17 +40,14 @@ internal sealed partial class EmailQueue : IEmailQueue, IMessageSource<EmailMess
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        if (_store is not null)
-        {
-            return _store.TryEnqueue("email", _capacity, nameof(EmailMessage), JsonSerializer.Serialize(message), message.ExpiresAtUtc);
-        }
-
-        if (_channel.Writer.TryWrite(message))
+        if (_store is null ? _channel.Writer.TryWrite(message)
+            : _store.TryEnqueue("email", _capacity, nameof(EmailMessage), JsonSerializer.Serialize(message), message.ExpiresAtUtc))
         {
             return true;
         }
 
-        LogQueueFull(_logger, _capacity);
+        // O3: also a code that the durable queue does not take leaves its trace, with the id of the email.
+        LogNotQueued(_logger, message.Id, _capacity);
 
         return false;
     }
@@ -59,6 +56,6 @@ internal sealed partial class EmailQueue : IEmailQueue, IMessageSource<EmailMess
         _channel.Reader.ReadAllAsync(cancellationToken);
 
     // Sin el destinatario ni el contenido, que lleva el código.
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The email queue is full (capacity {Capacity}); the email was dropped")]
-    private static partial void LogQueueFull(ILogger logger, int capacity);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The email {EmailId} was not queued: the queue is full (capacity {Capacity}) or the email already expired")]
+    private static partial void LogNotQueued(ILogger logger, Guid emailId, int capacity);
 }

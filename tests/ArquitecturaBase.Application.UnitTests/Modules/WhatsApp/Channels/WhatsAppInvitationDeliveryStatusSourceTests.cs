@@ -28,14 +28,14 @@ public sealed class WhatsAppInvitationDeliveryStatusSourceTests
     [Fact]
     public async Task Without_a_meta_id_it_is_pending_without_reading_anything()
     {
-        Assert.Equal(InvitationDeliveryStatus.Pending, await Source().FindStatusAsync(null, Ct));
+        Assert.Equal(InvitationDeliveryStatus.Pending, await Source().FindStatusAsync(null, DateTime.UnixEpoch, Ct));
         Assert.Empty(_messages.Reads);
     }
 
     [Fact]
     public async Task A_message_that_was_not_saved_is_pending()
     {
-        Assert.Equal(InvitationDeliveryStatus.Pending, await Source().FindStatusAsync(WaMessageId, Ct));
+        Assert.Equal(InvitationDeliveryStatus.Pending, await Source().FindStatusAsync(WaMessageId, DateTime.UnixEpoch, Ct));
         Assert.Equal([WaMessageId], _messages.Reads);
     }
 
@@ -44,7 +44,7 @@ public sealed class WhatsAppInvitationDeliveryStatusSourceTests
     {
         _messages.OutboundStatuses[WaMessageId] = null;
 
-        Assert.Equal(InvitationDeliveryStatus.Pending, await Source().FindStatusAsync(WaMessageId, Ct));
+        Assert.Equal(InvitationDeliveryStatus.Pending, await Source().FindStatusAsync(WaMessageId, DateTime.UnixEpoch, Ct));
     }
 
     [Theory]
@@ -58,7 +58,7 @@ public sealed class WhatsAppInvitationDeliveryStatusSourceTests
     {
         _messages.OutboundStatuses[WaMessageId] = status;
 
-        Assert.Equal(expected, await Source().FindStatusAsync(WaMessageId, Ct));
+        Assert.Equal(expected, await Source().FindStatusAsync(WaMessageId, DateTime.UnixEpoch, Ct));
     }
 
     private WhatsAppInvitationDeliveryStatusSource Source() => new(_messages);

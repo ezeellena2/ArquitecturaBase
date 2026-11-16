@@ -7,7 +7,9 @@ internal static class MimeMessageFactory
 {
     public static MimeMessage Create(EmailMessage message, SmtpOptions sender)
     {
+        // N5: the Message-ID is what an invitation keeps when the server accepts it, so every email has one (MimeKit makes it).
         var mime = new MimeMessage();
+        if (string.IsNullOrEmpty(mime.MessageId)) mime.MessageId = MimeKit.Utils.MimeUtils.GenerateMessageId();
         mime.From.Add(new MailboxAddress(sender.FromName, sender.FromAddress));
         mime.To.Add(MailboxAddress.Parse(message.To));
         mime.Subject = message.Subject;

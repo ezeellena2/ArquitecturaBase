@@ -1,5 +1,6 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Channels;
+using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Models.Users;
 using ArquitecturaBase.Application.Resources;
@@ -64,6 +65,8 @@ public sealed class EmailInvitationChannelTests
         Assert.Equal("https://example.test/login", _templates.LastLoginUrl);
         Assert.False(invitation.SendFailed);
         Assert.Empty(_logger.Collector.GetSnapshot());
+        // N5: the email carries its invitation, so the queue records whether it went out, expired or may have arrived.
+        Assert.Equal(new EmailInvitationReference(user.Id, invitation.Id), message.Invitation);
     }
 
     [Fact]

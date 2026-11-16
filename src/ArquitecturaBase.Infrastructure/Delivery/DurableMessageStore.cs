@@ -18,7 +18,7 @@ internal sealed class DurableMessageStore(ApplicationDbContext dbContext, IDataP
         pending += dbContext.ChangeTracker.Entries<QueuedDelivery>().Count(entry => entry.State == EntityState.Added && entry.Entity.Channel == channel);
         if (pending >= capacity || expiresAtUtc <= nowUtc) return false;
         var encrypted = protection.CreateProtector("ArquitecturaBase.Delivery.v1", channel, messageType).Protect(payload);
-        dbContext.Add(QueuedDelivery.Create(channel, messageType, encrypted, nowUtc, expiresAtUtc ?? nowUtc.AddDays(1)));
+        dbContext.Add(QueuedDelivery.Create(channel, messageType, encrypted, nowUtc, expiresAtUtc ?? nowUtc + QueuedDelivery.DefaultLifetime));
         return true;
     }
 }

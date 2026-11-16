@@ -17,9 +17,9 @@ internal sealed class WhatsAppInvitationDeliveryStatusSource(IWhatsAppMessageRea
 
     /// <summary>
     /// Pendiente mientras no tenga el id de Meta (la cola todavía no la mandó) o Meta no haya avisado nada; si no, el
-    /// último estado registrado del saliente.
+    /// último estado registrado del saliente. Meta avisa aunque pase el tiempo: no mira cuándo salió.
     /// </summary>
-    public async Task<InvitationDeliveryStatus> FindStatusAsync(string? providerMessageId, CancellationToken cancellationToken)
+    public async Task<InvitationDeliveryStatus> FindStatusAsync(string? providerMessageId, DateTime sentAtUtc, CancellationToken cancellationToken)
     {
         if (providerMessageId is null)
         {

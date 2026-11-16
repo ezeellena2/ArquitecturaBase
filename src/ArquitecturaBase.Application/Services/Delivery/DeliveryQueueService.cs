@@ -33,6 +33,16 @@ internal sealed class DeliveryQueueService(IDeliveryRepository deliveries, IUnit
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken);
 
+    public Task<Result<bool>> RetryLaterAsync(Guid id, TimeSpan firstWait, TimeSpan longestWait, CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            var delivery = await deliveries.GetAsync(id, ct);
+            if (delivery?.ClaimedAtUtc is null) return Result.Success(false);
+            if (delivery.RetryLater(timeProvider.GetUtcNow().UtcDateTime, firstWait, longestWait)) return Result.Success(true);
+            deliveries.Remove(delivery);
+            return Result.Success(false);
+        }, CommitPolicy.OnSuccess, cancellationToken);
+
     public Task<Result> LeaveForAnotherCopyAsync(Guid id, CancellationToken cancellationToken) =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {

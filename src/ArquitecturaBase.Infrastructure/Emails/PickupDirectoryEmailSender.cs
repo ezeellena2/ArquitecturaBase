@@ -16,8 +16,11 @@ internal sealed partial class PickupDirectoryEmailSender(
     ILogger<PickupDirectoryEmailSender> logger)
     : IEmailSender
 {
-    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
+    public async Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken)
     {
+        // Como SMTP, el apagado corta sólo antes del cuerpo: un archivo empezado se termina de escribir.
+        if (cancellationToken.IsCancellationRequested) return EmailSendResult.Failed(EmailSendOutcome.Stopped);
+
         var directory = Path.Combine(environment.ContentRootPath, emailOptions.Value.PickupDirectory);
         Directory.CreateDirectory(directory);
 
@@ -27,9 +30,11 @@ internal sealed partial class PickupDirectoryEmailSender(
         var path = Path.Combine(directory, fileName);
 
         using var mime = MimeMessageFactory.Create(message, smtpOptions.Value);
-        await mime.WriteToAsync(path, cancellationToken);
+        await mime.WriteToAsync(path, CancellationToken.None);
 
         LogEmailSaved(logger, path);
+
+        return EmailSendResult.Sent(mime.MessageId!);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Email saved to {Path}")]

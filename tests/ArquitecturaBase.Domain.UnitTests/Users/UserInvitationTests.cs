@@ -70,13 +70,15 @@ public sealed class UserInvitationTests
         Assert.Equal(WaMessageId, invitation.ProviderMessageId);
     }
 
+    // N5: an invitation by email keeps the Message-ID it went out with, which is what says that it left the queue.
     [Fact]
-    public void An_invitation_by_email_has_no_provider_message()
+    public void An_invitation_by_email_keeps_the_message_id_it_went_out_with()
     {
         var invitation = UserInvitation.ByEmail(Invited, Admin, Now);
 
-        Assert.Throws<InvalidOperationException>(() => invitation.AttachProviderMessage(WaMessageId));
-        Assert.Null(invitation.ProviderMessageId);
+        invitation.AttachProviderMessage("<abc123@example.test>");
+
+        Assert.Equal("<abc123@example.test>", invitation.ProviderMessageId);
     }
 
     [Fact]

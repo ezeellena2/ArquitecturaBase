@@ -47,6 +47,42 @@ public sealed class QueuedDeliveryTests
         Assert.Equal(Now.AddSeconds(1), delivery.ClaimedAtUtc);
     }
 
+    // N5 and N8: a send that failed before the body goes back to pending; its wait doubles with each attempt (it is as long as the
+    // delivery has waited so far), between the first and the longest, and it does not count as a read failure.
+    [Fact]
+    public void A_delivery_whose_send_failed_before_the_body_waits_longer_each_time()
+    {
+        var delivery = QueuedDelivery.Create("email", "message", "encrypted", Now, Now.AddDays(1));
+        Assert.Throws<InvalidOperationException>(() => delivery.RetryLater(Now, TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(15)));
+        delivery.Claim(Now);
+
+        Assert.True(delivery.RetryLater(Now, TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(15)));
+        Assert.Equal(((DateTime?)null, (DateTime?)Now.AddSeconds(2), 0), (delivery.ClaimedAtUtc, delivery.AvailableAtUtc, delivery.ReadFailures));
+
+        var attempt = Now.AddSeconds(10);
+        delivery.Claim(attempt);
+        Assert.True(delivery.RetryLater(attempt, TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(15)));
+        Assert.Equal(attempt.AddSeconds(10), delivery.AvailableAtUtc);
+
+        attempt = Now.AddHours(1);
+        delivery.Claim(attempt);
+        Assert.True(delivery.RetryLater(attempt, TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(15)));
+        Assert.Equal(attempt.AddMinutes(15), delivery.AvailableAtUtc);
+    }
+
+    // N5: when the next attempt would come at or after its expiry, it expired without going out: it stays claimed and the caller
+    // completes it and reports it as not sent.
+    [Fact]
+    public void A_delivery_whose_next_attempt_would_come_after_its_expiry_is_not_retried()
+    {
+        var delivery = QueuedDelivery.Create("email", "message", "encrypted", Now, Now.AddMinutes(10));
+        var attempt = Now.AddMinutes(5);
+        delivery.Claim(attempt);
+
+        Assert.False(delivery.RetryLater(attempt, TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(15)));
+        Assert.Equal(((DateTime?)attempt, (DateTime?)null), (delivery.ClaimedAtUtc, delivery.AvailableAtUtc));
+    }
+
     [Fact]
     public void A_delivery_cannot_be_claimed_at_its_expiration()
     {

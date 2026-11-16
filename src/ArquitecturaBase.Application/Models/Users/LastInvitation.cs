@@ -4,7 +4,7 @@ namespace ArquitecturaBase.Application.Models.Users;
 
 /// <summary>
 /// Última invitación y su estado de entrega: <c>Failed</c> si no se pudo mandar, por cualquier canal; si salió, el que
-/// da la fuente de su canal si tiene una (con WhatsApp, el que avisa Meta), y si no (el correo), null.
+/// da la fuente de su canal si tiene una (con WhatsApp, el que avisa Meta; con el correo, el de la cola), y si no, null.
 /// </summary>
 public sealed record LastInvitation(UserInvitationChannel Channel, DateTime SentAtUtc, InvitationDeliveryStatus? DeliveryStatus)
 {

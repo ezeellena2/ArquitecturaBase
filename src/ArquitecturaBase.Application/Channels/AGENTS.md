@@ -1,6 +1,6 @@
 # Channels: adaptadores que trae el núcleo
 
-Implementa el canal de invitaciones por correo y la versión deshabilitada del canal de teléfono. Son implementaciones de puertos; las de un módulo viven con él.
+Implementa el canal de invitaciones por correo, con su fuente de estado (lo da la cola: pendiente hasta el Message-ID, después enviada, y sin confirmar si su fila venció sin noticias; N5), y la versión deshabilitada del canal de teléfono. Son implementaciones de puertos; las de un módulo viven con él.
 
 SystemQueries aporta usuarios agregados, roles y ayuda curada versionada; son fuentes neutrales autorizadas, sin escrituras ni llamadas LLM. Consultar lectores materializados, no una página parcial como total. Las fuentes de módulos se agregan con TryAddEnumerable.
 

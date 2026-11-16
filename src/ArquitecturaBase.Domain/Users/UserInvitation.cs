@@ -6,9 +6,9 @@ namespace ArquitecturaBase.Domain.Users;
 /// Una invitación que mandó un administrador (sección 6.6 del spec del ingreso con WhatsApp): por correo, un botón a
 /// /login; por WhatsApp, la plantilla con «Quiero entrar». No lleva nada que sirva para entrar, así que no se guarda
 /// ningún token: solo quién la mandó, cuándo y por dónde. Si el canal lo pide (WhatsApp), hace falta el consentimiento de
-/// la persona, y queda guardado quién lo confirmó y cuándo. Una invitación que sale por un proveedor que sigue la entrega
-/// guarda además el id que le dio el proveedor, para leer su estado: por WhatsApp la plantilla es de marketing, y Meta
-/// limita cuántas recibe cada persona, así que puede no llegar.
+/// la persona, y queda guardado quién lo confirmó y cuándo. Una invitación que salió guarda además el id de su mensaje: por
+/// WhatsApp, el que le dio Meta, para leer su estado (la plantilla es de marketing, y Meta limita cuántas recibe cada
+/// persona, así que puede no llegar); por correo, el Message-ID, que dice que el servidor la aceptó.
 /// </summary>
 public sealed class UserInvitation : Entity
 {
@@ -62,22 +62,22 @@ public sealed class UserInvitation : Entity
     public DateTime? ConsentConfirmedAtUtc { get; private set; }
 
     /// <summary>
-    /// El id que le dio el proveedor al mensaje, cuando la cola lo mandó (con WhatsApp, el <c>wamid.…</c> de Meta). Con él,
-    /// la fuente del estado de entrega del canal busca lo que avisó el proveedor (enviado, entregado, leído o falló). Null
-    /// mientras no salió.
+    /// El id del mensaje, cuando la cola lo mandó: con WhatsApp, el <c>wamid.…</c> que le dio Meta, con el que la fuente del
+    /// estado de entrega del canal busca lo que avisó el proveedor (enviado, entregado, leído o falló); por correo, el
+    /// Message-ID con el que el servidor lo aceptó (N5), que dice que salió. Null mientras no salió.
     /// </summary>
     public string? ProviderMessageId { get; private set; }
 
     /// <summary>
-    /// Si no se pudo mandar: la cola no la tomó, o Meta la rechazó al recibirla. A la persona no le llegó nada, así que no
-    /// hace esperar a la próxima.
+    /// Si no se pudo mandar: la cola no la tomó, el proveedor la rechazó al recibirla (Meta, o el servidor de correo con un
+    /// 5xx) o venció en la cola sin salir (N5). A la persona no le llegó nada, así que no hace esperar a la próxima.
     /// </summary>
     public bool SendFailed { get; private set; }
 
     /// <summary>
-    /// H7: no se sabe si salió (Meta pudo haberla recibido: un timeout, una respuesta cortada). No figura como fallida: el
-    /// administrador revisa el WhatsApp de la persona antes de mandar otra; como pudo haber llegado, la próxima espera el
-    /// minuto.
+    /// H7 y N8: no se sabe si salió (el proveedor pudo haberla recibido: un timeout, una respuesta o una conexión cortada
+    /// mientras salía). No figura como fallida: el administrador revisa con la persona antes de mandar otra; como pudo haber
+    /// llegado, la próxima espera el minuto.
     /// </summary>
     public bool SendUncertain { get; private set; }
 
@@ -100,17 +100,12 @@ public sealed class UserInvitation : Entity
         Send(userId, UserInvitationChannel.Email, sentBy, nowUtc, consentConfirmed: false);
 
     /// <summary>
-    /// Le pone el id que devolvió el proveedor al mandarla. Conserva el primero: una invitación sale una sola vez, y un id
-    /// distinto sería de otro mensaje. El correo no tiene proveedor que siga la entrega.
+    /// Le pone el id del mensaje con el que salió. Conserva el primero: una invitación sale una sola vez, y un id distinto
+    /// sería de otro mensaje.
     /// </summary>
     public void AttachProviderMessage(string providerMessageId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(providerMessageId);
-
-        if (Channel is UserInvitationChannel.Email)
-        {
-            throw new InvalidOperationException("An invitation by email has no provider message.");
-        }
 
         if (providerMessageId.Length > MaxProviderMessageIdLength)
         {

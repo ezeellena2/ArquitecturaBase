@@ -15,7 +15,7 @@ internal sealed class FakeInvitationDeliveryStatusSource(UserInvitationChannel c
 
     public List<string?> Reads { get; } = [];
 
-    public Task<InvitationDeliveryStatus> FindStatusAsync(string? providerMessageId, CancellationToken cancellationToken)
+    public Task<InvitationDeliveryStatus> FindStatusAsync(string? providerMessageId, DateTime sentAtUtc, CancellationToken cancellationToken)
     {
         Reads.Add(providerMessageId);
 

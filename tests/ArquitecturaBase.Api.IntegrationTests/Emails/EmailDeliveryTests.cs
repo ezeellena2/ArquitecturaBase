@@ -65,11 +65,18 @@ public sealed class EmailDeliveryTests
                 TimeProvider.System,
                 NullLogger<PickupDirectoryEmailSender>.Instance);
 
-            await sender.SendAsync(new EmailMessage("ana@example.com", "123456 es tu código", "<p>123456</p>", "123456"), Ct);
+            var result = await sender.SendAsync(new EmailMessage("ana@example.com", "123456 es tu código", "<p>123456</p>", "123456"), Ct);
 
             var file = Assert.Single(Directory.GetFiles(directory, "*.eml"));
             using var saved = await MimeMessage.LoadAsync(file, Ct);
             Assert.Equal("123456 es tu código", saved.Subject);
+            Assert.Equal((EmailSendOutcome.Sent, saved.MessageId), (result.Outcome, result.MessageId));
+
+            // N8: with the host stopping before it starts, nothing is written and the email goes back to the queue.
+            using var stopped = new CancellationTokenSource();
+            await stopped.CancelAsync();
+            Assert.Equal(EmailSendOutcome.Stopped, (await sender.SendAsync(new EmailMessage("ana@example.com", "s", "b", "b"), stopped.Token)).Outcome);
+            Assert.Single(Directory.GetFiles(directory, "*.eml"));
         }
         finally
         {
@@ -98,10 +105,115 @@ public sealed class EmailDeliveryTests
         var sending = sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
         var finished = await Task.WhenAny(sending, Task.Delay(TimeSpan.FromSeconds(15), Ct));
 
+        // N5: it never got to the body, so it is a connection failure that the queue retries.
         Assert.Same(sending, finished);
-        Assert.True(sending.IsFaulted);
+        Assert.Equal(EmailSendOutcome.ConnectionFailed, (await sending).Outcome);
         using var silent = await accepted;
     }
+
+    // N8: the shutdown cuts the send while it connects, before the body: nothing went out and the email goes back to the queue.
+    [Fact]
+    public async Task Smtp_sender_stops_with_the_host_while_it_connects()
+    {
+        using var server = new TcpListener(IPAddress.Loopback, 0);
+        server.Start();
+        var accepted = server.AcceptTcpClientAsync(Ct).AsTask();
+        var sender = new SmtpEmailSender(Options.Create(Smtp(((IPEndPoint)server.LocalEndpoint).Port)), TimeSpan.FromSeconds(30));
+        using var stopping = new CancellationTokenSource();
+
+        var sending = sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), stopping.Token);
+        using var silent = await accepted;
+        await stopping.CancelAsync();
+
+        Assert.Equal(EmailSendOutcome.Stopped, (await sending.WaitAsync(TimeSpan.FromSeconds(10), Ct)).Outcome);
+    }
+
+    // N5 and N8: what the server answers decides what is retried. Before the body, the credentials (a 535) and a 4xx are retried;
+    // after MAIL FROM, a 4xx is retried and a 5xx is not; a cut after the body may have arrived, so it is not repeated.
+    [Theory]
+    [InlineData("421 4.7.0 Try again later", "235 2.7.0 Accepted", "250 2.1.5 OK", EmailSendOutcome.TemporarilyRejected, 421)]
+    [InlineData("220 localhost ESMTP", "535 5.7.8 Username and Password not accepted", "250 2.1.5 OK", EmailSendOutcome.AuthenticationFailed, null)]
+    [InlineData("220 localhost ESMTP", "235 2.7.0 Accepted", "450 4.2.1 Mailbox busy", EmailSendOutcome.TemporarilyRejected, 450)]
+    [InlineData("220 localhost ESMTP", "235 2.7.0 Accepted", "550 5.1.1 No such user", EmailSendOutcome.Rejected, 550)]
+    public async Task Smtp_sender_classifies_what_the_server_answers(
+        string greeting, string auth, string recipient, EmailSendOutcome expected, int? statusCode)
+    {
+        await using var server = new ScriptedSmtpServer(greeting, auth, recipient);
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+
+        var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
+
+        Assert.Equal((expected, statusCode, (string?)null), (result.Outcome, result.StatusCode, result.MessageId));
+        Assert.False(server.ReceivedBody);
+    }
+
+    // What the server answers to MAIL FROM. A 530 asks for the credentials again: nothing went out, and it is retried as a 535
+    // is. A 5xx to the sender, as Gmail's 550 5.4.5 once the daily quota is spent, refuses every email alike: it is not retried,
+    // and the worker tells the health check (EmailBackgroundServiceTests).
+    [Theory]
+    [InlineData("530 5.7.0 Authentication Required", EmailSendOutcome.AuthenticationFailed, null, true)]
+    [InlineData("550 5.4.5 Daily user sending limit exceeded", EmailSendOutcome.SenderRejected, 550, false)]
+    [InlineData("421 4.7.0 Try again later", EmailSendOutcome.TemporarilyRejected, 421, true)]
+    public async Task Smtp_sender_classifies_what_the_server_answers_to_the_sender(
+        string answer, EmailSendOutcome expected, int? statusCode, bool retried)
+    {
+        await using var server = new ScriptedSmtpServer(sender: answer);
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+
+        var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
+
+        Assert.Equal((expected, statusCode, retried), (result.Outcome, result.StatusCode, result.IsRetryable));
+        Assert.False(server.ReceivedBody);
+    }
+
+    // A 4xx after the final dot says the server did not take it (RFC 5321), so it is retried although the body went out.
+    [Fact]
+    public async Task Smtp_sender_retries_a_4xx_after_the_body()
+    {
+        await using var server = new ScriptedSmtpServer(afterBody: "451 4.3.0 Try again later");
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+
+        var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
+
+        Assert.True(server.ReceivedBody);
+        Assert.Equal((EmailSendOutcome.TemporarilyRejected, 451, true), (result.Outcome, result.StatusCode, result.IsRetryable));
+    }
+
+    [Fact]
+    public async Task Smtp_sender_takes_a_cut_after_the_body_as_uncertain()
+    {
+        await using var server = new ScriptedSmtpServer(afterBody: null);
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+
+        var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
+
+        Assert.True(server.ReceivedBody);
+        Assert.Equal(EmailSendOutcome.Uncertain, result.Outcome);
+    }
+
+    // N5: an accepted email comes back with the Message-ID it went out with, which an invitation keeps as sent.
+    [Fact]
+    public async Task Smtp_sender_returns_the_message_id_the_server_accepted()
+    {
+        await using var server = new ScriptedSmtpServer();
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+
+        var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
+
+        Assert.Equal(EmailSendOutcome.Sent, result.Outcome);
+        Assert.Equal($"<{result.MessageId}>", server.ReceivedMessageId);
+    }
+
+    private static SmtpOptions Smtp(int port) => new()
+    {
+        Host = IPAddress.Loopback.ToString(),
+        Port = port,
+        Security = SecureSocketOptions.None,
+        UserName = "user",
+        Password = "password",
+        FromName = Sender.FromName,
+        FromAddress = Sender.FromAddress,
+    };
 
     [Fact]
     public void Registration_builds_the_smtp_sender_with_its_own_timeout()

@@ -136,21 +136,31 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 12. **N5, N8 y O3. El correo no se pierde ni sale dos veces.**
     - Una falla antes de mandar el cuerpo no descarta: la fila vuelve a pendiente con una espera creciente, en la
       `AvailableAtUtc` de 42d8f47f, hasta que vence. Si vence sin salir, la invitación pasa a fallida; para eso el mensaje
-      lleva su id.
-    - El envío tiene un plazo propio, menor que el apagado del host, y no usa el token de apagado. Lo que esperaba su
-      reintento, o se cortó antes de mandar el cuerpo, vuelve a la cola, como hace WhatsApp con `GiveBackCurrent`.
+      lleva su id. El worker no espera en memoria: un intento por reserva, y el reintento espera en la fila.
+    - El envío tiene un plazo propio, menor que el apagado del host, y no usa el token de apagado más que antes del cuerpo.
+      Lo que se cortó antes de mandar el cuerpo vuelve a la cola, como hace WhatsApp con `GiveBackCurrent`; lo que esperaba
+      su reintento ya está en la cola.
     - Se reintentan sólo las fallas de conexión, de autenticación y las 4xx; un corte durante el envío queda incierto y no se
       repite.
     - Un chequeo `email` en Degraded, no Unhealthy, que marca enseguida un 535; contadores de enviados y descartados; y el id
       en el log, también cuando la cola llena no deja encolar un código (O3).
-    - El front deja de tomar como enviada una invitación sin estado, y se corrige su comentario (`users.ts:30-31`, O8).
+    - El front deja de tomar como enviada una invitación sin estado, y se corrige su comentario (`users.ts:30-31`, O8). Para
+      eso el correo pasa a tener estado: una fuente del núcleo da `Pending` hasta que el servidor la acepta y `Sent` cuando
+      la invitación guarda el Message-ID en `ProviderMessageId`, sin migración.
 
     Tests: apagar el worker durante su espera y con el SMTP caído, y una invitación que vence sin salir queda fallida.
     Cambian la cola de correo en [backend](../architecture/backend.md) y las invitaciones en
     [administración](../features/administracion.md). Mediano.
+
+    Hecha el 2026-11-16, con lo que encontró su revisión adversarial: una invitación sin noticias deja de ser `Pending` cuando
+    vence su fila (`QueuedDelivery.DefaultLifetime`) y pasa a `Uncertain`; el host frena los workers a la vez
+    (`ServicesStopConcurrently`) y el envío (12 s) más anotarlo y completarlo (un token de 10 s) caben en los 25 s del apagado;
+    el remitente rechazado (el cupo de Gmail) cuenta para la salud; el correo de un código vence en la cola con el
+    `ResendCooldown`; las métricas salen de `IMeterFactory`; un 530 a MAIL FROM se reintenta; devolver a la cola distingue
+    devuelto, vencido y no devuelto; y `Email:RetryDelaySeconds` va de 1 a 300.
 13. **N7. Topes para los códigos y las invitaciones** (decisión 6). Se cuenta todo código que sale, no sólo los que van a
     destinos sin cuenta, que revelaría cuáles existen:
-    - un tope diario por dirección agrupada por /64, con la pieza de la tarea 6;
+    - un tope diario por dirección agrupada por /64, con la pieza de la tarea 6 (`AddressPartition`);
     - un tope diario global por debajo del cupo de la cuenta de correo, con aviso al 80 %;
     - un tope por cuenta para los códigos del perfil y uno diario de invitaciones por administrador.
 

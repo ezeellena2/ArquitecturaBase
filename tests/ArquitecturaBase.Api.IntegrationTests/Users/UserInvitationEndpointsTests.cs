@@ -90,7 +90,8 @@ public sealed partial class UserInvitationEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Accepted, resend.StatusCode);
         Assert.Equal(email, Assert.Single(emailQueue.Queued).To);
         Assert.Equal([true, false], (await InvitationsOfAsync(userId)).Select(invitation => invitation.SendFailed));
-        Assert.Equal(JsonValueKind.Null, (await admin.DetailAsync(userId)).GetProperty("lastInvitation").GetProperty("deliveryStatus").ValueKind);
+        // N5: the one the queue took is sent once the server accepts it, not before.
+        await WaitForDeliveryStatusAsync(admin, userId, "Sent");
     }
 
     [Fact]
@@ -110,10 +111,9 @@ public sealed partial class UserInvitationEndpointsTests(ApiFactory factory)
         Assert.Contains("href=\"https://localhost/login\"", sent.HtmlBody, StringComparison.Ordinal);
         Assert.Contains("lang=\"en\"", sent.HtmlBody, StringComparison.Ordinal);
 
-        // Por correo no hay estado de entrega que seguir.
-        var last = (await admin.DetailAsync(userId)).GetProperty("lastInvitation");
+        // N5: por correo, el estado lo da la cola: enviada cuando el servidor la aceptó, con el Message-ID con el que salió.
+        var last = await WaitForDeliveryStatusAsync(admin, userId, "Sent");
         Assert.Equal("Email", last.GetProperty("channel").GetString());
-        Assert.Equal(JsonValueKind.Null, last.GetProperty("deliveryStatus").ValueKind);
 
         var invitation = Assert.Single(await InvitationsOfAsync(userId));
         Assert.Equal(UserInvitationChannel.Email, invitation.Channel);
@@ -323,6 +323,18 @@ public sealed partial class UserInvitationEndpointsTests(ApiFactory factory)
 
     private Task<bool> ExistsAsync(PhoneNumber phone) =>
         factory.ExecuteDbContextAsync(db => db.Users.IgnoreQueryFilters().AnyAsync(user => user.PhoneNumber == phone.Value, Ct));
+
+    /// <summary>N5: the worker records the state after the server answers, so the detail gets it a moment after the email.</summary>
+    private static async Task<JsonElement> WaitForDeliveryStatusAsync(AdminUsersApi admin, Guid userId, string status)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            var last = (await admin.DetailAsync(userId)).GetProperty("lastInvitation");
+            if (last.GetProperty("deliveryStatus").GetString() == status) return last;
+            Assert.True(attempt < 200, $"The invitation is still {last.GetProperty("deliveryStatus")}, not {status}.");
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+        }
+    }
 
     private Task<List<UserInvitation>> InvitationsOfAsync(Guid userId) =>
         factory.ExecuteDbContextAsync(db => db.UserInvitations

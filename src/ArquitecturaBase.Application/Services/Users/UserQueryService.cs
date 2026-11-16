@@ -91,7 +91,7 @@ internal sealed class UserQueryService(
         });
 
     // Una que no se pudo mandar es fallida sin preguntar (LastInvitation.From). Si salió, el estado lo sabe la fuente de
-    // su canal; sin fuente (el correo), no hay estado que seguir.
+    // su canal (la del correo la trae el núcleo); sin fuente (un módulo que se quitó), no hay estado que seguir.
     private async Task<InvitationDeliveryStatus?> TrackedStatusAsync(UserInvitationRow invitation, CancellationToken cancellationToken)
     {
         if (invitation.SendFailed || invitation.SendUncertain
@@ -100,7 +100,7 @@ internal sealed class UserQueryService(
             return null;
         }
 
-        return await source.FindStatusAsync(invitation.ProviderMessageId, cancellationToken);
+        return await source.FindStatusAsync(invitation.ProviderMessageId, invitation.SentAtUtc, cancellationToken);
     }
 
     // Sin número, Create falla y queda en null, igual que el número.

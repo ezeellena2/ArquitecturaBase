@@ -69,6 +69,19 @@ public sealed class RequestLoginCodeServiceTests
         Assert.DoesNotContain(FakeLoginCodeGenerator.Code, string.Join(' ', fixture.Logger.Collector.GetSnapshot().Select(record => record.Message)));
     }
 
+    // N5: the email of a code waits in the queue only until another code can be asked for, so no retry of this one goes out after
+    // the next; the code itself still lasts its ten minutes.
+    [Fact]
+    public async Task The_code_email_expires_in_the_queue_when_another_code_can_be_asked_for()
+    {
+        var fixture = new Fixture();
+
+        await fixture.Service.RequestLoginCodeAsync(new RequestLoginCodeRequest(UserEmail), Ct);
+
+        Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime.AddSeconds(60), Assert.Single(fixture.Queue.Messages).ExpiresAtUtc);
+        Assert.Equal(fixture.Clock.GetUtcNow().UtcDateTime.AddMinutes(10), Assert.Single(fixture.Codes.Codes).ExpiresAtUtc);
+    }
+
     [Fact]
     public async Task Invite_only_saves_an_unsent_code_for_an_unknown_email_with_the_same_response()
     {

@@ -61,6 +61,14 @@ internal static class EmailRegistration
         services.AddSingleton<IMessageSource<EmailMessage>, EmailMessageSource>();
         services.AddHostedService<EmailBackgroundService>();
 
+        // N5: readiness y no liveness (sin el tag "live"), en Degraded: un reinicio no arregla una contraseña revocada, y la
+        // copia sigue en el tráfico mientras los correos esperan en la cola. Y en qué terminó cada intento, para los tableros.
+        services.AddSingleton<EmailHealth>();
+        services.AddHealthChecks().AddCheck<EmailHealthCheck>(EmailHealthCheck.Name);
+        services.AddMetrics();
+        services.AddSingleton<EmailMetrics>();
+        services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter(EmailMetrics.MeterName));
+
         // El envío real se elige por configuración: SMTP (Gmail) o archivos .eml en desarrollo.
         services.AddScoped<IEmailSender>(serviceProvider =>
             serviceProvider.GetRequiredService<IOptions<EmailOptions>>().Value.Delivery == EmailDelivery.Smtp

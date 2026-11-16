@@ -20,8 +20,8 @@ internal sealed class EmailOptions
     [Required]
     public string PickupDirectory { get; init; } = ".emails";
 
-    /// <summary>Espera antes del primer reintento; se duplica en cada intento.</summary>
-    [Range(0, 300)]
+    /// <summary>Espera antes del primer reintento; se duplica en cada intento. Sin 0: un servidor caído no se reintenta sin pausa.</summary>
+    [Range(1, 300)]
     public int RetryDelaySeconds { get; init; } = 2;
 
     /// <summary>

@@ -80,7 +80,7 @@ internal sealed class DestinationCodeIssuer(
         // código se guarda como no enviado.
         if (emailQueue.TryEnqueue(
             render(email.Value, issued.Value.Code, issued.Value.LifetimeMinutes, CultureInfo.GetCultureInfo(UserCultures.Of(user)))
-                with { ExpiresAtUtc = issued.Value.LoginCode.ExpiresAtUtc }))
+                with { ExpiresAtUtc = issued.Value.SendBeforeUtc }))
         {
             issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
         }

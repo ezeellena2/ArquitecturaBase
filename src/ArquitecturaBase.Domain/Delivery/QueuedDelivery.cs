@@ -7,6 +7,12 @@ public sealed class QueuedDelivery : Entity
 {
     private QueuedDelivery() { }
 
+    /// <summary>
+    /// How long a delivery whose content carries no expiry of its own waits in the queue: an invitation, for example. After it the
+    /// row is deleted whether it went out or not, so nothing pending outlives it.
+    /// </summary>
+    public static readonly TimeSpan DefaultLifetime = TimeSpan.FromDays(1);
+
     public string Channel { get; private set; } = string.Empty;
     public string MessageType { get; private set; } = string.Empty;
     public string ProtectedPayload { get; private set; } = string.Empty;
@@ -49,6 +55,28 @@ public sealed class QueuedDelivery : Entity
     {
         if (ClaimedAtUtc is null) throw new InvalidOperationException("Only a claimed delivery can be given back.");
         ClaimedAtUtc = null;
+    }
+
+    /// <summary>
+    /// N5 and N8: the worker could not send it for a reason that may pass, before the body left (the connection, the credentials or
+    /// a 4xx), so it goes back to pending until a wait that doubles with each attempt: as long as the delivery has waited so far,
+    /// between <paramref name="firstWait"/> and <paramref name="longestWait"/>. It is not a read failure, so it does not count. False,
+    /// and it stays claimed, if the next attempt would come at or after its expiry: it expired without going out, and the caller
+    /// completes it.
+    /// </summary>
+    public bool RetryLater(DateTime nowUtc, TimeSpan firstWait, TimeSpan longestWait)
+    {
+        if (ClaimedAtUtc is null) throw new InvalidOperationException("Only a claimed delivery can be retried later.");
+        if (nowUtc.Kind != DateTimeKind.Utc || firstWait < TimeSpan.Zero || longestWait < firstWait)
+        {
+            throw new ArgumentException("A retry requires a UTC time and a first wait no longer than the longest.");
+        }
+        var waited = nowUtc - CreatedAtUtc;
+        var availableAtUtc = nowUtc + (waited < firstWait ? firstWait : waited > longestWait ? longestWait : waited);
+        if (availableAtUtc >= ExpiresAtUtc) return false;
+        ClaimedAtUtc = null;
+        AvailableAtUtc = availableAtUtc;
+        return true;
     }
 
     /// <summary>

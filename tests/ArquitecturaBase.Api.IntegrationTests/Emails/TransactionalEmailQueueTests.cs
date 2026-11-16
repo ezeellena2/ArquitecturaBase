@@ -193,6 +193,98 @@ public sealed class TransactionalEmailQueueTests(ApiFactory factory) : IClassFix
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().AnyAsync(delivery => delivery.Channel == channel, ct)));
     }
 
+    // N5 and N8: a send that failed before the body goes back to pending with a wait that doubles, for this or another copy, and
+    // the worker's source goes on without completing it.
+    [Fact]
+    public async Task A_delivery_put_back_to_wait_is_not_completed_and_is_claimed_again_after_its_wait()
+    {
+        var channel = "queue-test-" + Guid.NewGuid().ToString("N");
+        var ct = TestContext.Current.CancellationToken;
+        await EnqueueAsync(channel, null);
+        var source = new TextSource(channel, factory.Services);
+        await using (var reader = source.ReadAllAsync(ct).GetAsyncEnumerator(ct))
+        {
+            Assert.True(await reader.MoveNextAsync());
+            Assert.Equal(DeliveryRetry.Waits, await source.RetryCurrentLaterAsync(TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(15), ct));
+        }
+
+        var waiting = await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().SingleAsync(delivery => delivery.Channel == channel, ct));
+        Assert.Equal(((DateTime?)null, 0), (waiting.ClaimedAtUtc, waiting.ReadFailures));
+        Assert.True(waiting.AvailableAtUtc > factory.Clock.GetUtcNow().UtcDateTime);
+        Assert.Null((await ClaimAsync(channel)).Value);
+        factory.Clock.Advance(TimeSpan.FromSeconds(3));
+        var again = (await ClaimAsync(channel)).Value!;
+        Assert.Equal(waiting.Id, again.Id);
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().CompleteAsync(again.Id, ct));
+    }
+
+    // N5: when putting it back fails (here, its bounded token), the worker is told it did not go back, which is not that it
+    // expired; the row stays claimed, as a crash leaves it, and is never sent again.
+    [Fact]
+    public async Task A_delivery_that_could_not_go_back_to_wait_stays_claimed_and_is_not_reported_as_expired()
+    {
+        var channel = "queue-test-" + Guid.NewGuid().ToString("N");
+        var ct = TestContext.Current.CancellationToken;
+        await EnqueueAsync(channel, null);
+        var source = new TextSource(channel, factory.Services);
+        await using (var reader = source.ReadAllAsync(ct).GetAsyncEnumerator(ct))
+        {
+            Assert.True(await reader.MoveNextAsync());
+            Assert.Equal(DeliveryRetry.NotReturned, await source.RetryCurrentLaterAsync(TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(15), new CancellationToken(canceled: true)));
+        }
+
+        var claimed = await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().SingleAsync(delivery => delivery.Channel == channel, ct));
+        Assert.NotNull(claimed.ClaimedAtUtc);
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().CompleteAsync(claimed.Id, ct));
+    }
+
+    // N5: when its next attempt would come after its expiry, it expired without going out: it is completed, and the worker is told.
+    [Fact]
+    public async Task A_delivery_whose_next_attempt_would_come_after_its_expiry_is_completed_and_not_retried()
+    {
+        var channel = "queue-test-" + Guid.NewGuid().ToString("N");
+        var ct = TestContext.Current.CancellationToken;
+        await EnqueueAsync(channel, factory.Clock.GetUtcNow().UtcDateTime.AddSeconds(1));
+        var claimed = (await ClaimAsync(channel)).Value!;
+
+        var retried = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>()
+            .RetryLaterAsync(claimed.Id, TimeSpan.FromSeconds(2), TimeSpan.FromMinutes(15), ct));
+
+        Assert.False(retried.Value);
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().AnyAsync(delivery => delivery.Channel == channel, ct)));
+    }
+
+    // O3: a full durable queue does not take the email (a code) and leaves its trace with the id of the email, never its address.
+    [Fact]
+    public async Task A_full_durable_queue_logs_the_id_of_the_email_it_did_not_take()
+    {
+        var logger = new Microsoft.Extensions.Logging.Testing.FakeLogger<ArquitecturaBase.Infrastructure.Emails.EmailQueue>();
+        var second = new EmailMessage("laura@example.test", "123456 es tu código", "<p>123456</p>", "123456");
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(_ =>
+        {
+            var queue = new ArquitecturaBase.Infrastructure.Emails.EmailQueue(
+                Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Infrastructure.Emails.EmailOptions { QueueCapacity = 1 }),
+                logger, provider.GetRequiredService<DurableMessageStore>());
+            queue.TryEnqueue(new EmailMessage("ana@example.test", "654321 es tu código", "<p>654321</p>", "654321"));
+            Assert.False(queue.TryEnqueue(second));
+            return Task.FromResult(Result.Failure(UserErrors.NotFound));
+        }, CommitPolicy.OnSuccess, TestContext.Current.CancellationToken));
+
+        var record = Assert.Single(logger.Collector.GetSnapshot(), record => record.Message.Contains(second.Id.ToString(), StringComparison.Ordinal));
+        Assert.DoesNotContain("laura@example.test", record.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("123456", record.Message, StringComparison.Ordinal);
+    }
+
+    private Task<Result> EnqueueAsync(string channel, DateTime? expiresAtUtc) =>
+        factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(_ =>
+        {
+            Assert.True(provider.GetRequiredService<DurableMessageStore>().TryEnqueue(channel, 2, "test", "private-code-123456", expiresAtUtc));
+            return Task.FromResult(Result.Success());
+        }, CommitPolicy.OnSuccess, TestContext.Current.CancellationToken));
+
+    private Task<Result<ArquitecturaBase.Application.Models.Delivery.DeliveryMessageResponse?>> ClaimAsync(string channel) =>
+        factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, Types, TestContext.Current.CancellationToken));
+
     private sealed class TextSource(string channel, IServiceProvider services) : DurableMessageSource<string>(
         services.GetRequiredService<IServiceScopeFactory>(), services.GetRequiredService<IDataProtectionProvider>(), NullLogger.Instance)
     {

@@ -9,6 +9,11 @@ namespace ArquitecturaBase.Infrastructure.Delivery;
 internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory scopeFactory, IDataProtectionProvider protection, ILogger logger) : IMessageSource<T>
 {
     private bool _givenBack;
+    private Guid? _current;
+    private bool _settled;
+
+    /// <summary>What completing or giving back a message may take, with a token of its own and not the shutdown's.</summary>
+    private static readonly TimeSpan SettleTimeout = TimeSpan.FromSeconds(10);
 
     protected abstract string Channel { get; }
 
@@ -16,6 +21,33 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
     protected abstract IReadOnlyCollection<string> MessageTypes { get; }
 
     public void GiveBackCurrent() => _givenBack = true;
+
+    public async Task<DeliveryRetry> RetryCurrentLaterAsync(TimeSpan firstWait, TimeSpan longestWait, CancellationToken cancellationToken)
+    {
+        if (_current is not { } id || _settled) return DeliveryRetry.NotReturned;
+        // Settled either way: it waits in the queue, it expired and was completed, or it stays claimed, as a crash leaves it.
+        _settled = true;
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var result = await scope.ServiceProvider.GetRequiredService<IDeliveryQueueService>().RetryLaterAsync(id, firstWait, longestWait, cancellationToken);
+            if (result.IsFailure) return DeliveryRetry.NotReturned;
+            return result.Value ? DeliveryRetry.Waits : DeliveryRetry.Expired;
+        }
+        catch (Exception exception)
+        {
+            LogReadFailure(logger, exception.GetType().Name);
+            return DeliveryRetry.NotReturned;
+        }
+    }
+
+    public async Task CompleteCurrentAsync(CancellationToken cancellationToken)
+    {
+        if (_current is not { } id || _settled) return;
+        _settled = true;
+        await CompleteAsync(id, cancellationToken);
+    }
+
     protected abstract T Deserialize(string messageType, string payload);
 
     /// <summary>H3: the message with the expiry its row keeps, for a channel whose messages carry it.</summary>
@@ -62,6 +94,8 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
             // back to the channel for another copy, even if the worker stopped reading. One it abandoned without giving it back
             // stays claimed and is never resent: it may have reached the provider.
             _givenBack = false;
+            _settled = false;
+            _current = delivery.Id;
             var finished = false;
             try
             {
@@ -70,22 +104,27 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
             }
             finally
             {
-                if (_givenBack) await ReleaseAsync(delivery.Id);
+                _current = null;
+                if (_givenBack && !_settled) await ReleaseAsync(delivery.Id);
             }
             if (_givenBack) yield break;
-            if (finished) await CompleteAsync(delivery.Id);
+            // N5: one the worker put back to wait for its next attempt, or completed itself, is not completed again.
+            if (finished && !_settled)
+            {
+                using var bounded = new CancellationTokenSource(SettleTimeout);
+                await CompleteAsync(delivery.Id, bounded.Token);
+            }
         }
     }
 
     // Completing or giving back confirms what the worker did, with a bounded token of its own instead of the shutdown's; it is
     // the system clock, as the workers' own tokens, so it adds no timers to the fake clocks of the tests.
-    private async Task CompleteAsync(Guid id)
+    private async Task CompleteAsync(Guid id, CancellationToken cancellationToken)
     {
         try
         {
-            using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await using var scope = scopeFactory.CreateAsyncScope();
-            await scope.ServiceProvider.GetRequiredService<IDeliveryQueueService>().CompleteAsync(id, bounded.Token);
+            await scope.ServiceProvider.GetRequiredService<IDeliveryQueueService>().CompleteAsync(id, cancellationToken);
         }
         catch (Exception exception)
         {

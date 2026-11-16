@@ -150,4 +150,18 @@ internal sealed class IssuedLoginCode(LoginCode loginCode, string code, int life
 
     /// <summary>Cuántos segundos hay que esperar para pedir otro: lo que responde el pedido.</summary>
     public int ResendCooldownSeconds { get; } = resendCooldownSeconds;
+
+    /// <summary>
+    /// N5: hasta cuándo espera su correo en la cola, que lo reintenta: hasta que se puede pedir otro código, y no los minutos
+    /// que vale este. Así ningún reintento del viejo sale después del nuevo. Sin espera entre pedidos (0, como en los tests)
+    /// no hay orden que cuidar, y espera lo que vale el código.
+    /// </summary>
+    public DateTime SendBeforeUtc
+    {
+        get
+        {
+            var resendAllowedAtUtc = IssuedAtUtc.AddSeconds(ResendCooldownSeconds);
+            return ResendCooldownSeconds > 0 && resendAllowedAtUtc < LoginCode.ExpiresAtUtc ? resendAllowedAtUtc : LoginCode.ExpiresAtUtc;
+        }
+    }
 }
