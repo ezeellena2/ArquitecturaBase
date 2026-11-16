@@ -80,6 +80,9 @@ public sealed class AiAssistantDocumentReadingMigrationTests(ApiFactory factory)
                 retained.Where(turn => turn.Id == reading.Id).Select(turn => (turn.State, turn.ProtectedQuestion, turn.ExecutionProfileJson)).Single());
             Assert.Equal(AiAssistantTurnState.Running, retained.Single(turn => turn.Id == interpretation.Id).State);
 
+            // Each migration has its own transaction: the refused Down already reverted the later ones, whose columns the model
+            // reads (TraceParent, I10). Back to the latest before loading the turns.
+            await db.Database.MigrateAsync(Ct);
             foreach (var id in new[] { reading.Id, secondReading.Id })
                 (await db.Set<AiAssistantTurn>().SingleAsync(turn => turn.Id == id, Ct)).RequestCancellation(now);
             await db.SaveChangesAsync(Ct);
