@@ -310,8 +310,9 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
             && turn.ContentExpiresAtUtc > clock.GetUtcNow().UtcDateTime
             && turn.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running or AiAssistantTurnState.Completed)
             .Select(turn => turn.RequestId).Distinct().ToArray());
-    // The bootstrap only asks whether Home is at capacity: here nothing is ever waiting for a worker.
-    public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => Task.FromResult(new AiAssistantWorkloadRow(0, 0, 0, null, null));
+    // The bootstrap only asks whether Home is at capacity: here nothing is ever waiting for a worker. The measurement is the worker's (I20).
+    public Task<int> CountPendingAsync(CancellationToken ct) => Task.FromResult(0);
+    public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime now, int pending, int grace, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime now, AiAssistantUnnamedSources unnamed, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantNamedSourceRow>> ListNamedSourcesAsync(Guid owner, Guid conversation, CancellationToken ct) => throw new NotSupportedException();

@@ -12,7 +12,7 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 // recording, IA4; a spreadsheet, Stage 2; a Word, and a photo or a PDF where the installation reads them, Stage 3). Who may attach is the
 // owner's rule through the same policy as a turn, so the front never repeats the permissions.
 internal sealed class AiAssistantBootstrapPolicy(IAiAssistantReader reader, IAiConnectionReader connectionReader, IPermissionService permissions,
-    AiAssistantAccessGuard guard, AiAssistantResponsePolicy responsePolicy, AiAssistantCapabilityCatalogPolicy catalog, AiAssistantLimits limits,
+    AiAssistantAccessGuard guard, AiAssistantCapabilityCatalogPolicy catalog, AiAssistantLimits limits,
     AiAssistantHomeAttachmentPolicy attachments)
 {
     public async Task<Result<AiAssistantBootstrapResponse>> BootstrapAsync(CancellationToken cancellationToken)
@@ -29,11 +29,8 @@ internal sealed class AiAssistantBootstrapPolicy(IAiAssistantReader reader, IAiC
         var suggestions = offered.Value.Capabilities.Where(d => AiAssistantChannelPolicy.IsHomeQuery(d.Id))
             .Select(d => new AiAssistantSuggestion(d.Id, AssistantTexts.Get("Suggestion." + d.Id))).ToArray();
         var availability = guard.Availability(connection);
-        if (availability == "available")
-        {
-            var workload = await reader.FindWorkloadAsync(responsePolicy.ServerNowUtc, limits.LeaseGraceSeconds, cancellationToken);
-            if (workload.Pending >= limits.PendingCapacity) availability = "capacityLimited";
-        }
+        // I20: only the pending turns, which the index by state answers; measuring the whole table is the worker's.
+        if (availability == "available" && await reader.CountPendingAsync(cancellationToken) >= limits.PendingCapacity) availability = "capacityLimited";
         var attach = await attachments.CanAttachAsync(userId, cancellationToken);
         return new AiAssistantBootstrapResponse(availability, connection.Revision, suggestions,
             new AiAssistantPublicLimits(limits.QuestionCharacters), current.Contains(ArtificialIntelligencePermissions.Read) ? "aiConfiguration" : null)

@@ -5,7 +5,10 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces
 
 public interface IAiAssistantReader
 {
+    /// <summary>The worker's measurement of the whole table; opening Home asks only <see cref="CountPendingAsync"/> (I20).</summary>
     Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken);
+    /// <summary>The turns waiting for a worker, which the index by state answers.</summary>
+    Task<int> CountPendingAsync(CancellationToken cancellationToken);
     Task<AiConversationRow?> FindConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken);
     Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken);
     Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken);

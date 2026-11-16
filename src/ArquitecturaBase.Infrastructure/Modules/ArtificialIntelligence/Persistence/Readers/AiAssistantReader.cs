@@ -40,6 +40,9 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             await dbContext.Set<AiAssistantRequestReceipt>().AsNoTracking().CountAsync(receipt => receipt.AcceptedDayUtc == acceptedDayUtc, cancellationToken));
     }
 
+    public Task<int> CountPendingAsync(CancellationToken cancellationToken) =>
+        dbContext.Set<AiAssistantTurn>().AsNoTracking().IgnoreQueryFilters().CountAsync(turn => turn.State == AiAssistantTurnState.Pending, cancellationToken);
+
     public Task<AiConversationRow?> FindConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) =>
         ProjectConversations(dbContext.Set<AiConversation>().AsNoTracking()
             .Where(conversation => conversation.OwnerUserId == ownerUserId && conversation.Id == conversationId && conversation.ChannelId == "home")).SingleOrDefaultAsync(cancellationToken);

@@ -7,9 +7,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
-using Microsoft.Extensions.Time.Testing;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
-using Microsoft.Extensions.Logging.Abstractions;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
@@ -71,10 +69,31 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.Equal([new AssistantTerminalReference("assistant_answer", 2)], context.AllowedTerminals);
     }
 
+    // I20: opening Home asks only how many turns are waiting, which the index by state answers; the measurement of the whole table, which
+    // the reader double refuses, stays for the worker.
+    [Theory]
+    [InlineData(3, "available")]
+    [InlineData(4, "capacityLimited")]
+    public async Task Bootstrap_counts_only_the_pending_turns_without_measuring_the_table(int pending, string availability)
+    {
+        var host = new Host("es");
+        host.Reader.Pending = pending;
+        var source = new BootstrapCatalogSource(HomeQueryIds);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([source], host.Permissions);
+        var limits = new AiAssistantLimits { PendingCapacity = 4 };
+        var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
+            [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
+            new FakeCurrentUser { UserId = host.UserId }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
+
+        var result = await Bootstrap(host, guard, catalog, limits).BootstrapAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(availability, result.Value.Availability);
+    }
+
     // The bootstrap of the Home actor, without an owner that lets anyone attach: these cases look at the catalog and the microphone.
     private static AiAssistantBootstrapPolicy Bootstrap(Host host, AiAssistantAccessGuard guard, AiAssistantCapabilityCatalogPolicy catalog,
-        AiAssistantLimits limits) => new(host.Reader, new ConnectionReader(), host.Permissions, guard,
-            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog, NullLogger<AiAssistantResponsePolicy>.Instance), catalog, limits,
+        AiAssistantLimits limits) => new(host.Reader, new ConnectionReader(), host.Permissions, guard, catalog, limits,
             new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), new UnavailableStructuredAttachmentReader(), null!, null!));
 
     private sealed class BootstrapCatalogSource(IReadOnlyList<string> ids, IReadOnlyCollection<string>? offeredInHome = null) : IAssistantCapabilitySource

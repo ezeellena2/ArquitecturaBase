@@ -134,6 +134,7 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Task<IReadOnlyList<Guid>> ListRetainedRequestIdsAsync(string channelId, IReadOnlyCollection<Guid> requestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> turnIds, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<int> CountPendingAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<AiConversationRow?> FindConversationAsync(Guid actor, Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<PagedResult<AiConversationRow>> ListConversationsAsync(Guid actor, ListAiConversationsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 }
