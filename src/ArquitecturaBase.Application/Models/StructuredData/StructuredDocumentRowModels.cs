@@ -44,7 +44,8 @@ public sealed record StructuredDocumentRowRegistration(Guid DocumentId, string? 
 }
 
 /// <summary>A row of the same spreadsheet: its sheet (only when the book has more than one) and its number.</summary>
-public sealed record StructuredDocumentRowReference(string? Sheet, int Number);
+public sealed record StructuredDocumentRowReference(string? Sheet, int Number)
+{ public override string ToString() => "StructuredDocumentRowReference { Content = [REDACTED] }"; }
 
 /// <summary>
 /// What to tell the person about a spreadsheet (VC1-A): <c>Sure</c>, its rows, in the order of the spreadsheet; <c>Unknown</c>, none fits and

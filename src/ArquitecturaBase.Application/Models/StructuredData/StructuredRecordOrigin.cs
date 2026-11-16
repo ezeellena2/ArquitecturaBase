@@ -34,4 +34,5 @@ public sealed record StructuredRecordOriginDocument(Guid Id, string Name)
     public override string ToString() => "StructuredRecordOriginDocument { Content = [REDACTED] }";
 }
 /// <summary>A row of a spreadsheet: its sheet (only when the book has more than one), its number and when its spreadsheet arrived.</summary>
-public sealed record StructuredRecordOriginRow(string? Sheet, int Number, DateTime ReceivedAtUtc);
+public sealed record StructuredRecordOriginRow(string? Sheet, int Number, DateTime ReceivedAtUtc)
+{ public override string ToString() => "StructuredRecordOriginRow { Content = [REDACTED] }"; }

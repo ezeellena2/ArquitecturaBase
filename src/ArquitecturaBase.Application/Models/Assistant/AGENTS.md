@@ -1,6 +1,6 @@
 # Assistant: contratos neutrales del motor
 
-Contexto de servidor con Actor/Subject explícitos, requisitos separados sin herencia, capacidades Read/Proposal versionadas y codec/payload tipado del dueño. Los requisitos efectivos se sellan y se revalidan para cada identidad; el modelo no elige identidad, permisos, cultura, SQL o URL. Sin efectos/UoW. No referencia módulos opcionales. Todo contenido privado redacta ToString. `OfferedInHome` es la decisión del dueño de que Inicio, la conversación propia sin Subject, pueda ofrecer una capacidad; Inicio no ofrece otra cosa además de sus consultas.
+Contexto de servidor con Actor/Subject explícitos, requisitos separados sin herencia, capacidades Read/Proposal versionadas y codec/payload tipado del dueño. Los requisitos efectivos se sellan y se revalidan para cada identidad; el modelo no elige identidad, permisos, cultura, SQL o URL. Sin efectos/UoW. No referencia módulos opcionales. Todo contenido privado redacta ToString (`NeutralModelRedactionTests`, con sus excepciones justificadas). `OfferedInHome` es la decisión del dueño de que Inicio, la conversación propia sin Subject, pueda ofrecer una capacidad; Inicio no ofrece otra cosa además de sus consultas.
 
 Casos del asistente: `PreloadedCapabilities` son lecturas que el motor corre antes del primer paso, nunca herramientas; `DraftsText` marca la capacidad que redacta texto para personas, y `AssistantOperationResponse.Proposals` trae hasta tres propuestas en orden, con la primera en `Proposal`.
 

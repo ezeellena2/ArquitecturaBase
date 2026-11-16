@@ -11,7 +11,8 @@ public sealed record StructuredRecordReadReply(Guid SourceReceiptId, Guid Record
     public string? Amendment { get; init; }
 }
 
-public sealed record StructuredRecordReadValue(Guid FieldId, string Key, string Type, string Label, object? Value);
+public sealed record StructuredRecordReadValue(Guid FieldId, string Key, string Type, string Label, object? Value)
+{ public override string ToString() => "StructuredRecordReadValue { Content = [REDACTED] }"; }
 /// <summary>An item of a block of rows: every question of its block, in order, with a null value where the item left it empty.</summary>
 public sealed record StructuredRecordReadRow(IReadOnlyList<StructuredRecordReadValue> Values);
 public sealed record StructuredRecordChoiceValue(string ChoiceId, string Label,
