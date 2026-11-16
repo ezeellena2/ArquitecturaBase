@@ -46,7 +46,7 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             var captured = guard.ReadSeal(row.ExecutionProfileJson);
             if (AiAssistantAccessGuard.IsUnknown(captured)) return captured.Error;
             if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, row.OwnerUserId, row.ChannelId, row.Culture, row.TimeZoneId) ||
-                !AiAssistantChannelPolicy.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
+                !guard.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
             var access = await guard.AuthorizeCapturedAsync(captured.Value.ChannelContext, cancellationToken);
             if (access.IsFailure) return access.Error;
             if (!await guard.CanReadAsync(context.ActorUserId, row.RequiredPermissions, cancellationToken)) return AiAssistantErrors.ContentBlocked;

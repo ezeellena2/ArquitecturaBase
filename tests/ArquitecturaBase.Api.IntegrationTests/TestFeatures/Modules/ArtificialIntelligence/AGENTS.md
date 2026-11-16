@@ -22,4 +22,6 @@ DocumentReadingHandler y DocumentReadingClient son los dobles de la lectura de d
 
 `FailingReadAssistantSource` es una lectura cuya base falla siempre (`FictionalDbException`, I5).
 
+`RaisedVersionAssistantSource` registra una versión ficticia de una capacidad de un módulo, junto a la que el módulo conserva (I4); nunca se ejecuta.
+
 `AiAssistantExecutionProviderHandler` responde también un estado o rechaza la conexión (`FailWith`, `RefuseConnection`), y `ProviderConnectionFailure` usa el handler del registro con una conexión que nunca llega (nombre, rechazo, TLS o plazo de conexión), sin red (I6).

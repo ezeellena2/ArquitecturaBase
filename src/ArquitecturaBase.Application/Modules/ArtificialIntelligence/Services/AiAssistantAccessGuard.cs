@@ -59,6 +59,12 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
 
     public static bool IsUnknown(Result<AiAssistantExecutionProfileSnapshot> seal) => seal.IsFailure && seal.Error == AiAssistantErrors.UnknownVersion;
 
+    // I4: the scope a channel asks now covers what was sealed with an earlier version of one of its capabilities that this version knows.
+    public bool SameScope(AssistantChannelContext requested, AssistantChannelContext captured) =>
+        AiAssistantChannelPolicy.SameScope(catalog.AsSealed(requested, captured), captured);
+
+    public AssistantChannelContext AsSealed(AssistantChannelContext requested, AssistantChannelContext captured) => catalog.AsSealed(requested, captured);
+
     public Guid? CurrentUserId => currentUser.UserId;
     public async Task<Result<UserAccount>> AuthorizeAsync(Guid userId, CancellationToken ct)
     {

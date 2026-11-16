@@ -329,7 +329,8 @@ public sealed class AiAssistantOperationsTests
             "channel" => fixture.Context with { ChannelId = "another-owner-channel" },
             "culture" => fixture.Context with { Culture = "es" },
             "timeZone" => fixture.Context with { TimeZoneId = "America/Argentina/Buenos_Aires" },
-            "capability" => fixture.Context with { AllowedCapabilities = [new("fixture.proposal", 2)] },
+            // Another capability; an earlier version of the sealed one is still found (I4, AiAssistantSealedVersionTests).
+            "capability" => fixture.Context with { AllowedCapabilities = [new("fixture.other", 1)] },
             "terminal" => fixture.Context with { AllowedTerminals = [new("assistant_answer", 1)] },
             _ => fixture.Context with { RequiredPermissions = new(["fictional.unaccepted.permission"], []) },
         };

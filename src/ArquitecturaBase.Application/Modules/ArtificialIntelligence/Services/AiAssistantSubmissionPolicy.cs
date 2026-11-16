@@ -38,7 +38,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var captured = guard.ReadSeal(turn.ExecutionProfileJson);
         if (AiAssistantAccessGuard.IsUnknown(captured)) return captured.Error;
         if (captured.IsFailure || !AiAssistantChannelPolicy.Matches(captured.Value, turn.OwnerUserId, context.ChannelId, turn.Culture, turn.TimeZoneId) ||
-            !AiAssistantChannelPolicy.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
+            !guard.SameScope(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
         turn.RequestCancellation(responsePolicy.ServerNowUtc);
         return Result.Success();
     }
@@ -74,6 +74,11 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             return AiAssistantErrors.Invalid;
         return null;
     }
+
+    // I4: a channel that rebuilds the request after a deployment that raised a capability's version replays it with the sealed one.
+    private bool MatchesSealed(AssistantOperationRequest operation, AiAssistantTurn? existing, AiAssistantRequestReceipt receipt) =>
+        guard.ReadSeal(existing?.ExecutionProfileJson) is { IsSuccess: true } captured && fingerprint.Matches(
+            operation with { Context = guard.AsSealed(operation.Context, captured.Value.ChannelContext) }, receipt.KeyId, receipt.Fingerprint);
 
     // I14: before a Home file is read or kept, the acceptance's refusals that need neither the file nor a lock (the person's and the
     // installation's quotas and the capacity), with the same error and retryAfter. It only saves work: the acceptance still decides.
@@ -117,10 +122,10 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var now = responsePolicy.ServerNowUtc;
         if (receipt is not null)
         {
-            var matches = home is not null ? fingerprint.Matches(userId, home, receipt.KeyId, receipt.Fingerprint)
-                : fingerprint.Matches(operation!, receipt.KeyId, receipt.Fingerprint);
-            if (!matches) return AiAssistantErrors.RequestReused;
             var existing = await repository.GetTurnAsync(receipt.TurnId, ct);
+            var matches = home is not null ? fingerprint.Matches(userId, home, receipt.KeyId, receipt.Fingerprint)
+                : fingerprint.Matches(operation!, receipt.KeyId, receipt.Fingerprint) || MatchesSealed(operation!, existing, receipt);
+            if (!matches) return AiAssistantErrors.RequestReused;
             var previousConversation = await repository.GetConversationAsync(userId, receipt.ConversationId, ct);
             if (existing is null || previousConversation is null || previousConversation.ChannelId != channelId) return AiAssistantErrors.NotFound;
             return Accepted(existing, previousConversation.Revision, now);

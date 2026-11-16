@@ -46,4 +46,6 @@ StoredCopy (I9) compara la copia por bloques, leída de a pocos bytes y sin larg
 
 UnknownSeal (I4) sella con un valor futuro cada parte del sello (propósito, archivo, modo, instrucciones, terminal, capacidad y precarga): la lectura lo distingue de un sello dañado, el claim lo deja pendiente y toma el siguiente, y Get, Cancel y la búsqueda de una propuesta dan `UnknownVersion`, sin descifrar; un sello dañado cierra con `ContentUnavailable`, no con `ContentBlocked`.
 
+SealedVersion (I4) sella con la versión anterior de una capacidad y consulta, repite y cancela con el contexto de la versión subida (ficticia): se encuentra, el replay devuelve la misma aceptación y otra capacidad sigue fuera; el catálogo toma la versión sellada sólo si la conoce.
+
 Document (ReadDocument) espeja al audio: aceptación, replay, validación, que no toma ni espera el lugar de la interpretación, la capacidad, los cupos (por persona entre canales y de la instalación, fuera del global y de los de interpretaciones y audio), el pedido al proveedor, el avance, el cierre, Get, el aviso y `AiAssistantDocumentPolicy` (el descriptor, el idioma normalizado antes de validar y la lectura entera bajo su techo).

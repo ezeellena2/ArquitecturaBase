@@ -42,6 +42,17 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
     public bool Knows(AssistantChannelContext context) =>
         context.AllowedCapabilities.Concat(context.PreloadedCapabilities ?? []).All(registry.ContainsKey);
 
+    // I4: what a channel asks now, with the sealed version of each capability it names while this version still knows it: a module that
+    // raises a version keeps the earlier one registered, so what was in flight is compared and replayed as it was sealed.
+    public AssistantChannelContext AsSealed(AssistantChannelContext requested, AssistantChannelContext captured)
+    {
+        var sealedVersions = captured.AllowedCapabilities.Concat(captured.PreloadedCapabilities ?? []).Where(registry.ContainsKey).ToArray();
+        AssistantCapabilityReference Sealed(AssistantCapabilityReference reference) =>
+            sealedVersions.FirstOrDefault(known => known.Id == reference.Id) ?? reference;
+        return requested with { AllowedCapabilities = requested.AllowedCapabilities.Select(Sealed).ToArray(),
+            PreloadedCapabilities = requested.PreloadedCapabilities?.Select(Sealed).ToArray() };
+    }
+
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
         registry.TryGetValue(capability, out var entry) ? entry.Source.ParseOutput(capability, outputJson) : AiAssistantErrors.ToolRejected;
 
