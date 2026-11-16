@@ -254,6 +254,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Evidencia:** `FormActionDispatchService.cs:41-46`, `FormApprovalService.cs:62-63`.
 - **Arreglo:** avisar en el editor de reglas cuando el rol no tiene miembros, o que la acción falle con un motivo propio. Chico.
 - **Arreglado el 2026-11-15** en `84e22c2f`.
+- Corregido tras la revisión adversarial del 2026-11-16 en `07839c92`: el conteo de miembros del rol deja afuera a quien cargó la respuesta y a quien la corrigió, que no pueden decidirla; un rol cuya única persona es una de ellas falla con `Forms.Rule.RoleWithoutMembers`.
 
 ### Hoy, con una sola copia
 
@@ -303,6 +304,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   frena lo que sigue ([decisión 2](#decisiones-del-2026-11-14)).
 - **Arreglado el 2026-11-15** en `4dc53b94` (en parte: consulta sola y ventana de 24 horas; faltan la marca de la planilla y el aviso a quien cargó).
 - **Arreglado el 2026-11-16** el aviso a quien cargó, una vez por acción frenada y por el canal durable de los avisos (también ARCA H11); falta la marca «Con acciones por resolver» de la planilla, con su filtro y el contador, que esperan el tablero.
+- Corregido tras la revisión adversarial del 2026-11-16 en `f4041e4e`: el aviso a quien cargó mira el estado que devuelve el canal; sólo se marca la acción si el aviso quedó encolado o si la ventana de 24 horas está cerrada (queda «No aplica» para esa persona, con su id en el log); otra negativa del canal la deja sin marca y vuelve en la ronda siguiente.
 
 #### F3. Una publicación que queda «sin confirmar» traba el formulario y nadie la puede destrabar
 
@@ -347,6 +349,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   igual que al autor, al decidir, en la bandeja y en el conteo. Chico.
 - **Arreglado el 2026-11-15** en `054a3566` y `3207e2b4`: sin columna nueva, se lee de la respuesta (`CorrectedByUserId`) y del documento
   que la originó (`ReviewedByUserId`).
+- Corregido tras la revisión adversarial del 2026-11-16 en `7e04e3df`: `FormCatalogAccessGuard.CheckActorAsync` (propuestas de catálogos y adjuntos por canal) también pide la cuenta activa, como `FormDraftAccessGuard`. Queda anotado, menor: la cadena de correcciones (quien corrigió antes de la última) y el documento reabierto por otra persona no se recorren.
 
 #### F5. Con «Administrar reglas y PDF» alcanza para recibir las respuestas por WhatsApp
 
@@ -365,6 +368,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   administrar reglas permite mandar respuestas por aviso, y decirlo en la descripción del permiso. Chico.
 - **Arreglado el 2026-11-15** en `a765080f` (se eligió pedir «Ver respuestas»; la descripción del permiso y la regla escrita lo dicen).
 - Su texto en `Errors.resx` lo borró `6ff85b99` (F13, armado sobre una copia anterior) y volvió el 2026-11-15 en `974fea7c`.
+- Corregido tras la revisión adversarial del 2026-11-16 en `b9344a0c`: un aviso con `includePdf` o la copia de una emisión (`SendCopy`) manda todas las respuestas sin citar ninguna, así que guardar esa regla también pide «Ver respuestas» (`Forms.Rule.RecordsReadRequired`); la descripción del permiso, el texto del error y la regla escrita lo dicen.
 
 #### F6. Un PDF armado para atacar puede frenar la lectura de documentos de una copia y, por WhatsApp, todo lo que entra
 

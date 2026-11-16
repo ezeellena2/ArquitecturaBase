@@ -74,6 +74,14 @@ En orden de peso; cada tarea lo repite.
    - 2c-5 (F11): el limitador global sólo cubre endpoints con `ExportPolicy`; dos pedidos lentos de un usuario con permiso bloquean las exportaciones de todos (aceptado por diseño).
    - 2c-6 (F47): el tope de 500 carpetas sólo se aplica al crear (`FormFolderTree.cs:22`); las carpetas de sistema del Agregar no lo cuentan.
 
+8. **Menores pendientes de la revisión adversarial 2 (2026-11-16)**, sin programar (los serios, F2, F5, F4 y B3, ya están corregidos):
+   - F4, cadena de correcciones: `ExistsValuesSetByAsync` y `SetValuesBy` miran sólo `CorrectedByUserId` de la respuesta de la tarea; quien corrigió una versión anterior (y el `ReviewedByUserId` de un documento que no es el directo) puede aprobar valores que incluyen los suyos; falta recorrer `ReplacesRecordId` o guardar el conjunto en la tarea.
+   - F2, la auto-consulta de la primera pasada: una excepción de `channel.GetAsync` sin nada enviado se reconsulta con `ReconciliationOnly`, no encola, y `NotFound` acaba como «destinatario no disponible» reintentable a mano; debería reintentar el envío (no hubo efecto) o dejarse «En duda».
+   - Convivencia de versiones: `StructuredRecordActionState.NotApplicable` (valor numérico nuevo en `OutcomeJson`) lo ve como desconocido una copia vieja, que en el reintento de otra persona de un aviso a un rol no lo toma por terminal y encola al que se fue del rol; ventana chica de despliegue, para aceptar (ADR 0018) o sellar el estado en el run.
+   - Tarea 10, PDF: los snapshots sellados sin `TimeZoneId` y un PDF re-renderizado tras el despliegue salen con «UTC» agregado y otra hora que el original; si `WriteOnce` compara el contenido, un `Uncertain` pendiente puede dar discrepancia.
+   - B1, toque viejo: `NoLongerIssuable` responde a cualquier botón viejo de una respuesta anulada que nunca decidió por toque (`DecisionTapId` nulo), también a una ya emitida y revertida, con un texto levemente inexacto.
+   - F22: el canal de WhatsApp conoce códigos literales de Formularios (`Forms.Definition.NameTaken`, etc.) en `WhatsAppAssistantAuthoringPolicy`, y cualquier otro `Forbidden` dice «tu cuenta no puede armar».
+
 ### Etapa 1: los números (antes de la prueba integral)
 
 1. **F1. Los números con la región del idioma** (decisión 5). En la app, `entryForm.ts` lee el número con la región del idioma
