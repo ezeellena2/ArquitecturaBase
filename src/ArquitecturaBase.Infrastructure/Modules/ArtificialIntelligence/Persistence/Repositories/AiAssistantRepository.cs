@@ -78,6 +78,10 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             await active.CountAsync(turn => turn.State == AiAssistantTurnState.Running, cancellationToken));
     }
 
+    // I19: the claim's capacity, which the index by state answers, without the day's receipts.
+    public Task<int> CountRunningAsync(CancellationToken cancellationToken) =>
+        dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().CountAsync(turn => turn.State == AiAssistantTurnState.Running, cancellationToken);
+
     public async Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken)
     {
         var pendingCutoffUtc = nowUtc.AddSeconds(-pendingSeconds);

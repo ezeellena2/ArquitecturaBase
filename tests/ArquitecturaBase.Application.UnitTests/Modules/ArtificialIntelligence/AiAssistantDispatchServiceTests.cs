@@ -157,12 +157,12 @@ public sealed partial class AiAssistantDispatchServiceTests
         public SystemQueryEvidence Evidence { get; }
         public AiAssistantDispatchService Service { get; }
         public AiAssistantExecutionProfileSnapshot Profile { get; }
-        public Host(bool sealCapabilityPermissions = false, ILogger<AiAssistantDispatchService>? logger = null)
+        public Host(bool sealCapabilityPermissions = false, ILogger<AiAssistantDispatchService>? logger = null, AiAssistantLimits? limits = null)
         {
             var users = Users;
             var actor = users.AddUser("fictional@example.test");
             Permissions.Permissions[actor.Id] = [ArtificialIntelligencePermissions.AssistantUse, "users.read", "roles.read"];
-            var limits = new AiAssistantLimits();
+            limits ??= new AiAssistantLimits();
             var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", 131072, true, true) {Id="home"}], limits,
                 new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
@@ -179,6 +179,17 @@ public sealed partial class AiAssistantDispatchServiceTests
             Evidence = new(Guid.NewGuid(), "users.summary", 1, Clock.GetUtcNow().UtcDateTime, null, "users", ["users.read"], []);
             Service = new AiAssistantDispatchService(Store, Work, new AiAssistantDispatchGuard(Store, Store, Store, guard, catalog),
                 new Protector(), limits, Clock, logger ?? NullLogger<AiAssistantDispatchService>.Instance, CompletionSignal);
+        }
+        // Another turn of the same person, sealed like the host's, waiting for a worker in a conversation of its own.
+        public AiAssistantTurn AddPending()
+        {
+            var nowUtc = Clock.GetUtcNow().UtcDateTime;
+            var conversation = AiConversation.Create(Store.Turn.OwnerUserId, nowUtc);
+            var turn = AiAssistantTurn.Create(conversation.OwnerUserId, conversation.Id, Guid.NewGuid(), 1, "cipher", "es", "UTC", AiProvider.OpenAI,
+                "model", 1, nowUtc, nowUtc.AddDays(30));
+            turn.SealExecutionProfile(JsonSerializer.Serialize(Profile, AiAssistantResponsePolicy.JsonOptions));
+            Store.Pending.Add(turn);
+            return turn;
         }
         public AiAssistantExecutionContextResponse Context()
         {
@@ -240,8 +251,12 @@ public sealed partial class AiAssistantDispatchServiceTests
         public Task<AiConnectionRow> FindAsync(CancellationToken cancellationToken) => Task.FromResult(new AiConnectionRow(AiProvider.OpenAI, "model", "cipher-key", true, ConnectionRevision));
         public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) =>
             Task.FromResult(Receipt is { } receipt && receipt.OwnerUserId == ownerUserId && receipt.RequestId == requestId ? receipt : null);
-        // The host's turn is already claimed: there is no pending work and nothing expired.
-        public Task<IReadOnlyList<AiAssistantTurn>> ListPendingAsync(int limit, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<AiAssistantTurn>>([]);
+        // The host's turn is already claimed: nothing expired, and only what a test adds is pending.
+        public List<AiAssistantTurn> Pending { get; } = [];
+        public Task<IReadOnlyList<AiAssistantTurn>> ListPendingAsync(int limit, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AiAssistantTurn>>(Pending.Where(turn => turn.State == AiAssistantTurnState.Pending).Take(limit).ToArray());
+        public Task<int> CountRunningAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(Pending.Append(Turn).Count(turn => turn.State == AiAssistantTurnState.Running));
         public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, Guid? channelConversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken) =>
             Task.FromResult(ActiveForConversation is { } active && active.ConversationId == conversationId ? active : null);

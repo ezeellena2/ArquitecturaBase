@@ -27,6 +27,8 @@ public interface IAiAssistantRepository
     /// A receipt whose turn expired without reserving a step does not count (I1).
     /// </summary>
     Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument, CancellationToken cancellationToken);
+    /// <summary>The turns running in the whole installation: the only count the claim uses, without the day's receipts (I19).</summary>
+    Task<int> CountRunningAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken);
     /// <summary>
     /// Turns whose content goes: expired, of a removed conversation or of a deleted account, and a Home recording or reading submitted

@@ -228,6 +228,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
                     && (item.IsAudio is null || item.IsAudio == isAudio))),
             receipts.Length, Turns.Count(item => item.State == AiAssistantTurnState.Pending), Turns.Count(item => item.State == AiAssistantTurnState.Running)));
     }
+    public Task<int> CountRunningAsync(CancellationToken ct) => Task.FromResult(Turns.Count(item => item.State == AiAssistantTurnState.Running));
     public void AddConversation(AiConversation conversation) { RequireTransaction(); Conversations.Add(conversation); }
     public void AddTurn(AiAssistantTurn turn) { RequireTransaction(); Turns.Add(turn); }
     public void AddReceipt(AiAssistantRequestReceipt receipt) { RequireTransaction(); Receipts.Add(receipt); }
