@@ -59,6 +59,17 @@ public sealed partial class FormDraftEndpointsTests
                     db.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, question.FieldId, catalog.Id, 1, item,
                         label, null, "Proveedores", fieldValuesJson: snapshot));
                 }
+                // F15: the capture writes the union of the fields a response sealed, and the sheet reads it; this seed skips the
+                // capture, so it writes that union itself, as BusinessFormRecordRecorder would.
+                if (index == 0)
+                    foreach (var (fieldId, key, name, type, role, position) in new[]
+                    {
+                        (days, "days", FieldReadText("Días históricos", "Historical days"), "integer", "data", 0),
+                        (zone, "zone", new Dictionary<string, string> { ["es"] = "Zona" }, "text", "filter", 1),
+                        (retired, "retired", FieldReadText("Campo retirado", "Retired field"), "text", "data", 2),
+                    })
+                        db.Add(BusinessFormRecordCatalogField.Create(definition.Id, catalog.Id, fieldId, key,
+                            JsonSerializer.Serialize(name, JsonSerializerOptions.Web), type, role, position, record.Number));
             }
             await db.SaveChangesAsync(Ct); return ids;
         });
