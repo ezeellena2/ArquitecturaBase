@@ -39,6 +39,20 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
         Service = new(this,this,this,new(User,Permissions,Issuers),UnitOfWork,
             RequestValidators.For(new SaveFormRulesRequestValidator(),new ListFormRuleRevisionsRequestValidator()),new(this,new(this,this),Issuers),NullLogger<FormRuleService>.Instance);
     }
+    // F16: a question that chooses among the options of a catalog the fixture keeps; returns its field id.
+    public Guid AddCatalogQuestion(IReadOnlyList<Guid> itemIds, string kind = "Manual")
+    {
+        var catalogId = Guid.NewGuid();
+        var field = new CanonicalFormField(Guid.NewGuid(), "zone", "choice", new Dictionary<string,string> { ["es"] = "Zona", ["en"] = "Zone" }, null, false, null, null, new(catalogId));
+        var schema = FormDraftPolicy.Read<FormQuestionSchema>(Definition.SchemaJson);
+        Definition.SetDraft(Definition.Revision, Definition.Name, Definition.NameJson, Definition.Prefix, Definition.Culture, "{}",
+            FormDraftPolicy.Serialize(new FormQuestionSchema(1, [.. schema.Fields, field])), schema.Fields.Count + 1, false);
+        Catalogs[catalogId] = new(catalogId, "zones", "{}", "{}", "es", kind, 1, true, default, null, null, null, itemIds.Count);
+        ManualItems[catalogId] = [.. itemIds.Select((id, index) => new FormCatalogItemResponse(id, "Z" + index,
+            new Dictionary<string, string?> { ["es"] = "Zona " + index, ["en"] = "Zone " + index }, new Dictionary<string, string?>(), index + 1, true, null,
+            new Dictionary<string, string>(), new Dictionary<string, IReadOnlyDictionary<string, string>>()))];
+        return field.FieldId;
+    }
     public Task LockDefinitionsAsync(CancellationToken ct) { BeforeLock?.Invoke(); return Task.CompletedTask; }
     Task<BusinessFormDefinition?> IFormDraftRepository.GetAsync(Guid id,CancellationToken ct) => Task.FromResult<BusinessFormDefinition?>(id == Definition.Id ? Definition : null);
     Task<BusinessFormRuleSet?> IFormRuleRepository.GetAsync(Guid id,CancellationToken ct) => Task.FromResult(RuleSets.SingleOrDefault(rule => rule.Id == id));

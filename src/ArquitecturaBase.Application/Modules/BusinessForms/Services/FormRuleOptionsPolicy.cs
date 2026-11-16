@@ -17,6 +17,9 @@ internal sealed class FormRuleOptionsPolicy(IFormRuleReader reader, FormConditio
         return new FormRuleOptionsResponse(definition.Id, FormDraftPolicy.Read<Dictionary<string,string>>(definition.NameJson), definition.OriginalCulture,
             questions, await reader.ListRolesAsync(cancellationToken)) { ConditionChoices = choices, Issuers = Issuers(definition) };
     }
+    // F16: the first condition of the rules that names an option its catalog no longer has, against the choices already read.
+    public Task<(int Group,int Index)?> FindUnavailableAsync(Guid actor, FormRuleOptionsResponse options, IReadOnlyList<FormRule> rules, CancellationToken cancellationToken) =>
+        choiceOptions.FindUnavailableAsync(actor, options.Questions, options.OriginalCulture, [.. rules.Select(rule => rule.Conditions)], options.ConditionChoices, cancellationToken);
     // An issuer is offered only on a form copied from its standard and carrying its bound data.
     private FormRuleIssuerResponse[]? Issuers(FormRuleDefinitionRow definition)
     {

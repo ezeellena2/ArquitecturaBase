@@ -50,7 +50,7 @@ Catálogo Manual: pruebas HTTP con PostgreSQL real cubren alta positionless, rec
 
 FormMigrationsTests comprueba en una base nueva la clave diferible de posición y la vista de usuarios retirada, y las idas y vueltas de esa vista y de las identidades retiradas. Vive con el módulo para que las migraciones del núcleo no nombren sus tablas.
 
-FormCatalogItemDeletionIntegrationTests usa FormRecipientScenario con una respuesta sembrada y un filtro fijo en el borrador: el 409 `ItemInUse` nombra `records`, `options`, `people` y `forms` sin guardar nada, y la opción que nadie usa se borra y las demás cierran el hueco.
+FormCatalogItemDeletionIntegrationTests usa FormRecipientScenario con una respuesta sembrada y un filtro fijo en el borrador: el 409 `ItemInUse` nombra `records`, `options`, `people` y `forms` sin guardar nada, y la opción que nadie usa se borra y las demás cierran el hueco; un segundo test sostiene el lock de definiciones en otra transacción y comprueba que el borrado espera hasta que se suelta (F16).
 
 FormCatalogEndpointsTests.Sort ordena por un campo entero con los valores del mismo guardado y lee el resultado en dos páginas: 9 antes que 10, el empate conserva su orden, la opción sin valor queda última y las posiciones son 1..N; una columna desconocida da 400 en `sort.column`. Exporta `sorted-request`.
 

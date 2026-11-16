@@ -11,6 +11,9 @@ internal sealed class FormCatalogRepository(ApplicationDbContext dbContext) : IF
     public Task LockAsync(Guid catalogId, CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync([FormAdvisoryLockKeys.Catalog(catalogId)], cancellationToken);
 
+    public Task LockDefinitionsAsync(CancellationToken cancellationToken) =>
+        dbContext.AcquireAdvisoryLocksAsync([FormAdvisoryLockKeys.Definitions], cancellationToken);
+
     public Task LockKeyAsync(string key, CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync([FormAdvisoryLockKeys.CatalogKey(key)], cancellationToken);
 

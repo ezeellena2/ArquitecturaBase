@@ -39,6 +39,9 @@ internal sealed class FormSuggestionService(IFormDraftRepository drafts,IFormSug
             var options=await reader.FindOptionsAsync(id,innerCt);
             if(options is null)return Result.Failure<long>(FormSuggestionErrors.SourceNotPublished);
             var normalized=FormSuggestionPolicy.Normalize(request,options);if(normalized.IsFailure)return Result.Failure<long>(normalized.Error);
+            // F16: the options a condition names exist now, under the lock that deleting an option takes first.
+            var missing=await choiceOptions.FindUnavailableAsync(actor.Value,options.Source.Questions,options.Source.OriginalCulture,[..normalized.Value.Select(suggestion=>suggestion.Conditions)],null,innerCt);
+            if(missing is{}at)return Result.Failure<long>(FieldErrors.On(FormRuleErrors.OptionUnavailable,$"suggestions[{at.Group}].conditions[{at.Index}].values"));
             if(!await access.StillAllowedAsync(actor.Value,innerCt))return Result.Failure<long>(FormDefinitionErrors.Forbidden);
             var snapshot=BusinessFormSuggestionSet.Create(id,options.Source.VersionId,(current?.Revision??0)+1,options.Source.OriginalCulture,FormDraftPolicy.Serialize(normalized.Value));
             repository.Add(snapshot);definition.SetActiveSuggestionSetId(snapshot.Id);

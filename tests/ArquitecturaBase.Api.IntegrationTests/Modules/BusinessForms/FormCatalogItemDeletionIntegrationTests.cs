@@ -4,7 +4,10 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,6 +61,47 @@ public sealed class FormCatalogItemDeletionIntegrationTests(ApiFactory factory)
         Assert.Equal(3, catalog.GetProperty("itemsCount").GetInt32());
         Assert.Equal(new[] { ("CENTRAL", 1), ("SOUTH", 2), ("NORTH", 3) }, await ItemsAsync(scenario, scenario.ZoneCatalogId));
         Assert.Equal(3, (await ItemsAsync(scenario, scenario.CatalogId)).Length);
+    }
+
+    // F16: the capture and the rules take the definitions' lock first; deleting an option waits for it too, so none of them saves what it names.
+    [Fact]
+    public async Task Deleting_an_option_waits_for_the_lock_of_the_definitions()
+    {
+        await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
+        await scenario.PublishForPreparationAsync(factory, Ct);
+        using var client = scenario.Client();
+        var zones = $"/api/forms/catalogs/{scenario.ZoneCatalogId}";
+        var added = Zones(1);
+        added["items"] = new JsonArray(Item("west", "WEST", "Oeste", "West"));
+        using var adding = await client.PutAsJsonAsync(zones, added, Ct);
+        Assert.Equal(HttpStatusCode.OK, adding.StatusCode);
+        var west = (await adding.ReadJsonAsync()).GetProperty("itemIdentityMap").GetProperty("west").GetGuid();
+        var held = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var holder = scenario.ScopeAsync(async services =>
+        {
+            var drafts = services.GetRequiredService<IFormDraftRepository>();
+            await services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async ct =>
+            {
+                await drafts.LockDefinitionsAsync(ct);
+                held.SetResult();
+                await release.Task;
+                return Result.Success();
+            }, CommitPolicy.OnSuccess, Ct);
+            return true;
+        });
+        await held.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+
+        var deleting = client.PutAsJsonAsync(zones, Deleting(Zones(2), west), Ct);
+        await Task.Delay(TimeSpan.FromSeconds(2), Ct);
+        var waited = !deleting.IsCompleted;
+        release.SetResult();
+        using var response = await deleting.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+        await holder;
+
+        Assert.True(waited);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(new[] { ("CENTRAL", 1), ("SOUTH", 2) }, await ItemsAsync(scenario, scenario.ZoneCatalogId));
     }
 
     private static JsonObject Zones(long revision) => new()

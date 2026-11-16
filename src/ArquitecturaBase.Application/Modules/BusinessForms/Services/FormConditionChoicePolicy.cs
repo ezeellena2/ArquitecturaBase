@@ -19,6 +19,36 @@ internal sealed class FormConditionChoicePolicy(IFormCatalogReader catalogs,IFor
         }
         return choices;
     }
+    // F16: the first condition (its group and place) that names an option its catalog no longer has. Only the catalogs that keep their own
+    // options count (a filtered one lists what its query finds now); the choices a caller already read are reused.
+    public async Task<(int Group,int Index)?> FindUnavailableAsync(Guid actor,IReadOnlyList<CanonicalFormField> questions,string culture,
+        IReadOnlyList<IReadOnlyList<FormRecordCondition>> groups,IReadOnlyDictionary<Guid,IReadOnlyList<FormRuleConditionChoiceResponse>>? known,CancellationToken cancellationToken)
+    {
+        var withItems=new Dictionary<Guid,bool>();
+        var relevant=new List<(int Group,int Index,CanonicalFormField Field,FormRecordCondition Condition)>();
+        for(var group=0;group<groups.Count;group++)
+            for(var index=0;index<groups[group].Count;index++)
+            {
+                var condition=groups[group][index];
+                if(condition.Operator is "answered" or "unanswered" or "notAsked"||condition.Values is not{Count:>0})continue;
+                var field=questions.FirstOrDefault(question=>question.FieldId==condition.FieldId);
+                if(field?.Type is not("choice" or "multiChoice")||field.Source?.Catalog is not{}catalogId)continue;
+                if(!withItems.TryGetValue(catalogId,out var has))
+                {
+                    var catalog=await catalogs.FindAsync(catalogId,cancellationToken);
+                    withItems[catalogId]=has=catalog is null||FormCatalogKindPolicy.HasItems(catalog.Kind);
+                }
+                if(has)relevant.Add((group,index,field,condition));
+            }
+        if(relevant.Count==0)return null;
+        var choices=known??await ReadAsync(actor,[..relevant.Select(item=>item.Field).DistinctBy(field=>field.FieldId)],culture,cancellationToken);
+        foreach(var item in relevant)
+        {
+            var ids=choices.GetValueOrDefault(item.Field.FieldId)?.Select(choice=>choice.Id).ToHashSet()??[];
+            if(item.Condition.Values!.Any(value=>!Guid.TryParse(value,out var id)||!ids.Contains(id)))return (item.Group,item.Index);
+        }
+        return null;
+    }
     private async Task<IReadOnlyList<FormRuleConditionChoiceResponse>> ReadCatalogAsync(Guid actor, Guid catalogId, string culture, CancellationToken cancellationToken)
     {
         var catalog = await catalogs.FindAsync(catalogId,cancellationToken);

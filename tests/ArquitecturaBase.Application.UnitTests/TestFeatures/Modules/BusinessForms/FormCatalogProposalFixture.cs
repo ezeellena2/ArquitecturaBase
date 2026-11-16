@@ -51,6 +51,7 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
         new Dictionary<string,string?> { [culture] = "Reviewed supervisors" },
         new Dictionary<string,string?> { [culture] = "Reviewed active supervisors" }, CatalogAssistantFixture.Proposal.Filters, Assistant.Actor);
     public Task LockKeyAsync(string key, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task LockDefinitionsAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task<Guid?> FindIdByKeyAsync(string key, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
     public Task LockAsync(Guid id, CancellationToken ct)
     {

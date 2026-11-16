@@ -174,6 +174,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public Result<IReadOnlyList<FormSpreadsheet>> ReadSheets(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken) =>
         throw new NotSupportedException("An import never reads every sheet.");
     public Task LockKeyAsync(string key, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task LockDefinitionsAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task<Guid?> FindIdByKeyAsync(string key, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
     public Task LockAsync(Guid id, CancellationToken ct)
     {

@@ -133,6 +133,8 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
 
     private async Task<Result<FormCatalogSaveResponse>> UpdateCoreAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken ct)
     {
+        // F16: deleting an option takes the definitions' lock first, in the capture's order, so no rule, suggestion or response saves one it names.
+        if (request.DeleteItemIds is { Count: > 0 }) await repository.LockDefinitionsAsync(ct);
         await LockCatalogsAsync(id, request.Fields, ct);
         var access = await accessGuard.CheckAsync(true, ct);
         if (access.IsFailure) return access.Error;

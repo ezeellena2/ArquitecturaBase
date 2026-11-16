@@ -33,6 +33,13 @@ internal sealed class FormSuggestionFixture : IFormSuggestionRepository,IFormSug
         Service=new(Drafts,this,this,new(Drafts.User,Drafts.Permissions),Drafts.UnitOfWork,
             RequestValidators.For(new SaveFormSuggestionsRequestValidator(),new ListFormSuggestionRevisionsRequestValidator()),new(Drafts,Drafts),NullLogger<FormSuggestionService>.Instance);
     }
+    // F16: the source form gains a question that chooses among the options of a catalog; returns its field id.
+    public Guid AddCatalogQuestion(IReadOnlyList<Guid> itemIds)
+    {
+        var field=Drafts.AddCatalogQuestion(itemIds);
+        Options=Options! with {Source=Options.Source with {Questions=FormDraftPolicy.Read<FormQuestionSchema>(Definition.SchemaJson).Fields}};
+        return field;
+    }
     public FormSuggestionInput Suggestion()=>new(Guid.NewGuid(),DestinationId,"Assistant","Cuando requiera un reclamo",true,[],[]);
     public Task<BusinessFormSuggestionSet?> GetAsync(Guid id,CancellationToken ct)=>Task.FromResult(Sets.SingleOrDefault(set=>set.Id==id));
     public void Add(BusinessFormSuggestionSet set)=>Sets.Add(set);

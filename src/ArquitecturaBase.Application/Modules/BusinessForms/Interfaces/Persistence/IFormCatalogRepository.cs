@@ -5,6 +5,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persiste
 public interface IFormCatalogRepository
 {
     Task LockAsync(Guid catalogId, CancellationToken cancellationToken);
+    // F16: the lock of the definitions, the one the capture and the rules take before any catalog's.
+    Task LockDefinitionsAsync(CancellationToken cancellationToken);
 
     /// <summary>The lock of a catalog a module feeds, by its key: it serializes creating it. Goes before <see cref="LockAsync"/>.</summary>
     Task LockKeyAsync(string key, CancellationToken cancellationToken);

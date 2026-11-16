@@ -65,6 +65,9 @@ internal sealed class FormRuleService(IFormDraftRepository drafts, IFormRuleRepo
             var options = await optionsBuilder.ReadAsync(actor.Value, definitionId, ct) ?? throw new InvalidOperationException("The tracked form definition is missing from its reader.");
             var rules = FormRulePolicy.Normalize(request, options, action => FormRulePolicy.Declared(action, options)); if (rules.IsFailure) return Result.Failure<long>(rules.Error);
             // H6: rules that keep an action that issues ask for the permission of its issuer too.
+            // F16: the options a condition names exist now, read under the same lock that deleting an option takes first.
+            var missing = await optionsBuilder.FindUnavailableAsync(actor.Value, options, rules.Value, ct);
+            if (missing is { } at) return Result.Failure<long>(FieldErrors.On(FormRuleErrors.OptionUnavailable, $"rules[{at.Group}].conditions[{at.Index}].values"));
             var issuing = await access.MayIssueAsync(actor.Value, rules.Value.SelectMany(rule => rule.Actions).Where(action => action.Kind == "IssueDocument")
                 .Select(action => action.IssuerId), ct);
             if (issuing.IsFailure) return Result.Failure<long>(issuing.Error);

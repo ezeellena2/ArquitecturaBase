@@ -47,6 +47,32 @@ public sealed class FormRuleServiceTests
         Assert.Equal(new long[] { 2,1 },history.Value.Items.Select(row=>row.Revision));
     }
     [Fact]
+    public async Task A_condition_on_an_option_that_no_longer_exists_is_rejected_and_one_that_exists_is_saved()
+    {
+        var fixture = new FormRuleFixture();
+        var kept = Guid.NewGuid();
+        var field = fixture.AddCatalogQuestion([kept]);
+        FormRuleInput Rule(Guid option) => new(Guid.NewGuid(), "Received", [new FormRecordCondition(field, "in", [option.ToString("D")])],
+            [new(Guid.NewGuid(), "RequestApproval", fixture.RoleId)]);
+
+        var gone = await fixture.Service.SaveAsync(fixture.Definition.Id, new(0, [Rule(kept), Rule(Guid.NewGuid())]), TestContext.Current.CancellationToken);
+
+        Assert.Equal(FormRuleErrors.OptionUnavailable.Code, gone.Error.Code);
+        Assert.Empty(fixture.RuleSets);
+        var saved = await fixture.Service.SaveAsync(fixture.Definition.Id, new(0, [Rule(kept)]), TestContext.Current.CancellationToken);
+        Assert.True(saved.IsSuccess);
+    }
+    [Fact]
+    public async Task A_condition_on_a_filtered_catalog_is_not_checked_against_its_items()
+    {
+        var fixture = new FormRuleFixture();
+        var field = fixture.AddCatalogQuestion([], "Filters");
+        var request = new SaveFormRulesRequest(0, [new(Guid.NewGuid(), "Received", [new FormRecordCondition(field, "in", [Guid.NewGuid().ToString("D")])],
+            [new(Guid.NewGuid(), "RequestApproval", fixture.RoleId)])]);
+
+        Assert.True((await fixture.Service.SaveAsync(fixture.Definition.Id, request, TestContext.Current.CancellationToken)).IsSuccess);
+    }
+    [Fact]
     public async Task A_stale_revision_is_a_conflict_and_adds_no_revision()
     {
         var fixture = new FormRuleFixture();

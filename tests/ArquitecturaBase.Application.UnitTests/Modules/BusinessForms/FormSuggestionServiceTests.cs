@@ -25,6 +25,15 @@ public sealed class FormSuggestionServiceTests
         Assert.Equal(firstJson,first.SuggestionsJson);Assert.Equal(2,f.Sets.Count);Assert.NotEqual(first.Id,f.Definition.ActiveSuggestionSetId);
     }
     [Fact]
+    public async Task A_condition_on_an_option_that_no_longer_exists_is_rejected()
+    {
+        var f=new FormSuggestionFixture();var kept=Guid.NewGuid();var field=f.AddCatalogQuestion([kept]);
+        FormSuggestionInput With(Guid option)=>f.Suggestion() with {Conditions=[new FormRecordCondition(field,"in",[option.ToString("D")])]};
+        var gone=await f.Service.SaveAsync(f.Definition.Id,new(0,[With(Guid.NewGuid())]),TestContext.Current.CancellationToken);
+        Assert.Equal(FormRuleErrors.OptionUnavailable.Code,gone.Error.Code);Assert.Empty(f.Sets);
+        Assert.True((await f.Service.SaveAsync(f.Definition.Id,new(0,[With(kept)]),TestContext.Current.CancellationToken)).IsSuccess);
+    }
+    [Fact]
     public async Task Stale_revision_does_not_add_or_replace_any_configuration()
     {
         var f=new FormSuggestionFixture();Assert.True((await f.Service.SaveAsync(f.Definition.Id,new(0,[]),TestContext.Current.CancellationToken)).IsSuccess);

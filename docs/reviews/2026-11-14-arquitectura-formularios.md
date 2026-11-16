@@ -558,7 +558,6 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   `FormDashboardService.cs:28`). La regla decide qué se muestra (`formularios.md:947`), no el costo.
 - **Arreglo:** guardar la unión histórica de campos por formulario, catálogo y campo en una tabla chica, escrita al capturar (nunca
   al leer) y rellenada con lo existente en la misma migración, y leerla por índice. Mediano.
-- **Arreglado el 2026-11-16** en `5fd3972d`.
 
 #### F16. Una regla puede nombrar una opción de catálogo que no existe, y nunca se cumple
 
@@ -919,7 +918,6 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
 - **Arreglo:** una consulta por catálogo que devuelva cuáles de las opciones elegidas no están activas, conservando el orden para
   que el rechazo nombre la misma pregunta y el mismo ítem. Chico. Lo que destraba el lock es
   [WhatsApp H32](2026-11-12-arquitectura-whatsapp.md).
-- **Arreglado el 2026-11-16** en `23573b08`.
 
 #### F38. La bandeja y el número del menú recorren todos los documentos en cada vista
 
