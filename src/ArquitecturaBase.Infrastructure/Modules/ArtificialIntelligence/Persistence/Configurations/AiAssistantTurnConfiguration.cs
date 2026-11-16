@@ -31,7 +31,11 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
             .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running') AND ((CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) IS NULL OR (CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) NOT IN ('1'::jsonb, '2'::jsonb))");
         builder.HasIndex(turn => new { turn.State, turn.SubmittedAtUtc, turn.Id });
         builder.HasIndex(turn => new { turn.State, turn.DeadlineAtUtc });
+        // Whether a conversation still has a turn whose content has not expired, purged or not (the retention of I3).
         builder.HasIndex(turn => turn.ContentExpiresAtUtc);
+        // I20: the turns that still have content, by expiry: the purge and the measurement read only these, never the purged history.
+        builder.HasIndex(turn => new { turn.ContentExpiresAtUtc, turn.Id }, "IX_AiAssistantTurns_Content_ContentExpiresAtUtc_Id")
+            .HasFilter("\"ProtectedQuestion\" IS NOT NULL");
         // The private audio of a dictated Home turn is kept while a turn that names it keeps its content.
         builder.HasIndex(turn => turn.AudioRequestId).HasFilter("\"AudioRequestId\" IS NOT NULL");
         // The private copy of a spreadsheet is kept while a turn that has it, own or inherited, keeps its content.

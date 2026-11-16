@@ -18,6 +18,9 @@ internal sealed class AiConversationConfiguration : IEntityTypeConfiguration<AiC
         builder.Property(conversation => conversation.Revision).IsConcurrencyToken();
         ConfigurePermissions(builder.Property(conversation => conversation.RequiredPermissions));
         builder.HasIndex(conversation => new { conversation.OwnerUserId, conversation.ChannelId, conversation.LastActivityAtUtc, conversation.Id });
+        // I20: the removed conversations, by removal: the purge takes their content and the retention deletes them in this order.
+        builder.HasIndex(conversation => new { conversation.RemovalRequestedAtUtc, conversation.Id }, "IX_AiConversations_Removed_RemovalRequestedAtUtc_Id")
+            .HasFilter("\"State\" = 'Removed'");
         builder.HasQueryFilter(conversation => conversation.State == AiConversationState.Active);
     }
 

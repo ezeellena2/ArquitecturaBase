@@ -19,6 +19,8 @@ internal sealed class AiAssistantRequestReceiptConfiguration : IEntityTypeConfig
         // Readings count apart from interpretations and audio: the day and the kind first, then the actor, the channel and the audio.
         builder.HasIndex(receipt => new { receipt.AcceptedDayUtc, receipt.IsDocument, receipt.OwnerUserId, receipt.ChannelId, receipt.IsAudio });
         builder.HasIndex(receipt => receipt.ExpiresAtUtc);
+        // I20: whether a conversation still has a live receipt, which keeps it from being deleted.
+        builder.HasIndex(receipt => new { receipt.ConversationId, receipt.ExpiresAtUtc });
         // No FK to content: deduplication and acceptance quotas survive conversation removal and payload purge.
     }
 }

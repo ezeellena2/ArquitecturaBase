@@ -93,21 +93,34 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     // to the whole query, the naming turns too, so they ask for an active conversation themselves: a purged turn of a removed one keeps its
     // AudioRequestId and AttachmentKey. It runs under the budget lock, so each naming lookup is an equality that a filtered index answers:
     // AudioRequestId, or AttachmentKey with one whole key per extension. Only technical turns past the cut get there.
+    // I20: one condition with every reason read the whole history. Each reason is its own query over the turns that still have content (a
+    // filtered index), with the batch's order and limit, and the batch is the first of their union in that order, which PostgreSQL sorts
+    // again: the same turns as the one condition.
     public async Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(unnamed);
         var naming = dbContext.Set<AiAssistantTurn>();
         var extensions = unnamed.DocumentKeyExtensions.ToArray();
-        return await dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Where(turn => turn.ProtectedQuestion != null
-            && (turn.ContentExpiresAtUtc <= nowUtc || turn.Conversation.State == AiConversationState.Removed
-                || dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == turn.OwnerUserId && user.IsDeleted)
-                || (turn.SubmittedAtUtc <= unnamed.SubmittedBeforeUtc
-                    && ((turn.ChannelId == unnamed.AudioChannelId && !naming.Any(named => named.OwnerUserId == turn.OwnerUserId
-                            && named.Conversation.State == AiConversationState.Active && named.AudioRequestId == turn.RequestId))
-                        || (turn.ChannelId == unnamed.DocumentChannelId && !extensions.Any(extension => naming.Any(named =>
-                            named.AttachmentKey == unnamed.DocumentKeyPrefix + turn.RequestId.ToString().Replace("-", "") + extension
-                            && named.OwnerUserId == turn.OwnerUserId && named.Conversation.State == AiConversationState.Active)))))))
+        var content = dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Where(turn => turn.ProtectedQuestion != null);
+        var unnamedBefore = content.Where(turn => turn.SubmittedAtUtc <= unnamed.SubmittedBeforeUtc);
+        IQueryable<AiAssistantTurn>[] reasons =
+        [
+            content.Where(turn => turn.ContentExpiresAtUtc <= nowUtc),
+            content.Where(turn => turn.Conversation.State == AiConversationState.Removed),
+            content.Where(turn => dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == turn.OwnerUserId && user.IsDeleted)),
+            unnamedBefore.Where(turn => turn.ChannelId == unnamed.AudioChannelId && !naming.Any(named => named.OwnerUserId == turn.OwnerUserId
+                && named.Conversation.State == AiConversationState.Active && named.AudioRequestId == turn.RequestId)),
+            unnamedBefore.Where(turn => turn.ChannelId == unnamed.DocumentChannelId && !extensions.Any(extension => naming.Any(named =>
+                named.AttachmentKey == unnamed.DocumentKeyPrefix + turn.RequestId.ToString().Replace("-", "") + extension
+                && named.OwnerUserId == turn.OwnerUserId && named.Conversation.State == AiConversationState.Active))),
+        ];
+        var ids = new HashSet<Guid>();
+        foreach (var reason in reasons)
+            ids.UnionWith(await reason.OrderBy(turn => turn.ContentExpiresAtUtc).ThenBy(turn => turn.Id).Take(limit).Select(turn => turn.Id)
+                .ToArrayAsync(cancellationToken));
+        if (ids.Count == 0) return [];
+        return await content.Where(turn => ids.Contains(turn.Id))
             .OrderBy(turn => turn.ContentExpiresAtUtc).ThenBy(turn => turn.Id).Take(limit).ToListAsync(cancellationToken);
     }
 
@@ -119,16 +132,28 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
         await dbContext.Set<AiConversation>().Where(conversation => conversation.State == AiConversationState.Active
                 && dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == conversation.OwnerUserId && user.IsDeleted))
             .OrderBy(conversation => conversation.Id).Take(limit).ToListAsync(cancellationToken);
-    public async Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
-        await Removable(nowUtc).OrderBy(conversation => conversation.RemovalRequestedAtUtc).ThenBy(conversation => conversation.Id)
-            .Take(limit).ToListAsync(cancellationToken);
-    // I3: Home goes like the other channels, even if nobody removed it; a removed Home conversation does not wait for its receipts.
+    // I20: the removed ones by their filtered index, in its order, and the active ones apart; the batch is the first of both in the same
+    // order, which PostgreSQL sorts again.
+    public async Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken)
+    {
+        var ids = new HashSet<Guid>();
+        foreach (var state in new[] { AiConversationState.Removed, AiConversationState.Active })
+            ids.UnionWith(await Removable(nowUtc).Where(conversation => conversation.State == state)
+                .OrderBy(conversation => conversation.RemovalRequestedAtUtc).ThenBy(conversation => conversation.Id).Take(limit)
+                .Select(conversation => conversation.Id).ToArrayAsync(cancellationToken));
+        if (ids.Count == 0) return [];
+        return await dbContext.Set<AiConversation>().IgnoreQueryFilters().Where(conversation => ids.Contains(conversation.Id))
+            .OrderBy(conversation => conversation.RemovalRequestedAtUtc).ThenBy(conversation => conversation.Id).Take(limit).ToListAsync(cancellationToken);
+    }
+    // I3: Home goes like the other channels, even if nobody removed it; a removed Home conversation does not wait for its receipts. I20: the
+    // live receipts by conversation have their index; content that has not expired and active work are asked apart.
     private IQueryable<AiConversation> Removable(DateTime nowUtc) =>
         dbContext.Set<AiConversation>().IgnoreQueryFilters().Where(conversation =>
             ((conversation.ChannelId == "home" && conversation.State == AiConversationState.Removed)
                 || !dbContext.Set<AiAssistantRequestReceipt>().Any(receipt => receipt.ConversationId == conversation.Id && receipt.ExpiresAtUtc > nowUtc))
+            && !dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Any(turn => turn.ConversationId == conversation.Id && turn.ContentExpiresAtUtc > nowUtc)
             && !dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Any(turn => turn.ConversationId == conversation.Id
-                && (turn.ContentExpiresAtUtc > nowUtc || turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running)));
+                && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running)));
     public async Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turnId, CancellationToken cancellationToken) =>
         await dbContext.Set<AiAssistantToolExecution>().Where(tool => tool.TurnId == turnId)
             .OrderBy(tool => tool.Ordinal).ToListAsync(cancellationToken);

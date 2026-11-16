@@ -846,6 +846,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExpiresAtUtc");
 
+                    b.HasIndex("ConversationId", "ExpiresAtUtc");
+
                     b.HasIndex("OwnerUserId", "RequestId")
                         .IsUnique();
 
@@ -1120,6 +1122,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("OwnerUserId", "ChannelId", "ChannelConversationId"), false);
 
                     b.HasIndex("State", "SubmittedAtUtc", "Id");
+
+                    b.HasIndex(new[] { "ContentExpiresAtUtc", "Id" }, "IX_AiAssistantTurns_Content_ContentExpiresAtUtc_Id")
+                        .HasFilter("\"ProtectedQuestion\" IS NOT NULL");
 
                     b.ToTable("AiAssistantTurns", null, t =>
                         {
@@ -1396,6 +1401,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OwnerUserId", "ChannelId", "LastActivityAtUtc", "Id");
+
+                    b.HasIndex(new[] { "RemovalRequestedAtUtc", "Id" }, "IX_AiConversations_Removed_RemovalRequestedAtUtc_Id")
+                        .HasFilter("\"State\" = 'Removed'");
 
                     b.ToTable("AiConversations", (string)null);
                 });

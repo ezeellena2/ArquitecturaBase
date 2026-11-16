@@ -32,12 +32,27 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             await turns.CountAsync(turn => turn.State == AiAssistantTurnState.Running, cancellationToken),
             await turns.CountAsync(turn => turn.State == AiAssistantTurnState.Running && turn.DeadlineAtUtc <= cutoffUtc, cancellationToken),
             await turns.Where(turn => turn.State == AiAssistantTurnState.Pending).Select(turn => (DateTime?)turn.SubmittedAtUtc).MinAsync(cancellationToken),
-            await turns.Where(turn => turn.ProtectedQuestion != null && (turn.ContentExpiresAtUtc <= nowUtc || turn.Conversation.State == AiConversationState.Removed
-                    || dbContext.Users.IgnoreQueryFilters().Any(user => user.Id == turn.OwnerUserId && user.IsDeleted)))
-                .Select(turn => (DateTime?)(turn.Conversation.RemovalRequestedAtUtc
-                    ?? dbContext.Users.IgnoreQueryFilters().Where(user => user.Id == turn.OwnerUserId && user.IsDeleted)
-                        .Select(user => user.DeletedAtUtc).FirstOrDefault() ?? turn.ContentExpiresAtUtc)).MinAsync(cancellationToken),
+            await FindOldestPurgeableAsync(turns.Where(turn => turn.ProtectedQuestion != null), nowUtc, cancellationToken),
             await dbContext.Set<AiAssistantRequestReceipt>().AsNoTracking().CountAsync(receipt => receipt.AcceptedDayUtc == acceptedDayUtc, cancellationToken));
+    }
+
+    // I20: the oldest content the purge still owes, by the same rule as one condition did (a removed conversation counts from its removal,
+    // which only removing sets, a deleted account from its deletion and the rest from its expiry), in three queries over the turns that still
+    // have content, which a filtered index answers.
+    private async Task<DateTime?> FindOldestPurgeableAsync(IQueryable<AiAssistantTurn> content, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        var deletedOwners = dbContext.Users.IgnoreQueryFilters().Where(user => user.IsDeleted);
+        var active = content.Where(turn => turn.Conversation.State == AiConversationState.Active);
+        DateTime?[] oldest =
+        [
+            await content.Where(turn => turn.Conversation.State == AiConversationState.Removed)
+                .Select(turn => turn.Conversation.RemovalRequestedAtUtc).MinAsync(cancellationToken),
+            await active.Join(deletedOwners, turn => turn.OwnerUserId, user => user.Id, (turn, user) => (DateTime?)(user.DeletedAtUtc ?? turn.ContentExpiresAtUtc))
+                .MinAsync(cancellationToken),
+            await active.Where(turn => turn.ContentExpiresAtUtc <= nowUtc && !deletedOwners.Any(user => user.Id == turn.OwnerUserId))
+                .Select(turn => (DateTime?)turn.ContentExpiresAtUtc).MinAsync(cancellationToken),
+        ];
+        return oldest.Min();
     }
 
     public Task<int> CountPendingAsync(CancellationToken cancellationToken) =>

@@ -213,7 +213,7 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
     }
 
     // I2, review: the purge runs under the budget lock, so it finds a turn that names a reading by its whole key, an equality the filtered
-    // AttachmentKey index answers, never by a prefix of the column.
+    // AttachmentKey index answers, never by a prefix of the column. I20: each reason is its own query, and none uses a prefix.
     [Fact]
     public async Task The_purge_finds_the_turns_that_name_a_reading_by_whole_keys()
     {
@@ -225,7 +225,7 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
         await new AiAssistantRepository(db, factory.Clock).ListPurgeableAsync(now,
             new(now.AddHours(-24), "home-audio", "home-document", "ai/assistant/documents/", [".pdf", ".jpg", ".png"]), 1, Ct);
 
-        var sql = Assert.Single(recorder.Commands);
+        var sql = string.Join(Environment.NewLine, recorder.Commands);
         Assert.Contains("\"AttachmentKey\" = ", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("left(", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(" LIKE ", sql, StringComparison.OrdinalIgnoreCase);

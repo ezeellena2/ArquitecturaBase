@@ -25,6 +25,7 @@ cifrado corrupto (esa fila `unavailable` en listado, detalle, página y turno, l
 el borrado, I8), bloqueo y vencimiento sin cambiar el reloj compartido del factory hacia atrás.
 AssistantReadCommandRecorder verifica las dos consultas de una página, sin respuestas/tools/N+1
 ni ordenamiento global con ROW_NUMBER. Es instrumentación de regresión, no un ensayo de capacidad.
+AiAssistantRetentionPlanTests (I20) siembra miles de turnos purgados y pide el `EXPLAIN` de lo que corren la purga, la medición y las conversaciones a borrar (`Statements` del recorder, con sus parámetros): ningún plan lee en secuencia los turnos ni los recibos, y se usan los índices nuevos. Lo que eligen lo prueban los tests de retención y de borrado.
 
 Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia artificial](../../../../docs/features/inteligencia-artificial.md); operación y seguridad, [configurar IA](../../../../docs/guides/configurar-ia.md); independencia, [quitar IA](../../../../docs/guides/quitar-ia.md). No importar otros módulos. Actualizar mapa y fuentes con un cambio de responsabilidad.
 
