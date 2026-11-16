@@ -1,6 +1,6 @@
 # Inteligencia artificial: módulo opcional
 
-Servicios independientes de conexión y de información del negocio; lectura, cambio, catálogo de modelos y prueba de conexión; helpers CandidatePolicy/ChangeRecorder. PUT usa un único OnSuccess con lock, deduplicación y comprobante atómico. Catálogo/prueba no guardan; comparten política de clave candidata/guardada y revisión, sin enviar la guardada a otro proveedor. Validar antes del límite; logs sin payload. Puertos propios, sin referencias al núcleo hacia este módulo ni a WhatsApp.
+Servicios independientes de conexión y de información del negocio; lectura, cambio, catálogo de modelos y prueba de conexión; helpers CandidatePolicy/ChangeRecorder. PUT usa un único OnSuccess con lock, deduplicación y comprobante atómico. Catálogo/prueba no guardan; comparten política de clave candidata/guardada y revisión, sin enviar la guardada a otro proveedor. Validar antes del límite; logs sin payload. Puertos propios; el núcleo no lo nombra.
 
 Las reglas de casos de uso y del aviso neutral postcommit están en [Services](Services/AGENTS.md).
 
@@ -13,12 +13,11 @@ cultura de la petición. Sugerencias sólo para selección, sin guardar ni cache
 
 Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia artificial](../../../../docs/features/inteligencia-artificial.md); operación y seguridad, [configurar IA](../../../../docs/guides/configurar-ia.md); independencia, [quitar IA](../../../../docs/guides/quitar-ia.md). No importar otros módulos. Actualizar mapa y fuentes con un cambio de responsabilidad.
 
-El Inicio consume IAiAssistantService; Dispatch y Retention tienen una UoW por método público
-de escritura. Execution no guarda ni llama escritores: el coordinador técnico abre scopes nuevos
+El Inicio consume IAiAssistantService. Execution no guarda ni llama escritores: el coordinador técnico abre scopes nuevos
 entre unidades; IAssistantCapabilityExecutor también aísla cada fuente. ReadPolicy autoriza antes de
 descifrar, SubmissionPolicy acepta/deduplica bajo locks, ContextPolicy arma historia vigente y
 catálogo autorizado y DispatchGuard revalida cuenta, permisos y conexión antes de HTTP
-y publicación. Los helpers no confirman. Máximo ocho dependencias por constructor.
+y publicación. Máximo ocho dependencias por constructor.
 
 El catálogo se reserva en RequiredPermissions antes del paso externo: bloquea historia ante
 revocación aunque un worker muera entre leer una fuente y
@@ -39,6 +38,8 @@ Títulos de historial: ReadPolicy autoriza con permisos actuales; ResponsePolicy
 
 El motor único consume IAssistantCapabilitySource y un catálogo de pares ID/versión exactos; sin wrappers legacy. Inicio conserva sus cinco consultas y suma sólo las capacidades que su dueño marca `OfferedInHome`, sin nombrarlas; cierra con assistant_answer@2, que puede nombrar una propuesta observada del turno, e instrucciones home-system@2, genéricas. Los turnos con home-system@1 y assistant_answer@1 se siguen leyendo. Cada turno acepta ChannelId neutral, Actor/Subject explícitos, cultura/zona, perfil e instrucciones versionados y requisitos por identidad. No prestar permisos entre identidades ni exigir AssistantUse a otro canal. ContextPolicy y DispatchGuard revalidan el sello antes de descifrar, reservar cada paso y publicar. La reserva conserva sólo permisos de capacidades ofrecidas.
 
+I4: un valor nuevo del sello (propósito, archivo, modo, instrucciones, capacidad o terminal) o del proveedor se escribe un despliegue después del que ya lo lee.
+
 Proposal sólo selecciona una propuesta observada del mismo turno. Sus datos pasan por el codec exacto del dueño; las lecturas autorizantes se confirmaron en un paso anterior (no en el mismo batch). El resultado protegido referencia ordinales de tools existentes; no duplica snapshots. El HTTP de Inicio muestra la propuesta del turno (Id, capacidad, versión y contenido del dueño), nunca sus lecturas, y la historia lleva el contenido de la última propuesta para ajustarla. Una respuesta `rejected` de una capacidad de propuesta vuelve al modelo con sus motivos y sin Id: nunca se elige. Con el dueño quitado, la explicación de Inicio se lee sin la tarjeta. Answer y Proposal usan el mismo coordinador y cierre con fence; el decoder identifica el terminal persistido. Las fuentes no tienen escritores, transporte ni ServiceProvider.
 
 AiAssistantOperations (Channels) adapta el puerto real de los canales; no es un helper de Services. AiAssistantCapabilityCatalogPolicy decide el catálogo autorizado y mantiene el sufijo Policy. El adaptador ofrece: disponibilidad local sin permisoHome ni LLM (clave ilegible: `notConfigured`, I7), Submit y Cancel con una UoW por método, y Get sin escrituras. Cancel conserva el alcance capturado aun sin permisos. La unicidad activa es por conversación y, para interpretación fuera de Inicio, por persona, canal y ChannelConversationId opaco (null conserva el grupo sin ámbito); NormalizeAudio no reserva ese par ni bloquea una interpretación; ActiveTurn/CapacityLimited son transitorios para los consumidores. Home y operaciones comparten AcceptCore de SubmissionPolicy, locks/cuotas/recibos/cifrado/worker; no duplicar motores ni aceptación. Huella neutral incluye contexto/origen/expiry y conserva algoritmo Home. Get autoriza contexto durable, no exige conexión/perfil actuales para recuperar resultado conocido; no devuelve contenido vencido. El sello conserva OccurredAtUtc del dueño para fechas relativas y procedencia real.
@@ -49,7 +50,7 @@ NormalizeAudio es un propósito técnico del mismo turno, aceptación, cuotas, c
 
 ReadDocument (`document-read-v1@1`) es el otro propósito técnico: se acepta, ejecuta y cierra como NormalizeAudio, sin capacidades, terminales, historia ni reserva de la interpretación. Su perfil lo resuelve `AiAssistantTechnicalProfilePolicy`, en quien el guard delega también el del audio; `AiAssistantDocumentPolicy` normaliza el idioma y valida la lectura entera bajo los techos de `AiAssistantLimits`, y Get la devuelve mientras viva. Sus cupos van aparte: por persona en todos los canales y por instalación, fuera del global.
 
-Submission conserva replay por UUID antes de contar cuotas. El cupo del actor se separa por canal y propósito capturados; instalación y capacidad permanecen globales. Claim sólo necesita capacidad y no infiere un propósito para calcularla.
+El cupo del actor se separa por canal y propósito capturados; instalación y capacidad permanecen globales. Claim sólo necesita capacidad y no infiere un propósito para calcularla.
 
 El perfil de texto exige Id explícito; no se infiere home. Al capturar el contexto, el catálogo valida hasta dieciséis herramientas, terminales incluidos, después de filtrar permisos y antes de aceptar trabajo.
 
