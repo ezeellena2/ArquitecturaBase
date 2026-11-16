@@ -1,4 +1,4 @@
-using System.Globalization;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -66,7 +66,7 @@ internal sealed class RolesSystemQuerySource(IRoleReader roles, IUserReader user
     {
         List<SystemQueryValue> values =
         [new(SystemHelpTexts.Get("RoleName", culture), role.Name), new(SystemHelpTexts.Get("RoleDescription", culture), role.Description ?? ""),
-            new(SystemHelpTexts.Get("AssignedAccounts", culture), role.UserCount.ToString(CultureInfo.InvariantCulture))];
+            new(SystemHelpTexts.Get("AssignedAccounts", culture), DisplayNumbers.Number(role.UserCount, culture))];
         if (includePermissions)
             values.AddRange(role.Permissions.Where(catalog.Contains).Order(StringComparer.Ordinal)
                 .Select(code => new SystemQueryValue(code, catalog.Name(code))));

@@ -42,6 +42,33 @@ public sealed class SystemQuerySourcesTests
         Assert.Equal(1, result.Value.ItemCount);
     }
 
+    // N21: the counts go with the region of the language of whoever reads them, as the screens write them; the model reads them too.
+    [Theory]
+    [InlineData("es", "1.233")]
+    [InlineData("en", "1,233")]
+    public async Task User_counts_are_written_with_the_region_of_the_reader(string culture, string expected)
+    {
+        var users = new InMemoryUserAccounts();
+        var actor = users.AddUser("fictional@example.test");
+        for (var index = 0; index < 1233; index++) users.AddUser($"inactive{index}@example.test", isActive: false);
+        var source = new UsersSystemQuerySource(users, new PermissionDouble { Allowed = true }, new FakeTimeProvider());
+        var result = await source.ExecuteAsync(Request(actor.Id, "users.summary", culture: culture), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(["1", expected], Assert.Single(Assert.Single(result.Value.Evidences).Rows).Values.Select(value => value.Value));
+    }
+
+    [Theory]
+    [InlineData("es", "1.234")]
+    [InlineData("en", "1,234")]
+    public async Task Role_user_counts_are_written_with_the_region_of_the_reader(string culture, string expected)
+    {
+        var fixture = Create("roles.list");
+        fixture.Roles.Roles = [Assert.Single(fixture.Roles.Roles) with { UserCount = 1234 }];
+        var result = await fixture.Source.ExecuteAsync(Request(fixture.ActorId, "roles.list", culture: culture), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, Assert.Single(Assert.Single(result.Value.Evidences).Rows).Values[2].Value);
+    }
+
     [Fact]
     public async Task Revoked_permission_prevents_querying_a_source()
     {
@@ -200,8 +227,8 @@ public sealed class SystemQuerySourcesTests
         Assert.True(fixture.Source.ParseOutput(new("users.summary", 1), json).IsFailure);
     }
 
-    private static AssistantCapabilityRequest Request(Guid actorId, string id, string arguments = "{}") =>
-        new(Guid.CreateVersion7(), new("home", actorId, null, "en", "UTC", new([], []), [new(id, 1)], []), new(id, 1), arguments, []);
+    private static AssistantCapabilityRequest Request(Guid actorId, string id, string arguments = "{}", string culture = "en") =>
+        new(Guid.CreateVersion7(), new("home", actorId, null, culture, "UTC", new([], []), [new(id, 1)], []), new(id, 1), arguments, []);
 
     private static (IAssistantCapabilitySource Source, Guid ActorId, PermissionDouble Permissions, RoleReader Roles) Create(string id)
     {
@@ -235,7 +262,7 @@ public sealed class SystemQuerySourcesTests
 
     private sealed class RoleReader : IRoleReader
     {
-        public IReadOnlyList<RoleRow> Roles { get; } = [new(Guid.CreateVersion7(), "Readers", "Read only", false, 2, [Permissions.Users.Read, "removed.permission"])];
+        public IReadOnlyList<RoleRow> Roles { get; set; } = [new(Guid.CreateVersion7(), "Readers", "Read only", false, 2, [Permissions.Users.Read, "removed.permission"])];
         public int Calls { get; private set; }
         public int TotalCount { get; set; } = 1;
         public Guid? FoundId { get; private set; }

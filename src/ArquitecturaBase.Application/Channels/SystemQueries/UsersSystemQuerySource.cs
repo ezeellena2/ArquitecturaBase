@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -28,8 +29,8 @@ internal sealed class UsersSystemQuerySource(IUserReader users, IPermissionServi
         var summary = await users.FindSummaryAsync(cancellationToken);
         return SystemQueryCapabilityCodec.Response("complete", new SystemQueryEvidence(Guid.CreateVersion7(), "users.summary", 1,
             timeProvider.GetUtcNow().UtcDateTime, null, "users", [Permissions.Users.Read],
-            [new(null, [new(SystemHelpTexts.Get("ActiveAccounts", request.Context.Culture), summary.ActiveCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                new(SystemHelpTexts.Get("InactiveAccounts", request.Context.Culture), summary.InactiveCount.ToString(System.Globalization.CultureInfo.InvariantCulture))])]));
+            [new(null, [new(SystemHelpTexts.Get("ActiveAccounts", request.Context.Culture), DisplayNumbers.Number(summary.ActiveCount, request.Context.Culture)),
+                new(SystemHelpTexts.Get("InactiveAccounts", request.Context.Culture), DisplayNumbers.Number(summary.InactiveCount, request.Context.Culture))])]));
     }
 
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
