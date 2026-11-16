@@ -220,6 +220,7 @@ No lo toques: son valores guardados, contratos con el front o piezas del núcleo
 - **`Program.cs` a medias no compila.** Con las carpetas ya borradas, un `using` del módulo que quedó da `CS0234`, y una llamada del bloque que quedó, `CS1061`. Si editás `Program.cs` antes de borrar las carpetas, un `using` que sobra da `IDE0005`, que con `TreatWarningsAsErrors` también rompe el build.
 - **La migración se genera sobre el código ya borrado:** si la generás antes del paso 1, sale vacía y el snapshot sigue con las tablas.
 - **La máquina compartida** (ver [Antes de empezar](#antes-de-empezar)): con los `UserSecretsId`, el volumen o el puerto de la plantilla, lo que hacés en tu proyecto le pasa también a ella.
+- **Volver a agregar el módulo.** Los permisos `whatsapp.*` quedan sin efecto, porque el catálogo ya no los tiene, pero siguen guardados en los roles: si después volvés a agregar el módulo, revisá los roles, porque en los que nadie guardó mientras tanto esos permisos vuelven a valer solos.
 
 ## Lo verifica
 

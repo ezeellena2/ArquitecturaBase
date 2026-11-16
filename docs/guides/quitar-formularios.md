@@ -107,7 +107,8 @@ encuentra formularios para mandar y el asistente pierde las capacidades de formu
 
    Aplicala con el bundle antes de la imagen nueva ([despliegue](despliegue.md#el-orden-bundle-después-imagen)), con
    las rutas de formularios de la versión vieja detenidas. Los permisos `form*` quedan sin efecto, porque el catálogo ya
-   no los tiene. Los archivos de las respuestas quedan en el almacenamiento privado con su metadata del núcleo
+   no los tiene, pero siguen guardados en los roles: si después volvés a agregar el módulo, revisá los roles, porque en
+   los que nadie guardó mientras tanto esos permisos vuelven a valer solos. Los archivos de las respuestas quedan en el almacenamiento privado con su metadata del núcleo
    (`StoredFiles`): la migración no los borra.
 
 ## Front

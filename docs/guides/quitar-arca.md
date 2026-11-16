@@ -80,7 +80,8 @@ revoque allá. Sus catálogos de formularios (carpeta «ARCA») quedan como `Ext
 
    Aplicala con el bundle antes de la imagen nueva ([despliegue](despliegue.md#el-orden-bundle-después-imagen)), con
    las rutas de ARCA de la versión vieja detenidas. Los permisos `arca.*` quedan sin efecto, porque el catálogo ya no los
-   tiene.
+   tiene, pero siguen guardados en los roles: si después volvés a agregar el módulo, revisá los roles, porque en los que
+   nadie guardó mientras tanto esos permisos vuelven a valer solos.
 
 ### Front
 

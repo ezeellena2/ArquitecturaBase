@@ -102,7 +102,9 @@ El drop es destructivo: respaldar precede a publicar. Las copias privadas de Ini
 `ai/assistant/attachments/…`, los audios en `ai/assistant/audio/…` y las fotos y los PDF en
 `ai/assistant/documents/…`) se quedan sin sus tres fuentes de retención, y la limpieza de archivos privados del
 núcleo, que corre cada hora, borra las que tienen más de un día. Claims IA antiguos quedan inefectivos
-porque el catálogo ya no contiene esos permisos; no hay que hardcodearlos en el núcleo.
+porque el catálogo ya no contiene esos permisos; no hay que hardcodearlos en el núcleo. Siguen guardados en los roles:
+si después volvés a agregar el módulo, revisá los roles, porque en los que nadie guardó mientras tanto los permisos
+`ai.*` vuelven a valer solos.
 
 ## Front
 
