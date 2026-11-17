@@ -143,8 +143,9 @@ La única etapa que iba antes de todo, porque cambia datos sin avisar. Tarea 1 d
 
 ## 9. Lo que falta y los menores sin programar
 
-- **F2, la marca de la planilla.** «Con acciones por resolver», con su filtro y un contador para quien administra reglas. Cambia una pantalla, así que
-  primero se dibuja en el tablero y la elige el usuario. Hoy no existe.
+- **F2, la marca de la planilla.** Hecha el 2026-11-17 (`06ac5482`; front `0b3a75c6`): la columna «Reglas» marca «Por resolver» para todo el que ve
+  la planilla, y quien administra reglas y ve todas las respuestas tiene la pestaña «Por resolver (N)», que es el filtro y el contador. Cuenta una
+  acción fallida, o en duda esperando a una persona, aunque ya se haya avisado a quien cargó; sin reintento, sigue hasta anular o corregir la respuesta.
 - **Repetir la prueba de quitar Formularios** en una copia (migración `RemoveBusinessForms`, su `Down`); está corriendo. La última fue el 2026-11-04.
 - **El cierre:** la corrida completa con Docker, `MigrationsTests`, la exportación de cohortes y la prueba integral.
 - **Menores anotados** ([plan][plan], «Qué falta»): la tabla de F15 no se completa con un campo sellado sólo por una captura vieja; la migración de F15

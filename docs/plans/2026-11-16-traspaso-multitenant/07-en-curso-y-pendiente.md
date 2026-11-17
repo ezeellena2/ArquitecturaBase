@@ -6,7 +6,7 @@ hacerle al usuario.
 ## 1. Lo que falta para cerrar
 
 - **Formularios, dos tareas:**
-  - la marca «Con acciones por resolver» de la planilla (F2), que primero se dibuja en el tablero y elige el usuario;
+  - ~~la marca «Con acciones por resolver» de la planilla (F2)~~, hecha el 2026-11-17 (`06ac5482`; front `0b3a75c6`);
   - repetir la prueba de quitar Formularios en una copia, que estaba corriendo.
 - **El cierre.** Lo hace otra cuenta de Claude, porque la de ArquitecturaBase se quedó sin cupo semanal:
   - revisar contra el código lo commiteado, sobre todo que ningún commit haya deshecho lo de otro;
@@ -87,4 +87,4 @@ conviene hacerlas: primero las de plataforma, que cambian todo lo demás.
 
 Todo lo de este traspaso está programado, pero sin la prueba integral. El multitenant puede ajustar sus specs, sus reglas y sus
 tableros, pero conviene que espere al próximo traspaso para armar etapas de lo que la prueba todavía puede cambiar: la marca de
-F2, las fallas que aparezcan en la corrida completa y lo que encuentre el usuario al probar.
+F2 (hecha el 2026-11-17, sin probar a mano), las fallas que aparezcan en la corrida completa y lo que encuentre el usuario al probar.

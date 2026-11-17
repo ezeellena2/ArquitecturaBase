@@ -52,8 +52,10 @@ Lo demás del plan está hecho. La segunda revisión adversarial (2026-11-16) cu
 etapa 6, el aviso de F2 y F8; sus serios (el aviso de F2 con la ventana cerrada y la cita de respuestas de F5) están corregidos en su
 tarea, y al verificarla aparecieron dos regresiones, también corregidas (F6-1 y el test de F15). Queda, en orden:
 
-1. **La marca de la planilla de F2** («Con acciones por resolver», con su filtro y el contador para quien administra reglas): cambia
-   una pantalla, así que antes se dibuja en el tablero y la elige el usuario.
+1. ~~La marca de la planilla de F2~~ Hecha el 2026-11-17 en `06ac5482` y en `0b3a75c6` del front, con el diseño B del lienzo
+   «Acciones por resolver», que eligió el usuario: la columna «Reglas» marca «Por resolver» para todo el que ve la planilla, y quien
+   administra reglas y ve todas las respuestas tiene la pestaña «Por resolver (N)», que es el filtro y el contador. Una acción sin
+   reintento sigue por resolver hasta anular o corregir la respuesta.
 2. ~~Repetir la prueba de quitar Formularios~~ Hecha el 2026-11-16 sobre `72510c01` (F25): compila sin advertencias, `RemoveBusinessForms`
    sube y baja contra una base migrada y pasan Domain, arquitectura, Application e integración salvo seis tests que dan por
    instalado el módulo; la guía quedó corregida. Falta sólo la parte del front de la guía, que no se repitió.
@@ -125,7 +127,7 @@ tarea, y al verificarla aparecieron dos regresiones, también corregidas (F6-1 y
    puede salir porque la ventana de 24 horas está cerrada queda «No aplica» para esa persona, con su motivo, y no frena lo que
    sigue. Cambian las reglas del motor de acciones en [formularios](../features/formularios.md). Tests con `FakeTimeProvider`: un
    PDF en duda se confirma solo sin volver a generarse, y un aviso con la ventana cerrada deja seguir la regla. Mediano.
-   Hecha en parte el 2026-11-15 en `4dc53b94` y el 2026-11-16 (aviso a quien cargó, que es ARCA H11; migración `FormActionRunStallNotice`): consulta sola con espera creciente, aviso «No aplica» por la ventana de 24 horas y aviso a quien cargó, una vez por acción frenada, por el canal durable de los avisos. Falta la marca «Con acciones por resolver» de la planilla (con su filtro y el contador para quien administra reglas, que cambian el contrato y el front y esperan el tablero). El front del estado «No aplica» quedó hecho el 2026-11-16 en `511b6800` del front (`recipientStates`, su texto en es y en, tono neutro y su motivo).
+   Hecha en parte el 2026-11-15 en `4dc53b94` y el 2026-11-16 (aviso a quien cargó, que es ARCA H11; migración `FormActionRunStallNotice`): consulta sola con espera creciente, aviso «No aplica» por la ventana de 24 horas y aviso a quien cargó, una vez por acción frenada, por el canal durable de los avisos. La marca «Con acciones por resolver» quedó hecha el 2026-11-17 en `06ac5482` y en `0b3a75c6` del front (diseño B: la pestaña «Por resolver (N)» y la columna «Reglas»). El front del estado «No aplica» quedó hecho el 2026-11-16 en `511b6800` del front (`recipientStates`, su texto en es y en, tono neutro y su motivo).
 8. **F28. El worker reserva sólo los tipos de acción que conoce.** Filtro de tipos en la búsqueda de trabajo y un `switch` de
    efectos sin rama por defecto, con un test que recorre los tipos que acepta el editor de reglas y otro donde un tipo desconocido
    sigue esperando. Chico.

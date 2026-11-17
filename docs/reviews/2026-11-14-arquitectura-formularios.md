@@ -304,6 +304,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   frena lo que sigue ([decisión 2](#decisiones-del-2026-11-14)).
 - **Arreglado el 2026-11-15** en `4dc53b94` (en parte: consulta sola y ventana de 24 horas; faltan la marca de la planilla y el aviso a quien cargó).
 - **Arreglado el 2026-11-16** el aviso a quien cargó, una vez por acción frenada y por el canal durable de los avisos (también ARCA H11); falta la marca «Con acciones por resolver» de la planilla, con su filtro y el contador, que esperan el tablero.
+- **Arreglado el 2026-11-17** la marca «Con acciones por resolver»: la columna «Reglas» de la planilla y la pestaña «Por resolver (N)», que es su filtro y el contador para quien administra reglas (`06ac5482`; front `0b3a75c6`).
 - Corregido tras la revisión adversarial del 2026-11-16 en `f4041e4e`: el aviso a quien cargó mira el estado que devuelve el canal; sólo se marca la acción si el aviso quedó encolado o si la ventana de 24 horas está cerrada (queda «No aplica» para esa persona, con su id en el log); otra negativa del canal la deja sin marca y vuelve en la ronda siguiente.
 
 #### F3. Una publicación que queda «sin confirmar» traba el formulario y nadie la puede destrabar
