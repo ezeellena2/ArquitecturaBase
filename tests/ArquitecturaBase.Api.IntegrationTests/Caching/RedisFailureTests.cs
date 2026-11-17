@@ -9,6 +9,8 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.ValueObjects;
+using ArquitecturaBase.Infrastructure.Caching;
+using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.TestHost;
@@ -16,6 +18,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Testcontainers.Redis;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Caching;
@@ -145,6 +149,44 @@ public sealed class RedisFailureTests(ApiFactory factory)
         Assert.True(quiet.Count >= 11, $"Only {quiet.Count} reads went to Debug.");
         Assert.All(quiet, log => Assert.Null(log.Exception));
         Assert.Equal(fallbacks.Count, quiet.Count + fallbacks.Count(log => log.Level == LogLevel.Warning));
+    }
+
+    /// <summary>
+    /// Con Redis colgado, al soltar el socket muerto el cliente puede fallar el comando que esperaba con la excepción de su
+    /// pipe (InvalidOperationException) en vez de una RedisConnectionException: es una carrera que dio un 500
+    /// en el test de arriba. También es Redis que no responde: cada operación pública lo dice así, y los ajustes salen de la
+    /// base.
+    /// </summary>
+    [Fact]
+    public async Task A_command_the_client_fails_while_dropping_a_hung_socket_counts_as_redis_not_answering()
+    {
+        var cache = new RedisCache(
+            DroppedSocketRedis.Create(),
+            factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(new RedisCacheOptions { KeyPrefix = RedisCacheTests.NewPrefix() }),
+            NullLogger<RedisCache>.Instance);
+        var key = new RedisCacheKey("dropped-socket");
+        Func<Task>[] operations =
+        [
+            () => cache.GetOrCreateInOwnScopeAsync<ApplicationDbContext, int, int>(
+                key, 0, static (_, _, _) => Task.FromResult(1), TimeSpan.FromMinutes(1), Ct),
+            () => cache.RemoveAsync(key, Ct),
+            () => cache.TryAcquireExclusiveLeaseAsync(key, "owner", TimeSpan.FromSeconds(1), Ct),
+            () => cache.RenewExclusiveLeaseAsync(key, "owner", TimeSpan.FromSeconds(1), Ct),
+            () => cache.ReleaseExclusiveLeaseAsync(key, "owner", TimeSpan.Zero, Ct),
+        ];
+
+        foreach (var operation in operations)
+        {
+            Assert.True(RedisCache.IsUnavailable(await Assert.ThrowsAnyAsync<Exception>(operation)));
+        }
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var reader = new SystemSettingsReader(cache, db, NullLogger<SystemSettingsReader>.Instance);
+        var stored = await db.SystemSettings.AsNoTracking().SingleAsync(Ct);
+        Assert.Equal(stored.RegistrationMode, await reader.FindRegistrationModeAsync(Ct));
+        Assert.Equal(stored.DefaultCulture, (await reader.FindPresentationAsync(Ct)).DefaultCulture);
     }
 
     /// <summary>

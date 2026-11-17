@@ -26,7 +26,9 @@ internal sealed partial class RedisCache(
     /// <see cref="TimeoutException"/>), a server error, or the fill wait running out. Only callers that can go on without
     /// the cache catch it (N9): the settings read the database and the seed keeps starting. A cancellation the caller's
     /// token did not cause (the client cancels the pending commands when it drops a hung socket) is Redis not answering
-    /// too: every public operation turns it into a <see cref="TimeoutException"/>.
+    /// too: every public operation turns it into a <see cref="TimeoutException"/>. A command the client fails with its
+    /// pipe's exception when it drops that socket is too: <c>CommandAsync</c> turns it into a
+    /// <see cref="RedisConnectionException"/>.
     /// </summary>
     internal static bool IsUnavailable(Exception exception) => exception is RedisException or TimeoutException;
 
@@ -37,8 +39,8 @@ internal sealed partial class RedisCache(
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(duration, TimeSpan.Zero);
         try
         {
-            return await connection.GetDatabase().StringSetAsync(key.LeaseKey(options.Value.KeyPrefix), owner, duration, When.NotExists)
-                .WaitAsync(cancellationToken);
+            return await CommandAsync(connection.GetDatabase().StringSetAsync(
+                key.LeaseKey(options.Value.KeyPrefix), owner, duration, When.NotExists), cancellationToken);
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -51,8 +53,8 @@ internal sealed partial class RedisCache(
         key.Validate();
         try
         {
-            return (long)await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.RenewExclusiveLease,
-                [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)duration.TotalMilliseconds]).WaitAsync(cancellationToken) == 1;
+            return (long)await CommandAsync(connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.RenewExclusiveLease,
+                [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)duration.TotalMilliseconds]), cancellationToken) == 1;
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -65,8 +67,8 @@ internal sealed partial class RedisCache(
         key.Validate();
         try
         {
-            await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.ReleaseExclusiveLease,
-                [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)cooldown.TotalMilliseconds]).WaitAsync(cancellationToken);
+            await CommandAsync(connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.ReleaseExclusiveLease,
+                [key.LeaseKey(options.Value.KeyPrefix)], [owner, (long)cooldown.TotalMilliseconds]), cancellationToken);
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -126,7 +128,7 @@ internal sealed partial class RedisCache(
         {
             while (true)
             {
-                var cached = await database.StringGetAsync(dataKey).WaitAsync(token);
+                var cached = await CommandAsync(database.StringGetAsync(dataKey), token);
                 if (cached.HasValue)
                 {
                     Hits.Add(1);
@@ -144,14 +146,14 @@ internal sealed partial class RedisCache(
                 }
 
                 var owner = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
-                if (await database.StringSetAsync(
-                    leaseKey, owner, TimeSpan.FromSeconds(settings.LeaseSeconds), When.NotExists).WaitAsync(token))
+                if (await CommandAsync(database.StringSetAsync(
+                    leaseKey, owner, TimeSpan.FromSeconds(settings.LeaseSeconds), When.NotExists), token))
                 {
                     try
                     {
                         WaitDuration.Record(Stopwatch.GetElapsedTime(started).TotalSeconds);
                         // Another owner may have published between our miss and acquiring the lease.
-                        cached = await database.StringGetAsync(dataKey).WaitAsync(token);
+                        cached = await CommandAsync(database.StringGetAsync(dataKey), token);
                         if (cached.HasValue)
                         {
                             Hits.Add(1);
@@ -181,9 +183,8 @@ internal sealed partial class RedisCache(
                         // Large results are returned without storing them; the lease is still released.
                         if (payload.Length <= settings.MaximumPayloadBytes)
                         {
-                            await database.ScriptEvaluateAsync(RedisCacheScripts.Publish,
-                                [dataKey, leaseKey], [owner, payload, (long)Math.Ceiling(expiration.TotalMilliseconds)])
-                                .WaitAsync(token);
+                            await CommandAsync(database.ScriptEvaluateAsync(RedisCacheScripts.Publish,
+                                [dataKey, leaseKey], [owner, payload, (long)Math.Ceiling(expiration.TotalMilliseconds)]), token);
                         }
 
                         return value;
@@ -191,10 +192,12 @@ internal sealed partial class RedisCache(
                     finally
                     {
                         // Cleanup is independent of request cancellation. Redis's command timeout bounds it; if Redis does
-                        // not answer (a timeout, or the command cancelled with a hung socket), the lease just expires.
+                        // not answer (a timeout, or the command cancelled or failed with a hung socket), the lease just
+                        // expires.
                         try
                         {
-                            await database.ScriptEvaluateAsync(RedisCacheScripts.Release, [leaseKey], [owner]);
+                            await CommandAsync(
+                                database.ScriptEvaluateAsync(RedisCacheScripts.Release, [leaseKey], [owner]), CancellationToken.None);
                         }
                         catch (Exception exception) when (exception is RedisException or TimeoutException or OperationCanceledException)
                         {
@@ -219,13 +222,31 @@ internal sealed partial class RedisCache(
         var settings = options.Value;
         try
         {
-            await connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.Invalidate,
-                [key.DataKey(settings.KeyPrefix), key.LeaseKey(settings.KeyPrefix)])
-                .WaitAsync(cancellationToken);
+            await CommandAsync(connection.GetDatabase().ScriptEvaluateAsync(RedisCacheScripts.Invalidate,
+                [key.DataKey(settings.KeyPrefix), key.LeaseKey(settings.KeyPrefix)]), cancellationToken);
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             throw NotAnswered(exception);
+        }
+    }
+
+    /// <summary>
+    /// A command of the client, bounded by <paramref name="cancellationToken"/>. When the client drops a hung socket ("Dead
+    /// socket detected"), the command it was waiting for can fail with the exception of its pipe ("Reading is not allowed
+    /// after reader was completed", an <see cref="InvalidOperationException"/>) instead of a
+    /// <see cref="RedisConnectionException"/>. Redis did not answer it either, so it becomes one.
+    /// </summary>
+    private static async Task<T> CommandAsync<T>(Task<T> command, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await command.WaitAsync(cancellationToken);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new RedisConnectionException(
+                ConnectionFailureType.SocketClosed, "The Redis connection was dropped while the command was waiting.", exception);
         }
     }
 
