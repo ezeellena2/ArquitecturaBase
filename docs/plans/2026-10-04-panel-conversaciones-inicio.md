@@ -367,3 +367,14 @@ historia es el índice parcial, y la partición evita recorrer todas las convers
 borrar todavía revisa cada conversación activa por índice; evitarlo pide cambiar el esquema y queda con el resto de gran
 escala. Build sin advertencias, Domain 1190, Application 6342 y Architecture 229 enteros; integración del bootstrap (23), de
 la retención y la purga (28, y 24 cinco veces seguidas después de las correcciones) y del claim (13) en verde.
+
+**Cierre, el 2026-11-17:** la corrida completa quedó en verde. El backend, sobre `c82ec50d`, dio 11.641 de 11.641 con la
+exportación conjunta de las 28 cohortes HTTP (front `9aa157ae`). El front dio tipos, lint, arquitectura (56), los 6.002 tests
+y el build. Hicieron falta tres exportaciones, y lo que destaparon se arregló así:
+- 911a89c5 y c82ec50d: dos siembras de prueba que se apartaban del editor y quedaban en la base compartida;
+- 5adc6e96: la migración de la lectura de documentos;
+- 9cbf0ad0: la ubicación de una planilla de WhatsApp;
+- 0e3bd943: Redis, del núcleo;
+- en el front, ecc0f561 y los plazos de 571503cf, b618d58b, 925ab958, 1e877620 y f027d83f.
+
+Queda la prueba manual, que va en la prueba integral de la tanda.
