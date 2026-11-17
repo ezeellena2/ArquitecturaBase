@@ -14,7 +14,6 @@ internal sealed class WhatsAppFlowSessionRepository(ApplicationDbContext dbConte
                 where session.ContactId == contactId && session.LocationState == WhatsAppFlowLocationState.Requested
                     && session.CaptureState == WhatsAppFlowCaptureState.Pending && session.ExpiresAtUtc > nowUtc
                     && request.Kind == WhatsAppOutgoingMessageKind.LocationRequest
-                orderby session.CreatedAtUtc, session.Id
                 select new
                 {
                     session, request,

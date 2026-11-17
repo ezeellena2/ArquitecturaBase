@@ -44,7 +44,7 @@ public sealed class WhatsAppSharedContentPolicyTests
         var location = Shared(1, latitude: -34.603722m, longitude: -58.381592m);
         var contact = Shared(2, name: "Ana Gómez", phones: ["+54 9 341 555-0101", "+54 341 444-0202"]);
 
-        Assert.Equal([waiting.Session], WhatsAppFlowLocationPolicy.Resolve([waiting.Session], [location, contact], Now));
+        Assert.Equal([waiting.Session], WhatsAppFlowLocationPolicy.Resolve([new(waiting.Session, waiting.First)], [location, contact], Now).Select(wait => wait.Session));
         var takes = WhatsAppSharedContentPolicy.Resolve([waiting, open], [location, contact], _contact, Now);
 
         var take = Assert.Single(takes);

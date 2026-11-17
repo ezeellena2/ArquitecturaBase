@@ -36,12 +36,11 @@ internal sealed class WhatsAppFlowLocationService(IWhatsAppConversationRepositor
                 if (waiting.Count == 0 && open.Count == 0) return Result.Success(0);
                 var sinceUtc = waiting.Select(wait => wait.Session.CreatedAtUtc).Concat(open.Select(send => send.Session.CreatedAtUtc)).Min();
                 var answers = await messages.ListLocationAnswersAsync(contactId, sinceUtc, ct);
-                var resolved = WhatsAppFlowLocationPolicy.Resolve(waiting.Select(wait => wait.Session).ToArray(), answers, nowUtc);
-                foreach (var session in resolved)
+                var resolved = WhatsAppFlowLocationPolicy.Resolve(waiting, answers, nowUtc);
+                foreach (var wait in resolved)
                 {
-                    var wait = waiting.First(item => item.Session == session);
-                    var flow = WhatsAppFlowLocationPolicy.Flow(session, wait.Request, nowUtc);
-                    if (wait.Load && FormName(session) is { } name) _ = flow.AttachFooter(WhatsAppAssistantSpreadsheetPolicy.Footer(name, session.Culture));
+                    var flow = WhatsAppFlowLocationPolicy.Flow(wait.Session, wait.Request, nowUtc);
+                    if (wait.Load && FormName(wait.Session) is { } name) _ = flow.AttachFooter(WhatsAppAssistantSpreadsheetPolicy.Footer(name, wait.Session.Culture));
                     conversations.Add(flow);
                 }
                 return Result.Success(resolved.Count + await ShareAsync(contact, open, answers, nowUtc, ct));

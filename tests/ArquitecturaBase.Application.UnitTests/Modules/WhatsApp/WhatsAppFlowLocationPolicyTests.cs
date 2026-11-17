@@ -4,8 +4,9 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp;
 
-// W1-A: a form with a location question asks for it before its Flow; each location goes to the oldest send that waits for one,
-// a tap on «Seguir sin ubicación» to its own send, and the Flow goes out once that is resolved.
+// W1-A: a form with a location question asks for it before its Flow; each location goes to the oldest send that waits for one (among
+// sends opened together, the one whose request went out first), a tap on «Seguir sin ubicación» to its own send, and the Flow goes out
+// once that is resolved.
 public sealed class WhatsAppFlowLocationPolicyTests
 {
     private static readonly DateTime Now = new(2026, 11, 11, 15, 0, 0, DateTimeKind.Utc);
@@ -77,21 +78,40 @@ public sealed class WhatsAppFlowLocationPolicyTests
         var resolved = WhatsAppFlowLocationPolicy.Resolve([newer, older], [second, first], Now.AddMinutes(8));
 
         Assert.Equal([older, newer], resolved);
-        Assert.Equal((-34.603722m, older.Id), (older.LocationLatitude!.Value, first.FlowSessionId!.Value));
-        Assert.Equal((-31.4m, newer.Id), (newer.LocationLatitude!.Value, second.FlowSessionId!.Value));
+        Assert.Equal((-34.603722m, older.Session.Id), (older.Session.LocationLatitude!.Value, first.FlowSessionId!.Value));
+        Assert.Equal((-31.4m, newer.Session.Id), (newer.Session.LocationLatitude!.Value, second.FlowSessionId!.Value));
+    }
+
+    // VC1-A: the loads of a spreadsheet open their sends in one unit of work, with the same creation time, and their requests one
+    // microsecond apart in the order of the spreadsheet. The location completes the first row, whatever the order of the ids of the
+    // sends, version 7 Guids with no order within a millisecond: here they go the other way.
+    [Fact]
+    public void Among_sends_opened_together_a_location_completes_the_one_whose_request_went_out_first()
+    {
+        var rows = Enumerable.Range(0, 3).Select(_ => Session("es")).OrderByDescending(session => session.Id)
+            .Select((session, index) => Waiting(required: true, createdAt: Now, requestedAt: Now.AddTicks(10 * (index + 1)), session: session)).ToArray();
+        var first = Location("wamid.first", 1, Now.AddMinutes(1), -34.603722m, -58.381592m);
+        var second = Location("wamid.second", 2, Now.AddMinutes(2), -31.4m, -64.18m);
+
+        var resolved = WhatsAppFlowLocationPolicy.Resolve([rows[2], rows[1], rows[0]], [second, first], Now.AddMinutes(3));
+
+        Assert.Equal([rows[0], rows[1]], resolved);
+        Assert.Equal((rows[0].Session.Id, rows[1].Session.Id), (first.FlowSessionId!.Value, second.FlowSessionId!.Value));
+        Assert.Equal(WhatsAppFlowLocationState.Requested, rows[2].Session.LocationState);
     }
 
     [Fact]
     public void A_location_sent_before_a_send_existed_or_after_it_was_resolved_changes_nothing()
     {
-        var session = Waiting(required: true, createdAt: Now);
+        var wait = Waiting(required: true, createdAt: Now);
+        var session = wait.Session;
         var early = Location("wamid.early", 1, Now.AddMinutes(-1), -34.6m, -58.38m);
         var answer = Location("wamid.answer", 2, Now.AddMinutes(1), -34.603722m, -58.381592m);
         var again = Location("wamid.again", 3, Now.AddMinutes(2), -31.4m, -64.18m);
 
-        var resolved = WhatsAppFlowLocationPolicy.Resolve([session], [early, answer, again], Now.AddMinutes(3));
+        var resolved = WhatsAppFlowLocationPolicy.Resolve([wait], [early, answer, again], Now.AddMinutes(3));
 
-        Assert.Equal([session], resolved);
+        Assert.Equal([wait], resolved);
         Assert.Equal((-34.603722m, "wamid.answer"), (session.LocationLatitude!.Value, session.LocationWaMessageId));
         Assert.Null(early.FlowSessionId);
         Assert.Null(again.FlowSessionId);
@@ -102,28 +122,28 @@ public sealed class WhatsAppFlowLocationPolicyTests
     {
         var optional = Waiting(required: false, createdAt: Now);
         var required = Waiting(required: true, createdAt: Now);
-        var skipOptional = Tap("wamid.skip1", 1, Now.AddMinutes(1), optional.Id);
-        var skipRequired = Tap("wamid.skip2", 2, Now.AddMinutes(1), required.Id);
+        var skipOptional = Tap("wamid.skip1", 1, Now.AddMinutes(1), optional.Session.Id);
+        var skipRequired = Tap("wamid.skip2", 2, Now.AddMinutes(1), required.Session.Id);
         var other = WhatsAppMessage.Inbound(Contact, "wamid.other", WhatsAppMessageKind.ButtonReply, "Sí", "FORM_ACTION:x", Now.AddMinutes(1));
 
         var resolved = WhatsAppFlowLocationPolicy.Resolve([optional, required], [skipOptional, skipRequired, other], Now.AddMinutes(2));
 
         Assert.Equal([optional], resolved);
-        Assert.Equal(WhatsAppFlowLocationState.Skipped, optional.LocationState);
-        Assert.Equal(WhatsAppFlowLocationState.Requested, required.LocationState);
-        Assert.Equal(optional.Id, skipOptional.FlowSessionId);
+        Assert.Equal(WhatsAppFlowLocationState.Skipped, optional.Session.LocationState);
+        Assert.Equal(WhatsAppFlowLocationState.Requested, required.Session.LocationState);
+        Assert.Equal(optional.Session.Id, skipOptional.FlowSessionId);
         Assert.Null(skipRequired.FlowSessionId);
     }
 
     [Fact]
     public void An_expired_send_takes_no_location()
     {
-        var session = Waiting(required: true, createdAt: Now);
+        var wait = Waiting(required: true, createdAt: Now);
 
-        var resolved = WhatsAppFlowLocationPolicy.Resolve([session], [Location("wamid.late", 1, Now.AddHours(23), -34.6m, -58.38m)], Now.AddHours(24));
+        var resolved = WhatsAppFlowLocationPolicy.Resolve([wait], [Location("wamid.late", 1, Now.AddHours(23), -34.6m, -58.38m)], Now.AddHours(24));
 
         Assert.Empty(resolved);
-        Assert.Equal(WhatsAppFlowLocationState.Requested, session.LocationState);
+        Assert.Equal(WhatsAppFlowLocationState.Requested, wait.Session.LocationState);
     }
 
     [Fact]
@@ -203,12 +223,14 @@ public sealed class WhatsAppFlowLocationPolicyTests
     private static WhatsAppFlowSession AssistantSession() => WhatsAppFlowSession.CreateAssistant(Contact, 3, Guid.CreateVersion7(), Guid.CreateVersion7(),
         Guid.CreateVersion7(), 1, Guid.CreateVersion7(), "es", "{}", "VIS", new('a', 64), new('b', 64), Now.AddHours(24));
 
-    private static WhatsAppFlowSession Waiting(bool required, DateTime createdAt)
+    // A send that waits for its location, with the request that opened it (requested when the send was created, or later).
+    private static WhatsAppFlowLocationWait Waiting(bool required, DateTime createdAt, DateTime? requestedAt = null, WhatsAppFlowSession? session = null)
     {
-        var session = Session("es");
-        session.RequestLocation(required, "Completá el formulario.");
+        session ??= Session("es");
+        var request = WhatsAppFlowLocationPolicy.Open(Projection(location: required), session, Actor, Guid.CreateVersion7(), "Completá el formulario.",
+            "Visita", requestedAt ?? createdAt)[0];
         typeof(WhatsAppFlowSession).GetProperty(nameof(WhatsAppFlowSession.CreatedAtUtc))!.SetValue(session, createdAt);
-        return session;
+        return new(session, request);
     }
 
     private static WhatsAppMessage Location(string id, long sequence, DateTime at, decimal latitude, decimal longitude)

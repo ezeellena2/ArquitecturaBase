@@ -227,8 +227,10 @@ Un Flow no puede pedir la ubicación, así que la pregunta «Ubicación» de un 
   dirección con el cuerpo ([lo compartido](#contacto-y-dirección-compartidos--w3-tarea-22-2026-11-12)). Después
   del proceso de los entrantes, `WhatsAppFlowLocationService` toma, bajo el lock del contacto, las ubicaciones y los toques en
   «Seguir sin ubicación» que no resolvieron un envío: cada ubicación completa el envío más viejo que la espera y que ya existía
-  cuando se mandó; un toque, el envío que nombra (`FLOW_LOCATION_SKIP:<sesión>`), sólo si su pregunta es opcional. Vale lo
-  primero que llega; lo demás queda como un mensaje del chat. Un texto no contesta nada y el pedido sigue abierto.
+  cuando se mandó y, entre los que se abrieron juntos (las cargas de una planilla), el del pedido que salió primero, la primera
+  fila (el id del envío no tiene orden dentro de un milisegundo); un toque, el envío que nombra (`FLOW_LOCATION_SKIP:<sesión>`),
+  sólo si su pregunta es opcional. Vale lo primero que llega; lo demás queda como un mensaje del chat. Un texto no contesta nada
+  y el pedido sigue abierto.
 - **El Flow.** Al resolverse, el envío encola en la misma unidad de trabajo el Flow de siempre, con el cuerpo guardado, y
   continúa el pedido que lo abrió: sale del mismo remitente y con su sello (el operador, o el asistente con el vínculo, el
   número y la revisión del modo que selló). Si alguien tomó la conversación, la reserva frena el formulario del asistente como

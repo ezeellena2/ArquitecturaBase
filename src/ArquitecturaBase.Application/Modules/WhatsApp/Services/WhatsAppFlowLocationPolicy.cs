@@ -53,26 +53,28 @@ internal static class WhatsAppFlowLocationPolicy
     }
 
     /// <summary>
-    /// Each location goes to the oldest send of the contact that waits for one and existed when it was sent; a tap on «Seguir sin
-    /// ubicación», to its own send. The answer attaches to the send it resolved; what resolves nothing stays a message of the chat.
+    /// Each location goes to the oldest send of the contact that waits for one and existed when it was sent and, among the sends opened
+    /// together (the loads of a spreadsheet), to the one whose request was queued first, in the order of the spreadsheet: the id, a version
+    /// 7 Guid with no order within a millisecond, only breaks what is left. A tap on «Seguir sin ubicación» goes to its own send. The answer
+    /// attaches to the send it resolved; what resolves nothing stays a message of the chat. This is the only place that orders the sends.
     /// </summary>
-    public static IReadOnlyList<WhatsAppFlowSession> Resolve(IReadOnlyList<WhatsAppFlowSession> waiting, IReadOnlyList<WhatsAppMessage> answers,
+    public static IReadOnlyList<WhatsAppFlowLocationWait> Resolve(IReadOnlyList<WhatsAppFlowLocationWait> waiting, IReadOnlyList<WhatsAppMessage> answers,
         DateTime nowUtc)
     {
-        var resolved = new List<WhatsAppFlowSession>();
+        var resolved = new List<WhatsAppFlowLocationWait>();
         foreach (var answer in answers.Where(answer => answer.FlowSessionId is null).OrderBy(answer => answer.InboundSequence))
         {
-            var session = answer.Kind == WhatsAppMessageKind.Location
-                ? waiting.Where(session => session.CreatedAtUtc <= answer.OccurredAtUtc && session.AwaitsLocation(nowUtc))
-                    .OrderBy(session => session.CreatedAtUtc).ThenBy(session => session.Id).FirstOrDefault()
+            var wait = answer.Kind == WhatsAppMessageKind.Location
+                ? waiting.Where(wait => wait.Session.CreatedAtUtc <= answer.OccurredAtUtc && wait.Session.AwaitsLocation(nowUtc))
+                    .OrderBy(wait => wait.Session.CreatedAtUtc).ThenBy(wait => wait.Request.RequestedAtUtc).ThenBy(wait => wait.Session.Id).FirstOrDefault()
                 : answer.Kind == WhatsAppMessageKind.ButtonReply && WhatsAppFlowLocationReply.TryParse(answer.ReplyId, out var sessionId)
-                    ? waiting.FirstOrDefault(session => session.Id == sessionId) : null;
-            var applied = session is not null && (answer.Kind == WhatsAppMessageKind.Location
+                    ? waiting.FirstOrDefault(wait => wait.Session.Id == sessionId) : null;
+            var applied = wait?.Session is { } session && (answer.Kind == WhatsAppMessageKind.Location
                 ? answer.Latitude is { } latitude && answer.Longitude is { } longitude && session.ReceiveLocation(latitude, longitude, answer.WaMessageId, nowUtc)
                 : session.SkipLocation(answer.WaMessageId, nowUtc));
             if (!applied) continue;
-            answer.AttachFlowSession(session!.Id);
-            resolved.Add(session);
+            answer.AttachFlowSession(wait!.Session.Id);
+            resolved.Add(wait);
         }
         return resolved;
     }
