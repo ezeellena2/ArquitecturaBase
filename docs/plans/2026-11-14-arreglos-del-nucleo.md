@@ -156,6 +156,8 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 - N13 en 7b5d24eb, después de su revisión adversarial. La revisión sumó el rastro de la restauración (el correo, el número
   y los roles con que vuelve la cuenta) y el del Admin que recibe `Seed:AdminEmail` en su primer ingreso.
 - Los tests de Formularios que cambiaban los permisos de un rol sin tenerlos y sin revisión, en 47b6d8a1.
+- En el cierre, los tests de N13 y del alta con número piden con la sesión de prueba, para no pasar el tope de códigos
+  del administrador en el arnés: e7f2fb91.
 
 ### Etapa 3: el correo
 
@@ -204,6 +206,7 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
   - la dirección, guardada sólo en los códigos por correo;
   - y las esperas largas, mostradas en horas y minutos.
 - N14 en 42cb2297.
+- En el cierre, el test del tope por dirección busca cada código por su correo y su red, sin depender del orden: 6e3bfa67.
 
 ### Etapa 4: Redis, la salud y el arranque
 
@@ -277,6 +280,9 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
 - N9, N33 y O12 en 8815e4cc (front 20698a7f), con el ADR 0032.
 - N6 en 997a9983, N17 en bc618e93, N19 en 390d1a4a, N18 en bc74b2ca y N10 en 848ced95.
 - N6, N10, N17 y N19 se terminan de comprobar en el primer despliegue a Azure.
+- En el cierre se encontró otro 500 con Redis colgado: el cliente falla el comando pendiente con la excepción de su pipe
+  al soltar el socket; ahora cuenta como Redis que no responde (0e3bd943). Un test del front que simulaba un 500 de la Api
+  sin `traceId` lo trae (front ecc0f561).
 
 ### Etapa 5: datos, archivos y retención
 
