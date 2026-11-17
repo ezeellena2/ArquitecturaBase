@@ -8,7 +8,7 @@ hacerle al usuario.
 - **Formularios, dos tareas:**
   - ~~la marca «Con acciones por resolver» de la planilla (F2)~~, hecha el 2026-11-17 (`06ac5482`; front `0b3a75c6`);
   - repetir la prueba de quitar Formularios en una copia, que estaba corriendo.
-- **El cierre.** Lo hace otra cuenta de Claude, porque la de ArquitecturaBase se quedó sin cupo semanal:
+- ~~**El cierre.**~~ Hecho el 2026-11-17: la revisión contra el código (sólo O8 estaba deshecho, repuesto en `02c60e91`), la corrida completa del backend sobre `02c60e91` con el exportador (11.656/11.656; las 28 cohortes en `844a5c13` del front), los controles del front sobre `93eb8eb0` (tipos, lint, build y 6.022 tests), la CLI de Aspire en 13.6.5 y la prueba de humo (43 migraciones aplicadas en la base local, Api, front y túnel healthy). Lo hizo otra cuenta de Claude, porque la de ArquitecturaBase se quedó sin cupo semanal:
   - revisar contra el código lo commiteado, sobre todo que ningún commit haya deshecho lo de otro;
   - la exportación de los contratos y las cohortes del front;
   - la corrida completa: `dotnet test` con Docker y los controles del front;
