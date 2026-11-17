@@ -40,6 +40,7 @@ public sealed class EmailQuotaEndpointsTests(ApiFactory factory)
     public async Task An_address_at_its_daily_limit_answers_the_same_with_or_without_an_account_and_its_64_counts_together()
     {
         var network = UniqueNetwork();
+        var otherNetwork = UniqueNetwork();
         await using var api = Api(("Email:DailyCodeLimitPerAddress", "2"));
         using var client = api.CreateClient();
         await using var inviteOnly = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
@@ -52,7 +53,7 @@ public sealed class EmailQuotaEndpointsTests(ApiFactory factory)
         using var second = await RequestCodeAsync(client, unknown, network + "::2");
         using var withAccount = await RequestCodeAsync(client, known, network + ":aaaa::3");
         using var withoutAccount = await RequestCodeAsync(client, unknown, network + ":bbbb::4");
-        using var otherNetwork = await RequestCodeAsync(client, unknown, UniqueNetwork() + "::1");
+        using var fromOtherNetwork = await RequestCodeAsync(client, unknown, otherNetwork + "::1");
 
         Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
         Assert.Equal(HttpStatusCode.Accepted, second.StatusCode);
@@ -66,17 +67,22 @@ public sealed class EmailQuotaEndpointsTests(ApiFactory factory)
         Assert.Equal(withProblem.GetProperty("detail").GetString(), withoutProblem.GetProperty("detail").GetString());
         Assert.InRange(withProblem.GetProperty("retryAfter").GetInt32(), 23 * 60 * 60, 24 * 60 * 60);
         Assert.InRange(withoutProblem.GetProperty("retryAfter").GetInt32(), 23 * 60 * 60, 24 * 60 * 60);
-        Assert.Equal(HttpStatusCode.Accepted, otherNetwork.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, fromOtherNetwork.StatusCode);
 
-        // Un pedido rechazado no deja código, y cada código guarda la dirección agrupada.
+        // Un pedido rechazado no deja código, y cada código guarda la dirección agrupada. El reloj del arnés no avanza
+        // entre los pedidos: los tres tienen la misma hora y la base los devuelve en cualquier orden, así que cada uno se
+        // busca por su correo y su red.
         var codes = await factory.ExecuteDbContextAsync(db => db.LoginCodes
             .Where(code => code.Destination == known || code.Destination == unknown)
-            .OrderBy(code => code.CreatedAtUtc)
             .ToListAsync(Ct));
         Assert.Equal(3, codes.Count);
-        Assert.Equal([AddressPartition.Of(network + "::1"), AddressPartition.Of(network + "::1")], codes.Take(2).Select(code => code.RequestedFromAddress));
-        Assert.NotNull(codes[0].SentAtUtc);
-        Assert.Null(codes[1].SentAtUtc);
+        var withAccountCode = Assert.Single(codes, code => code.Destination == known);
+        Assert.Equal(AddressPartition.Of(network + "::1"), withAccountCode.RequestedFromAddress);
+        Assert.NotNull(withAccountCode.SentAtUtc);
+        var withoutAccountCode = Assert.Single(
+            codes, code => code.Destination == unknown && code.RequestedFromAddress == AddressPartition.Of(network + "::2"));
+        Assert.Null(withoutAccountCode.SentAtUtc);
+        Assert.Single(codes, code => code.Destination == unknown && code.RequestedFromAddress == AddressPartition.Of(otherNetwork + "::1"));
     }
 
     // El de todos cuenta lo que salió por correo (códigos e invitaciones) por debajo del cupo de la cuenta que manda. Los
