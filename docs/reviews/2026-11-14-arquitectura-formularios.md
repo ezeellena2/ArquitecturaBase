@@ -717,7 +717,12 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   ARCA registra para Formularios (`ArcaApplicationRegistration.cs:69-72`); `quitar-arca.md:10`.
 - **Arreglo:** actualizar la guía (las 29 tablas, la bandeja y DOC6, qué le queda a ARCA, lo del B5) y repetir la prueba de quitar
   el módulo, con un test que compare las tablas de la guía con las del módulo. Chico.
-- **Arreglado el 2026-11-16** (la guía y su test de tablas; falta repetir la prueba de quitar el módulo en una copia).
+- **Arreglado el 2026-11-16** (la guía y su test de tablas).
+- Prueba de quitar Formularios repetida el 2026-11-16 sobre `72510c01`: compila sin advertencias; `RemoveBusinessForms` genera 30 tablas y
+  tres claves foráneas, y su `Up` y su `Down` andan contra una base migrada (79, 49 y 79 tablas, mismas restricciones e índices) una vez que
+  el `Up` suelta la clave de la regla activa (`DeferActiveRuleSetKey`), que la guía no decía; Domain 914/914, arquitectura 220/220,
+  Application 3328/3331 e integración 2523 correctos, 185 omitidos y 5 fallas (tres de carga o fecha que pasan solas y dos de IA y WhatsApp
+  que dan por instalado el módulo, como las tres de Application). La guía quedó corregida; no se cambió código del núcleo ni del producto.
 
 #### F26. Si se quita la IA con extracciones en curso, esos documentos quedan leyendo para siempre
 

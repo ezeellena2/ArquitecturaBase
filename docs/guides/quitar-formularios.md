@@ -61,7 +61,8 @@ Las tablas `WhatsAppFlow*` son del otro módulo y se quedan.
    - En `src/ArquitecturaBase.Application/ArquitecturaBase.Application.csproj`, el `ItemGroup` de los estándares de la
      biblioteca (`Modules\BusinessForms\Resources\Standards\*.json`).
    - En `.editorconfig`, las dos secciones de `src/ArquitecturaBase.Domain/Modules/BusinessForms/…`.
-   - Todas las claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
+   - Todas las claves `Forms.*` de `Errors.resx` y `Errors.en.resx`, también las que están sin sangría
+     (`Forms.Record.Export*`). Si queda una,
      `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
    - `FormCatalogStateInvalid` de `ValidationMessages` y de `Validation.resx`/`.en.resx`.
    - `harnesses/assistant-qualification`, el arnés manual de calificación del asistente. Está fuera de la solución y el
@@ -85,7 +86,9 @@ Las tablas `WhatsAppFlow*` son del otro módulo y se quedan.
    BusinessFormActionRuns, BusinessFormCaptureReceipts, BusinessFormCatalogItems, BusinessFormCatalogs, BusinessFormDocuments, BusinessFormFields, BusinessFormMissingRequests, BusinessFormMissingTopics, BusinessFormPdfDesigns, BusinessFormPersonAttributes, BusinessFormPersonData, BusinessFormPublicationOperations, BusinessFormRecordCatalogFields, BusinessFormRecordFiles, BusinessFormRecordReferences, BusinessFormRecordResults, BusinessFormRecords, BusinessFormRecordValues, BusinessFormRetiredIdentities, BusinessFormRuleSets, BusinessFormSuggestions, BusinessFormTasks, BusinessFormVersions, FormDefinitions, FormDocumentProposals, FormDraftChanges, FormFolderMemberships, FormFolders, FormReceivedDocumentEvents, FormReceivedDocuments
    <!-- /tablas -->
 
-   `Up` suelta primero las claves foráneas entre tablas del módulo y después borra sólo sus 30 tablas, que son las
+   `Up` suelta primero las claves foráneas que cierran ciclos entre tablas del módulo (EF genera tres:
+   `FK_FormDefinitions_BusinessFormPdfDesigns_Id_ActivePdfDesignId`, `FK_BusinessFormSuggestions_FormDefinitions_DefinitionId` y
+   `FK_BusinessFormVersions_FormDefinitions_DefinitionId`) y después borra sólo sus 30 tablas, que son las
    de la lista de arriba (`FormReceivedDocuments` y `FormReceivedDocumentEvents` son la bandeja, `FormDocumentProposals` las
    de DOC6 y `BusinessFormRecordCatalogFields` las columnas de catálogo de las respuestas). Si aparece otra tabla, algo se
    borró de más. El test `FormRemovalGuideTests` compara esta lista con las tablas del modelo del módulo: si el módulo suma una,
@@ -94,7 +97,32 @@ Las tablas `WhatsAppFlow*` son del otro módulo y se quedan.
    `Down` las recrea desde el modelo, que no tiene las dos claves diferibles de `BusinessFormCatalogItems`: EF no modela
    la diferibilidad, y las crearon a mano `AddUniqueManualCatalogItemPositions` y `DeferCatalogItemCodeUniqueness`. Sus
    `Down` las borran, así que bajar la base más allá de ellas falla, y los tests de migraciones de IA lo hacen.
-   Agregalas al final del `Down`:
+   Agregalas al final del `Down`. **Hay una tercera clave que EF tampoco modela y que el `Up` generado no suelta:**
+   `FK_FormDefinitions_BusinessFormRuleSets_Id_ActiveRuleSetId`, la de la regla activa, que `DeferActiveRuleSetKey` creó en
+   SQL como diferible. Sin soltarla, el `Up` falla (`cannot drop table "BusinessFormRuleSets" because other objects depend on it`).
+   Agregá al **comienzo** del `Up`:
+
+   ```csharp
+   // EF no modela esta clave (la creó DeferActiveRuleSetKey en SQL): hay que soltarla antes de borrar las tablas.
+   migrationBuilder.Sql("""
+       ALTER TABLE "FormDefinitions"
+       DROP CONSTRAINT "FK_FormDefinitions_BusinessFormRuleSets_Id_ActiveRuleSetId";
+       """.ReplaceLineEndings("\n"));
+   ```
+
+   y al final del `Down`, junto a las otras dos, que se recree diferida como en `DeferActiveRuleSetKey` (si no, bajar la base más
+   allá de esa migración falla):
+
+   ```csharp
+   migrationBuilder.Sql("""
+       ALTER TABLE "FormDefinitions"
+       ADD CONSTRAINT "FK_FormDefinitions_BusinessFormRuleSets_Id_ActiveRuleSetId"
+       FOREIGN KEY ("Id", "ActiveRuleSetId") REFERENCES "BusinessFormRuleSets" ("DefinitionId", "Id")
+       DEFERRABLE INITIALLY DEFERRED;
+       """.ReplaceLineEndings("\n"));
+   ```
+
+   Las dos claves de las opciones:
 
    ```csharp
    // EF no modela la diferibilidad: las dos claves de las opciones se recrean como en
@@ -108,6 +136,17 @@ Las tablas `WhatsAppFlow*` son del otro módulo y se quedan.
        UNIQUE ("CatalogId", "Code") DEFERRABLE INITIALLY DEFERRED;
        """.ReplaceLineEndings("\n"));
    ```
+
+   Tests que dan por instalado el módulo y fallan sin él (borralos en el derivado, o cambialos por un código del núcleo):
+   en Application.UnitTests, `WhatsAppFlowDocumentCompilerTests.Marks_fill_the_help_the_errors_the_notice_and_the_twin_of_the_send`,
+   `WhatsAppFlowRejectionPolicyTests.A_fixed_validation_sends_the_form_again_in_a_new_send_with_what_was_sent_its_mark_and_the_reason`
+   y `WhatsAppFlowReplyServiceTests.A_capture_rejected_by_a_fixed_validation_queues_the_form_again_with_the_rejection`
+   (esperan el texto de `Forms.Record.BankAccountInvalid`); en Api.IntegrationTests,
+   `AiAssistantSealedVersionTests.A_forms_extraction_sealed_with_the_earlier_version_of_its_capability_is_recovered_after_raising_it`
+   (capacidades `forms.documents.*`) y
+   `WhatsAppAssistantAgentEndpointsTests.The_chat_carries_the_handoff_the_why_of_a_reply_its_lines_and_the_operators_text_suggestion`
+   (`forms.assistant-candidates`). Son acoplamientos de tests de WhatsApp e IA con Formularios, anotados sin tocar el núcleo.
+   `WhatsAppAssistantAuthoringPolicy` también nombra por cadena códigos `Forms.*`: sin el módulo no se dispara.
 
    Después compilá, revisá que el modelo no tenga cambios pendientes y corré todos los tests:
 
@@ -185,30 +224,29 @@ front, quitá las filas de `src/features/business-forms` de su
 
 ## Comprobaciones registradas
 
-El 2026-11-03 y el 2026-11-04 se siguió esta guía en copias descartables: un `git archive` del commit, sin tocar los
-checkouts. Después el módulo sumó `BusinessFormRecordResults`, `FormFolders` y `FormFolderMemberships`, la bandeja, las propuestas de DOC6 y
-las columnas de catálogo de las respuestas, y hoy tiene 30 tablas. **La prueba no se repitió desde el 2026-11-04:** la lista de
-tablas ya la controla un test, pero la próxima prueba de fuego tiene que volver a comprobar la migración (cuántas claves foráneas
-suelta), el `Down` y los tests que la guía corrige.
+**2026-11-16, sobre `72510c01`** (copia descartable de `git archive`; sin tocar el checkout). Se siguió esta guía entera y, para
+llegar, hubo que corregirla: la clave de la regla activa que el `Up` no soltaba, las claves `Forms.Record.Export*` sin sangría y los
+seis tests de arriba. En el backend:
 
-En el backend, sobre `d558c421` y con los tests corregidos de abajo:
+- Build con `-warnaserror`: 0 advertencias, 0 errores.
+- `RemoveBusinessForms`: 30 tablas y tres claves foráneas generadas por EF (más la de la regla activa, a mano), y las tres claves
+  diferibles del `Down`. Contra PostgreSQL 18.3 con la base migrada hasta `AddIdentityRetentionIndexes` (79 tablas): el `Up` deja 49
+  (se van las 30 del módulo y ninguna otra; ninguna clave de otra tabla apuntaba al módulo, y las del módulo hacia afuera son dos);
+  el `Down` vuelve a las 79, con las mismas restricciones e índices que antes, las tres diferidas.
+- `has-pending-model-changes`: sin cambios.
+- Domain 914/914, arquitectura 220/220 y Application 3328/3331 (las tres de arriba).
+- Integración con Docker: 2713 casos, 2523 correctos, 185 omitidos (composiciones de WhatsApp que necesitan el módulo) y 5 fallas.
+  Tres eran de carga o de fecha y pasan solas (`RedisFailureTests`, `ArcaVoucherQueueTests`, `AiAssistantUploadConcurrencyTests`);
+  las otras dos son las de arriba.
 
-- Build sin advertencias.
-- `RemoveBusinessForms` con las 23 tablas y las cuatro claves foráneas, más las dos claves diferibles del `Down`.
-- `has-pending-model-changes` sin cambios.
-- Domain 384/384, Application 1535/1535 y arquitectura 177/177.
-- Integración con Docker: 1826 casos, 1745 correctos y 81 omitidos, que son las composiciones de WhatsApp que
-  necesitan el módulo. Ninguna falla.
+El 2026-11-03 y el 2026-11-04 se había seguido la guía de la misma forma, sobre `d558c421`, cuando el módulo tenía 23 tablas y
+cuatro claves foráneas (Domain 384/384, Application 1535/1535, arquitectura 177/177 e integración 1745 correctos, 81 omitidos, sin
+fallas). Después el módulo sumó `BusinessFormRecordResults`, `FormFolders` y `FormFolderMemberships`, la bandeja, las propuestas
+de DOC6 y las columnas de catálogo de las respuestas. La lista de tablas de la guía la controla `FormRemovalGuideTests`.
 
-`dotnet ef` arma la Api en Development, donde el contenedor se valida al construirse, y no faltó ningún servicio. La
-corrida anterior, del 2026-11-03, también compiló sin los tres paquetes opcionales.
+`dotnet ef` arma la Api en Development, donde el contenedor se valida al construirse, y no faltó ningún servicio.
 
-Para llegar ahí se corrigieron tests que daban por instalado el módulo: `ControllerInputContractTests` y el control de
-`ErrorCodeTests` en el núcleo, los controles de formularios de `MigrationsTests` (pasaron a `FormMigrationsTests`), 44
-composiciones de WhatsApp que no declaraban la guarda y el inventario de rutas de WhatsApp. Con el módulo, la suite
-completa sigue en verde: Domain 530/530, Application 3385/3385, arquitectura 195/195 e integración 2456/2456.
-
-En el front, sobre `94b11e5f`:
+Con el módulo, la suite completa sigue en verde. En el front, la última prueba fue sobre `94b11e5f` y **no se repitió**:
 
 - `npm run build` sin advertencias.
 - `npm run lint`: oxlint sin diagnósticos en 511 archivos y arquitectura 53/53.
