@@ -66,8 +66,8 @@ Si el 13 está pendiente, se hace junto con este: el 13 cuenta los desarrollos y
 ## Antes de empezar
 
 - **En la PC del usuario:** `C:\Users\ezequ\source\repos\ArquitecturaBase` y `C:\Users\ezequ\source\repos\ArquitecturaBaseFront`.
-- **En otra PC:** este traspaso todavía no está en GitHub, donde `main` sigue en `421d553e` (backend) y `7b95095b` (front).
-  Antes de leerlo desde otra PC, pedile al usuario que suba los dos repos.
+- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Los dos se
+  subieron el 2026-11-16 a pedido del usuario: el backend con este traspaso y el front hasta `ecc0f561`.
 
 ## Prompt para el chat guía del multitenant
 
@@ -75,7 +75,7 @@ Si el 13 está pendiente, se hace junto con este: el 13 cuenta los desarrollos y
 Vas a trabajar el traspaso 14 de ArquitecturaBase al multitenant. Está en
 ArquitecturaBase/docs/plans/2026-11-16-traspaso-multitenant/README.md: en la PC del usuario, dentro de
 C:\Users\ezequ\source\repos\ArquitecturaBase; si no, en GitHub (ezeellena2/ArquitecturaBase y
-ezeellena2/ArquitecturaBaseFront, rama main), después de que el usuario los suba y traigas los cambios.
+ezeellena2/ArquitecturaBaseFront, rama main), después de traer los cambios.
 
 El usuario quiere que ajustes la documentación del multitenant (las specs de cada etapa, la hoja de ruta con sus
 decisiones, tus reglas y los tableros del lienzo) con lo que ArquitecturaBase revisó, decidió y programó del 14 al 16 de
