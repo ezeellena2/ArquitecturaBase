@@ -23,7 +23,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Users;
 /// <summary>
 /// El alta de un administrador con correo, número o los dos (sección 12 del spec del ingreso con WhatsApp). Lo que
 /// carga el admin queda sin verificar hasta que la persona entra con eso, y el número pasa por las mismas reglas que en
-/// el ingreso: un celular válido, y con un canal de teléfono (WhatsApp), de uno de sus países.
+/// el ingreso: un celular válido, y con un canal de teléfono (WhatsApp), de uno de sus países. El administrador pide con
+/// la sesión de prueba: acá no se prueba su ingreso.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class CreateUserWithPhoneTests(ApiFactory factory)
@@ -34,7 +35,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task A_user_can_be_created_with_only_a_phone_that_stays_unverified()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var phone = TestPhones.Unique();
 
         var userId = await admin.CreateOkAsync(new
@@ -62,7 +63,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task The_email_that_an_administrator_loads_stays_unverified_until_the_person_signs_in_with_it()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var email = TestEmails.Unique("sinverificar");
         var userId = await admin.CreateOkAsync(new { email });
 
@@ -78,7 +79,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task Without_an_email_or_a_phone_the_request_is_rejected()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
 
         using var response = await admin.CreateAsync(new { displayName = "Nadie", phone = new { country = "AR", number = "" } }, "es");
         var problem = await response.ReadJsonAsync();
@@ -92,7 +93,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task A_phone_that_is_not_a_mobile_is_rejected()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
 
         using var response = await admin.CreateAsync(new { phone = new { country = "AR", number = "123" } }, "es");
         var problem = await response.ReadJsonAsync();
@@ -112,7 +113,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             services.Replace(ServiceDescriptor.Singleton<IPhoneChannel, DisabledPhoneChannel>())));
         using var client = api.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var local = "99" + Random.Shared.Next(100_000, 1_000_000).ToString(CultureInfo.InvariantCulture);
 
         var userId = await admin.CreateOkAsync(new
@@ -131,7 +132,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task A_phone_with_an_active_account_is_rejected()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var phone = TestPhones.Unique();
         await admin.CreateVerifiedAccountAsync(email: null, phone);
 
@@ -163,7 +164,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
             services.AddScoped<IEmailQueue>(provider => emailQueue.Over(provider.GetRequiredService<EmailQueue>()));
         }));
         using var client = api.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var owner = await admin.CreateVerifiedAccountAsync(email: null, phone);
         var email = TestEmails.Unique("carrera");
 
@@ -204,7 +205,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             StaleUserReads.Replace(services, Email.Create(email).Value, probe)));
         using var client = api.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var owner = await admin.CreateVerifiedAccountAsync(email, phone: null);
 
         using var response = await admin.CreateAsync(new { email, displayName = "Laura Ríos" }, "es");
@@ -223,7 +224,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task The_phone_of_a_deleted_account_restores_it_with_the_new_roles_and_the_phone_unverified()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var phone = TestPhones.Unique();
         var deleted = await admin.CreateVerifiedAccountAsync(email: null, phone, "Antes");
         await admin.DeleteAccountAsync(deleted.Id);
@@ -247,7 +248,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task The_email_and_the_phone_of_the_same_deleted_account_restore_it()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var email = TestEmails.Unique("ambos");
         var phone = TestPhones.Unique();
         var deleted = await admin.CreateVerifiedAccountAsync(email, phone);
@@ -271,7 +272,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task Restoring_by_the_phone_leaves_the_previous_owner_out_of_the_account()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var email = TestEmails.Unique("diego");
         var phone = TestPhones.Unique();
         var providerKey = "google-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
@@ -280,8 +281,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
             diego.Id, new ExternalLogin(ExternalLoginProviders.Google, providerKey, email, true, "Diego"), Ct));
         using var diegoBefore = factory.CreateClient();
         var diegoTokens = await diegoBefore.LoginAsync(factory, email);
-        using (var deleted = await client.SendWithTokenAsync(
-            HttpMethod.Delete, $"/api/users/{diego.Id}", admin.AccessToken))
+        using (var deleted = await admin.SendAsync(HttpMethod.Delete, $"/api/users/{diego.Id}"))
         {
             Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         }
@@ -341,7 +341,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     {
         // Sin número en el alta, la cuenta vuelve sin el de antes, que queda libre para otra alta.
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var email = TestEmails.Unique("sincelular");
         var phone = TestPhones.Unique();
         var deleted = await admin.CreateVerifiedAccountAsync(email, phone);
@@ -365,7 +365,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
         // N4: Nora llega con su correo y el celular de la empresa, que era de la cuenta borrada de Diego, con otro correo.
         // La cuenta vuelve sólo con lo que trajo el alta: el correo de Diego se reemplaza por el de Nora, sin verificar.
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var phone = TestPhones.Unique();
         var previousEmail = TestEmails.Unique("borrada");
         var deleted = await admin.CreateVerifiedAccountAsync(previousEmail, phone);
@@ -389,7 +389,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task An_email_and_a_phone_of_two_different_deleted_accounts_are_rejected()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var email = TestEmails.Unique("primera");
         var phone = TestPhones.Unique();
         var byEmail = await admin.CreateVerifiedAccountAsync(email, phone: null);
@@ -410,7 +410,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     {
         // N4: el número de la cuenta borrada se reemplaza por el del alta, sin verificar, y el de antes queda libre.
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var email = TestEmails.Unique("otronumero");
         var previousPhone = TestPhones.Unique();
         var deleted = await admin.CreateVerifiedAccountAsync(email, previousPhone);
@@ -433,7 +433,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task The_email_of_a_deleted_account_with_the_phone_of_an_active_one_is_rejected()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var email = TestEmails.Unique("borradaconotro");
         var deleted = await admin.CreateVerifiedAccountAsync(email, TestPhones.Unique());
         await admin.DeleteAccountAsync(deleted.Id);
@@ -451,7 +451,7 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task A_deleted_account_without_a_phone_is_restored_with_the_phone_that_the_administrator_loads()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var email = TestEmails.Unique("sinnumero");
         var phone = TestPhones.Unique();
         var deleted = await admin.CreateVerifiedAccountAsync(email, phone: null);
@@ -470,11 +470,11 @@ public sealed class CreateUserWithPhoneTests(ApiFactory factory)
     public async Task The_list_brings_the_phone_formatted()
     {
         using var client = factory.CreateClient();
-        var admin = await AdminUsersApi.SignInAsync(factory, client);
+        var admin = await AdminUsersApi.WithTestSessionAsync(factory, client);
         var phone = TestPhones.Unique();
         var userId = await admin.CreateOkAsync(new { phone = AdminUsersApi.PhoneField(phone) });
 
-        using var response = await client.GetWithTokenAsync("/api/users?search=" + TestPhones.LocalPart(phone), admin.AccessToken);
+        using var response = await admin.SendAsync(HttpMethod.Get, "/api/users?search=" + TestPhones.LocalPart(phone));
         var row = (await response.ReadJsonAsync()).GetProperty("items").EnumerateArray()
             .Single(item => item.GetProperty("id").GetGuid() == userId);
 
