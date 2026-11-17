@@ -5,6 +5,8 @@ public interface IFormResponseReader
 {
     Task<FormRecordNavigationRow?> FindRecordNavigationAsync(FormResponseDefinitionRow definition, Guid recordId, ListFormRecordsRequest request, CancellationToken cancellationToken);
     Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken);
+    /// <summary>F2: the form's current, not voided responses with actions to resolve; null while no response of the form ran an action.</summary>
+    Task<int?> CountUnresolvedActionsAsync(FormResponseDefinitionRow definition, CancellationToken cancellationToken);
     Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken);
     Task<PagedResult<FormResponseFacetOptionResponse>> ListFacetsAsync(FormResponseDefinitionRow definition, FormRecordFacetRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormRecordChainStoredRow>> ListChainAsync(Guid recordId, CancellationToken cancellationToken);

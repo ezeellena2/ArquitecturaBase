@@ -54,6 +54,29 @@ public sealed class FormResponseQueryTests
         Assert.Contains(version.Id.ToString(), sql, StringComparison.Ordinal);
     }
 
+    // F2: the count of «Por resolver» goes from the form's runs to resolve, by their index (DefinitionId, RecordId), to the responses
+    // of «Todas» (current, not voided), once per response; it does not look at every response of the form with an EXISTS.
+    [Fact]
+    public void The_count_of_responses_to_resolve_starts_from_the_forms_runs_and_joins_the_current_responses()
+    {
+        using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader = new FormResponseReader(db, new FormRecordReader(db));
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", "{\"format\":1,\"questions\":[]}", "es", ["es", "en"]);
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "TEST", version.Id, [version]);
+        var method = typeof(FormResponseReader).GetMethod("UnresolvedRecordIds", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(method);
+        var sql = Assert.IsAssignableFrom<IQueryable<Guid>>(method.Invoke(reader, [definition])).ToQueryString();
+        var statement = sql[sql.IndexOf("SELECT", StringComparison.Ordinal)..];
+        Assert.StartsWith("SELECT DISTINCT", statement, StringComparison.Ordinal);
+        Assert.Contains("FROM \"BusinessFormActionRuns\"", statement, StringComparison.Ordinal);
+        Assert.Contains("INNER JOIN", statement, StringComparison.Ordinal);
+        Assert.Contains("\"ReplacedByRecordId\" IS NULL", statement, StringComparison.Ordinal);
+        Assert.Contains("\"VersionId\" = ANY", statement, StringComparison.Ordinal);
+        Assert.Contains("'Failed'", statement, StringComparison.Ordinal);
+        Assert.DoesNotContain("EXISTS", statement, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Record_hydration_selects_light_rows_without_repeating_version_text_per_record()
     {

@@ -153,6 +153,27 @@ public sealed class FormResponseServiceTests
         Assert.Equal(new[] { "PendingApproval", "Rejected" }, result.Value.Records.Items.Select(row => row.State));
     }
 
+    // F2: the count of «Por resolver» is for whoever manages rules and reads every response; the mark of each row, for every reader.
+    [Theory]
+    [InlineData(new[] { BusinessFormsPermissions.RecordsRead }, null)]
+    [InlineData(new[] { BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RulesManage }, null)]
+    [InlineData(new[] { BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage }, 3)]
+    public async Task Only_whoever_manages_rules_and_reads_every_response_gets_the_count_of_actions_to_resolve(string[] granted, int? expected)
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [..granted];
+        var reader = new FakeFormResponseReader { UnresolvedActionCount = 3 };
+        reader.ArrangeExport(2);
+        reader.ExportRows = [reader.ExportRows[0] with { Actor = new(user.UserId.Value, "Employee"), HasUnresolvedActions = true },
+            reader.ExportRows[1] with { Actor = new(user.UserId.Value, "Employee") }];
+
+        var result = await Create(reader, user, permissions).ListAsync(reader.Definition!.Id, new(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, result.Value.UnresolvedActionCount);
+        Assert.Equal(new[] { true, false }, result.Value.Records.Items.Select(row => row.HasUnresolvedActions));
+    }
     [Fact]
     public async Task Missing_record_returns_the_same_unavailable_error()
     {

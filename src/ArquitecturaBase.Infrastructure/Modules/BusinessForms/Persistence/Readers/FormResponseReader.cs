@@ -34,18 +34,31 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
             CatalogNames = catalogs.ToDictionary(catalog => catalog.Id, catalog => (IReadOnlyDictionary<string, string>)ReadCatalogName(catalog.NameJson)),
             StandardKey = definition.StandardKey, StandardVersion = definition.StandardVersion, StandardBindingsJson = definition.StandardBindingsJson };
     }
+    // The sheet's responses with actions to resolve, without its bar's filters; null while no response of the form ran an action.
+    public async Task<int?> CountUnresolvedActionsAsync(FormResponseDefinitionRow definition, CancellationToken cancellationToken)
+    {
+        if (!await dbContext.Set<BusinessFormActionRun>().AsNoTracking().AnyAsync(run => run.DefinitionId == definition.Id, cancellationToken)) return null;
+        return await UnresolvedRecordIds(definition).CountAsync(cancellationToken);
+    }
+    // From the form's runs to resolve, by their index (DefinitionId, RecordId), to the responses of «Todas» (current, not voided), once
+    // each: it reads the form's runs, not every response with an EXISTS.
+    private IQueryable<Guid> UnresolvedRecordIds(FormResponseDefinitionRow definition) =>
+        FormResponseQuery.Unresolved(dbContext).AsNoTracking().Where(run => run.DefinitionId == definition.Id)
+            .Join(Filter(definition, new()), run => run.RecordId, record => record.Id, (run, record) => run.RecordId).Distinct();
     public async Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {
+        var unresolved = FormResponseQuery.Unresolved(dbContext);
         var page = await Ordered(Filter(definition, request), definition, request)
             .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.CreatedAtUtc, record.ActorUserId, record.State,
                 record.OriginalReceiptId, record.ReplacesRecordId,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == record.Id),
+                HasUnresolvedActions = unresolved.Any(run => run.RecordId == record.Id),
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() })
             .ToPagedResultAsync(request, cancellationToken);
         var hydrated = (await records.FindBatchAsync(page.Items.Select(record => record.SourceReceiptId).ToArray(), definition.VersionsById, cancellationToken)).Rows.ToDictionary(record => record.SourceReceiptId);
         return new(page.Items.Select(record => new FormResponseStoredRow(hydrated[record.SourceReceiptId], record.SubmittedAtUtc,
             new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = definition.VersionsById[hydrated[record.SourceReceiptId].VersionId],
-                OriginalReceiptId = record.OriginalReceiptId, ReplacesRecordId = record.ReplacesRecordId }).ToArray(), page.Page, page.PageSize, page.TotalCount);
+                OriginalReceiptId = record.OriginalReceiptId, ReplacesRecordId = record.ReplacesRecordId, HasUnresolvedActions = record.HasUnresolvedActions }).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }
     public async Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken)
     {

@@ -103,11 +103,16 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         return recorded;
     }
     /// <summary>
-    /// F2: an action that cannot go on by itself and stops the rest of its rule: failed, or in doubt waiting for a person (an issuance
-    /// that waits for its author to confirm it is a question to them, not a stop). An expression, so a query can use it.
+    /// F2: an action to resolve, that cannot go on by itself and stops the rest of its rule: failed, or in doubt waiting for a person (an
+    /// issuance that waits for its author to confirm it is a question to them, not a stop; a consult the app still makes on its own is
+    /// <c>Running</c>). Whether its author was told does not matter. An expression, so a query can use it (the sheet's «Por resolver»).
     /// </summary>
-    public static Expression<Func<BusinessFormActionRun,bool>> UnnoticedStall { get; } = run => run.StallNoticedAtUtc==null
-        && (run.State==FormActionRunState.Failed || run.State==FormActionRunState.Uncertain && run.FailureCode!=FormActionErrors.AwaitingConfirmation.Code);
+    public static Expression<Func<BusinessFormActionRun,bool>> Unresolved { get; } = run =>
+        run.State==FormActionRunState.Failed || run.State==FormActionRunState.Uncertain && run.FailureCode!=FormActionErrors.AwaitingConfirmation.Code;
+    /// <summary>F2: an action to resolve (<see cref="Unresolved"/>) whose author was not told yet. An expression, so a query can use it.</summary>
+    public static Expression<Func<BusinessFormActionRun,bool>> UnnoticedStall { get; } = Expression.Lambda<Func<BusinessFormActionRun,bool>>(
+        Expression.AndAlso(Expression.Equal(Expression.Property(Unresolved.Parameters[0],nameof(StallNoticedAtUtc)),Expression.Constant(null,typeof(DateTime?))),
+            Unresolved.Body),Unresolved.Parameters);
     private static readonly Func<BusinessFormActionRun,bool> IsUnnoticedStall=UnnoticedStall.Compile();
     public bool NeedsStallNotice=>IsUnnoticedStall(this);
     /// <summary>F2: whoever loaded the response was told (or has no channel to be told): the run is not announced again, however many times it is retried.</summary>

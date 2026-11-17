@@ -26,6 +26,11 @@ internal static class FormResponseQuery
         }
         else if (!request.IncludeVoided) query = query.Where(record => record.State != FormRecordState.Voided);
         if (request.EnteredInApp is { } enteredInApp) query = query.Where(record => record.EnteredInApp == enteredInApp);
+        if (request.UnresolvedActions is { } unresolved)
+        {
+            var runs = Unresolved(dbContext);
+            query = unresolved ? query.Where(record => runs.Any(run => run.RecordId == record.Id)) : query.Where(record => !runs.Any(run => run.RecordId == record.Id));
+        }
         if (request.UpToNumber is { } maximum) query = query.Where(record => record.Number <= maximum);
         if (request.VersionIds.Count != 0) query = query.Where(record => request.VersionIds.Contains(record.VersionId));
         if (request.ActorIds.Count != 0) query = query.Where(record => request.ActorIds.Contains(record.ActorUserId));
@@ -59,6 +64,10 @@ internal static class FormResponseQuery
         if (SameItem(ItemConditions(dbContext, definition, request, ignoredField)) is { } item) query = query.Where(record => item.Any(value => value.RecordId == record.Id));
         return query;
     }
+
+    /// <summary>F2: the actions to resolve (<see cref="BusinessFormActionRun.Unresolved"/>), an EXISTS by the index of each response's runs.</summary>
+    public static IQueryable<BusinessFormActionRun> Unresolved(ApplicationDbContext dbContext) =>
+        dbContext.Set<BusinessFormActionRun>().Where(BusinessFormActionRun.Unresolved);
 
     /// <summary>
     /// The values of the conditions on questions of the block of rows, apart from the ignored one: they are met by one same item

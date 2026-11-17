@@ -301,6 +301,39 @@ public sealed class BusinessFormActionRunTests
         Assert.False(run.RecordDecisionTap(Guid.Empty));
         Assert.Equal(later, run.DecisionTapId);
     }
+    // F2: an action to resolve cannot go on by itself and waits for a person; the issuance that asks its author («¿La emito?»)
+    // and the consult the app still makes on its own do not.
+    [Theory]
+    [InlineData(FormActionRunState.Failed, "unknown", true)]
+    [InlineData(FormActionRunState.Uncertain, "unknown", true)]
+    [InlineData(FormActionRunState.Uncertain, null, true)]
+    [InlineData(FormActionRunState.Uncertain, "Forms.Action.AwaitingConfirmation", false)]
+    [InlineData(FormActionRunState.Running, null, false)]
+    [InlineData(FormActionRunState.Completed, null, false)]
+    [InlineData(FormActionRunState.NotApplicable, null, false)]
+    public void An_action_is_to_resolve_only_when_it_failed_or_is_in_doubt_without_asking_its_author(FormActionRunState state, string? code, bool expected)
+    {
+        var run = Create("IssueDocument");
+        var lease = run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence,Now,state,code,true).IsSuccess);
+
+        Assert.Equal(expected, BusinessFormActionRun.Unresolved.Compile()(run));
+        Assert.Equal(expected, run.NeedsStallNotice);
+    }
+    [Fact]
+    public void A_waiting_action_is_not_to_resolve_and_a_stopped_one_still_is_after_its_author_was_told()
+    {
+        var unresolved = BusinessFormActionRun.Unresolved.Compile();
+        Assert.False(unresolved(Create()));
+        var run = Create();
+        var lease = run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence,Now,FormActionRunState.Failed,"unknown",true).IsSuccess);
+
+        run.RecordStallNotice(Now);
+
+        Assert.True(unresolved(run));
+        Assert.False(run.NeedsStallNotice);
+    }
     private static BusinessFormActionRun Completed(BusinessFormActionRun run)
     {
         var lease=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;

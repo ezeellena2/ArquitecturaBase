@@ -82,6 +82,8 @@ Corregir y anular (Etapa 3): FormEntryCorrectionCaptureTests prueba que la corre
 Planilla/Excel: FieldId/versión, ausencia/vacía/[] y cero/false; multiChoice conserva lista, orden y referencias selladas, anyOf por intersección, opciones de reglas por catálogo compartido y rechazo de sort. El export prueba permisos/tope/revocación, etiquetas y valores canónicos unidos por '; ' y headers sin filas; SQL/XLSX físicos pertenecen a integración.
 La navegación anclada prueba permiso propio, validación antes de leer, snapshot del filtro, cultura y descarte ante revocación sin exponer contenido ni el resultado de ausencia.
 
+Acciones por resolver (F2): `FormResponseServiceTests` da la cuenta de la hoja sólo a quien tiene `formrules.manage` y lee todas las respuestas (`null` a quien sólo lee y a quien sólo ve lo propio) y la marca de cada fila a todos.
+
 La presencia tiene expectativas explícitas para pregunta ausente, opcional vacía y respondida, tanto escalar como archivo: answered false/false/true, unanswered true/true/false y notAsked true/false/false; cero y false son respuestas presentes.
 
 FormExportServiceTests verifica el presupuesto de 30 segundos en lectura/escritura, su renovación por pedido y la precedencia de cancelación del caller, incluso si vence el presupuesto al mismo tiempo. Un resultado tardío se descarta; no se afirma que ClosedXML síncrono pueda interrumpirse a los 30 segundos. También fija la recepción en la zona de la cuenta que exporta, las palabras de la planilla («N°», «Recibida», «WhatsApp») y los formatos de fecha de cada idioma.

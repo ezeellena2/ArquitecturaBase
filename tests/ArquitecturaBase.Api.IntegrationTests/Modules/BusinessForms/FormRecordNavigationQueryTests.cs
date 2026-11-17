@@ -20,7 +20,7 @@ public sealed class FormRecordNavigationQueryTests
         var field = Field("decimal");
         var definition = Definition(field);
         var request = new ListFormRecordsRequest { Page = 8, PageSize = 1, Sort = "field", SortFieldId = field.FieldId,
-            State = "Received", ActorIds = [Guid.NewGuid()], Search = "private", Conditions = [new(field.FieldId, "gte", ["10"])] };
+            State = "Received", ActorIds = [Guid.NewGuid()], Search = "private", Conditions = [new(field.FieldId, "gte", ["10"])], UnresolvedActions = true };
         var recordId = Guid.NewGuid();
         using var command = Navigation(reader, definition, recordId, request).CreateDbCommand();
         var sql = command.CommandText;
@@ -38,6 +38,7 @@ public sealed class FormRecordNavigationQueryTests
         Assert.Contains("\"State\"", sql, StringComparison.Ordinal);
         Assert.Contains("ILIKE", sql, StringComparison.Ordinal);
         Assert.Contains("\"DecimalValue\" >=", sql, StringComparison.Ordinal);
+        Assert.Contains("FROM \"BusinessFormActionRuns\"", sql, StringComparison.Ordinal);
         Assert.True(sql.LastIndexOf("WHERE \"RecordId\" = @navigation_record_id", StringComparison.Ordinal)
             > sql.LastIndexOf("WINDOW record_order", StringComparison.Ordinal));
         Assert.Equal(recordId, command.Parameters["navigation_record_id"].Value);

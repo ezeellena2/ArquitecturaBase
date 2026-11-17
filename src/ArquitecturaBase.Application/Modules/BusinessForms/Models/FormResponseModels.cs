@@ -47,6 +47,9 @@ public sealed record FormResponseRow(Guid Id, Guid VersionId, long VersionNumber
     /// <summary>RE1-A: the canonical value of each datum of its results, by the id of its column; omitted without results.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, string?>? Results { get; init; }
+    /// <summary>F2: some action of the response failed or is in doubt waiting for a person (the column «Reglas»); omitted when false.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool HasUnresolvedActions { get; init; }
     public override string ToString() => "FormResponseRow { Content = [REDACTED] }";
 }
 public sealed record FormResponseSheetResponse(Guid DefinitionId, string Name, string Prefix, long ActiveVersionNumber,
@@ -55,6 +58,12 @@ public sealed record FormResponseSheetResponse(Guid DefinitionId, string Name, s
     /// <summary>RE1-A: a column per datum of the results external actions left in this form's responses; omitted without results.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<FormResponseResultColumn>? ResultColumns { get; init; }
+    /// <summary>
+    /// F2: the form's current responses, not voided, with actions to resolve, whatever the bar filters (the tab «Por resolver»). Only for
+    /// whoever manages rules and sees every response, and only once the form ran some action; omitted otherwise.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? UnresolvedActionCount { get; init; }
 }
 public sealed record FormResponseVersionResponse(Guid Id, long Number);
 public sealed record ListFormRecordsRequest : PagedRequest
@@ -67,6 +76,8 @@ public sealed record ListFormRecordsRequest : PagedRequest
     public bool IncludeVoided { get; init; }
     /// <summary>Only responses loaded in the app (true) or only those received through a channel (false).</summary>
     public bool? EnteredInApp { get; init; }
+    /// <summary>F2: only responses with actions to resolve (true) or only those without (false); see <c>BusinessFormActionRun.Unresolved</c>.</summary>
+    public bool? UnresolvedActions { get; init; }
     public Guid? SortFieldId { get; init; }
     public IReadOnlyList<Guid> VersionIds { get; init; } = [];
     public IReadOnlyList<Guid> ActorIds { get; init; } = [];
@@ -90,6 +101,9 @@ public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime 
     /// <summary>Whether the response has an issuance that applied (also its reversal): the zone «Comprobante» of the detail.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool HasIssuance { get; init; }
+    /// <summary>F2: some action of the response is to resolve (<c>BusinessFormActionRun.Unresolved</c>); read with the sheet's page.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasUnresolvedActions { get; init; }
     public string? CaptureOriginJson { get; init; }
     public FormAuthorResponse? CaptureOperator { get; init; }
     /// <summary>The first version's receipt when this is a correction: the channel and who answered come from it.</summary>

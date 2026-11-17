@@ -33,6 +33,9 @@ internal sealed class FormRecordAccessGuard(ICurrentUser currentUser, IPermissio
         return await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsCreate, cancellationToken)
             ? new FormRecordReadAccess(actor, true) : FormDefinitionErrors.Forbidden;
     }
+    /// <summary>F2: the count of the responses with actions to resolve is for whoever manages rules and sees every response.</summary>
+    public async Task<bool> CountsUnresolvedActionsAsync(FormRecordReadAccess access, CancellationToken cancellationToken) =>
+        !access.OwnOnly && await permissions.HasPermissionAsync(access.Actor, BusinessFormsPermissions.RulesManage, cancellationToken);
     /// <summary>Someone else's response does not exist for whoever only reads their own, not even by its address.</summary>
     public async Task<bool> CanReadAsync(FormRecordReadAccess access, Guid recordId, CancellationToken cancellationToken) =>
         !access.OwnOnly || await records.ExistsByActorAsync(recordId, access.Actor, cancellationToken);

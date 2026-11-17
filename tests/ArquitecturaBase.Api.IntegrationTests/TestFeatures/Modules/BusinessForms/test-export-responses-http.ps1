@@ -93,7 +93,8 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $responses = @($cohorts | Where-Object { $_.Name -eq "responses" })[0]
                 $pdf = @($cohorts | Where-Object { $_.Name -eq "pdf" })[0]
                 $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]
-                Assert-Condition ($responses.RequiredNames.Count -eq 67) "Responses must preserve the prior artifacts, ten captured extra-field artifacts, eight rows artifacts, the two of an external result, the detail of a location asked by WhatsApp (W1-A) and the detail with what the person shared (W3)."
+                Assert-Condition ($responses.RequiredNames.Count -eq 68) "Responses must preserve the prior artifacts, ten captured extra-field artifacts, eight rows artifacts, the two of an external result, the detail of a location asked by WhatsApp (W1-A), the detail with what the person shared (W3) and the sheet of the responses with actions to resolve (F2)."
+                Assert-Condition ("unresolved-sheet-es.json" -in $responses.RequiredNames -and ($sourceRoot + "BusinessForms/FormResponseUnresolvedActionsHttpTests.cs") -in $responses.Sources) "The sheet of the responses with actions to resolve (F2) and its producer are missing."
                 foreach ($name in @("result-detail-es.json", "result-sheet-es.json")) { Assert-Condition ($name -in $responses.RequiredNames) "An external result capture (RE1-A) is missing." }
                 Assert-Condition ("detail-location-whatsapp-es.json" -in $responses.RequiredNames) "The detail of a location asked by WhatsApp (W1-A) is missing."
                 Assert-Condition ("detail-shared-whatsapp-es.json" -in $responses.RequiredNames) "The detail with the location and the contact shared by WhatsApp (W3) is missing."
