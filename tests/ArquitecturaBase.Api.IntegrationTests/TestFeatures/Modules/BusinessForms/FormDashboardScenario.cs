@@ -42,8 +42,11 @@ internal static class FormDashboardScenario
     public static CanonicalFormField Field(string type, string es, string en, IReadOnlyList<CanonicalFormChoice>? options = null, Guid? catalog = null)
     {
         var id = Guid.NewGuid();
+        // An optional «elegir varias» carries its range, as the editor saves it (SaveFormDraftRequestValidator): the form is published
+        // in the shared base, so other tests' HTTP captures list it and the front reads it with the same rules.
+        var selection = type == "multiChoice" ? new FormSelectionSettings(0, Math.Clamp(options?.Count ?? 20, 1, 20)) : null;
         return new(id, "field_" + id.ToString("N"), type, new Dictionary<string, string> { ["es"] = es, ["en"] = en }, null, false, null, options,
-            Source: catalog is { } catalogId ? new(catalogId) : null);
+            Source: catalog is { } catalogId ? new(catalogId) : null, Selection: selection);
     }
 
     public static CanonicalFormChoice Choice(string es, string en) => new(Guid.NewGuid(), new Dictionary<string, string> { ["es"] = es, ["en"] = en });
