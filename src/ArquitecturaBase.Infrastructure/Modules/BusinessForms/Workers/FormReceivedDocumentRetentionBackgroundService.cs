@@ -22,13 +22,13 @@ internal sealed partial class FormReceivedDocumentRetentionBackgroundService(ISe
                     await using var scope = scopeFactory.CreateAsyncScope();
                     await scope.ServiceProvider.GetRequiredService<IFormReceivedDocumentRetentionService>().PurgeExpiredAsync(stoppingToken);
                 }
-                catch (Exception exception) when (!stoppingToken.IsCancellationRequested) { RetentionFailed(logger, exception); }
+                catch (Exception exception) when (!stoppingToken.IsCancellationRequested) { RetentionFailed(logger, exception.GetType().Name); }
             }
             while (await timer.WaitForNextTickAsync(stoppingToken));
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
     }
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Received documents retention failed.")]
-    private static partial void RetentionFailed(ILogger logger, Exception exception);
+    [LoggerMessage(Level = LogLevel.Error, Message = "Received documents retention failed after {ExceptionType}.")]
+    private static partial void RetentionFailed(ILogger logger, string exceptionType);
 }
