@@ -387,7 +387,10 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
     private async Task<Guid> SeedFormAsync(Guid actor, string name, bool published = true, bool deactivated = false)
     {
         var prefix = "F" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
-        var field = new CanonicalFormField(Guid.NewGuid(), "value", "longText", new Dictionary<string, string> { ["es"] = "Valor" }, null, false, 600, null);
+        // The key the editor saves (FormDraftPolicy): the form is published in the shared base, so other tests' HTTP captures list it
+        // and the front reads it with the same rules.
+        var fieldId = Guid.NewGuid();
+        var field = new CanonicalFormField(fieldId, "field_" + fieldId.ToString("N"), "longText", new Dictionary<string, string> { ["es"] = "Valor" }, null, false, 600, null);
         var names = new Dictionary<string, string> { ["es"] = name };
         var buttons = new Dictionary<string, string> { ["es"] = "Enviar" };
         var definition = BusinessFormDefinition.Create();
