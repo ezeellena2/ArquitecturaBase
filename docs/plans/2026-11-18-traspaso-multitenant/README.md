@@ -76,7 +76,7 @@ Todos están en `ArquitecturaBase/docs/plans/`.
 
 - **En la PC del usuario:** `C:\Users\ezequ\source\repos\ArquitecturaBase` y `C:\Users\ezequ\source\repos\ArquitecturaBaseFront`.
 - **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Este paquete
-  llega a GitHub cuando el usuario pida subirlo; hasta entonces está sólo en su PC.
+  está en GitHub desde el 2026-11-18, con el front hasta `cf247979`.
 - **El rango:** los traspasos 4 a 14 cubren el backend hasta `72510c01` y el front hasta `ecc0f561`, sin huecos (cada
   paquete arranca donde terminó el anterior). El 02 de este suma lo que va hasta backend `5356b282` y front `cf247979`.
 
