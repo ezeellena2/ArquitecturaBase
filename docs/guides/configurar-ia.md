@@ -231,8 +231,8 @@ Después de la evidencia, un perfil de texto se declara bajo
 | `SupportsTools` / `SupportsTerminalAnswer` | Ambos true y comprobados con llamadas reales. |
 | `QualifiedToDraft` | True sólo después de calificar el redactado con los casos del [ADR 0021](../decisions/0021-respuestas-redactadas-por-el-asistente.md) (punto 8). Sin él, el asistente de WhatsApp no redacta: responde con los textos fijos de sus casos. |
 
-La aceptación fija perfil e instrucciones por Id/versión. Inicio usa `home-system@1`; los
-canales usan `capabilities-v1@1`. El worker exige la versión capturada y no cambia una operación
+La aceptación fija perfil e instrucciones por Id/versión. Inicio usa `home-system@2` (los turnos
+sellados con la 1 se siguen leyendo); los canales usan `capabilities-v1@1`. El worker exige la versión capturada y no cambia una operación
 pendiente al perfil nuevo. Para modificar un perfil o instrucciones, calificá y declará otra
 versión; no reescribas la versión que conservan turnos anteriores. Reiniciá las réplicas después
 de configurar: los perfiles no se recargan en caliente y la revisión de conexión protege cada paso.

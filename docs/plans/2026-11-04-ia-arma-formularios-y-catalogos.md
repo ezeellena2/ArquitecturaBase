@@ -1,8 +1,10 @@
 # La IA arma formularios y catálogos a pedido
 
-Diseño del 2026-11-03 con las decisiones del usuario del 2026-11-04. La Etapa 1 (texto y audio) quedó programada el 2026-11-05
-y la 2 (planillas) el 2026-11-11, las dos calificadas con OpenAI real; la 3 (documentos) se planifica junto con la lectura de
-documentos del ADR 0022 (2026-11-11). Desde el chat de Inicio o por
+Diseño del 2026-11-03 con las decisiones del usuario del 2026-11-04. La Etapa 1 (texto y audio) quedó programada el 2026-11-05,
+la 2 (planillas) el 2026-11-11 y la 3 (documentos) el 2026-11-12, con la lectura de documentos del ADR 0022; las tres calificadas
+con OpenAI real (la 3, `home-documents` el 2026-11-12). Al 2026-11-18 sólo queda sin programar lo de
+renglones (abajo, en «Resueltas por defecto») y, en el front, volver requeridos los campos del bootstrap
+([Etapa 2](2026-11-09-ia-arma-formularios-etapa-2.md#estado)). Desde el chat de Inicio o por
 WhatsApp, con un texto, un archivo o un audio, se le pide a la IA un formulario o un catálogo: lo propone, lo muestra y una
 persona lo pasa al editor con todo cargado, sin publicar.
 
@@ -111,6 +113,9 @@ nunca publica, activa ni importa.
   sale con «Lectura de documentos» prendida y su «Cómo reconocerlo», como en DOC6. Antes, sale sin ella.
 - **Renglones:** cuando estén programados, lo que se repite, como los artículos de un remito, se propone como «Renglones»
   ([RG1-A y RG6-A](../features/formularios.md#el-bloque-de-renglones-al-armar-y-publicar--rg1-a-rg3-a-y-rg6-a-2026-11-04)).
+  Al 2026-11-18, con los renglones ya programados, sigue sin programar: los esquemas de `propose-form@1` y `@2`
+  (`FormAuthoringAssistantCodec`) no tienen bloque ni preguntas `repeated`, así que la IA arma esas columnas como preguntas
+  sueltas.
 
 ## Cómo se arma
 

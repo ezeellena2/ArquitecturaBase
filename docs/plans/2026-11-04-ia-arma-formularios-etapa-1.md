@@ -200,3 +200,11 @@ controles offline. La corrida con el proveedor real espera el visto bueno del us
 5f61a087). Las dos notas de voz Ogg se normalizaron con `openai-stt-candidate@1`, y las dos interpretaciones tomaron la transcripción
 del servidor y propusieron el formulario pedido: 62/62 checks. La evidencia está en
 [configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles).
+
+2026-11-18, contrastado con el código: la etapa está programada y calificada, y sus capacidades ya van en versiones
+posteriores (`propose-catalog@2` desde la Etapa 2 y `propose-form@2` desde la 3). La regla está en
+[formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04), en
+[IA](../features/inteligencia-artificial.md) y en [WhatsApp](../features/whatsapp.md); la calificación, en configurar IA, y el
+traspaso, en los 8 y 11. Declarar el perfil STT del navegador en cada instalación también quedó en
+[configurar IA](../guides/configurar-ia.md#perfil-de-transcripción-con-la-misma-conexión). Este plan no guarda pasos de
+prueba a mano.

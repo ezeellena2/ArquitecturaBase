@@ -439,3 +439,12 @@ La revisión de premisas del 2026-11-11 dejó tres arreglos más:
 - el listado de chats lee el tipo del último mensaje en una sola subconsulta, y pasa de ocho a seis por contacto (d27b9543);
 - al elegir el archivo, el foco pasa a la X, y al quitarlo vuelve al clip (front 2bbd7a40);
 - en el celular, el clip, la X, el micrófono y la flecha se tocan en 44 px, sin cambiar el círculo dibujado (front 8d7299f8).
+
+2026-11-18, contrastado con el código: la exportación conjunta del cierre (front `9aa157ae`, 17/11) trajo `attachments`,
+`documents` y `documentReading` al bootstrap capturado, y `assistantHttpContract.test.ts` ya lee las capturas de planillas y
+documentos. Falta volver requeridos esos tres campos en el zod del bootstrap (`front:src/features/artificial-intelligence/api/assistant.ts`,
+todavía `.optional()` con el comentario «hasta la exportación conjunta»). La regla quedó en
+[formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-2-planillas-2026-11-09-a-2026-11-11), la
+calificación en [configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) y el traspaso es el 13. Quedan
+también, para la prueba con Meta, mandar un `.xlsx` y un `.csv` reales desde el celular y confirmar que el `sha256` y el
+`mime_type` del documento coinciden con los del webhook.

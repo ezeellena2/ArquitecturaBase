@@ -1,6 +1,9 @@
 # Asistente de Inicio: capacidad, ciclo de vida y calibración
 
-Estado: **pendiente, sin empezar**. Inicio, historial privado, panel interno y título derivado ya
+Estado (2026-11-18): los siete pendientes de abajo siguen **sin empezar**, salvo lo que cubrieron las
+tareas 12, 18 y 28 de los [arreglos de la revisión](#arreglos-de-la-revisión-de-arquitectura), que están programados y
+cerraron en verde el 2026-11-17; lo que dejaron para después está en
+[lo que quedó de los arreglos](#lo-que-quedó-de-los-arreglos). Inicio, historial privado, panel interno y título derivado ya
 están implementados: reglas en [inteligencia artificial](../features/inteligencia-artificial.md#panel-interno-e-identificación-del-historial--2026-10-05),
 configuración y runbook en [configurar IA](../guides/configurar-ia.md#habilitar-el-asistente) y
 decisión en [ADR 0017](../decisions/0017-inicio-asistente-y-operaciones-durables.md). Este plan
@@ -40,8 +43,8 @@ habilita. El piloto con modelos y cuentas reales está en [verificación y produ
 
 ## Decisiones tomadas
 
-- Los valores 10 por actor y 100 por instalación por día UTC, 4 Running, 50 Pending y 30 días
-  son propuestas del piloto, no premisas.
+- Los valores 10 por actor y 100 por instalación por día UTC, 4 Running, 4 Pending (bajó de 50 con
+  la tarea 12; el código admite hasta 50) y 30 días son propuestas del piloto, no premisas.
 - Una operación activa o incierta no se borra para «limpiar».
 - Como referencia aritmética, 10 personas × 5 consultas × 365 días dan 18.250 turnos por año.
   No fija una cuota ni acredita una prueba de carga.
@@ -378,3 +381,26 @@ y el build. Hicieron falta tres exportaciones, y lo que destaparon se arregló a
 - en el front, ecc0f561 y los plazos de 571503cf, b618d58b, 925ab958, 1e877620 y f027d83f.
 
 Queda la prueba manual, que va en la prueba integral de la tanda.
+
+### Lo que quedó de los arreglos
+
+Juntado el 2026-11-18 de las etapas de arriba y de la [revisión](../reviews/2026-11-14-arquitectura-ia.md), y comprobado en
+el código ese día. Ninguno traba la prueba integral.
+
+- **Antes de pasar de una réplica:** I18, que el barrido de archivos privados borre sólo bajo los prefijos que alguien
+  declaró (núcleo, chico).
+- **Con volumen real que medir** (van con los pendientes 3, 5 y 6): el resto de I19 (autorizar, descifrar y armar el
+  catálogo antes de los candados, la conexión compartida, los pasos sin el candado de presupuesto y contadores por día) y de
+  I20 (herramientas y dueños del lote en una consulta, la purga sin el candado de presupuesto, un índice para la retención
+  de documentos y la parte activa de las conversaciones a borrar).
+- **Con la próxima versión de instrucciones que haya que calificar** (decisión 7): fechas y números sólo con números, la
+  frase del permiso y `Prompt.SourceTime`, que en Inicio dice «zona del negocio» aunque sea la del perfil.
+- **Sin fecha:** el corte que falla rápido después de varios rechazos (I6); el aviso de una clave ilegible en
+  Configuración › IA para quien sólo tiene `ai.read` (I7); que la prueba de la tanda falle con un solo carril, que pide
+  rehacer el proveedor ficticio de integración (I1); la clave de la copia guardada que no dependa de la persona y la copia
+  huérfana de dos subidas del mismo pedido con distinto tipo, sin camino desde la app (I13); y el veredicto del anillo en el
+  bootstrap y en el chequeo previo a subir un documento (I17), que hoy rechaza la aceptación.
+- **Observaciones menores:** siguen abiertas O1 (el registro de los proveedores corre dos veces), O2 y O13 (a confirmar con
+  una cuenta real), O3, O4 (la prueba de conexión llama incierto a un corte antes de enviar), O6, O8 (el nombre del archivo
+  conserva los caracteres bidireccionales), O9, O10, O11, O12 y O14 (`KnownInstructions` acepta «la 1 o la actual»). De O5
+  queda sólo lo opcional (la huella con una clave ausente ya da 409, I17), y O7 lo acota I9: la ruta limita el cuerpo.
