@@ -72,7 +72,7 @@ No se vuelven a preguntar.
 
 ## Relación con otros planes
 
-- [Sugerencias de texto con revisión humana](2026-10-03-sugerencias-ia-whatsapp.md): en Atención manual, la respuesta redactada se le puede ofrecer al operador como borrador, con el mismo motor. Resuelto con AS4 (el borrador del operador): ese plan queda reemplazado.
+- Sugerencias de texto con revisión humana ([procedencia](../history/README.md#barrido-documental-del-2026-11-18)): en Atención manual, la respuesta redactada se le puede ofrecer al operador como borrador, con el mismo motor. Resuelto con AS4 (el borrador del operador): ese plan queda reemplazado.
 - **Multitenant:** perfil, casos y límites son por organización. Hay que sumarlo al traspaso cuando se cierre esta etapa.
 
 ## Etapa siguiente: fotos y documentos

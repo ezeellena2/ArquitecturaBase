@@ -150,7 +150,7 @@ espera» va con esa respuesta, como acá.
   [IA](../features/inteligencia-artificial.md), en la salida final `assistant_answer`.
 - **Evidencia:** [configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles), en las corridas del 2026-11-08
   y en la del dictado, del 2026-11-09.
-- **Estado:** el [plan de la etapa 1](2026-11-04-ia-arma-formularios-etapa-1.md), en sus entradas del 2026-11-07 al
+- **Estado:** el [plan de la etapa 1](../history/README.md#barrido-documental-del-2026-11-18), en sus entradas del 2026-11-07 al
   2026-11-09.
 - **Diseño del front:** `ArquitecturaBaseFront/docs/design/ia-arma-formularios.md`. IA3-A e IA4 ya decían que un pedido que no
   queda claro pregunta; el front no cambió.

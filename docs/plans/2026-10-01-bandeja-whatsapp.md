@@ -7,8 +7,8 @@ corrida completa del 2026-11-17; lo que queda de ellos está [al final de esa se
 
 El chat de atención, sus permisos y la separación entre acceso y atención están implementados:
 las reglas están en [WhatsApp](../features/whatsapp.md#chat-de-atención--2026-10-02) y en el
-[ADR 0011](../decisions/0011-separacion-acceso-y-atencion-whatsapp.md). La IA asistida tiene su
-propio plan: [sugerencias con revisión humana](2026-10-03-sugerencias-ia-whatsapp.md). Este plan
+[ADR 0011](../decisions/0011-separacion-acceso-y-atencion-whatsapp.md). La IA asistida es el borrador
+del operador de los [casos del asistente](../features/whatsapp.md#casos-del-asistente--2026-11-11) (AS4). Este plan
 conserva solo lo que todavía no existe en el código. El inventario original se recupera desde Git
 ([procedencia](../history/README.md)).
 

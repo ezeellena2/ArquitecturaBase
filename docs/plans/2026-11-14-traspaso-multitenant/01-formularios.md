@@ -7,7 +7,7 @@ formularios y no nombra a ARCA: ARCA lo usa por puertos neutrales (04).
 
 ## 1. El motor para documentos (2026-11-09)
 
-Nació como la etapa 2 de ARCA (plan `docs/plans/2026-11-09-arca-etapa-2-motor.md`; diseño en
+Nació como la etapa 2 de ARCA (plan retirado el 2026-11-18, [procedencia](../../history/README.md#barrido-documental-del-2026-11-18); diseño en
 `ArquitecturaBaseFront/docs/design/motor-para-documentos.md`), pero es genérico. El usuario eligió las cuatro recomendadas.
 
 - **Cálculos (CA1-A).** El cálculo es una pregunta más, de tipo «Cálculo» («Qué calcula»), decimal y de sólo lectura,

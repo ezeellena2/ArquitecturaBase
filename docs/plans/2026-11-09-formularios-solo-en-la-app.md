@@ -4,7 +4,7 @@ Decidido el 2026-11-09: el usuario eligió las siete recomendadas («Sí, las re
 mismo día** (corte 1, con el visto bueno del usuario: «Ahora, el backend»). **El front quedó programado el 2026-11-11**, al
 terminar la prueba integral (corte 2, «Sí, al terminar»). La exportación conjunta trajo los seis cuerpos de
 `forms-http/app-only` el 2026-11-17 (front `844a5c13`), y ese día corrieron enteros el backend y los controles del front
-(cierre del [plan de arreglos](2026-11-15-arreglos-de-formularios.md)). Falta el resto del cierre: el test del front que lea
+(cierre de los arreglos de la [revisión de Formularios](../reviews/2026-11-14-arquitectura-formularios.md)). Falta el resto del cierre: el test del front que lea
 esos cuerpos, la prueba de integración del retiro de Flows, volver a probar «Quitar WhatsApp», la prueba a mano y retirar
 el plan (estado al 2026-11-18, en «Cortes»).
 Las reglas vigentes están en [formularios](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09). Lo pidió durante esa prueba: «Quiero poder

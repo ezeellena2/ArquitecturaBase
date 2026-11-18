@@ -182,7 +182,7 @@ traspaso: la prueba manual, el perfil de transcripción del navegador en las dem
   [WhatsApp](../features/whatsapp.md), en «Armar formularios y catálogos (IA3-A)».
 - **Decisión:** [ADR 0024](../decisions/0024-ia-arma-formularios-y-catalogos.md), que amplía los ADR 0017, 0020 y 0022.
 - **Planes:** el [plan general](2026-11-04-ia-arma-formularios-y-catalogos.md), con las tres etapas, y el
-  [plan de la etapa 1](2026-11-04-ia-arma-formularios-etapa-1.md), con las decisiones técnicas y el estado de cada tarea.
+  [plan de la etapa 1](../history/README.md#barrido-documental-del-2026-11-18), con las decisiones técnicas y el estado de cada tarea.
 - **Diseño del front:** `ArquitecturaBaseFront/docs/design/ia-arma-formularios.md`.
 - **Tableros:** el lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), filas «Armar con la
   IA · 0» a «· 3»: IA0 (el recorrido), IA1-A e IA3-A (elegidas), IA1-B e IA3-B (descartadas), IA2 e IA4 (las piezas).

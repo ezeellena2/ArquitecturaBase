@@ -181,7 +181,7 @@ organización»; quedan abiertas las 13 decisiones de su estudio).
   con el módulo entero, una familia sola y las comprobaciones de las dos pruebas de fuego.
 - **Decisiones:** [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) (módulo y credenciales) y
   [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) (familias).
-- **Diseño y plan:** [diseño de la etapa 1](2026-11-03-arca-etapa-1-conexion.md), [plan de implementación](2026-11-03-arca-etapa-1-implementacion.md)
+- **Diseño y plan:** [diseño de la etapa 1](../history/README.md#barrido-documental-del-2026-11-18), [plan de implementación](../history/README.md#barrido-documental-del-2026-11-18)
   (nueve tareas, con las diferencias anotadas en cada una) y la [hoja de ruta](2026-10-31-arca-formularios-estandar.md).
 - **Diseño del front:** `ArquitecturaBaseFront/docs/design/arca-conexion.md`, con la entrada «ARCA» de `visual-baseline.md`.
 - **Tableros:** el lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), filas «ARCA ·

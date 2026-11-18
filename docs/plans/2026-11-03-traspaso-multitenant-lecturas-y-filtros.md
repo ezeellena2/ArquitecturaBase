@@ -362,7 +362,7 @@ El plan tiene las cuatro etapas (editor y publicación, carga, lecturas y reglas
 
 ### La conexión con ARCA (2026-11-03)
 
-También quedó diseñada, sin programar, la [etapa 1 de ARCA](2026-11-03-arca-etapa-1-conexion.md): conectar la
+También quedó diseñada, sin programar, la [etapa 1 de ARCA](../history/README.md#barrido-documental-del-2026-11-18): conectar la
 instalación con el certificado de la empresa, probar la conexión, traer los datos de la empresa del padrón y elegir el
 punto de venta, sin emitir. No es parte de este traspaso: se nombra para que el multitenant la tenga en cuenta cuando la
 sume a su hoja de ruta, donde habrá que decidir de quién es la conexión.
@@ -460,7 +460,7 @@ de los choques son con esas reglas y no con decisiones numeradas.
   - `carga-desde-la-app.md`: AR1-A y AR2-A.
 - **Las reglas y sus piezas:** `ArquitecturaBaseFront/docs/guides/premisas-de-desarrollo.md` y `estandar-visual.md`.
 - **Planes sin programar:** renglones en los formularios (programado después: [traspaso 12](2026-11-11-traspaso-multitenant-renglones.md)),
-  [ARCA · etapa 1](2026-11-03-arca-etapa-1-conexion.md) y [carpetas](2026-11-03-carpetas-de-formularios-y-catalogos.md).
+  [ARCA · etapa 1](../history/README.md#barrido-documental-del-2026-11-18) y [carpetas](2026-11-03-carpetas-de-formularios-y-catalogos.md).
 - **Tableros:** el lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en estas filas:
   - «Formularios · respuestas · dos solapas y un solo «Filtros»» y «el filtro de una pregunta con opciones: un combo
     simple»;

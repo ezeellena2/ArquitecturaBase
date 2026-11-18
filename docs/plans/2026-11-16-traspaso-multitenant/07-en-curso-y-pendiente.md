@@ -29,7 +29,7 @@ hacerle al usuario.
   - la corrida real del robot;
   - medir memoria y CPU de una pasada del robot en la imagen publicada (H22).
 - **Formularios:** los menores de la segunda revisión adversarial, de una línea cada uno, en «Qué falta al 2026-11-16» del
-  [plan](../2026-11-15-arreglos-de-formularios.md).
+  [plan](../../history/README.md#barrido-documental-del-2026-11-18).
 - **Costos aceptados por el usuario:**
   - la invitación sale en el idioma general (N24);
   - la historia administrativa (N13) queda sin pantalla hasta dibujarla;

@@ -26,7 +26,7 @@ cierre: no armes etapas con eso.
 
 | Desarrollo | Estado | Dónde mirar |
 | --- | --- | --- |
-| Motor para documentos (CA1-A, CO1-A, RE1-A) | Programado; falta la prueba integral y el cierre | 01, §1; `docs/plans/2026-11-09-arca-etapa-2-motor.md` |
+| Motor para documentos (CA1-A, CO1-A, RE1-A) | Programado; falta la prueba integral y el cierre | 01, §1; [procedencia](../../history/README.md#barrido-documental-del-2026-11-18) |
 | Biblioteca de estándares (BI1-A) y catálogos de un módulo | Programados; falta la prueba integral | 01, §2 y §3; ADR 0029 |
 | Carpetas (CP1-A a CP5-A) | Programadas; falta la prueba integral | 01, §4; `docs/plans/2026-11-03-carpetas-de-formularios-y-catalogos.md` |
 | Formularios sólo en la app (SA1-A a SA5) | Programado; faltan la exportación conjunta, la prueba a mano y el cierre | 01, §5; `docs/plans/2026-11-09-formularios-solo-en-la-app.md` |

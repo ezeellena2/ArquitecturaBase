@@ -109,7 +109,7 @@ Identidad, administración, archivos privados y lo común. Las pantallas del nú
 - **Depende de:** nada. Borrar ya revoca las sesiones, pero el lector no debe conceder nada.
 - **Tamaño:** chico.
 - **Decide:** nadie: lo decidió la tarea 6.
-- **Dónde vive:** `docs/plans/verificacion-y-produccion.md` (hasta hoy, la tarea 6 de `2026-11-15-arreglos-de-formularios.md`).
+- **Dónde vive:** `docs/plans/verificacion-y-produccion.md` (hasta el 2026-11-18, la tarea 6 del plan de arreglos de Formularios, ya retirado).
 - **Lo nombran:** Formularios (parte técnica) y el plan de arreglos de formularios. El plan del núcleo no lo tenía.
 
 ### N-2. La historia administrativa en pantalla (N13)
@@ -426,7 +426,7 @@ revisión. Los lectores del front de sus capturas están en P-1, sus escenas vis
 ### F-10. R3: la versión, el idioma y la señal de purga en la tarjeta del chat
 
 - **Estado:** sin terminar (heredado de la Etapa 1).
-- **Evidencia:** «Pendientes que se arrastran» de `docs/plans/formularios/etapa-2-catalogos.md`: la versión y el idioma de la
+- **Evidencia:** «Pendientes que se arrastran» del resumen de la Etapa 2 de catálogos, ya retirado ([procedencia](../history/README.md#barrido-documental-del-2026-11-18)): la versión y el idioma de la
   respuesta, y una señal explícita de que el mensaje se purgó, sin inferirla de `Body=null`. No hay esa señal en
   `Application/Modules/WhatsApp/Models`.
 - **Qué falta:**
@@ -435,7 +435,7 @@ revisión. Los lectores del front de sus capturas están en P-1, sus escenas vis
 - **Depende de:** la lectura del chat de WhatsApp.
 - **Tamaño:** chico.
 - **Decide:** el usuario confirma si sigue; después se programa sin decisión.
-- **Dónde vive:** `docs/plans/formularios/README.md` (pasa ahí al retirar hoy `etapa-2-catalogos.md`).
+- **Dónde vive:** `docs/plans/formularios/README.md`, en «Después de la Etapa 5».
 
 ### F-11. La prueba de integración del retiro de Flows al pasar a la app
 
@@ -539,8 +539,8 @@ revisión. Los lectores del front de sus capturas están en P-1, sus escenas vis
 - **Depende de:** nada. Los cuatro de migraciones y versiones (2, 3, 6 y 8) conviene cerrarlos antes del primer despliegue.
 - **Tamaño:** chico cada uno.
 - **Decide:** el usuario.
-- **Dónde vive:** `docs/plans/verificacion-y-produccion.md` (los menores de Formularios); hasta hoy, «Qué falta» de
-  `2026-11-15-arreglos-de-formularios.md`.
+- **Dónde vive:** `docs/plans/verificacion-y-produccion.md` (los menores de Formularios); hasta el 2026-11-18, «Qué falta» del
+  plan de arreglos de Formularios, ya retirado.
 
 ### F-17. Partes de tareas que se dejaron al programar los arreglos
 
@@ -934,7 +934,7 @@ y la «Gran escala» (H27 a H34) van [aparte](#arquitectura-para-más-adelante).
 - **Estado:** propuesto sin decidir.
 - **Evidencia:** front `visual-baseline.md`, «Propuestas abiertas». El chat ya muestra la sugerencia del asistente con «Usar como
   borrador» (AS4, front `whatsapp.json:270-271`), pero sin un botón para pedirla. El plan del backend
-  `2026-10-03-sugerencias-ia-whatsapp.md` quedó reemplazado por AS4 y se retira hoy.
+  de sugerencias de texto quedó reemplazado por AS4 y se retiró el 2026-11-18.
 - **Qué falta:**
   1. Decidir si se descarta o se programa el botón.
   2. Si se programa: el tablero, el botón y sus tests.
@@ -1518,7 +1518,7 @@ WhatsApp, y F-4 y F-7 en Formularios.
 - **Depende de:** nada.
 - **Tamaño:** chico.
 - **Decide:** nadie.
-- **Dónde vive:** la guía de tests del front (el plan de arreglos se retira hoy).
+- **Dónde vive:** la guía de tests del front (el plan de arreglos se retiró el 2026-11-18).
 
 ### P-11. El lienzo «Sistema visual» es de otra cuenta
 
@@ -1655,7 +1655,7 @@ WhatsApp, y F-4 y F-7 en Formularios.
 ## Propuestas sin programar
 
 Desarrollos nuevos, con plan o con charla, que no tienen código. Los grandes de un área quedaron en su sección: N-3, F-6, W-10 y
-W-16. La base de demostración del modelo de formularios no es un pendiente: se retira hoy (ver [Planes](#planes)).
+W-16. La base de demostración del modelo de formularios no es un pendiente: se retiró el 2026-11-18 (ver [Planes](#planes)).
 
 ### Pr-1. Tickets en Jira desde formularios
 
@@ -1822,7 +1822,7 @@ Ordenadas por importancia. Cuando el informe recomienda una opción, va primero.
 26. **P-15.** Las decisiones chicas heredadas: dejarlas como están o alinearlas con un tablero.
 27. **P-16.** Los enlaces reales en `RowActions` y `main` con teclado, con el diseño.
 28. **W-13.** Las burbujas: Actuales o Redondeadas, o retirar la comparación.
-29. **W-14.** «Sugerir con IA» a pedido: descartarlo, porque AS4 ya sugiere y su plan se retira hoy, o programar el botón.
+29. **W-14.** «Sugerir con IA» a pedido: descartarlo, porque AS4 ya sugiere y su plan se retiró el 2026-11-18, o programar el botón.
 30. **P-17.** Si diálogos y menús llevan animación.
 31. **P-18.** El reloj de 1 s del compositor y la consulta única de versiones de rol.
 32. **P-14.** Qué falta del Inicio completo, los 403 y 404 y la marca real.
@@ -1997,18 +1997,9 @@ arquitectura (12 y 14/11) y en `verificacion-y-produccion.md`.
 Según las secciones C de los informes. Al retirar cualquiera: anotar en `docs/history/README.md` el commit anterior y dónde
 quedó cada cosa, y corregir sus enlaces.
 
-### Se retiran hoy
+### Retirados el 2026-11-18
 
-| Plan | Sus pendientes pasan a | Antes de retirarlo |
-| --- | --- | --- |
-| `2026-11-03-arca-etapa-1-conexion.md` y `2026-11-03-arca-etapa-1-implementacion.md` | Ninguno. La homologación queda en «Pendiente» de `docs/features/arca.md`, con los pasos en `configurar-arca.md` | Cambiar los enlaces del ADR 0023, los traspasos 5 y 6, el índice de planes y, en el front, `docs/design/arca-conexion.md` y `src/features/arca/AGENTS.md` |
-| `2026-11-09-arca-etapa-2-motor.md` | Ninguno. Las reglas están en `formularios.md`, el ADR 0029 y `motor-para-documentos.md` del front | Cambiar los enlaces de `formularios.md`, el ADR 0029, el plan de carpetas, el índice, los traspasos y el diseño del front |
-| `2026-11-04-ia-arma-formularios-etapa-1.md` | Ninguno. La regla está en formularios, IA y WhatsApp, y la evidencia en `configurar-ia.md` | Sólo la línea en `history` |
-| `formularios/etapa-2-catalogos.md` | R3 (F-10), a `docs/plans/formularios/README.md`. La prueba física de decimales, a `verificacion-y-produccion.md` si no está | Redirigir `docs/features/whatsapp.md`, `docs/plans/formularios/README.md` y el front `docs/design/formularios-whatsapp.md`. Las revisiones del 12 y del 14/10 y los anexos C y D del traspaso del 23/10 enlazan a `history` |
-| `formularios-modelo-demo/` | Ninguno: no es una regla, y Git conserva los scripts (último cambio `4b151eb6`) | Sacar sus enlaces del README de formularios, de `history` y del anexo F del traspaso del 23/10 |
-| `2026-10-03-sugerencias-ia-whatsapp.md` | Ninguno: lo reemplazó AS4. El botón a pedido (W-14) queda en «Propuestas abiertas» del front | Cambiar los enlaces de las premisas, la revisión del 2026-10-03, el anexo F del traspaso del 23/10 (tres), el índice, el plan de documentos y, en el front, `visual-baseline.md` y `whatsapp-chat-propuesta.md` (dos) |
-| `2026-11-14-arreglos-del-nucleo.md` | Ya están en `verificacion-y-produccion.md`, «Núcleo: lo que quedó fuera de los arreglos del 2026-11-14»: N-8, N-9, la lease de N28, la gran escala y las pruebas reales | Las reglas ya están en `identidad.md`, `administracion.md`, `backend.md`, `despliegue.md` y el ADR 0032 |
-| `2026-11-15-arreglos-de-formularios.md` | A `verificacion-y-produccion.md`, en una sección de Formularios como la del núcleo: F-14 a F-18, W-6, N-1 (B2) y cuándo se retoman F32 y la gran escala. P-10, a la guía de tests del front | Anotar en la revisión de Formularios el commit de cada hallazgo y lo hecho distinto (F-17), y corregir las cuatro referencias de los traspasos del 16 y del 18/11 |
+Se retiraron los nueve. A dónde fueron las decisiones y los pendientes de cada uno está en la [procedencia](../history/README.md#barrido-documental-del-2026-11-18).
 
 ### Se retiran después de la prueba integral
 

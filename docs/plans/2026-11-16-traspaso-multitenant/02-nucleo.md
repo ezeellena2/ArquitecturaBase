@@ -2,7 +2,7 @@
 
 Lo que cambió en el núcleo de la plantilla (identidad, administración, correo, arranque y datos) entre el traspaso 13
 (backend `23797fff`, front `7b95095b`) y hoy. Sale de la [revisión de arquitectura del núcleo](../../reviews/2026-11-14-arquitectura-nucleo.md)
-del 14/11, que juzgó el núcleo con 30 criterios, y de las 31 tareas de su [plan](../2026-11-14-arreglos-del-nucleo.md),
+del 14/11, que juzgó el núcleo con 30 criterios, y de las 31 tareas de su [plan](../../history/README.md#barrido-documental-del-2026-11-18),
 programadas el 15 y el 16/11 en seis etapas. Cada punto cuenta la regla o el comportamiento nuevo del producto, no el
 código. Todo está commiteado y **todavía no pasó la prueba integral**: puede cambiar algún detalle. Los códigos de error
 (`Users.User.…`, `Roles.Role.…`) son los estables que el front traduce.
@@ -39,7 +39,7 @@ código. Todo está commiteado y **todavía no pasó la prueba integral**: puede
 - **Se retira el enlace de ingreso** (B4, `44c731c6`; front `32bc6a00`): el emisor, las dos rutas de canje y la pantalla
   `/ingresar`. La tabla queda hasta que la vacía la retención (§5).
 
-Plan: [etapa 1](../2026-11-14-arreglos-del-nucleo.md#etapa-1-quién-puede-qué). Decisiones 2, 3, 4, 9 y 10 de la revisión.
+Plan: [etapa 1](../../history/README.md#barrido-documental-del-2026-11-18). Decisiones 2, 3, 4, 9 y 10 de la revisión.
 
 ## 2. Ediciones simultáneas y su historia (etapa 2)
 
@@ -59,7 +59,7 @@ Plan: [etapa 1](../2026-11-14-arreglos-del-nucleo.md#etapa-1-quién-puede-qué).
   correo y del número, nunca el dato; el seed queda con actor vacío. **No tiene pantalla**: verla sería una pantalla nueva y
   se dibuja antes. Se conserva, porque es el rastro.
 
-Plan: [etapa 2](../2026-11-14-arreglos-del-nucleo.md#etapa-2-ediciones-simultáneas-y-su-historia).
+Plan: [etapa 2](../../history/README.md#barrido-documental-del-2026-11-18).
 
 ## 3. El correo (etapa 3)
 
@@ -77,7 +77,7 @@ Plan: [etapa 2](../2026-11-14-arreglos-del-nucleo.md#etapa-2-ediciones-simultán
   direcciones puede agotar el global y dejar a todos sin códigos ese día. Las esperas largas se muestran en horas y minutos.
 - **El modo `.eml` sólo en Development y Testing** (N14, `42cb2297`): fuera de ahí la Api no arranca con `PickupDirectory`.
 
-Plan: [etapa 3](../2026-11-14-arreglos-del-nucleo.md#etapa-3-el-correo).
+Plan: [etapa 3](../../history/README.md#barrido-documental-del-2026-11-18).
 
 ## 4. Redis, la salud y el arranque (etapa 4)
 
@@ -98,7 +98,7 @@ Plan: [etapa 3](../2026-11-14-arreglos-del-nucleo.md#etapa-3-el-correo).
   scope, y la guía documenta el exportador OTLP y una alerta de 5xx.
 - N6, N10, N17 y N19 se terminan de comprobar en el primer despliegue a Azure.
 
-Plan: [etapa 4](../2026-11-14-arreglos-del-nucleo.md#etapa-4-redis-la-salud-y-el-arranque).
+Plan: [etapa 4](../../history/README.md#barrido-documental-del-2026-11-18).
 
 ## 5. Datos, archivos y retención (etapa 5)
 
@@ -112,7 +112,7 @@ Plan: [etapa 4](../2026-11-14-arreglos-del-nucleo.md#etapa-4-redis-la-salud-y-el
   y feed de cambios, y el ensayo de restauración restaura base y contenedor juntos.
 - **Usuarios deja de pedir los conteos** que no muestra (N30, front `9dd88005`).
 
-Plan: [etapa 5](../2026-11-14-arreglos-del-nucleo.md#etapa-5-datos-archivos-y-retención).
+Plan: [etapa 5](../../history/README.md#barrido-documental-del-2026-11-18).
 
 ## 6. Lo trivial y la documentación (etapa 6)
 

@@ -58,8 +58,8 @@ Si el 13 está pendiente, se hace junto con este: el 13 cuenta los desarrollos y
   `2026-11-14-arquitectura-formularios.md`, cada una con su sección de decisiones.
 - **Cada tarea con sus commits:** la sección «Arreglos de la revisión de arquitectura» de
   `docs/plans/2026-10-01-bandeja-whatsapp.md`, `2026-10-31-arca-formularios-estandar.md` y
-  `2026-10-04-panel-conversaciones-inicio.md` (IA), y los planes `2026-11-14-arreglos-del-nucleo.md` y
-  `2026-11-15-arreglos-de-formularios.md`.
+  `2026-10-04-panel-conversaciones-inicio.md` (IA), y los planes de arreglos del núcleo y de Formularios,
+  retirados el 2026-11-18 ([procedencia](../../history/README.md#barrido-documental-del-2026-11-18)).
 - **Las reglas implementadas:** `docs/features/`, al día con cada arreglo.
 - **Las decisiones nuevas:** los ADR 0030 (el contenido del chat cifrado), 0031 (la fecha rechazada y el número adelantado de
   ARCA) y 0032 (sin Redis la app sigue). Cambiaron el 0007, el 0009, el 0010 y el 0028.

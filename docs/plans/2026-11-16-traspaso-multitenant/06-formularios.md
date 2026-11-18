@@ -168,5 +168,5 @@ La única etapa que iba antes de todo, porque cambia datos sin avisar. Tarea 1 d
   4. ¿Un documento propuesto sin revisar vence a los 90 días (recomendada) o se queda hasta la decisión de retención?
   5. ¿Quien corrigió o pasó una respuesta queda afuera de su aprobación (recomendada), o alcanza con excluir al autor?
 
-[plan]: ../2026-11-15-arreglos-de-formularios.md
+[plan]: ../../history/README.md#barrido-documental-del-2026-11-18
 [rev]: ../../reviews/2026-11-14-arquitectura-formularios.md

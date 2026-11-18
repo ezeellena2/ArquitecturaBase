@@ -3,7 +3,7 @@
 ## Estado
 
 **Aceptada**, 2026-11-03. Recoge lo que el usuario aprobó en la [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md) y
-en el [diseño de la etapa 1](../plans/2026-11-03-arca-etapa-1-conexion.md), y rige desde esa etapa. Sigue el modelo de módulos de los
+en el diseño de la etapa 1 ([regla](../features/arca.md)), y rige desde esa etapa. Sigue el modelo de módulos de los
 ADR [0007](0007-whatsapp-como-modulo-opcional.md), [0010](0010-catalogo-de-permisos-extensible.md) y
 [0013](0013-composicion-de-modulos-en-tests.md), y extiende el [ADR 0014](0014-credenciales-de-ia-fuera-de-la-base.md) a las credenciales
 de ARCA.

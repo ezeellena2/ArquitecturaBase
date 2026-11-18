@@ -386,7 +386,7 @@ bancos.
 
 #### Parte B · La bandeja «Documentos recibidos» (DOC5-A) y DOC6
 
-Tareas 7, 7b, 10 y 14, con F9 y F13 de los [arreglos de formularios](2026-11-15-arreglos-de-formularios.md). **Es la única fuente
+Tareas 7, 7b, 10 y 14, con F9 y F13 de los arreglos de la [revisión de Formularios](../reviews/2026-11-14-arquitectura-formularios.md). **Es la única fuente
 escrita de las reglas de la bandeja:** `docs/features/formularios.md` todavía no tiene su sección. Lo de abajo se contrastó con el
 código el 2026-11-18 (`FormReceivedDocument`, `FormReceivedDocumentErrors`, `FormReceivedDocumentsController` y sus tests).
 

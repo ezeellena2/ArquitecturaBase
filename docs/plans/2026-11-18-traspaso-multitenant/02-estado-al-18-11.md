@@ -117,7 +117,7 @@ usuario todavía no confirmó, y no se programó. Tomalo como información: no a
 - **ARCA con ARCA real:** homologar la factura A y la B con la CUIT del usuario, la corrida real del robot y medir memoria y
   CPU de una pasada del robot en la imagen publicada (H22 de ARCA).
 - **Formularios:** los menores de la segunda revisión adversarial, de una línea cada uno, en «Qué falta al 2026-11-16» del
-  plan `2026-11-15-arreglos-de-formularios.md`.
+  plan de arreglos de Formularios, retirado el 2026-11-18 ([procedencia](../../history/README.md#barrido-documental-del-2026-11-18)).
 - **Azure dev:** desplegar para ver la compresión, la caché y los probes.
 - **Costos que aceptó el usuario:** la invitación sale en el idioma general (N24); la historia administrativa (N13) queda
   sin pantalla hasta dibujarla; la cuota diaria de IA se renueva a las 21 de la Argentina y la pantalla muestra la hora; el

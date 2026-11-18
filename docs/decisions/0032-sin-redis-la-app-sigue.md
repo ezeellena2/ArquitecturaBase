@@ -5,7 +5,7 @@
 **Aceptada**, 2026-11-14, por decisión del usuario sobre la
 [revisión de arquitectura del núcleo](../reviews/2026-11-14-arquitectura-nucleo.md#decisiones-del-2026-11-14) (N9, que
 resuelve también N33 y O12). Rige desde el 2026-11-16, con la tarea 15 de los
-[arreglos del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md). Enmienda el
+arreglos del núcleo ([regla](../architecture/backend.md#caché-compartido-en-redis)). Enmienda el
 [ADR 0009](0009-redis-como-unico-cache-de-datos.md) en lo que dice de los permisos y de la caída de Redis, y el
 [ADR 0010](0010-catalogo-de-permisos-extensible.md) en lo que dice de invalidar después del seed. El resto de los dos sigue
 vigente: Redis directo sigue siendo el único caché de datos compartidos.
