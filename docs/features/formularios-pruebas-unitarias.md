@@ -164,6 +164,18 @@ La bandeja con filas (VC1-A, tarea 28): FormReceivedDocumentRowTests prueba la l
 
 FormRecordRepetitionPolicyTests (tarea 9b de documentos) prueba el chequeo de repetidos al capturar: con todos los datos que marcan un repetido del estándar respondidos, con las claves como se guardan (`FormRecordAnswerPolicy.Normalize`: el texto tal cual, sin recortar) y sin el archivo, una respuesta guardada con los mismos da `Forms.Record.Repeated` con su número y cuándo llegó (`repetition`); sin uno de esos datos, sin estándar o sin coincidencia no hay repetido ni consulta de más. BusinessFormDocumentCaptureTests lo prueba en el recorder: la confirmación por un canal se rechaza con `repetition`, su replay devuelve el mismo error sin él y el pase de quien revisa (`documentRevision`) no se revisa; FormFixedValidationTests, que el rechazo por una validación fija dice `fixedValidation` y su replay no.
 
+## Arreglos de la revisión de arquitectura (2026-11-15 y 16)
+
+Las pruebas unitarias y de Domain que dejaron los arreglos de la [revisión de Formularios](../reviews/2026-11-14-arquitectura-formularios.md); el nombre de cada test dice lo que comprueba.
+
+- F2: `FormActionStallNoticeTests` (una regla que se frena avisa una vez a quien cargó, en su idioma, aunque se reintente y vuelva a frenarse; la que sigue sola no avisa; una acción en duda que agotó sus consultas avisa una vez; sin canal no se avisa ni se espera; un aviso que no se encola deja el run sin marcar).
+- F3: `FormPublicationOperationTests` (Domain: la operación que vuelve espera cada vez más, con tope; descartar cierra como fallida la que quedó sin confirmar y corta al worker que la tenía; la que se mueve o ya se publicó no se descarta).
+- F7: `BusinessFormMissingTopicTests` (Domain) y `FormMissingRequestServiceTests`.
+- F15: `FormCatalogFieldHistoryPolicyTests` (la captura escribe una fila por catálogo y campo, y una respuesta posterior la reemplaza; sin campos sellados no escribe).
+- F31: `FormReceivedDocumentSealedContextTests` (el contexto sellado conserva su forma serializada y se lee como se guardó).
+- F30: `FormStoredEnumTests` (Architecture: las enumeraciones guardadas como texto coinciden con la lista versionada).
+- F25: `FormRemovalGuideTests` (Architecture: la guía para quitar Formularios nombra exactamente las tablas del módulo).
+
 ## Ubicación
 
 FormLocationIdentityTests (Domain) prueba la identidad propia de `Location`, que cambiar de tipo es otra pregunta y las tres posiciones decimales de una respuesta. FormLocationDraftTests prueba que sólo es obligatoria u opcional (sin opciones, archivos, selección, largo, catálogo, cálculo ni condición propia y nunca en el bloque), el cambio de tipo con identidad nueva y que ninguna condición ni cálculo se apoya en ella; WhatsAppFlowLocationCompilerTests, que el Flow la deja afuera con su lugar en el mapeo (W1-A); FormAssistantCandidatePolicyTests, que el asistente no toma un formulario que la tenga. FormLocationCaptureTests prueba las tres filas, el redondeo a seis decimales y a metros enteros, la precisión opcional, cada valor mal formado o fuera de rango (sólo el recibo rechazado), la obligatoria vacía, la opcional vacía y el reintento con su conflicto. FormLocationReadTests prueba el dato en la planilla y el detalle, la celda respondida, vacía o no preguntada, la corrección, los filtros y las condiciones de presencia y que la planilla no ordena por ella; FormLocationOutputTests, las tres columnas numéricas del Excel, el «—» de una versión sin la pregunta, el mensaje con el enlace al mapa y el punto de ejemplo de la vista previa del PDF.

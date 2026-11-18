@@ -2,7 +2,11 @@
 
 Fecha: **2026-11-09**. Estado: **XL1-A elegida por el usuario el mismo día y programada: el backend (tareas 1 a 6), con
 el tope de 100.000 filas que eligió al ver la medición, y «Filas» en el diálogo (tarea 7, front 1b9a9eda, 2026-11-11, con
-EX1-A); faltan la exportación conjunta de las capturas y la prueba a mano**.
+EX1-A). Las capturas `.xlsx` entraron con la exportación conjunta del 2026-11-17 (front `844a5c13`); falta sólo la prueba a
+mano**. Las reglas están en [formularios](../features/formularios.md#planilla-detalle-y-excel--etapa-3) («N°», «Recibida»
+en la zona del perfil, «Canal» y «Estado») y en [el bloque en la lectura](../features/formularios.md#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07)
+(una fila por ítem y el tope). Revisado contra el código el 2026-11-18: coincide, salvo que sin una zona legible en el
+perfil cae a UTC y no a la zona general que pide XL2.
 
 En la prueba integral, exportando «Remito de prueba» (RMP-20261109.xlsx, dos respuestas y cinco ítems), el usuario pidió
 que el Excel de «Exportar a Excel» quede en una sola hoja y bien diseñado. Los tableros están en el lienzo aparte
@@ -95,7 +99,8 @@ Cierre: `dotnet test` completo con Docker y el build sin advertencias; en el fro
 
 ## Lo que falta
 
-- **Las capturas:** cambian las 13 `.xlsx` de `src/test/fixtures/forms-responses-http/`, de `export.xlsx` a
-  `rows-export-en.xlsx`; las vuelve a exportar la coordinadora de la tanda del 2026-11-11, en la exportación conjunta.
+- ~~**Las capturas**~~: hechas el 2026-11-17, con las 28 cohortes de una misma corrida (front `9aa157ae` y `844a5c13`).
+- **La zona de respaldo:** `FormExportResponsePolicy.ZoneAsync` cae a UTC; XL2 pide la zona general antes, como el
+  tablero (`FormDashboardZonePolicy`). Chico, sin decisión nueva.
 - **La prueba a mano:** exportar «Remito de prueba» y abrirlo en Excel, con el filtro de un ítem y una tabla dinámica.
 - Si UD4 saca «(desde vN)» del encabezado de la planilla, el Excel lo conserva igual.

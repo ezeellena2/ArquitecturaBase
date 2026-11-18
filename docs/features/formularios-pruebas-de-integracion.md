@@ -199,6 +199,23 @@ FormLocationHttpTests lleva la pregunta del borrador a la carga con PostgreSQL: 
 
 FormQuestionReceivesHttpTests (W3, UC1-A) guarda con PostgreSQL lo que recibe cada pregunta de texto de lo que la persona comparte por un canal: vuelve en el borrador y en el detalle, el canal de WhatsApp de la app compila el formulario sin observaciones, el snapshot de la publicación lo lleva al canal y la versión lo sella; una pregunta sin él no tiene la clave en el cuerpo, en el borrador guardado ni en la versión. Una pregunta que no puede recibirlo (también una con condición o con validación fija) da 400 en `draft.fields[i].receives` con su texto. Aporta location-contact/draft-saved y location-contact/detail-es a forms-http.
 
+## Arreglos de la revisión de arquitectura (2026-11-15 y 16)
+
+Las pruebas que dejaron los arreglos de la [revisión de Formularios](../reviews/2026-11-14-arquitectura-formularios.md), por hallazgo; el nombre de cada test dice lo que comprueba.
+
+- F2: `FormActionStallNoticeIntegrationTests` (una acción frenada vuelve al worker hasta que quien cargó recibe el aviso una vez) y `FormResponseUnresolvedActionsHttpTests` (ver [planilla](#planilla-detalle-y-navegación)).
+- F3: `FormPublicationCrashHttpTests` sigue la ruta de descartar y la recarga muestra la operación abierta a quien puede publicar.
+- F7: `FormMissingRequestHttpTests` y `FormMissingRequestReaderTests` (el asistente lee sólo temas pendientes y revisados, acotados y en orden).
+- F11: `FormExportGlobalLimitTests` (exportaciones e importaciones de personas distintas topeadas por copia, que liberan su lugar).
+- F12: `FormSpreadsheetInflationTests` (estilos o textos compartidos inflados se rechazan antes de abrir el libro, también con otras mayúsculas o rutas).
+- F15: `FormRecordCatalogFieldsMigrationTests` (la migración rellena la unión de campos sellados de las respuestas que había).
+- F17: `FormMetaRateLimitTests` (la vista oficial tiene su cupo de diez por minuto y el sondeo de una publicación en curso sigue con el de lectura).
+- F18: `FormTraceTests` (el worker continúa la traza del run; uno creado sin traza sigue sin ella y corre igual).
+- F24: `FormCatalogEndpointsTests.CreationRequest` (el mismo pedido devuelve el mismo catálogo; con otro contenido es conflicto; el de filtros devuelve lo guardado).
+- F30: `FormChangeProtectorCompatibilityTests` (un comprobante sellado con miembros que esta versión no conoce se sigue abriendo).
+- F33: `FormRecordReceivedDateIndexTests` (las respuestas vigentes tienen su índice por formulario y fecha de recepción).
+- F40: `FormReceivedDocumentRetentionBackgroundServiceTests` (purga al arrancar y cada hora, aun después de una vuelta fallada).
+
 ## Exportador y cohortes HTTP
 
 Es el inventario de [`export-responses-http.ps1`](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms/export-responses-http.ps1), que su autotest fija: qué exige cada cohorte y qué productores entran en su procedencia. Las reglas del exportador y de los capturadores están en la [guía de TestFeatures](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms/AGENTS.md). Un inventario que cambia se escribe acá.

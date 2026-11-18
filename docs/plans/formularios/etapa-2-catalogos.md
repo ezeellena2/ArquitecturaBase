@@ -2,6 +2,12 @@
 
 Estado: cerrada el 2026-10-15. K1–K7 implementados, los once puntos «Antes del piloto» del [code review de K6–K7](../../reviews/2026-10-14-code-review-etapa-2-k6-k7.md) corregidos y el piloto real con Meta completado (abajo). Lo de Etapa 1 está en [formularios][feature].
 
+**Para retirar (barrido del 2026-11-18).** Las decisiones están en [formularios][feature], de «Verificación de cierre» a
+«Preparación de catálogos: cierre del review K6–K7», y lo de fuera de alcance, en la lista de [después de la Etapa
+5](README.md#después-de-la-etapa-5). Lo único abierto de «Pendientes que se arrastran» es la presentación R3 de la tarjeta
+del chat (versión e idioma de la respuesta y la señal de purga), heredada por confirmar; los demás se cerraron o son
+pruebas a mano.
+
 ## Qué se construye
 
 - **K1 · Lista** ([tablero][t], completado con K4). Lista paginada, búsqueda, filtros de origen y `Active|Inactive|Unavailable` conectados. Los conteos por origen vienen del backend, respetan búsqueda/estado e ignoran origen/página; «No se puede usar» muestra el motivo seguro.

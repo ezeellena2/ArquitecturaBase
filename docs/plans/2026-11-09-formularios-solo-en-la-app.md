@@ -2,8 +2,11 @@
 
 Decidido el 2026-11-09: el usuario eligió las siete recomendadas («Sí, las recomendadas»). **El backend quedó programado el
 mismo día** (corte 1, con el visto bueno del usuario: «Ahora, el backend»). **El front quedó programado el 2026-11-11**, al
-terminar la prueba integral (corte 2, «Sí, al terminar»). Las capturas de los ejemplos HTTP ya están (cinco cuerpos en
-`forms-http/app-only`); falta el cierre: la exportación conjunta, las corridas completas, la prueba a mano y retirar el plan.
+terminar la prueba integral (corte 2, «Sí, al terminar»). La exportación conjunta trajo los seis cuerpos de
+`forms-http/app-only` el 2026-11-17 (front `844a5c13`), y ese día corrieron enteros el backend y los controles del front
+(cierre del [plan de arreglos](2026-11-15-arreglos-de-formularios.md)). Falta el resto del cierre: el test del front que lea
+esos cuerpos, la prueba de integración del retiro de Flows, volver a probar «Quitar WhatsApp», la prueba a mano y retirar
+el plan (estado al 2026-11-18, en «Cortes»).
 Las reglas vigentes están en [formularios](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09). Lo pidió durante esa prueba: «Quiero poder
 crear formularios que no vayan a WhatsApp, que sean sólo de la app». Hoy no se puede, porque publicar una versión siempre pasa
 por un canal.
@@ -189,6 +192,17 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
    corrida completa con Docker y el front entero (build, lint, vitest y test:visual); la prueba a mano (crear un
    formulario de la app, publicarlo, cargarlo, pasarlo a WhatsApp con Meta y volverlo a la app) y volver a probar «Quitar
    WhatsApp» en una copia. Las decisiones pasan a formularios y al front, y el plan se retira.
+   **Estado al 2026-11-18**, revisado contra el código:
+   - Hechas: la exportación conjunta (2026-11-17, front `9aa157ae` y `844a5c13`) y la corrida completa del backend con los
+     controles del front del mismo día (11.656/11.656 y 6.022 tests; `test:visual` entero no consta).
+   - Falta el consumidor: `httpContract.test.ts` del front sólo comprueba que los cuerpos de `app-only` estén («still
+     without a reader»).
+   - Falta la prueba de integración prometida en «El retiro de Flows»: ningún test cruza `AppOnly` con
+     `IFormUnusedVersionReader` (`FormUnusedVersionQueryTests` sólo traduce el SQL).
+   - Faltan volver a probar «Quitar WhatsApp» en una copia (la guía acredita la prueba de la Etapa 6) y la prueba a mano.
+     Para la prueba a mano, mirar: «Publicamos la versión N.» sin pasar por «Publicación aceptada», la columna «Dónde se
+     completa» en el listado, que «Enviar formulario» no lo lista, el aviso «Deja de completarse por WhatsApp…» al volver a
+     la app y que un envío abierto de la versión anterior se sigue respondiendo.
 
 ## Coordinación
 

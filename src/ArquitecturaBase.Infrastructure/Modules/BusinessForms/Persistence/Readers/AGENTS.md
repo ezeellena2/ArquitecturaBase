@@ -18,7 +18,7 @@ Lectores del módulo: proyecciones sin seguimiento para la tabla de formularios,
 - La continuación de pendientes reutiliza autorización actual, admite ancla decidida y compara RequestedAtUtc/Id sin offset. Una sentencia calcula posiciones y total sobre tareas Open, limita N+1 y proyecta metadata sólo de las N elegidas; la cabecera conserva el total aun sin resultados. Versiones y nombres inmutables se leen por lote después.
 - Los historiales de reglas y sugerencias traen la revisión anterior con subconsulta correlacionada, para que Application resuma sin exponer ese JSON. Las versiones que fija una sugerencia son metadata histórica, no bindings de envío.
 
-E2-4: columnas extra combinan campos activos actuales con metadata histórica más reciente por campo. Una SQL parametrizada expande JSON y proyecta sólo metadata, sin cargar valores por respuesta ni consultas por fila.
+E2-4: columnas extra combinan campos activos actuales con la metadata histórica que la captura deja en `BusinessFormRecordCatalogFields` (F15), leída por índice, sin valores por respuesta ni consultas por fila.
 
 ## Referencias
 

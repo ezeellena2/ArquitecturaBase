@@ -10,6 +10,11 @@ Las decisiones posteriores (reglas y sugerencias aparte, prefijo, catálogos con
 los [resúmenes por etapa](../formularios/README.md). Donde difieren, prevalecen los resúmenes: en particular, esta base
 todavía modela los catálogos como formularios de tipo catálogo.
 
+**Estado al 2026-11-18:** material de estudio del 2026-10-08, sin cambios desde el 2026-10-11. El modelo implementado ya
+es otro: catálogos propios con campos, carpetas, bloque de renglones, correcciones, anuladas, resultados y versiones «sólo
+en la app». No es trabajo pendiente: el barrido propone retirarlo, con su procedencia en
+[history](../../history/README.md), o actualizarlo si se lo quiere seguir usando para mostrar el modelo.
+
 ## Levantarla
 
 Necesita Docker. Desde esta carpeta, en PowerShell:

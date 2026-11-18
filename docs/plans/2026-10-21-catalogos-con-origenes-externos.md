@@ -1,6 +1,6 @@
 # Catálogos: hoja de ruta
 
-**Estado:** hoja de ruta del 2026-10-21, actualizada el 2026-10-23. [E1 y E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) están implementados. El review de E1 se cerró; después del review de E2 se hace el [piloto único real](verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2). Las propuestas posteriores conservan abajo su alcance y no se programan hasta que el usuario las defina.
+**Estado al 2026-11-18:** implementación parcial. Están programadas las fases 1, 2 y 4: [E1 y E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) y el asistente que arma catálogos e importa la planilla ([etapa 1](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04) y [etapa 2](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-2-planillas-2026-11-09-a-2026-11-11) de la IA). También existe la copia local de un origen, por ahora sólo para las listas que trae un módulo ([`External`](../features/formularios.md#catálogos-que-mantiene-un-módulo--external-2026-11-11), 2026-11-11). Las fases 3, 5 y 6 siguen como propuesta: no se programan hasta que el usuario las defina. La prueba física de E1 y E2 sigue en el [piloto único real](verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2).
 
 ## Lo que definió el usuario
 
@@ -20,7 +20,7 @@ No se vuelve a preguntar.
 
 ## La idea central: el origen alimenta una copia local
 
-Cualquiera sea el origen (Excel, una API o una base), las opciones se guardan en una **copia local** dentro de nuestra base, y **los formularios siempre leen esa copia**. Nunca se consulta el sistema del cliente al mandar un formulario. Así:
+Cualquiera sea el origen (Excel, una API o una base), las opciones se guardan en una **copia local** dentro de nuestra base, y **los formularios siempre leen esa copia**. Nunca se consulta el sistema del cliente al mandar un formulario. Los catálogos `External` ya funcionan así con las listas de un módulo instalado (`IStructuredCatalogFeed`, ARCA): sólo lectura, una lectura por día con reserva y lock, lo que deja de venir queda inactivo y una falla guarda su motivo. Los orígenes 2 a 5 lo reusarían con su propia fuente. Así:
 - si el sistema del cliente se cae, los formularios siguen andando;
 - lo que deja de venir queda inactivo, no se borra;
 - cambiar de origen no toca formularios, WhatsApp ni el asistente.
@@ -43,14 +43,16 @@ Sigue la regla de siempre: **la IA propone, una persona aprueba y el sistema eje
   - la importación la hace el sistema, por el [recorrido de E1-A](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22).
 - **Desde la sección Catálogos:** una entrada del tipo «Pasale tu Excel al asistente».
 
-**Diseñado el 2026-11-04** en [la IA arma formularios y catálogos](2026-11-04-ia-arma-formularios-y-catalogos.md), junto con
-los formularios: la propuesta en una tarjeta en el chat de Inicio (IA1-A), por WhatsApp un resumen con «Crear catálogo» y
-«Cambiar algo» (IA3-A), el catálogo creado inactivo con la importación abierta y «Armar con la IA» en Catálogos.
+**Implementado** en las etapas 1 y 2 de [la IA arma formularios y catálogos](2026-11-04-ia-arma-formularios-y-catalogos.md): la
+propuesta en una tarjeta en el chat de Inicio (IA1-A), por WhatsApp un resumen con «Crear catálogo» y «Cambiar algo» (IA3-A),
+el catálogo creado inactivo con la importación pendiente desde la copia de la planilla y «Armar con la IA» en Catálogos. Las
+reglas vigentes están en [formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-2-planillas-2026-11-09-a-2026-11-11).
 
 ## Más de 200 opciones
 
 WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en elegir varias. Para catálogos grandes:
-- **Filtrar por persona,** con los campos extra de filtro.
+- **Filtrar por persona,** con los campos extra de filtro (implementado en E2).
+- **Elegir primero por un campo,** con hasta 200 opciones por valor ([LD1-A y LD2-A](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07), implementado).
 - **Búsqueda en vivo:** la persona escribe y WhatsApp consulta nuestras opciones. Necesita el [intercambio cifrado con Meta](formularios/README.md#después-de-la-etapa-5), que está pendiente. **Con las listas de OCHA, sube de prioridad.**
 
 ## Los orígenes
@@ -77,6 +79,8 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 - no hace falta VPN, túnel ni abrir puertos del lado del cliente.
 
 **Si un cliente no acepta el conector:** una VPN de sitio a sitio con Azure (cara y con trabajo de red de los dos lados) o un relay de Azure.
+
+**Las notas no coinciden (2026-11-18):** el [índice de planes](README.md) registra el 2026-10-22, en «Conexión a bases de datos de clientes», que se descartaron un conector propio y Azure Data Factory por complejos, y propone una VPN de sitio a sitio con un usuario de sólo lectura y un catálogo «Desde una base externa». Esta hoja recomienda el conector y deja la VPN como alternativa. La elección sigue pendiente del usuario.
 
 **MCP** sirve para que un asistente consulte datos en vivo, como el stock o el saldo; encaja en la etapa de agentes del [plan del asistente](2026-10-21-casos-del-asistente.md). Para sincronizar catálogos no conviene: hace falta una carga controlada, validada y repetible, y eso lo da el conector.
 
@@ -108,7 +112,7 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 | **1** | Carga de una vez, tipo de valor y elegir varias | [Implementado: reglas y verificación local](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22); review cerrado y piloto único pendiente |
 | **2** | Campos extra, qué viaja a WhatsApp y filtrar por persona | [Implementada: reglas vigentes](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) |
 | **3** | Búsqueda en vivo con Meta | Por diseñar (intercambio cifrado) |
-| **4** | El asistente arma catálogos y mapea el Excel | [Diseñada el 2026-11-04](2026-11-04-ia-arma-formularios-y-catalogos.md), sin programar |
+| **4** | El asistente arma catálogos y mapea el Excel | Implementada en las etapas 1 y 2 de la IA ([reglas](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-2-planillas-2026-11-09-a-2026-11-11)) |
 | **5** | Recepción por API, conector para Macrosistemas y plantillas de origen | Por diseñar |
 | **6** | Lectura de APIs; conexión directa solo si hace falta | Por diseñar |
 

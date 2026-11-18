@@ -60,7 +60,7 @@ Las tablas `WhatsAppFlow*` son del otro módulo y se quedan.
      PDF (`Modules\BusinessForms\Pdf\Fonts\*.ttf`).
    - En `src/ArquitecturaBase.Application/ArquitecturaBase.Application.csproj`, el `ItemGroup` de los estándares de la
      biblioteca (`Modules\BusinessForms\Resources\Standards\*.json`).
-   - En `.editorconfig`, las dos secciones de `src/ArquitecturaBase.Domain/Modules/BusinessForms/…`.
+   - En `.editorconfig`, las cuatro secciones que nombran `Modules/BusinessForms`: las dos de Domain, la de `FormPdfSecurity.cs` (Infrastructure) y la de `FormHostilePdfFixture.cs` (TestFeatures de la integración).
    - Todas las claves `Forms.*` de `Errors.resx` y `Errors.en.resx`, también las que están sin sangría
      (`Forms.Record.Export*`). Si queda una,
      `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
@@ -185,7 +185,7 @@ Quitá `src/features/business-forms` y lo que la compone afuera:
   `common.json`.
 - En `src/test` y `src/test/visual`, los archivos que importan la feature, y `src/test/responseAssistanceFixture.ts`.
 - En `src/test/httpCohort.ts`, las 17 familias de formularios: todas menos `formFiles`, que usa WhatsApp, las
-  `whatsapp*` y `aiAssistant`. Con ellas se van sus capturas de `src/test/fixtures` (`catalogs-http` y las 13 que
+  `whatsapp*` y `aiAssistant`. Con ellas se van sus capturas de `src/test/fixtures` (`catalogs-http` y las 16 que
   empiezan con `forms-`), sus líneas de `.gitattributes` y sus filas de `httpCohort.test.ts`, cuyo caso sintético pasa
   de `workflow` a `whatsappForms`.
 - Las escenas `catalog*.spec.ts`, `form*.spec.ts`, `personData.spec.ts` y `responses*.spec.ts`, con las cuatro

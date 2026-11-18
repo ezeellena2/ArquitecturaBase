@@ -1,6 +1,10 @@
 # Elegir primero por un campo: un combo que filtra el siguiente
 
-Decidido el 2026-11-07, con el backend hecho. Una pregunta de catálogo puede pedir primero el valor de un campo del mismo catálogo,
+Decidido el 2026-11-07. **Estado al 2026-11-18:** programado entero: el backend, el editor y la carga en el front, WhatsApp
+con r11 y LD3-A con la Etapa 2 de renglones (abajo, en «Cortes»). Las reglas están en
+[formularios](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07) y su contrato entró con la
+exportación conjunta del 2026-11-17. Falta la prueba en el celular con un formulario compilado por la app, en la prueba
+integral: elegir el valor, ver la lista, cambiar el valor y que se limpie, y lo mismo en un ítem del bloque. Una pregunta de catálogo puede pedir primero el valor de un campo del mismo catálogo,
 como «Rubro», y después listar sólo las opciones con ese valor. Lo pidió el usuario en el editor de «Prueba renglones 2»: la
 pregunta «Artículos», adentro del bloque, tenía «Tipo» fijo en Agroquímicos y 125 opciones, y quería elegir primero
 «Herbicidas» y que la lista trajera sólo esos artículos, «en vez de mostrar el listado completo y filtrarlo». Las reglas de

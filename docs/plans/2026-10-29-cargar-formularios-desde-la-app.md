@@ -6,6 +6,13 @@ un formulario publicado en «Formularios», lo carga en la app (desde la compu o
 planilla, donde además se corrige o se anula. Las reglas de hoy están en [formularios](../features/formularios.md); este plan suma la carga desde la web, que el
 [resumen de formularios](formularios/README.md) dejaba pendiente con tableros propios.
 
+**Estado al 2026-11-18.** Las cinco etapas están programadas y sus reglas, en
+[formularios](../features/formularios.md#carga-desde-la-app--etapa-1-2026-10-30) (de la Etapa 1 a los títulos de sección),
+revisadas contra el código ese día. Lo que queda: las pruebas a mano de cada etapa (la cámara de un celular real, corregir
+y anular, y un Flow con títulos en Meta, con la verificación de r10), pasar los tableros al lienzo del sistema visual (es
+de otra cuenta) y lo de «Después» (punto 6). Las pruebas a mano de las etapas 3 y 5 no tienen pasos escritos, y la de la
+cámara no dice cómo llega el celular a la app si el túnel sólo publica la Api.
+
 **Tableros:** lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), tableros CW0 a CW9 con los catálogos y
 formularios de OCHA (Lluvia, Siembra y Aplicación) y valores de ejemplo. Los elegidos llevan la banda verde y el sello «Elegida».
 Es **provisorio**: el lienzo [Sistema visual](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ) no se pudo abrir desde la cuenta de esta

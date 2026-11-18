@@ -2,7 +2,10 @@
 
 Decidido el 2026-11-03 y el 2026-11-04; backend y front programados del 2026-11-09 al 2026-11-11, con la etapa 2 de ARCA
 ([regla](../features/formularios.md#carpetas--cp1-a-a-cp5-a-2026-11-09),
-[diseño](../../../ArquitecturaBaseFront/docs/design/carpetas.md)); faltan la prueba integral y el cierre. Sirve para ordenar «Formularios», «Diseñar formularios» y
+[diseño](../../../ArquitecturaBaseFront/docs/design/carpetas.md)); faltan la prueba integral y el cierre. Revisado contra el
+código el 2026-11-18: rutas, permisos, tope de 500 y menú coinciden con la regla. Los ejemplos HTTP (`forms-http/folders`)
+entraron con la exportación del 2026-11-17 y el front todavía no tiene un test que los lea. La prueba a mano no tiene
+pasos escritos: abajo, en «Pruebas», va el recorrido mínimo. Sirve para ordenar «Formularios», «Diseñar formularios» y
 «Catálogos» en carpetas con subcarpetas, y para llevar al menú lateral las que se elijan, antes de que lleguen la
 biblioteca de estándares y lo de ARCA. Lo pidió el usuario al decidir la etapa 1 de ARCA, y la
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md) lo ubica en la etapa 2. Pertenece al módulo de formularios
@@ -191,7 +194,12 @@ oculta sus membresías, sin borrarlas.
 - **Front:** el panel en los tres listados, el selector del celular, el diálogo, el menú de cada carpeta, los estados de CP4
   y la carpeta en la dirección; los menús propios y los grupos en la barra, el cajón y la barra contraída, y el diálogo
   «En el menú…». Todo con sus capturas visuales. Al programar, la regla del menú se suma a la sección «Navegación» de
-  `visual-baseline.md`.
+  `visual-baseline.md` (hecho).
+- **A mano, en la prueba integral** (agregado el 2026-11-18, sale de CP4 y CP5-A): crear una carpeta y una subcarpeta,
+  poner un formulario y un catálogo en dos carpetas y verlos una vez en «Todos»; mover una carpeta y probar que no deja
+  pasar del quinto nivel; borrar una con subcarpetas y comprobar que los elementos quedan en sus otras carpetas o en «Sin
+  carpeta»; poner una carpeta en un menú propio y otra en «Administración»; entrar como alguien que sólo carga y ver sólo
+  las carpetas y los formularios que puede abrir, y que el menú le abre la carga.
 
 ## Cortes
 

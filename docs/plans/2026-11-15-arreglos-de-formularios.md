@@ -59,16 +59,19 @@ tarea, y al verificarla aparecieron dos regresiones, también corregidas (F6-1 y
 2. ~~Repetir la prueba de quitar Formularios~~ Hecha el 2026-11-16 sobre `72510c01` (F25): compila sin advertencias, `RemoveBusinessForms`
    sube y baja contra una base migrada y pasan Domain, arquitectura, Application e integración salvo seis tests que dan por
    instalado el módulo; la guía quedó corregida. Falta sólo la parte del front de la guía, que no se repitió.
-3. ~~El cierre~~ Hecho el 2026-11-17: la revisión contra el código (sólo O8 estaba deshecho, repuesto en `02c60e91`), la corrida completa del backend sobre `02c60e91` con el exportador (11.656/11.656; las 28 cohortes en `844a5c13` del front), los controles del front sobre `93eb8eb0` (tipos, lint, build y 6.022 tests), la CLI de Aspire en 13.6.5 y la prueba de humo (43 migraciones aplicadas en la base local, Api, front y túnel healthy). Lo que pedía: la corrida completa con Docker y los controles del front. Es la primera corrida entera de `FormDraftEndpointsTests`
-   desde el 15/11 (los agentes la cortaron por larga) y confirma, con `MigrationsTests`, que las nueve migraciones de Formularios de
-   los días 15 y 16, hechas por agentes distintos (`20261115163541`, `20261115172029`, `20261115181009`, `20261115182249`, `20261115192350`, `20261116104400`, `20261116111033`, `20261116114811` y `20261116122853`), dejaron coherentes el modelo y el snapshot.
-   Además: exportar las cohortes del front, entre ellas `forms-missing-requests-http` (el exportador `export-responses-http.ps1` corre la suite entera y escribe sólo en verde, con las 25 cohortes de una misma corrida: conviene que la corrida completa del backend sea el exportador, desde una copia de HEAD con un front falso, y copiar después las 25 juntas al front; hasta entonces los dos tests de `missingRequestsHttpContract` fallan a sabiendas), y, con la sesión del núcleo, los tests de
-   `FormDraftEndpointsTests` que reciben 403 en `PUT /api/roles` desde N1 (`Roles.Role.PermissionsNotHeld`). Varios agentes
-   commitearon a la vez sobre copias distintas y se pisaron (el texto de F5, anotaciones de este plan): antes de cerrar, revisar que
-   cada archivo compartido conserve lo de todos.
-   Tests del front de la corrida de IA (`32bc6a00`), arreglados el 2026-11-16 en el front (`f4ab89ff`): el precio «850,00» de `FormEntryPanel.engine` se envía como el canónico `850` (F1); `CatalogEditorPage` espera el `requestId` UUID (F24); los topes de 5 s del primer test de `FormsPage` y `ResponsePanel` eran de la carga perezosa, ahora con espera de 15 s y tope de 30 s. `missingRequestsHttpContract` falla sólo porque la cohorte `forms-missing-requests-http` es anterior al esquema de F7: se regenera con el exportador; la flecha de `FormResponseFullPage` (nombrada como `FormPendingApprovals.regressions`) pasa con el archivo entero; el primer test de `FormPendingApprovals.regressions` y de `FormResponseFullPage` también falla por la carga perezosa si corre solo o con la máquina cargada, y no se tocó.
-   La integración de Formularios del 2026-11-16 dio 1026 de 1033: las 3 de N1 y 4 tests desfasados por F15, F24 y F31, arreglados en `11905550`.
-4. **Menores de la revisión adversarial 2 (2026-11-16)**, sin programar, una línea cada uno:
+3. ~~El cierre~~ Hecho el 2026-11-17: la revisión contra el código (sólo O8 estaba deshecho, repuesto en `02c60e91`), la corrida
+   completa del backend sobre `02c60e91` con el exportador (11.656/11.656; las 28 cohortes en `844a5c13` del front), los controles
+   del front sobre `93eb8eb0` (tipos, lint, build y 6.022 tests), la CLI de Aspire en 13.6.5 y la prueba de humo. `MigrationsTests`
+   confirmó que las nueve migraciones de Formularios del 15 y 16 dejaron coherentes el modelo y el snapshot. El detalle de esa
+   corrida (tests desfasados y arreglados, cohortes regeneradas) queda en Git, en `4b3a292b`. Sigue abierto en el front: el primer
+   test de `FormPendingApprovals.regressions` y de `FormResponseFullPage` falla por la carga perezosa si corre solo o con la máquina
+   cargada, y no se tocó.
+4. **Menores de la revisión adversarial 2 (2026-11-16)**, sin programar, una línea cada uno. El barrido documental del 2026-11-18
+   los contrastó con el código: siguen abiertos 2b-1 (sólo la migración y la captura escriben la tabla), 2b-2
+   (`20261116111033_AddFormRecordCatalogFields.cs:60-69`), 2b-5 (`20261116114811_FormActionRunStallNotice.cs:20`), 2c-5
+   (`BusinessFormsApiRegistration.cs:20-23`), 2c-6 (`FormFolderTree.cs:22`), F4 (`FormApprovalReader.cs:21-23`), F2
+   (`FormActionEffectService.cs:86-100`), la tarea 10 (`SkiaFormPdfRenderer.cs:507-508`), B1 (`FormIssueConfirmationService.cs:45-48`)
+   y F22 (`WhatsAppAssistantAuthoringPolicy.cs:49-50`); 2b-3 y la convivencia de `NotApplicable` quedan heredados, sin comprobar.
    - 2b-1 (F15): con nodos viejos escribiendo durante el despliegue, un campo sellado sólo por una captura vieja no entra a `BusinessFormRecordCatalogFields` hasta que una captura nueva lo vuelva a sellar; falta un relleno idempotente en el despliegue siguiente o dejarlo documentado.
    - 2b-2 (F15, migración 20261116111033): el INSERT usa `entry.value -> 'name'` y `->> 'key'` contra columnas NOT NULL; un `FieldValuesJson` viejo sin `name` o `key` aborta la migración (COALESCE o filtrar `entry.value ? 'key'`, o verificar con datos reales). Comprobado el 2026-11-16: la base de desarrollo (`appdb`) tiene 85 campos sellados y ninguno sin `key` ni `name`.
    - 2b-3 (F31): un «no encontrado» del motor deja la extracción en `pending` hasta siete días y el revisor ve «leyendo»; acotar a un plazo menor si molesta.
@@ -81,6 +84,9 @@ tarea, y al verificarla aparecieron dos regresiones, también corregidas (F6-1 y
    - Tarea 10, PDF: los snapshots sellados sin `TimeZoneId` y un PDF re-renderizado tras el despliegue salen con «UTC» agregado y otra hora que el original; si `WriteOnce` compara el contenido, un `Uncertain` pendiente puede dar discrepancia.
    - B1, toque viejo: `NoLongerIssuable` responde a cualquier botón viejo de una respuesta anulada que nunca decidió por toque (`DecisionTapId` nulo), también a una ya emitida y revertida, con un texto levemente inexacto.
    - F22: el canal de WhatsApp conoce códigos literales de Formularios (`Forms.Definition.NameTaken`, etc.) en `WhatsAppAssistantAuthoringPolicy`, y cualquier otro `Forbidden` dice «tu cuenta no puede armar».
+5. **B2, en el núcleo.** Al 2026-11-18 el arreglo no figura en el [plan del núcleo](2026-11-14-arreglos-del-nucleo.md), y
+   `PermissionReader.ListPermissionsForUserAsync` sigue leyendo los permisos por `UserRoles` sin mirar si la cuenta está borrada
+   (el borrado es lógico y deja sus roles). El test que lo mostró el 15/11 no se commiteó.
 
 ### Etapa 1: los números (antes de la prueba integral)
 
