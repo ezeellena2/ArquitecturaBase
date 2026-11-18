@@ -1,7 +1,9 @@
 # WhatsApp después del chat: entregas pendientes
 
-Estado: **propuesta**, salvo los [arreglos de la revisión de arquitectura](#arreglos-de-la-revisión-de-arquitectura),
-decididos el 2026-11-13. Alcance compartido: `ArquitecturaBase` y `../ArquitecturaBaseFront`.
+Estado: **propuesta** (Contactos, Plantillas, Conexión, el desvío del listado e instalaciones independientes). Los
+[arreglos de la revisión de arquitectura](#arreglos-de-la-revisión-de-arquitectura) están programados y cubiertos por la
+corrida completa del 2026-11-17; lo que queda de ellos está [al final de esa sección](#lo-que-queda-de-los-arreglos)
+(barrido del 2026-11-18). Alcance compartido: `ArquitecturaBase` y `../ArquitecturaBaseFront`.
 
 El chat de atención, sus permisos y la separación entre acceso y atención están implementados:
 las reglas están en [WhatsApp](../features/whatsapp.md#chat-de-atención--2026-10-02) y en el
@@ -65,9 +67,11 @@ caliente. Permiso reservado `whatsapp.configure`, sin endpoint hasta definir la 
 
 ## Desvío registrado: estado del listado del chat
 
-`WhatsAppChatPage` guarda conversación, búsqueda, «Sin leer» y página en `useState`, con `Input`.
-Las [premisas del front](../../../ArquitecturaBaseFront/docs/guides/premisas-de-desarrollo.md#filtros-y-búsqueda)
-piden búsqueda, página y filtros en la URL con `usePagination`/`useFilters` y `SearchInput`
+Al 2026-11-18, `WhatsAppChatPage` lleva la conversación elegida en `?conversacion=` y la búsqueda con `SearchInput`,
+pero la búsqueda, el filtro (Todos, Sin leer o Necesita una persona) y la página siguen en `useState`
+(`src/features/whatsapp/pages/WhatsAppChatPage.tsx`). Las
+[premisas del front](../../../ArquitecturaBaseFront/docs/guides/premisas-de-desarrollo.md#filtros-y-búsqueda)
+piden búsqueda, página y filtros en la URL con `usePagination`/`useFilters`
 ([listados](../../../ArquitecturaBaseFront/docs/architecture.md#listados)). Decidí si el chat
 adopta esos hooks o se documenta como excepción; el borrador sigue en memoria en ambos casos.
 Cierre: decisión registrada en la feature del front y test que la cubra.
@@ -104,8 +108,9 @@ comprobó con servicios reales y qué con dobles. Clonar el código no acredita 
 
 ## Arreglos de la revisión de arquitectura
 
-Decididos el 2026-11-13 y programados, etapa por etapa, el 2026-11-13 y el 2026-11-14 (lo hecho, al pie de cada etapa); falta
-la corrida completa, que la coordinadora corre una sola vez al final de la tanda. Salen de la
+Decididos el 2026-11-13 y programados, etapa por etapa, el 2026-11-13 y el 2026-11-14 (lo hecho, al pie de cada etapa), con
+los tres avisos del reporte final arreglados el 2026-11-15 (7601b1e5). La corrida completa del cierre de Formularios, el
+2026-11-17 sobre `02c60e91`, ya los incluye (11.656/11.656). Salen de la
 [revisión de arquitectura de WhatsApp](../reviews/2026-11-12-arquitectura-whatsapp.md), que tiene el
 escenario, la evidencia (archivo y línea en `9c0eb048`) y el esfuerzo de cada hallazgo, y de las
 [decisiones del usuario](../reviews/2026-11-12-arquitectura-whatsapp.md#decisiones-del-2026-11-13),
@@ -371,3 +376,22 @@ ADR, y la revisión anota qué commit arregló cada hallazgo. Las decisiones van
 [premisas](../architecture/premisas-de-la-plantilla.md) y la sección se retira con la
 [auditoría documental](../guides/auditar-documentacion.md). Lo programado entra en el próximo traspaso
 al multitenant, que avisa el paso de datos de H16.
+
+### Lo que queda de los arreglos
+
+Barrido del 2026-11-18, contra el código. Lo hecho tiene su regla en [WhatsApp](../features/whatsapp.md), H16 su ADR, la
+revisión anota el commit de cada hallazgo y el [traspaso del 2026-11-16](2026-11-16-traspaso-multitenant/03-whatsapp.md) lo
+lleva al multitenant. El test intermitente de la etapa 4 dependía del orden de las cargas, arreglado en 9cbf0ad0. Queda:
+
+- **H25, lo que todavía no espera a otra copia:** un Flow preparado con otro perfil, una respuesta cuyo envío escribió otra
+  versión, un Flow que preparó otra versión y los enums guardados como texto ([la lista](../features/whatsapp.md#configuración)).
+  Sigue la decisión del 2026-11-13; va antes de desplegar con dos versiones a la vez.
+- **H19, la traza:** la captura de los Flows (con su rechazo y su reenvío) y la cola de acceso no la continúan; `WhatsAppTelemetry`
+  sólo lo usan el procesador entrante y la salida.
+- **Varias copias, antes de pasar de una réplica:** H23 (su condición ya va en H12; falta la prueba con dos hosts), H24 (las
+  respuestas de Flow se toman sin reserva ni `SKIP LOCKED`) y H26 (los límites y la salud son de cada copia).
+- **Gran escala, con volumen real que medir:** H27 a H30, H32, H34 y, de H31, subir el PDF una vez y mandar varios a la vez.
+- **Heredado por confirmar:** con `MessageRetentionDays` en 1, el mínimo, un archivo que reintenta puede salir de la retención
+  antes de rendirse (aviso de la etapa 4).
+- **En la prueba integral:** que el celular y la vista oficial acepten la coma con r15
+  ([r15](../features/whatsapp.md#selección-múltiple-y-perfil-r9)).

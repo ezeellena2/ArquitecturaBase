@@ -42,7 +42,7 @@ Para usarlo, abrí este proyecto como confiable en Codex, reiniciá Codex para c
 | `WhatsApp:WabaId` | user-secrets en esta instalación | — | cuenta de la misma conexión para publicar Flows; se guarda después de comprobar que contiene PhoneNumberId |
 | `WhatsApp:AppSecret` | user-secrets | — | con lo que Meta firma cada webhook |
 | `WhatsApp:VerifyToken` | user-secrets | — | la palabra de verificación del webhook |
-| `WhatsApp:DisplayPhoneNumber` | user-secrets | — | el WhatsApp del negocio, solo dígitos, para el enlace "Volver a WhatsApp" |
+| `WhatsApp:DisplayPhoneNumber` | user-secrets | — | el WhatsApp del negocio, solo dígitos, para el botón que abre el chat desde Mi perfil |
 | `WhatsApp:SendArgentineMobilesWithoutNine` | user-secrets en esta instalación | `true` | **solo para el número de prueba**: su lista de destinatarios guarda los celulares argentinos sin el 9 y rechaza `+549…` con el error 131030. En producción va apagada; el número se sigue guardando con el 9 |
 
 Las que no son secretas se cargan desde la raíz del repo, una por comando, por ejemplo `dotnet user-secrets set "WhatsApp:PhoneNumberId" "<id del número>" --project src/ArquitecturaBase.Api`; los secretos, sin que se vean, como en la sección siguiente.
@@ -109,7 +109,9 @@ Meta le pega al webhook desde internet y exige HTTPS con un certificado válido:
    - tocá **Verificar y guardar** (Meta hace un GET y la Api le responde el `challenge`);
    - suscribí el campo `messages`.
 
-   Como la URL no cambia, esto se hace una sola vez.
+   Como la URL no cambia, esto se hace una sola vez. No prendas **Meta Business Agent** (WhatsApp Manager) en este número:
+   con él, lo que escribe la persona llega por el campo `standby`, que la Api no lee (`WhatsAppWebhookReader` sólo lee
+   `messages`), y ni el chat ni el asistente lo ven.
 5. **Al terminar, `aspire stop`.** El túnel expone solo el endpoint `https` de la Api (ni el front, ni Postgres), con acceso anónimo en ese puerto porque Meta no inicia sesión. Pero mientras está prendido **la Api entera queda en internet**, no solo el webhook: se prende para probar y se apaga al terminar.
 
    Con la Api apagada, la dirección del túnel sigue reservada y el servidor de Dev Tunnels responde **`200` con el cuerpo vacío**: a la Api no llega nada, pero Meta da el evento por entregado y no lo reintenta. Lo que se le escriba al WhatsApp mientras la Api está apagada se pierde.

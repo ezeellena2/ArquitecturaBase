@@ -1,6 +1,6 @@
 # Casos del asistente
 
-**Estado:** decidido el 2026-10-21; tableros elegidos el 2026-10-21 (AS1-A y AS2–AS6). El 2026-11-11 el usuario lo sumó a la tanda de la prueba integral única; la [implementación](#implementación-2026-11-11), contrastada con el código, espera su visto bueno. La etapa siguiente, **fotos y documentos**, está abajo y no se pierde.
+**Estado:** decidido el 2026-10-21; tableros elegidos el 2026-10-21 (AS1-A y AS2–AS6). El 2026-11-11 el usuario lo sumó a la tanda de la prueba integral única. La [implementación](#implementación-2026-11-11) está programada en back y front (del 2026-11-11 al 2026-11-14) y calificada; las reglas están en [WhatsApp](../features/whatsapp.md#casos-del-asistente--2026-11-11). Falta la prueba a mano y el cierre (tarea 11), después de la prueba integral, y que el usuario acepte una diferencia con lo decidido: un formulario no se combina con otras acciones ([abajo](#estado-2026-11-12)). La etapa siguiente, **fotos y documentos**, tiene su plan; la tercera, **agentes**, sigue sin tablero ni programar (barrido del 2026-11-18).
 
 ## Por qué
 
@@ -72,7 +72,7 @@ No se vuelven a preguntar.
 
 ## Relación con otros planes
 
-- [Sugerencias de texto con revisión humana](2026-10-03-sugerencias-ia-whatsapp.md): en Atención manual, la respuesta redactada se le puede ofrecer al operador como borrador, con el mismo motor. Se decide al dibujar los tableros, sin duplicar el mecanismo.
+- [Sugerencias de texto con revisión humana](2026-10-03-sugerencias-ia-whatsapp.md): en Atención manual, la respuesta redactada se le puede ofrecer al operador como borrador, con el mismo motor. Resuelto con AS4 (el borrador del operador): ese plan queda reemplazado.
 - **Multitenant:** perfil, casos y límites son por organización. Hay que sumarlo al traspaso cuando se cierre esta etapa.
 
 ## Etapa siguiente: fotos y documentos
@@ -132,12 +132,14 @@ Propuesta para el visto bueno del usuario, contrastada con `main` en `d9db8c1d`.
 - **Hecho y commiteado:** el conocimiento por puerto y la deuda de `business.information` (tarea 2, `8f0b1973`); el agente con su servicio, rutas, migración y capturas, derivar, las capacidades del canal, la validación y el tope de respuestas, «No responder», el porqué, los botones de los casos, las ráfagas, Probar, el borrador del operador y el hilo y la lista (tareas 1, 4 sin los contextos, 5, 6 y 7, `32ce96ea`); la pantalla «Asistente» (tarea 9, front `d92b4a75`); el motor, con las lecturas precargadas, `assistant_proposal@2`, la hora al final y el redactado según el perfil (tarea 3, `eef797c0`); los contextos con agente del automático, de Atención manual y de Probar (tarea 4, `336fff41`), y el chat (tarea 10, front `091db731`).
 - **Diferencias al programar el motor:**
   - Los hechos son su propia lectura (`whatsapp.agent-knowledge@1`), que el modelo pide sólo para redactar, en vez de ir dentro de `whatsapp.agent@1`: así no viajan en cada turno ni empujan el tope de 64 KiB de lo leído. El rechazo de un formulario cita las ofertas que trae el historial, sin `whatsapp.offered-forms@1`. Con planilla y un perfil calificado para redactar quedan 16 definiciones, el tope.
-  - Un formulario o la pregunta de cuál va solo, como derivar o no responder: mezclado con otras acciones no sale nada y deriva (`replyNotAllowed`). Las demás acciones de una respuesta (texto exacto, botones y redactado) van hasta tres, en orden.
+  - Un formulario o la pregunta de cuál va solo, como derivar o no responder: mezclado con otras acciones no sale nada y deriva (`replyNotAllowed`). Las demás acciones de una respuesta (texto exacto, botones y redactado) van hasta tres, en orden. **Pendiente del visto bueno del usuario (2026-11-18):** lo decidido el 21/10 admitía «un texto y un formulario, o dos formularios», y AS3 muestra una ráfaga que responde con un texto y dos formularios; hoy esa ráfaga deriva (`WhatsAppAssistantReplyPolicy.PrepareAsync`). Se acepta la diferencia o se programa la mezcla.
 - **Calificación (tarea 8), 2026-11-12:** el set `channel-agent` del arnés (32 casos es/en, `c70e7792` y `eff16abe`) quedó en verde con el modelo real (`agent_drafting_20261112_04`: 32/32 casos y 452/452 checks; la evidencia está en [configurar la IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles)). La corrida encontró que, ante dos preguntas, el modelo daba una sola acción, y lo corrigió la descripción del agente (`9753a3a0`). La instalación local declaró `gpt-6.1-sol-candidate-1@2` con `QualifiedToDraft`: el redactado se prende al reiniciar la Api.
 - **Arreglo, 2026-11-14:** `whatsapp.draft-reply@1` no estaba marcada `DraftsText`, así que el motor la ofrecía con cualquier perfil. Ahora la deja afuera sin `QualifiedToDraft` en el automático, en Atención manual y en Probar, y un caso redactado deriva. Lo encontró la sesión de documentos.
 - **Falta:** la prueba a mano y el cierre (tarea 11), después de la prueba integral.
 
 ### Lo que hay hoy
+
+Así estaba el 2026-11-11, antes de programar; lo de hoy está en [WhatsApp](../features/whatsapp.md#casos-del-asistente--2026-11-11).
 
 - **Un mensaje, sin contexto.** El modo Asistente interpreta sólo el último mensaje de negocio: un texto, un audio transcripto o una planilla con su pedido. Cada mensaje crea su referencia (`WhatsAppAssistantRequest`) y el nuevo cancela el anterior. Al motor le llega ese texto solo, sin los mensajes anteriores del chat.
 - **El catálogo está lleno.** El canal automático ofrece siete capacidades, más las ocho de armar formularios y catálogos. Con la terminal son 15 definiciones, o 16 con una planilla, que es el tope del transporte.
@@ -164,7 +166,7 @@ Los tableros son del 21/10. Después llegaron la lista de chequeo y varias regla
 11. **El Perfil.** Sale «así figura en el chat», que no es cierto: el chat dice «Asistente».
 12. **Lo que el tablero no dibuja** se arma con las piezas comunes: el esqueleto de carga, el error con reintento, el 409 como en Información del negocio, la espera de un 429, la falta de permiso y los 320 px.
 
-Dos cambios no son mecánicos. Van al usuario con su recomendación:
+Dos cambios no son mecánicos. El usuario aprobó los dos, con lo recomendado ([diseño del front](../../../ArquitecturaBaseFront/docs/design/asistente-casos.md#diferencias-de-lo-programado--2026-11-11)):
 
 - **La zona «Cuando deriva», en Límites.** Repite el mensaje del Perfil y explica cuándo deriva. Recomendado: sacarla y pasar los cuatro motivos a la (i) del mensaje al derivar, en Perfil.
 - **El recuadro «Siempre, en todas las respuestas redactadas».** Explica reglas fijas. Recomendado: pasarlo a la (i) del título «Límites», como las zonas que explicaban en la revisión de leyendas del 01/11.

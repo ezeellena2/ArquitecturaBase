@@ -1,6 +1,14 @@
 # Sugerencias de IA con revisión humana en WhatsApp
 
-Estado: **propuesta, sin implementar**. Reutiliza el [motor por canales de IA](../features/inteligencia-artificial.md#motor-único-y-propuestas-por-canal--etapa-5), con [ADR 0020 aceptado](../decisions/0020-motor-unico-de-ia-con-capacidades.md), y el [chat de atención](../features/whatsapp.md#chat-de-atención--2026-10-02). Las sugerencias de formularios de la Etapa 5 ya implementadas no incluyen respuestas de texto libre.
+Estado: **reemplazado por [Casos del asistente](2026-10-21-casos-del-asistente.md)** (barrido del 2026-11-18). Con un agente
+guardado, la sugerencia de Atención manual puede ser un texto, el de un caso o un redactado con la información del negocio, que
+«Usar como borrador» pone en el compositor sin mandar nada (AS4, [el borrador del operador](../features/whatsapp.md#casos-del-asistente--2026-11-11)).
+Los pendientes de abajo quedaron así: el permiso es el de las sugerencias (`whatsapp.read` y `whatsapp.send`); los hechos salen
+de `IBusinessKnowledgeSource`, sin preguntas sin respuesta ni textos anteriores sin revisar; los casos de evaluación son el set
+`channel-agent` (32 casos, 2026-11-12); el tablero es AS4 y no lleva «Generar otra»; y la prueba real va con el piloto de Casos
+del asistente. Sin agente no hay sugerencia de texto. Se propone retirar este plan. Lo que sigue es el texto original.
+
+Estado original: **propuesta, sin implementar**. Reutiliza el [motor por canales de IA](../features/inteligencia-artificial.md#motor-único-y-propuestas-por-canal--etapa-5), con [ADR 0020 aceptado](../decisions/0020-motor-unico-de-ia-con-capacidades.md), y el [chat de atención](../features/whatsapp.md#chat-de-atención--2026-10-02). Las sugerencias de formularios de la Etapa 5 ya implementadas no incluyen respuestas de texto libre.
 
 ## Qué se busca
 
