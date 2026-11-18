@@ -1,6 +1,6 @@
 # Despliegue
 
-Para quien despliega la Api fuera de Development: en qué orden sale cada cosa, qué hace la Api al arrancar, qué configuración tiene que estar sí o sí y qué queda pendiente. La infraestructura de Azure, paso a paso y una sola vez, está en [`docs/deploy/azure-setup.md`](../deploy/azure-setup.md); la decisión de fondo, en el [ADR 0006](../decisions/0006-migraciones-y-seed-fuera-de-development.md). La puesta en marcha de dev y GitHub está en [azure-dev.md](../deploy/azure-dev.md). Reconciliada con el código y el workflow local el **2026-10-02**. Describe su configuración, no acredita un despliegue ejecutado en Azure.
+Para quien despliega la Api fuera de Development: en qué orden sale cada cosa, qué hace la Api al arrancar, qué configuración tiene que estar sí o sí y qué queda pendiente. La infraestructura de Azure, paso a paso y una sola vez, está en [`docs/deploy/azure-setup.md`](../deploy/azure-setup.md); la decisión de fondo, en el [ADR 0006](../decisions/0006-migraciones-y-seed-fuera-de-development.md). La puesta en marcha de dev y GitHub está en [azure-dev.md](../deploy/azure-dev.md). Reconciliada con el código y el workflow local el 2026-10-02; los valores por defecto, los límites, el cupo del correo, la retención y el apagado se volvieron a contrastar con el código el **2026-11-18**. Describe su configuración, no acredita un despliegue ejecutado en Azure.
 
 Índice:
 
@@ -9,11 +9,16 @@ Para quien despliega la Api fuera de Development: en qué orden sale cada cosa, 
 3. [Qué hace la Api al arrancar, por ambiente](#qué-hace-la-api-al-arrancar-por-ambiente)
 4. [Qué hace el seed en cada arranque](#qué-hace-el-seed-en-cada-arranque)
 5. [Configuración obligatoria en Production](#configuración-obligatoria-en-production)
-6. [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados)
-7. [Certificados de OpenIddict](#certificados-de-openiddict)
-8. [Data Protection](#data-protection)
-9. [Colas transaccionales](#colas-transaccionales)
-10. [Lista antes del primer despliegue](#lista-antes-del-primer-despliegue)
+6. [Redis](#redis)
+7. [Proxy y encabezados reenviados](#proxy-y-encabezados-reenviados)
+8. [Límites de pedidos](#límites-de-pedidos)
+9. [Cupo del correo](#cupo-del-correo)
+10. [Retención de los datos del ingreso](#retención-de-los-datos-del-ingreso)
+11. [Certificados de OpenIddict](#certificados-de-openiddict)
+12. [Data Protection](#data-protection)
+13. [Colas transaccionales](#colas-transaccionales)
+14. [Logs, trazas y alertas](#logs-trazas-y-alertas)
+15. [Lista antes del primer despliegue](#lista-antes-del-primer-despliegue)
 
 El [registro de preparación](../plans/verificacion-y-produccion.md) conserva los recorridos
 manuales, las dependencias externas y los pendientes de privacidad rescatados de planes cerrados.
@@ -257,6 +262,7 @@ Nada de esto se probó todavía contra Azure real.
 - [ ] La configuración de [azure-dev.md](../deploy/azure-dev.md) completada, con infraestructura, base `appdb`, GitHub environment `dev`, identidades y secrets; ambos workflows en GitHub.
 - [ ] Los probes Startup y Liveness en `/alive` y Readiness en `/health` configurados en la Container App ([Probes](../deploy/azure-setup.md#probes)); sin ellos el workflow no despliega.
 - [ ] Redis provisionado, accesible por red privada/TLS, `ConnectionStrings__cache` como secreto y `Caching__KeyPrefix` por instalación y ambiente ([Redis](#redis)).
+- [ ] `Maximum Pool Size` en `ConnectionStrings__appdb`, con las réplicas y sus workers sumados por debajo del límite de conexiones del servidor ([Azure](../deploy/azure-setup.md#6-configuración-de-la-aplicación), N6).
 - [ ] El `dist/` del front llega a `wwwroot/` ([arriba](#front-dentro-de-la-imagen)).
 - [ ] Cada clave de la [tabla](#configuración-obligatoria-en-production), con `Authentication:Issuer` y las URIs del cliente `web` apuntando al origen público, no a `localhost`.
 - [ ] La URL de producción entre los redirect URIs autorizados en la consola de Google.

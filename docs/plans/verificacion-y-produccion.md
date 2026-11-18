@@ -1,6 +1,7 @@
 # Verificaciones y preparación de producción pendientes
 
-Estado: **abierto**. Reconciliado el 2026-10-02 con el código, la documentación y las revisiones locales.
+Estado: **abierto**. Reconciliado el 2026-10-02 con el código, la documentación y las revisiones locales; lo del núcleo,
+otra vez el 2026-11-18.
 Conserva información pendiente de los planes retirados; no autoriza un despliegue ni nuevas
 funciones. Las pruebas automáticas y capturas con datos simulados no cierran los recorridos
 manuales con proveedores reales. La [procedencia](../history/README.md) permite consultar los originales.
@@ -147,6 +148,34 @@ la revocación de todas las sesiones al desactivar o borrar una cuenta, que ya e
   configurada, con pago y número reales. Falta el número de producción y su PIN, las plantillas en su
   cuenta, HTTPS/webhook propio, secreto de la app requerido, monitoreo del token y del costo, y el
   control de cambio de identidad (un número reciclado llega con otro BSUID y no traslada la cuenta).
+
+## Núcleo: lo que quedó fuera de los arreglos del 2026-11-14
+
+Las 31 tareas de los [arreglos del núcleo](2026-11-14-arreglos-del-nucleo.md) están programadas (15 y 16/11). Esto quedó
+afuera por decisión del usuario del 2026-11-14 y sigue anotado, con su evidencia, en la
+[revisión del núcleo](../reviews/2026-11-14-arquitectura-nucleo.md). Contrastado con el código el 2026-11-18.
+
+- [ ] **Antes de pasar de una réplica:** la lease de la limpieza de archivos (N28). Hoy cada copia recorre todo el contenedor;
+  el borrado con el ETag del listado ya está (9be27c20). Se cierra con la lease y un test de dos hosts.
+- [ ] **Con volumen real que medir:** un solo lock y un correo por vez en la cola (N29); listar sólo lo pendiente en la
+  limpieza (N28); el índice y los trigramas de la búsqueda de usuarios (N30); los conteos de personas en cada lectura de roles
+  (N32); y un control que impida crear índices que bloquean tablas grandes en una migración (N34: el renombre y el borrado
+  ya los frena `MigrationCoexistenceTests`). Se cierran con `EXPLAIN ANALYZE` sobre datos de ese tamaño.
+- [ ] **Pruebas reales:** carga del pedido de código y de `/health` contra el plan de la base (N6 y N29); listado, conteos y
+  catálogo de roles con un millón de cuentas (N30 a N32); el primer despliegue con los chequeos de Container Apps,
+  `AllowedHosts`, `ForwardedHeaders`, `Caching:KeyPrefix`, el pool y la consola JSON (N6, N10, N17 y N19); y restaurar base
+  y contenedor juntos (N15, abajo en IA).
+- [ ] **Observaciones menores todavía abiertas:** O1 (los 429 de negocio no mandan el encabezado `Retry-After`; el front lee
+  el cuerpo), O2 (dos versiones con redirect URIs distintas se pisan el cliente `web` al reiniciar), O5 (la reserva borra
+  todos los vencidos sin tope), O7 (un diferido que choca al confirmar da 500, aunque `IUnitOfWork` promete traducirlo),
+  O10 (`LoginAudit`, `LoginCode` y `StoredFile` no dicen por qué no tienen FK a la cuenta) y lo que queda de O8, los
+  comentarios viejos de `LoginCodeService.cs:39-41`, `AccountCreationPolicy.cs:11-12`, `RoleRow.cs:3` y
+  `EmailOptions.cs:27-30`. Se arreglan al tocar esos archivos.
+- [ ] **Limpieza de lo retirado (B4):** la tabla `LoginLinks` la vacía la retención; después se pueden ir la tabla, la
+  entidad, lo de los enlaces en `ILoginLinkRepository` y la invalidación de los pendientes
+  (`PhoneNumberLinker.VoidPendingLinksAsync`), que ya no cambia nada. Se queda el lock por cuenta (`LockAccountAsync`,
+  `login-link:`) con el mismo texto, porque el texto es el lock ([backend](../architecture/backend.md#locks)).
+
 ## Inteligencia artificial
 
 La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles) registra el modelo de texto y STT exactos, sus perfiles/instrucciones y los 48 casos ficticios; no acredita otra cuenta, proveedor ni datos reales.
@@ -197,7 +226,9 @@ Se conservan estos pendientes del registro original para revisar antes de incorp
 - [ ] Evaluar exclusión de invitaciones («no me invites») y la evidencia de consentimiento:
   actualmente queda quién y cuándo lo confirmó como administrador, no una aceptación del destinatario.
 - [ ] Revisar la confirmación del contacto al invitar, para mitigar números/correos mal cargados.
-- [ ] Evaluar un límite diario de invitaciones además de la espera por cuenta y su costo.
+- [x] Un límite diario de invitaciones por correo, además de la espera por cuenta: N7 (882b8717) suma el tope por
+  administrador y la reserva dentro del tope de todos ([administración](../features/administracion.md)).
+- [ ] Evaluar un límite diario de invitaciones por WhatsApp, que hoy no miran los topes del correo, y su costo.
 - [ ] Evaluar si `users.read` debe ver «leída» o solamente «entregada» para la última invitación.
 
 El plan también registraba dos actualizaciones ya hechas: retención del cuerpo a 90 días y
@@ -209,8 +240,8 @@ la coherencia con un producto derivado sí se revisa al preparar su producción.
 - La carrera de arranque en tests de configuración WhatsApp/Google requiere revisar el test
   actual antes de actuar: `WhatsAppRegistrationTests` ya invoca `IStartupValidator`; no afirmar
   que conserva el defecto del plan original.
-- Un índice para el tope diario de códigos es una mejora condicionada al volumen. El canal actual
-  almacenado es `Phone`, no `WhatsApp`; validar consulta y plan de ejecución antes de proponerlo.
+- Resuelto el 2026-11-16 (N31, 12eb2a28): el tope diario de códigos tiene su índice parcial
+  `(Channel, SentAtUtc) WHERE SentAtUtc IS NOT NULL`, en la migración `AddIdentityRetentionIndexes`.
 
 Cada casilla se cierra con evidencia del trabajo concreto y fecha/commit. Una modificación de
 documentación no acredita ejecución, aprobación externa ni despliegue.

@@ -1,21 +1,19 @@
 # Arquitectura Base
 
-La [configuración de IA](docs/features/inteligencia-artificial.md) vive en un módulo opcional
-independiente. Antes de iniciar una instalación nueva, provisioná su [anillo externo](docs/guides/configurar-ia.md)
-(requerido aun sin clave de proveedor). Admin configura/prueba OpenAI o Anthropic en
-Administración → Configuración → Inteligencia artificial. Información del negocio tiene editor
-propio y permisos de lectura/administración separados. No integra sugerencias ni bots.
-Su buscador usa [Google Places desde el servidor](docs/guides/configurar-google-places.md),
-con clave externa por instalación; la prueba con Google real sigue pendiente.
-
-Inicio autenticado usa assistant-ui para consultas con fuentes e historial privado durable.
-Reutiliza la conexión guardada y exige un perfil de modelo explícitamente calificado; no activa
-generación por guardar ajustes o recargar. [Habilitación y runbook](docs/guides/configurar-ia.md#habilitar-el-asistente)
-y [verificación](docs/reviews/2026-10-04-inicio-asistente.md).
-
 Plantilla base para aplicaciones web con .NET 10, Aspire, React, PostgreSQL y Redis, organizada en Clean Architecture. Este repo es el backend; el front está en `../ArquitecturaBaseFront`.
 
 Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el resto de la documentación. La arquitectura vigente es [`docs/architecture/backend.md`](docs/architecture/backend.md), y las reglas para trabajar en el código, [`AGENTS.md`](AGENTS.md). Las [features](docs/features/) describen los contratos funcionales actuales; el [diseño inicial](docs/specs/2026-09-18-arquitectura-base-design.md) conserva la procedencia histórica.
+
+## Módulos opcionales
+
+WhatsApp, Formularios, IA y ARCA viven en `Modules/<Módulo>` de cada proyecto y se pueden quitar: el núcleo no los nombra ([módulos](docs/architecture/backend.md#módulos-opcionales)).
+
+| Módulo | Reglas | Configurar | Quitar |
+|---|---|---|---|
+| WhatsApp | [whatsapp.md](docs/features/whatsapp.md) | [WhatsApp en local](docs/guides/whatsapp-en-local.md) | [quitar WhatsApp](docs/guides/quitar-whatsapp.md) |
+| Formularios | [formularios.md](docs/features/formularios.md) | [archivos en Azure Blob](docs/guides/azure-blob-en-local.md) | [quitar Formularios](docs/guides/quitar-formularios.md) |
+| IA | [inteligencia-artificial.md](docs/features/inteligencia-artificial.md) | [configurar IA](docs/guides/configurar-ia.md) (el anillo externo, aun sin clave de proveedor, y el [asistente de Inicio](docs/guides/configurar-ia.md#habilitar-el-asistente)) y [Google Places](docs/guides/configurar-google-places.md) | [quitar IA](docs/guides/quitar-ia.md) |
+| ARCA | [arca.md](docs/features/arca.md) | [configurar ARCA](docs/guides/configurar-arca.md) y el [robot](docs/guides/robot-arca.md) | [quitar ARCA](docs/guides/quitar-arca.md) |
 
 ## Mapa de la documentación
 
@@ -28,8 +26,8 @@ Este README dice cómo levantar el proyecto, cómo probarlo y dónde está el re
 | [Premisas de la plantilla](docs/architecture/premisas-de-la-plantilla.md) y [auditor documental](docs/guides/auditar-documentacion.md) | decisiones implementadas con su fuente y evidencia; cómo consolidar reglas, conservar pendientes y retirar planes cumplidos |
 | [Arneses de desarrollo](harnesses/README.md) y [auditor ejecutable](harnesses/documentation/README.md) | quién los inicia, estructura y scripts; revisión o actualización documental con Codex o Claude |
 | [`docs/architecture/backend.md`](docs/architecture/backend.md) | la arquitectura canónica del backend: capas, recorrido de un caso de uso, borde HTTP, una sola forma de guardar, migraciones, front y tests |
-| [`docs/guides/`](docs/guides/) | las guías paso a paso: [agregar un área](docs/guides/agregar-un-area.md), [permiso nuevo](docs/guides/permiso-nuevo.md), [migración](docs/guides/migracion.md), [prefijo de backend](docs/guides/prefijo-de-backend.md), [WhatsApp en local](docs/guides/whatsapp-en-local.md) (la configuración, los secretos, el túnel y las plantillas de Meta), [quitar WhatsApp](docs/guides/quitar-whatsapp.md) (para un proyecto que no lo usa) y [despliegue](docs/guides/despliegue.md) (el orden, la configuración obligatoria en producción, el proxy y los pendientes) |
-| [`docs/features/`](docs/features/) | las reglas de cada área del producto: [identidad](docs/features/identidad.md), [WhatsApp](docs/features/whatsapp.md) y [administración](docs/features/administracion.md) |
+| [`docs/guides/`](docs/guides/) | las guías paso a paso: [validar un cambio](docs/guides/validar-un-cambio.md), [agregar un área](docs/guides/agregar-un-area.md), [permiso nuevo](docs/guides/permiso-nuevo.md), [migración](docs/guides/migracion.md), [agregar caché](docs/guides/agregar-cache.md), [prefijo de backend](docs/guides/prefijo-de-backend.md), [revisar la arquitectura](docs/guides/revisar-arquitectura.md), [probar en el celular](docs/guides/probar-en-el-celular.md) y [despliegue](docs/guides/despliegue.md) (el orden, la configuración obligatoria en producción, el proxy, los límites, el cupo del correo y la retención); las de cada módulo están en la tabla de arriba |
+| [`docs/features/`](docs/features/) | las reglas de cada área del producto: [identidad](docs/features/identidad.md) y [administración](docs/features/administracion.md) en el núcleo, y las de cada módulo (tabla de arriba) |
 | [`docs/specs/`](docs/specs/) | diseños de referencia con fecha y secciones reemplazadas identificadas; las reglas implementadas actuales están en `features` y las arquitecturas de ambos repositorios |
 | [`docs/decisions/`](docs/decisions/README.md) | las decisiones de arquitectura (ADR), una por archivo |
 | [Planes pendientes](docs/plans/README.md) | propuestas, adopción parcial y comprobaciones abiertas; incluye el plan del front dueño de la unificación de mensajes |
@@ -203,7 +201,7 @@ Una funcionalidad nueva sigue [agregar-cache.md](docs/guides/agregar-cache.md): 
 
 El ingreso es sin contraseña: con un código de 6 dígitos que llega por email, o con Google. La Api es a la vez el servidor OpenIddict (`/connect/*`) y la Api de negocio (`/api/*`, con bearer).
 
-El modo de registro (`/configuracion/registro` en el front, `PATCH /api/settings` para editar un tema y el contrato anterior `PUT /api/settings` en la Api) decide quién puede crear una cuenta:
+El modo de registro (`/configuracion` en el front; `PATCH /api/settings` con `expectedRevision` en la Api, desde que el PUT sin revisión se retiró el 2026-11-16) decide quién puede crear una cuenta:
 
 | Modo | Qué pasa con un correo que no tiene cuenta |
 |---|---|

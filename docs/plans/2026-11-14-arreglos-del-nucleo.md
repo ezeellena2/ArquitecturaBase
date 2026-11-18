@@ -1,5 +1,7 @@
 # Arreglos de la revisión de arquitectura del núcleo
 
+**Barrido del 2026-11-18:** las reglas de las 31 tareas se contrastaron con el código y están en sus fuentes ([identidad](../features/identidad.md), [administración](../features/administracion.md), [backend](../architecture/backend.md), [despliegue](../guides/despliegue.md) y el [ADR 0032](../decisions/0032-sin-redis-la-app-sigue.md)); cada commit está también en la revisión. Lo que quedó afuera (la lease de N28, la gran escala, las pruebas reales, las observaciones menores abiertas y la limpieza de B4) pasó a [verificación y producción](verificacion-y-produccion.md#núcleo-lo-que-quedó-fuera-de-los-arreglos-del-2026-11-14). Este plan no guarda pasos de prueba a mano propios: se puede retirar con la auditoría documental.
+
 Decididos el 2026-11-14 y programados el 15 y el 16/11: las 31 tareas están commiteadas, y falta la prueba integral. Salen de la [revisión de arquitectura del núcleo](../reviews/2026-11-14-arquitectura-nucleo.md),
 que tiene el escenario, la evidencia (archivo y línea en `23797fff`) y el esfuerzo de cada hallazgo, y de las
 [decisiones del usuario](../reviews/2026-11-14-arquitectura-nucleo.md#decisiones-del-2026-11-14), que no se vuelven a preguntar.

@@ -1,8 +1,14 @@
 # Solicitudes de ingreso con registro cerrado
 
-Estado: **propuesta sin implementar** (2026-09-30; revisada contra el código el 2026-10-12).
-No hay entidad, rutas, permisos ni pantallas de solicitudes. Antes de programar, el usuario
+Estado: **propuesta sin implementar** (2026-09-30; revisada contra el código el 2026-10-12 y el 2026-11-18).
+No hay entidad, rutas, permisos, pantallas ni tableros de solicitudes. Antes de programar, el usuario
 elige el alcance y los tableros.
+
+Lo que cambió desde la propuesta y la condiciona (2026-11-18): los códigos y avisos por correo cuentan en los topes
+diarios del correo (N7, [identidad](../features/identidad.md)), aprobar da el rol `User` y sigue «nadie da lo que no
+tiene» (N1, [administración](../features/administracion.md)), cada aprobación y rechazo iría a la historia administrativa
+(N13), los pedidos y sus códigos necesitan su plazo en la retención del ingreso (N16) y el enlace de ingreso ya no existe
+(B4): el aviso al aprobar lleva a `/login`, no a un enlace secreto.
 
 ## Qué resuelve
 

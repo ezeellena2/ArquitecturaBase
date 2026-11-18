@@ -29,28 +29,29 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 | [0006](0006-migraciones-y-seed-fuera-de-development.md) | Seed idempotente en todos los ambientes y migraciones con bundle fuera de Development | Aceptada, 2026-09-26; implementada el 2026-09-28 |
 | [0007](0007-whatsapp-como-modulo-opcional.md) | WhatsApp es un módulo opcional dentro del mismo repo | Aceptada, 2026-09-26; implementada el 2026-09-29 |
 | [0008](0008-nombres-de-repositorios-y-lectores.md) | Los métodos de repositorios y lectores se nombran por lo que devuelven | Aceptada, 2026-09-27 |
-| [0009](0009-redis-como-unico-cache-de-datos.md) | Redis directo es el único caché de datos compartidos | Aceptada, 2026-09-30 |
-| [0010](0010-catalogo-de-permisos-extensible.md) | Catálogo compuesto por el núcleo y fuentes de módulos opcionales | Aceptada e implementada, 2026-10-02 |
+| [0009](0009-redis-como-unico-cache-de-datos.md) | Redis directo es el único caché de datos compartidos | Aceptada, 2026-09-30; enmendada por el 0032 el 2026-11-16 (los permisos sin caché y sin Redis la app sigue) |
+| [0010](0010-catalogo-de-permisos-extensible.md) | Catálogo compuesto por el núcleo y fuentes de módulos opcionales | Aceptada e implementada, 2026-10-02; enmendada por el 0032 el 2026-11-16 (el seed no invalida permisos) |
 | [0011](0011-separacion-acceso-y-atencion-whatsapp.md) | Acceso explícito independiente de la atención Manual, con eventos y botones históricos | Aceptada, 2026-10-02 |
-| [0012](0012-azure-blob-como-primer-proveedor-de-archivos.md) | Azure Blob Storage como primer proveedor, con prueba desde local contra Azure real | Aceptada, 2026-10-02; implementación pendiente |
+| [0012](0012-azure-blob-como-primer-proveedor-de-archivos.md) | Azure Blob Storage como primer proveedor, con prueba desde local contra Azure real | Aceptada, 2026-10-02; implementada con su primer consumidor y verificada con Azure real el 2026-10-15 ([archivos privados](../architecture/backend.md#archivos-privados)) |
 | [0013](0013-composicion-de-modulos-en-tests.md) | Contribuciones extensibles de módulos en el arnés de tests | Implementada, 2026-10-02 |
 | [0014](0014-credenciales-de-ia-fuera-de-la-base.md) | AES-GCM y HMAC con anillo externo por instalación | Implementada, 2026-10-02 |
+| [0015](0015-colas-transaccionales-cifradas.md) | Colas transaccionales cifradas | Aceptada, 2026-10-03 |
+| [0016](0016-proteccion-de-claves-data-protection.md) | Protección de claves Data Protection | Aceptada, 2026-10-03 |
+| [0017](0017-inicio-asistente-y-operaciones-durables.md) | Inicio con assistant-ui y operaciones durables | Aceptada, 2026-10-04 |
+| [0018](0018-robustez-proporcional-al-efecto.md) | Robustez proporcional al efecto y verificación por paso | Aceptada, 2026-10-11 |
+| [0019](0019-sql-de-configuracion-acotado-a-catalogos.md) | SQL de configuración acotado a catálogos | Aceptada, 2026-10-11; sin SQL configurable por ahora: Query/K5 se retoma si Filters no alcanza |
+| [0020](0020-motor-unico-de-ia-con-capacidades.md) | Motor único de IA con capacidades por módulo | Aceptada, 2026-10-16; rige desde la Etapa 5 de formularios |
+| [0021](0021-respuestas-redactadas-por-el-asistente.md) | Respuestas redactadas por el asistente, con límites | Aceptada, 2026-10-21; rige desde Casos del asistente |
+| [0022](0022-lectura-de-documentos-con-ia.md) | Lectura de documentos con IA | Aceptada, 2026-10-22; rige desde Documentos por WhatsApp |
+| [0023](0023-arca-como-modulo-opcional.md) | ARCA como módulo opcional y sus credenciales | Aceptada, 2026-11-03; rige desde la etapa 1 de ARCA |
+| [0024](0024-ia-arma-formularios-y-catalogos.md) | La IA arma formularios y catálogos a pedido | Aceptada, 2026-11-04; rige desde la etapa 1 de [su plan](../plans/2026-11-04-ia-arma-formularios-y-catalogos.md) |
+| [0025](0025-familias-de-servicios-arca.md) | Familias de servicios dentro del módulo ARCA | Aceptada, 2026-11-04; rige desde la etapa 1 de ARCA |
+| [0026](0026-robot-de-delegacion-arca.md) | Robot de delegación sobre la página de ARCA y la clave fiscal en memoria | Aceptada, 2026-11-09; rige desde la etapa 6 de ARCA ([su plan](../plans/2026-11-09-arca-etapa-6-robot.md)) |
+| [0027](0027-delegacion-guiada-arca.md) | Delegación guiada en ARCA | Aceptada, 2026-11-09; rige desde la [etapa 5 de ARCA](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md) |
+| [0028](0028-emision-de-comprobantes-arca.md) | Emisión de comprobantes en ARCA: cola, numeración y reconciliación | Aceptada, 2026-11-09; rige desde la [etapa 3 de ARCA](../plans/2026-11-09-arca-etapa-3-factura-c.md); el 0031 reemplaza su decisión 5 en lo que dice del 10016 |
+| [0029](0029-biblioteca-de-estandares.md) | La biblioteca de estándares, aportada por los módulos como datos | Aceptada, 2026-11-09; rige desde la [etapa 2 de ARCA](../plans/2026-11-09-arca-etapa-2-motor.md) |
+| [0030](0030-contenido-del-chat-cifrado.md) | El contenido del chat de WhatsApp se guarda cifrado | Aceptada, 2026-11-14; rige desde la tarea 20 del [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md) |
+| [0031](0031-fecha-rechazada-y-numero-adelantado-arca.md) | La fecha que ARCA rechaza y el número que ARCA tiene adelantado van a una persona | Aceptada, 2026-11-14; la fecha rige desde la etapa 1 de los [arreglos de la revisión de ARCA](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura) y el número adelantado, desde su tarea 13 |
+| [0032](0032-sin-redis-la-app-sigue.md) | Sin Redis la app sigue, y los permisos se leen de la base | Aceptada, 2026-11-14; rige desde el 2026-11-16 (N9 de la [revisión del núcleo](../reviews/2026-11-14-arquitectura-nucleo.md)); enmienda el 0009 y el 0010 |
 
-- [0015 — Colas transaccionales cifradas](0015-colas-transaccionales-cifradas.md).
-- [0016 — Protección de claves Data Protection](0016-proteccion-de-claves-data-protection.md).
-- [0017 — Inicio con assistant-ui y operaciones durables](0017-inicio-asistente-y-operaciones-durables.md).
-- [0018 — Robustez proporcional al efecto y verificación por paso](0018-robustez-proporcional-al-efecto.md).
-- [0019 — SQL de configuración acotado a catálogos](0019-sql-de-configuracion-acotado-a-catalogos.md) (aceptada; sin SQL configurable por ahora, Query/K5 se retoma si Filters no alcanza).
-- [0020 — Motor único de IA con capacidades por módulo](0020-motor-unico-de-ia-con-capacidades.md) (aceptada el 2026-10-16; rige desde la Etapa 5 de formularios).
-- [0021 — Respuestas redactadas por el asistente, con límites](0021-respuestas-redactadas-por-el-asistente.md) (aceptada el 2026-10-21; rige desde Casos del asistente).
-- [0022 — Lectura de documentos con IA](0022-lectura-de-documentos-con-ia.md) (aceptada el 2026-10-22; rige desde Documentos por WhatsApp).
-- [0023 — ARCA como módulo opcional y sus credenciales](0023-arca-como-modulo-opcional.md) (aceptada el 2026-11-03; rige desde la etapa 1 de ARCA).
-- [0024 — La IA arma formularios y catálogos a pedido](0024-ia-arma-formularios-y-catalogos.md) (aceptada el 2026-11-04; rige desde la etapa 1 de [su plan](../plans/2026-11-04-ia-arma-formularios-y-catalogos.md)).
-- [0025 — Familias de servicios dentro del módulo ARCA](0025-familias-de-servicios-arca.md) (aceptada el 2026-11-04; rige desde la etapa 1 de ARCA).
-- [0026 — Robot de delegación sobre la página de ARCA y la clave fiscal en memoria](0026-robot-de-delegacion-arca.md) (aceptada el 2026-11-09; rige desde la etapa 6 de ARCA, con [su plan](../plans/2026-11-09-arca-etapa-6-robot.md)).
-- [0027 — Delegación guiada en ARCA](0027-delegacion-guiada-arca.md) (aceptada el 2026-11-09; rige desde la [etapa 5 de ARCA](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md)).
-- [0028 — Emisión de comprobantes en ARCA: cola, numeración y reconciliación](0028-emision-de-comprobantes-arca.md) (aceptada el 2026-11-09; rige desde la [etapa 3 de ARCA](../plans/2026-11-09-arca-etapa-3-factura-c.md)).
-- [0029 — La biblioteca de estándares, aportada por los módulos como datos](0029-biblioteca-de-estandares.md) (aceptada el 2026-11-09; rige desde la [etapa 2 de ARCA](../plans/2026-11-09-arca-etapa-2-motor.md)).
-- [0030 — El contenido del chat de WhatsApp se guarda cifrado](0030-contenido-del-chat-cifrado.md) (aceptada el 2026-11-14; rige desde la tarea 20 del [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md)).
-- [0031 — La fecha que ARCA rechaza y el número que ARCA tiene adelantado van a una persona](0031-fecha-rechazada-y-numero-adelantado-arca.md) (aceptada el 2026-11-14; reemplaza la decisión 5 del ADR 0028 en lo que dice del 10016; la fecha rige desde la etapa 1 de los [arreglos de la revisión de ARCA](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura) y el número adelantado, desde su tarea 13).
-- [0032 — Sin Redis la app sigue, y los permisos se leen de la base](0032-sin-redis-la-app-sigue.md) (aceptada el 2026-11-14; rige desde el 2026-11-16, con la tarea 15 de los [arreglos del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md); enmienda el 0009 en los permisos y la caída de Redis, y el 0010 en la invalidación después del seed).
+Un enlace a un plan dice desde cuándo rige; al retirar ese plan, la auditoría documental lo cambia por la regla que quedó en `features` o en la arquitectura.

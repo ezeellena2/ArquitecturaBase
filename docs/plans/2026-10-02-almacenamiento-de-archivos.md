@@ -9,6 +9,13 @@ producción de abajo siguen pendientes; este plan no los da por implementados.
 El diseño extenso del 2026-10-02 (árbol de clases, rutas orientativas, comparación de
 proveedores) se recupera desde Git: `git show 4b151eb6:docs/plans/2026-10-02-almacenamiento-de-archivos.md`.
 
+Al 2026-11-18 (contrastado con el código): el PDF de la Etapa 4 de formularios, los archivos del asistente y el PDF
+fiscal de ARCA ya usan el mismo almacén; la limpieza borra con el ETag del listado (N28, 9be27c20) y la guía de
+[Azure](../deploy/azure-setup.md) crea el contenedor con borrado temporal, versionado y feed de cambios (N15, e870c645).
+Siguen sin hacer el health check del almacén, el antivirus, la política de respaldo probada, la retención por propósito,
+la lease de la limpieza antes de pasar de una réplica y los consumidores sin alcance (fondo del chat, documentos desde la
+web, transporte de volumen).
+
 ## Consumidores, en orden
 
 1. **Fotos y documentos de formularios** ([Etapa 2B implementada](../features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15)).
