@@ -247,6 +247,14 @@ curso, y la conexión se vuelve a leer cada vez que el robot avanza. Si el clien
 6. **Cierre:** la verificación de cierre de `AGENTS.md`, `features/arca.md` al día, la fila de la etapa 6 en la hoja de
    ruta, la auditoría que retira este plan y el traspaso al multitenant ofrecido.
 
+**Estado al 2026-11-18:** la regla está en [ARCA](../features/arca.md#delegación-con-robot-modo-3) y el
+[ADR 0026](../decisions/0026-robot-de-delegacion-arca.md); la operación, la configuración y la corrida real, en
+[la guía](../guides/robot-arca.md); los tableros, en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-robot.md).
+Los arreglos de la revisión (H5, H18 a H22 y O10, 15/11) cambiaron lo que este plan dice del aviso, los reintentos, la reserva
+y el punto de venta: donde difieren, vale la regla. El traspaso salió con el 13 y el 14. Falta la corrida real, con la imagen
+de Chromium publicada por primera vez y la medición de H22; después se retira este plan, que no guarda nada que no esté en la
+regla, el ADR o la guía.
+
 ## Riesgos
 
 | Riesgo | Cómo se cubre |

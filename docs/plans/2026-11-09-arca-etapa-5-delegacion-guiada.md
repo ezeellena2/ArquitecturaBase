@@ -222,3 +222,11 @@ delegación», publicados el 2026-11-09:
 4. **Cierre:** la verificación de `AGENTS.md`, `features/arca.md` y `configurar-arca.md` al día, la fila de la etapa 5 en
    la hoja de ruta, la auditoría que retira este plan y el traspaso al multitenant. El usuario eligió el 2026-11-09 escribir
    el traspaso uno solo, al cerrar el front, con el backend, la pantalla y las decisiones.
+
+**Estado al 2026-11-18:** la regla está en [ARCA](../features/arca.md#delegación-guiada-etapa-5) y el
+[ADR 0027](../decisions/0027-delegacion-guiada-arca.md); los pasos y las fuentes oficiales, en
+[configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación); los tableros, en el
+[diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md). El traspaso salió con el 13 (2026-11-14) y
+los arreglos de la revisión, con el 14. Falta la prueba real de la delegación, que confirma el formato del token y el ticket
+nuevo después de aceptar ([pendiente](../features/arca.md#pendiente)); después se retira este plan. Lo único que guarda aparte
+es el detalle de «Cómo funciona la delegación en ARCA» (puntos 4, 6, 8 y 9): al retirarlo, va a configurar ARCA o al ADR 0027.

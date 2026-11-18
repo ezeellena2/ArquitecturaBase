@@ -242,7 +242,10 @@ Lo que contesta ARCA en una prueba no es un error del pedido: es el resultado de
 
 Hecho el 2026-11-05: la regla vigente está en [ARCA](../features/arca.md), con las guías [configurar ARCA](../guides/configurar-arca.md)
 y [quitar ARCA](../guides/quitar-arca.md) (el módulo entero y una familia sola), y cada carpeta nueva tiene su `AGENTS.md` en el
-[mapa de instrucciones](../architecture/mapa-de-instrucciones.md). Quedan la homologación real y ofrecer el traspaso al multitenant.
+[mapa de instrucciones](../architecture/mapa-de-instrucciones.md). Queda la homologación real; el traspaso al multitenant es el
+[traspaso 6](2026-11-06-traspaso-multitenant-arca-conexion.md) (2026-11-06). Lo que este diseño decidió está en la regla, el
+ADR 0023 y el 0025, y los tableros, en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-conexion.md): al
+homologar, se retira con su plan de implementación.
 
 ## Fuera de la etapa
 

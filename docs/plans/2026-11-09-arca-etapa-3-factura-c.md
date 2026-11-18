@@ -345,3 +345,10 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
     (b82c002a) y los contratos de este plan.
 15. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 3 en la hoja de ruta, la guía de
     homologación, el retiro de este plan con la auditoría y el traspaso al multitenant ofrecido.
+
+**Estado al 2026-11-18:** la regla vigente está en [ARCA](../features/arca.md#emisión-de-comprobantes-etapas-3-y-4), con los
+arreglos de la revisión (14 a 16/11) y el [ADR 0031](../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md), que
+reemplaza lo que este diseño dice del 10016: donde difieren, vale la regla. Los tableros elegidos están en el
+[diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-factura-c.md). El traspaso al multitenant ya salió (13, del
+2026-11-14). Lo único que este plan guarda es la homologación de la C con su nota de crédito (en «Pruebas») y el riesgo de que
+homologación no devuelva puntos de venta: se retira después de homologar.

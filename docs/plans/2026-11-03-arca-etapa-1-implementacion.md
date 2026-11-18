@@ -1171,7 +1171,8 @@ quitar una familia es borrar su carpeta y su línea.
   - el usuario crea en WSASS el certificado con el `.csr` que da la app y autoriza `wsfe` y `ws_sr_constancia_inscripcion`;
   - después se prueban la conexión, los datos de la empresa y los puntos de venta contra ARCA;
   - el resultado va al diseño de la etapa.
-- [ ] **Traspaso:** se ofrece el traspaso al multitenant.
+- [x] **Traspaso:** se ofrece el traspaso al multitenant. Hecho: el
+  [traspaso 6](2026-11-06-traspaso-multitenant-arca-conexion.md), del 2026-11-06.
 
 ## Autorrevisión
 

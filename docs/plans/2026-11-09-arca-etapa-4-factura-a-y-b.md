@@ -236,6 +236,12 @@ Del 1 al 7, programadas; el 8 y el 9 van después de la prueba integral, que se 
 9. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 4 en la hoja de ruta, el retiro
    de este plan con la auditoría y el traspaso al multitenant ofrecido.
 
+**Estado al 2026-11-18:** la regla vigente está en [ARCA](../features/arca.md#emisión-de-comprobantes-etapas-3-y-4), también B1
+(2026-11-14: el «Total» del formulario es la suma de los importes; con precios sin IVA, el de la factura es mayor), que vuelve a
+dejar pasar el paso 4 de la prueba a mano. El traspaso al multitenant ya salió (13 y 14). Este plan guarda información única:
+la prueba a mano de abajo y las normas confirmadas con sus fuentes. Se retira después de homologar, llevando las normas a la
+regla de ARCA.
+
 ## Pruebas
 
 - **Unitarias:** el desglose (una y varias alícuotas, 0 %, exento y no gravado, precios con y sin IVA, bordes del half-even

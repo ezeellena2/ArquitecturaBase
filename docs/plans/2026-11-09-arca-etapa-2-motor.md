@@ -166,8 +166,8 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
    (650b4d40), la carga en gris mientras se escribe (d8c731e1), el detalle del borrador (81bcb7e6), «Qué calcula» en el
    editor (bf6f64ac), Guardar que frena un cálculo sin completar (4c79b0c0, 0121a4f4) y las escenas (b1d3de79). El editor
    que quedaba en «Cargando…» con un formulario en el otro idioma se arregló en el front 97a7318e: retirar un aviso que no
-   está a la vista ya no reinicia el dibujo. Una alícuota
-   de un catálogo se ve recién al enviar: la opción de la carga no trae su valor.
+   está a la vista ya no reinicia el dibujo. Una alícuota de un catálogo se veía recién al enviar; después, las opciones de
+   la carga trajeron su `value` y el porcentaje también se ve al cargar ([regla](../features/formularios.md#cálculos--ca1-a-2026-11-09)).
 
 **Resultado externo**
 
@@ -216,7 +216,7 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
     un booleano que fija el `update_data` de cada opción, la cadena anida un `If` adentro de otro, y varias respuestas de un
     catálogo o una cadena de más de tres frenan la publicación. La segunda vuelta pasó la validación y se recorrió en la vista
     oficial: el bloque con importe y total, la fecha obligatoria, el título, la lista de catálogo, el sí o no, la cadena y la
-    pantalla siguiente. Falta la integración de WhatsApp con Docker, en la corrida de cierre.
+    pantalla siguiente. La integración de WhatsApp con Docker entró en la corrida completa del 17/11 (`02c60e91`, en verde).
 29. ~~Front: el editor y la carga.~~ Hecho con la tarea 8: «Se muestra» en el editor, la línea de la lista y lo que se oculta
     al cargar, que no se manda.
 
@@ -228,7 +228,12 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 ## Pendiente
 
-- Los tests del front que leen las capturas nuevas (31f7b31c: forms-entries-http +2, forms-responses-http 63 → 65 y
-  forms-http 70 → 77) van después de la exportación conjunta que corre la coordinadora de la tanda.
+Estado al 2026-11-18: las reglas están en [formularios](../features/formularios.md) (cálculos, condiciones, resultado externo,
+biblioteca y carpetas) y en el [ADR 0029](../decisions/0029-biblioteca-de-estandares.md); el traspaso al multitenant es el 13
+(2026-11-14). Este plan no guarda pasos de prueba a mano: se puede retirar con la auditoría, corrigiendo sus enlaces.
+
+- ~~Los tests del front que leen las capturas nuevas (31f7b31c) van después de la exportación conjunta.~~ Hecho el
+  2026-11-17: las 28 cohortes salieron de una misma corrida (front `844a5c13`) y el front pasó entero (6.022 tests sobre
+  `93eb8eb0`).
 - Con [Formularios sólo en la app](2026-11-09-formularios-solo-en-la-app.md) no corre nada de WhatsApp (SA2-A): los
   chequeos de WhatsApp de los cálculos y las condiciones sólo valen para los formularios que van por WhatsApp.

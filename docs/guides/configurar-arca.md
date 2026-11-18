@@ -84,7 +84,7 @@ Cada reserva tiene que cubrir lo que cuida, y la Api no arranca si no lo cubre:
 | --- | --- | --- |
 | `Arca:TicketLease` | más que dos `Arca:RequestTimeout`: el pedido al WSAA con margen | 60 s contra 2 × 20 s |
 | `Arca:Invoicing:Worker:Lease` | una vuelta que concilia: `Arca:TicketLease` más cinco `Arca:RequestTimeout` (el ticket, dos consultas, el último autorizado y el CAE) | 3 minutos contra 2 minutos y 40 segundos |
-| `Arca:Robot:Lease`, con el robot prendido | al menos cuatro `Arca:Robot:StepTimeout`; un paso más largo necesita que la reserva se renueve mientras corre (H20, pendiente) | 3 minutos contra 4 × 45 s, justo |
+| `Arca:Robot:Lease`, con el robot prendido | al menos cuatro `Arca:Robot:StepTimeout`; un paso más largo lo cubre el latido, que renueva la reserva cada `StepTimeout` mientras corre (H20) | 3 minutos contra 4 × 45 s, justo |
 
 Si la reserva de la cola vence antes, no se emite dos veces, porque cada paso exige la suya, pero lo que respondió ARCA no se
 guarda y se recupera conciliando. Si se sube un plazo, se sube también la reserva.
@@ -131,8 +131,11 @@ producción es desconectar y empezar de nuevo, con otro certificado y otro punto
 
 La empresa no genera un certificado propio: delega sus servicios en la CUIT de la plataforma, que firma con un certificado
 suyo generado en esta instalación. Hacen falta dos personas con dos claves fiscales: alguien de la empresa y alguien de la
-plataforma. La pantalla sigue el diseño DG1-A y DG2-A del [plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md). Los pasos en ARCA, confirmados con sus guías oficiales, son
-estos.
+plataforma. La pantalla sigue el diseño DG1-A y DG2-A del [plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md). Los pasos en ARCA, confirmados el
+2026-11-09 con sus guías oficiales ([delegar un web service](https://www.arca.gob.ar/ws/WSAA/ADMINREL.DelegarWS.pdf),
+[delegar y aceptar](https://www.afip.gob.ar/guias/paso-a-paso/Como-delego-servicios-para-que-utilicen-en-mi-nombre-como-se-acepta-delegacion.pdf),
+los manuales del [WSAA](https://www.afip.gob.ar/ws/WSAA/WSAAmanualDev.pdf) y de
+[WSASS](https://www.arca.gob.ar/ws/WSASS/WSASS_manual.pdf)), son estos.
 
 1. **Datos.** «Cómo se conecta: Delegación en <plataforma>», la CUIT de la empresa, el ambiente, el alias y los servicios.
    El alias es el del certificado de la plataforma para esta instalación: conviene uno propio por instalación, porque ARCA

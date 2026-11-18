@@ -8,7 +8,7 @@ Quitar el módulo borra sus ocho tablas, con la clave privada, los tickets y la 
 aparte el anillo `Arca:SecretProtection` si querés poder leer un backup viejo. Los comprobantes ya emitidos siguen en ARCA
 y sus PDF fiscales, en el almacén privado (`arca-vouchers/`). **Antes de desplegar, copiá `arca-vouchers/` fuera del
 almacén privado:** sin el módulo nadie los retiene, y la limpieza de archivos los borra una hora después de arrancar. El certificado sigue existiendo en ARCA hasta que se lo
-revoque allá. Sus catálogos de formularios (carpeta «ARCA») quedan como `External` sin origen: dejan de actualizarse y siguen sirviendo a lo ya capturado. El núcleo no nombra el módulo: WhatsApp, formularios e IA siguen igual.
+revoque allá. Sus catálogos de formularios (carpeta «ARCA») quedan como `External` sin origen: dejan de actualizarse y siguen sirviendo a lo ya capturado. Las copias de «Factura» conservan sus preguntas y respuestas, pero su acción «Emitir comprobante en ARCA» falla con `Forms.Action.IssuerUnavailable`, y guardar sus reglas pide sacarla (`Forms.Rule.IssuerUnavailable`). El núcleo no nombra el módulo: WhatsApp, formularios e IA siguen igual.
 
 ## El módulo entero
 
@@ -89,10 +89,10 @@ Quitá `src/features/arca` y lo que la compone afuera:
 
 - En `src/app/routes.tsx`, la rama `ProtectedRoute permission="arca.read"` de `/configuracion/arca`.
 - En `src/layouts/navigation.ts`, el ítem `navigation.arca`, y su texto en `common.json`, en español y en inglés.
-- El namespace `arca`: `src/locales/es/arca.json` y `src/locales/en/arca.json`. Se cargan solos, no hay que registrar
-  nada más.
-- `src/test/visual/arca.spec.ts`, `src/test/visual/arcaFixtures.ts` y las 18 capturas
-  `src/test/visual/screenshots/arca-*.png`. En
+- Los namespaces `arca` y `arcaRobot`: `src/locales/{es,en}/arca.json` y `src/locales/{es,en}/arcaRobot.json`. Se cargan
+  solos, no hay que registrar nada más.
+- `src/test/visual/arca.spec.ts`, `src/test/visual/arcaFixtures.ts` y las capturas
+  `src/test/visual/screenshots/arca-*.png` (30 el 2026-11-18). En
   `src/test/visual/fixtures.ts`, el `import` de `createArcaVisualFixtures`, la constante `arcaFixture`, su parte de los
   permisos y su línea en el manejador de pedidos.
 
@@ -110,12 +110,11 @@ npm run test:visual
 
 En el backend:
 
-- Borrá `docs/features/arca.md`, `docs/guides/configurar-arca.md` y los tres planes de ARCA de `docs/plans`:
-  `2026-10-31-arca-formularios-estandar.md` (la hoja de ruta), `2026-11-03-arca-etapa-1-conexion.md` y
-  `2026-11-03-arca-etapa-1-implementacion.md`. De la hoja de ruta salen otros planes, como renglones y carpetas: ahí el
-  enlace pasa a texto.
-- Los ADR 0023 y 0025 quedan como decisiones registradas; sus enlaces a los planes borrados pasan a texto («plan
-  retirado; ver Git»).
+- Borrá `docs/features/arca.md`, `docs/guides/configurar-arca.md`, `docs/guides/robot-arca.md` y los planes de ARCA que
+  queden en `docs/plans` (`*-arca-*.md`: la hoja de ruta y las etapas). De la hoja de ruta salen otros planes, como
+  renglones y carpetas: ahí el enlace pasa a texto.
+- Los ADR 0023, 0025, 0026, 0027, 0028 y 0031 quedan como decisiones registradas; sus enlaces a los planes borrados pasan a
+  texto («plan retirado; ver Git»).
 - Buscá lo que enlaza a lo borrado y arreglalo. Muchos planes enlazan a sus vecinos sin el prefijo `plans/`:
 
   ```bash
@@ -128,9 +127,10 @@ En el backend:
   [mapa de instrucciones](../architecture/mapa-de-instrucciones.md), el bloque entero de ARCA: el párrafo, el encabezado
   de la tabla y sus diez filas.
 
-En el front, `docs/design/arca-conexion.md`, la sección ARCA de `docs/design/visual-baseline.md`, la fila de
+En el front, los cinco `docs/design/arca-*.md` (conexión, delegación, factura C, factura A y B y robot), la sección ARCA de
+`docs/design/visual-baseline.md`, la fila de
 `src/features/arca` del [mapa](../../../ArquitecturaBaseFront/docs/mapa-de-instrucciones.md) y `arca/{connection,registry,invoicing,pages}`
-del párrafo de guías por área, y el párrafo de `src/features/AGENTS.md`. El mismo `git grep`, sumando `arca-conexion\.md`.
+del párrafo de guías por área, y el párrafo de `src/features/AGENTS.md`. El mismo `git grep`, sumando `design/arca-`.
 
 Seguí la [auditoría documental](auditar-documentacion.md). Al terminar «Sin rastros», borrá también esta guía.
 
@@ -160,6 +160,10 @@ El modo 3 se puede quitar sin tocar la delegación guiada ni las familias ([ADR 
    las clases `ArcaRobot*`, `ArcaDelegationRobotTests`, las rutas del robot en `ArcaTestModule` y sus `Arca:Robot:*`.
 5. El paquete y el paso del workflow, como en el paso 5 del módulo entero, y la sección `Arca:Robot` de la configuración.
 6. Generá la migración que borra `ArcaRobotRuns`, compilá y corré todos los tests.
+7. En el front, `connection/robot.ts`, `robotSteps.ts` y `RobotZone.tsx` con sus tests; en `SetupZones.tsx`, la opción
+   «Delegación automática» y la zona del robot, y en `ArcaSettingsPage.tsx`, el número de zona del modo automático; el
+   namespace `arcaRobot` y las capturas `arca-details-robot-*`. Después, `npm run build`, `npm run lint`, `npm run test` y
+   `npm run test:visual`.
 
 ## Una familia sola
 
@@ -231,7 +235,7 @@ Sin la familia, la conexión se activa con la prueba en verde: no queda ninguna 
 - En `src/test/visual/arcaFixtures.ts`, `wsfe` y las respuestas de `api/arca/invoicing`. La escena `arca-unverified`
   («Sin verificar» con la prueba en verde) ya no puede pasar: dejala con una prueba en rojo (`lastTestPassed: false`), y
   en `arca.spec.ts` la parte de activación espera el título «4 · Prueba» en vez del botón y el punto de venta. Cambian las
-  18 capturas: borrá `src/test/visual/screenshots/arca-*.png`, corré
+  capturas: borrá `src/test/visual/screenshots/arca-*.png`, corré
   `npx playwright test src/test/visual/arca.spec.ts --update-snapshots=missing` y después sin el flag.
 
 Corré `npm run build`, `npm run lint`, `npm run test` y `npm run test:visual`.
@@ -245,7 +249,9 @@ Corré `npm run build`, `npm run lint`, `npm run test` y `npm run test:visual`.
   [mapa de instrucciones](../architecture/mapa-de-instrucciones.md). El [ADR 0025](../decisions/0025-familias-de-servicios-arca.md)
   no cambia.
 - En el front: `src/features/arca/AGENTS.md`, `docs/design/arca-conexion.md`, la sección ARCA de
-  `docs/design/visual-baseline.md`, `src/features/AGENTS.md` y `arca/{connection,registry,invoicing,pages}` de su mapa.
+  `docs/design/visual-baseline.md`, `src/features/AGENTS.md` y `arca/{connection,registry,invoicing,pages}` de su mapa; se
+  borran `docs/design/arca-factura-c.md` y `arca-factura-a-y-b.md`, y el punto de venta del robot sale de
+  `docs/design/arca-robot.md`.
 
 Para ver lo que quedó:
 

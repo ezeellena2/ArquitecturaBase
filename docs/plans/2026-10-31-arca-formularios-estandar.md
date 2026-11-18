@@ -1,7 +1,8 @@
 # ARCA: conexión y formularios estándar
 
 Hoja de ruta del 2026-10-31, con las decisiones del usuario de ese día. Las seis etapas tienen backend y front programados
-(2026-11-04 a 2026-11-11); faltan la prueba integral y las pruebas en homologación. El objetivo: conectar la
+(2026-11-04 a 2026-11-11), y los [arreglos de la revisión](#arreglos-de-la-revisión-de-arquitectura) también (14 a 16/11);
+faltan la prueba integral, las pruebas en homologación y la corrida real del robot. El objetivo: conectar la
 plataforma con los web services de ARCA y tener, de nuestro lado, los formularios de carga que generan lo que cada proceso
 le pide a ARCA, empezando por la factura y siguiendo con hacienda (porcinos), granos y los demás sectores.
 
@@ -228,7 +229,9 @@ automático.
 
 ## Arreglos de la revisión de arquitectura
 
-Decididos el 2026-11-14 y sin programar. Salen de la [revisión de arquitectura de ARCA](../reviews/2026-11-14-arquitectura-arca.md),
+Decididos el 2026-11-14 y programados el 14 y el 15/11; H11 lo hizo F2 de formularios el 16/11. La corrida completa del
+cierre de formularios del 17/11 (`02c60e91`, backend 11.656/11.656) ya incluye todo el código de ARCA, que no cambió desde
+`c6890b3f`. Falta la medición de H22, en la corrida real del robot. Salen de la [revisión de arquitectura de ARCA](../reviews/2026-11-14-arquitectura-arca.md),
 que tiene el escenario, la evidencia (archivo y línea en `23797fff`) y el esfuerzo de cada hallazgo, y de las
 [decisiones del usuario](../reviews/2026-11-14-arquitectura-arca.md#decisiones-del-2026-11-14), que no se vuelven a preguntar.
 
@@ -559,7 +562,8 @@ H21 en 51bfc96a, H22 en e322d9b5 y O10 en 02029be2.
 **Hecha el 2026-11-15, salvo H11:** H28 en 74d86581, H29 en e3e582c4 (front 57021f72) y H26 en 5a9ffb1f (logs), 3ac32991
 (auditoría, con su migración), 3cd27c01 (desconectar) y c6890b3f (métrica).
 - **H11 no se programó acá:** la revisión de formularios la trata en F2 («avisar a quien cargó cuando su regla se frena, que
-  es lo que pide ARCA H11»), que vale para cualquier acción; va con el plan de «Hoy» de formularios, todavía sin armar.
+  es lo que pide ARCA H11»), que vale para cualquier acción. F2 lo programó el 2026-11-16 (`63edb23e` y `f4041e4e`): un aviso a quien
+  cargó, una vez por acción frenada, sin el motivo de ARCA, que se ve en la zona «Comprobante».
 - **Cambios:** en H28 la explicación en inglés de la vista previa nombra la condición con el texto de ARCA. En H29 el tipo
   `amount` es aditivo: los resultados guardados con `number` se siguen leyendo igual, y el PDF y el Excel de la respuesta
   también lo conocen. En H26 desconectar pasó a `IArcaDisconnectionService`, porque el servicio de la conexión ya tenía las

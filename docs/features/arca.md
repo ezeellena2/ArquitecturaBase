@@ -30,9 +30,9 @@ que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-esta
 
 - `arca.read` lee; cambiar algo o llamar a ARCA pide también `arca.manage` (`ArcaPermissions`, por
   `IPermissionCatalogSource`). Sin `arca.read`, «ARCA» no aparece en el menú.
-- `arca.issue` decide sobre una emisión en revisión, además de los permisos de formularios. También lo pide poner a emitir
-  un formulario: agregar «Factura» de la biblioteca, con `formrules.manage`, o guardar una regla que emite (H6). Cargar la
-  «Factura» no lo pide.
+- `arca.issue` decide sobre una emisión en revisión y anula una respuesta con factura (la nota de crédito), además de los
+  permisos de formularios. También lo pide poner a emitir un formulario: agregar «Factura» de la biblioteca, con
+  `formrules.manage`, o guardar una regla que emite (H6). Cargar la «Factura» no lo pide.
 - La pantalla es `/configuracion/arca`, en Administración → Configuración, sin estado en la URL. El alta va por zonas que
   se habilitan de a una y la conexión activa, por zonas con su acción en la banda. Los tableros y lo que se fijó al
   programar están en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-conexion.md).
@@ -53,8 +53,8 @@ Sin conexión → esperando el certificado → sin verificar → activa ⇄ requ
 
 ## Contrato HTTP
 
-Rutas MVC, todas con `arca.read`; las que escriben o llaman a ARCA, también con `arca.manage`. Las escrituras llevan la
-revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cambió. Una conexión nueva empieza su revisión en
+Rutas MVC, todas con `arca.read`; las que escriben o llaman a ARCA, y la descarga del pedido, también con `arca.manage`.
+Las escrituras llevan la revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cambió. Una conexión nueva empieza su revisión en
 el instante del alta (milisegundos), así una pantalla de una conexión que alguien desconectó no escribe sobre la que se
 empezó después, aunque esté en el mismo paso: la revisión dice también qué conexión se leyó (H15). La prueba y el punto de
 venta, que llaman a ARCA antes de guardar, confirman bajo el lock la conexión y los servicios con que llamaron (409 si
@@ -117,7 +117,8 @@ cambiaron), y el estado se recalcula en el mismo guardado.
 - Pide un ticket para cada servicio elegido y corre la prueba de su familia. Lo que contesta ARCA no es un error del
   pedido: es el resultado de cada servicio, con su estado y un motivo estable.
 - Corre fuera de la transacción; el resultado se guarda sólo si el certificado probado sigue siendo el activo. Si cambió
-  mientras corría, da `RevisionConflict`. La prueba de una renovación en rojo no guarda nada.
+  mientras corría, da `RevisionConflict`. La prueba de una renovación en rojo no guarda su resultado ni toca el certificado
+  activo; quedan, inocuos, los datos de la empresa que trajo el padrón y los tickets del certificado nuevo (O4).
 
 ## Familias
 
@@ -292,7 +293,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   número. Una fecha que salió de la ventana (5 días con productos, 10 con servicios, en hora de la Argentina), o que ARCA
   rechazó por anterior a la del último comprobante, va a revisión: «Emitir con la fecha de hoy» o «No emitir». Emitir toma la
   de hoy o, si el último comprobante que conoce la base es posterior, la suya, y corre a esa fecha un vencimiento del pago
-  anterior. Revisar exige la revisión esperada; cancelar, que no tenga número.
+  anterior. Revisar exige la revisión esperada; cancelar, que no tenga número. Límites conocidos (ADR 0031): después de un
+  corte largo, la espera tras un 10016 sigue la acumulada, hasta una hora, con la secuencia frenada; y un servicio con fecha
+  futura en la misma secuencia que productos puede dejar una venta sin fecha posible hasta que pase el tiempo.
 - **PDF fiscal:** al autorizarse, el worker lo dibuja con diseño fijo y el QR de ARCA, lo escribe una vez en el almacén
   privado (`arca-vouchers/{id}.pdf`) y confirma su SHA-256. Si el almacén falla, el comprobante sigue autorizado y el PDF
   espera (`Arca.Invoicing.PdfStorageUnavailable`); mientras tanto la emisión se informa emitida, con su número y su CAE y sin
@@ -316,7 +319,8 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
 
 La empresa delega sus servicios en la CUIT de la plataforma, que firma con su certificado y opera en su nombre. Está
 programada: el backend el 2026-11-09 y la pantalla el 2026-11-11, con los tableros elegidos (DG1-A y DG2-A) registrados en
-el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md); el [plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md) tiene las fuentes oficiales de ARCA.
+el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md); las fuentes oficiales de ARCA están en
+[configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación) y en el [plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md).
 
 - **La plataforma es configuración de la instalación:** `Arca:Platform:Cuit` y `Arca:Platform:Name` (el nombre de la guía),
   las dos o ninguna. Sin ellas, el alta en delegación da `Arca.Connection.PlatformNotConfigured`.
@@ -407,3 +411,8 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
 - **La delegación de verdad:** en homologación, con una autorización de WSASS con «CUIT representado»; en producción, con
   la clave fiscal de la plataforma y la de una empresa. Confirma el formato del token y que un ticket nuevo traiga la CUIT
   después de aceptar.
+- **La factura en homologación:** la C con su nota de crédito y la prueba a mano de la A y la B
+  ([etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md#prueba-a-mano-en-la-prueba-integral)).
+- **La corrida real del robot** con las cuentas del usuario ([guía](../guides/robot-arca.md#la-corrida-real)), con la imagen
+  de Chromium publicada por primera vez. Trae la medición de memoria y CPU de H22: si los dos lados juntos no entran en el
+  despliegue, cada host corre un lado por vez.

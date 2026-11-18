@@ -28,6 +28,7 @@ variables protegidas al desplegar. Nunca en `appsettings` ni en el repo.
 | `StepTimeout`, `RunTimeout` | Lo que espera cada acción y una pasada entera | 45 s y 10 min |
 | `Lease`, `RetryDelay`, `MaxAttempts` | La reserva de un lado, que dura al menos cuatro `StepTimeout` o la Api no arranca, y los reintentos del lado de la plataforma | 3 min, 2 min y 5 |
 | `PollInterval`, `QueueCapacity` | Cada cuánto mira el worker de la plataforma y cuántas corridas del cliente espera un host | 30 s y 4 |
+| `AlertInterval`, `CompanyWait` | El lapso en que no se repite un aviso por motivo y paso, y cuánto espera la plataforma al cliente antes de volver a mirar (el cliente la despierta al terminar) | 1 día y 1 hora |
 
 En desarrollo:
 
