@@ -444,3 +444,9 @@ id de cliente.txt
 .playwright-mcp/
 
 .test-artifacts/
+
+# Restos del índice privado de commits entre sesiones y de merges (nunca al repo)
+/.blob
+/.chk
+/.head
+*.orig
