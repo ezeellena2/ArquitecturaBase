@@ -1,6 +1,6 @@
 # Code review: Etapa 2, K6–K7 y correcciones del 13 — 2026-10-14
 
-Revisión de lectura de backend `7567b966..db0052e7` y front `a390126..df9776e`. Se corrige en un solo chat, backend y front juntos, en el orden de abajo; cada arreglo con su test y commits chicos. Las decisiones del [resumen de la etapa](../plans/formularios/etapa-2-catalogos.md) no cambian: tampoco el «nunca se trunca».
+Revisión de lectura de backend `7567b966..db0052e7` y front `a390126..df9776e`. Se corrige en un solo chat, backend y front juntos, en el orden de abajo; cada arreglo con su test y commits chicos. Las decisiones de la etapa (hoy en [formularios](../features/formularios.md#catálogos-al-enviar-y-responder--k7-2026-10-12)) no cambian: tampoco el «nunca se trunca».
 
 ## Cierre local — 2026-10-15
 

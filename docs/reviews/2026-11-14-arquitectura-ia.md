@@ -1013,7 +1013,8 @@ es una versión nueva de las instrucciones, que se califica; y el máximo diario
   [arreglos de la revisión de arquitectura](../plans/2026-10-04-panel-conversaciones-inicio.md#arreglos-de-la-revisión-de-arquitectura):
   29 tareas en siete etapas, programadas entre el 15 y el 16/11, cada una anotada en su etapa con sus commits; las reglas
   cambiaron con cada arreglo. Quedan afuera I18, que va antes de pasar de una réplica, el resto de gran escala de I19 e I20,
-  para cuando haya volumen real que medir, y las observaciones O1 a O14.
+  para cuando haya volumen real que medir, y las observaciones O1 a O14. Lo que sigue abierto, contrastado con el código el
+  2026-11-18, está en [lo que quedó de los arreglos](../plans/2026-10-04-panel-conversaciones-inicio.md#lo-que-quedó-de-los-arreglos).
 - **El cierre:** la corrida completa quedó en verde el 2026-11-17 sobre `c82ec50d` (front `9aa157ae`), anotada al final del
   plan. Falta la prueba manual, que va en la prueba integral.
 - **Para otras sesiones:** I4 extiende al motor la regla de N27, que `42d8f47f` aplicó a la cola durable y a WhatsApp; lo que

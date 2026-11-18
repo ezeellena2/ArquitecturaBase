@@ -2,7 +2,7 @@
 
 ## Estado
 
-Aceptada, 2026-10-02, para elegir el proveedor y probar desde local contra Azure real. Implementación pendiente; el modelo funcional y el alcance del fondo siguen en elaboración.
+Aceptada, 2026-10-02, para elegir el proveedor y probar desde local contra Azure real. Implementada con su primer consumidor, las fotos y los documentos de formularios, y verificada con Azure real el 2026-10-15 ([cierre de la Etapa 2B](../features/formularios.md#cierre-de-la-etapa-2b--2026-10-15); reglas en [archivos privados](../architecture/backend.md#archivos-privados)). El fondo del chat, que la motivó, sigue sin alcance ([pendientes de archivos](../plans/2026-10-02-almacenamiento-de-archivos.md)).
 
 ## Contexto
 

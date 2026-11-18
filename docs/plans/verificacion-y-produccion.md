@@ -1,7 +1,7 @@
 # Verificaciones y preparación de producción pendientes
 
-Estado: **abierto**. Reconciliado el 2026-10-02 con el código, la documentación y las revisiones locales; lo del núcleo,
-otra vez el 2026-11-18.
+Estado: **abierto**. Reconciliado el 2026-10-02 con el código, la documentación y las revisiones locales; lo del núcleo y lo
+que quedó fuera de los arreglos de Formularios, otra vez el 2026-11-18.
 Conserva información pendiente de los planes retirados; no autoriza un despliegue ni nuevas
 funciones. Las pruebas automáticas y capturas con datos simulados no cierran los recorridos
 manuales con proveedores reales. La [procedencia](../history/README.md) permite consultar los originales.
@@ -151,7 +151,7 @@ la revocación de todas las sesiones al desactivar o borrar una cuenta, que ya e
 
 ## Núcleo: lo que quedó fuera de los arreglos del 2026-11-14
 
-Las 31 tareas de los [arreglos del núcleo](2026-11-14-arreglos-del-nucleo.md) están programadas (15 y 16/11). Esto quedó
+Las 31 tareas de los arreglos del núcleo están programadas (15 y 16/11). Esto quedó
 afuera por decisión del usuario del 2026-11-14 y sigue anotado, con su evidencia, en la
 [revisión del núcleo](../reviews/2026-11-14-arquitectura-nucleo.md). Contrastado con el código el 2026-11-18.
 
@@ -175,6 +175,89 @@ afuera por decisión del usuario del 2026-11-14 y sigue anotado, con su evidenci
   entidad, lo de los enlaces en `ILoginLinkRepository` y la invalidación de los pendientes
   (`PhoneNumberLinker.VoidPendingLinksAsync`), que ya no cambia nada. Se queda el lock por cuenta (`LockAccountAsync`,
   `login-link:`) con el mismo texto, porque el texto es el lock ([backend](../architecture/backend.md#locks)).
+
+## Formularios: lo que quedó fuera de los arreglos del 2026-11-14
+
+Las 41 tareas de los arreglos de Formularios se programaron el 15 y el 16/11, y la marca de F2, el 17/11. La corrida completa
+del cierre dio verde el 17/11 sobre `02c60e91` (11.656/11.656; el detalle está en `4b3a292b`). La
+[revisión de Formularios](../reviews/2026-11-14-arquitectura-formularios.md) dice qué commit arregló cada hallazgo y qué se hizo
+distinto de lo previsto. Esto quedó afuera. Contrastado con el código el 2026-11-18.
+
+- [ ] **B2, para el núcleo.** Una cuenta borrada conserva los permisos de sus roles: `PermissionReader.cs:14-19` lee
+  `UserRoles` sin mirar si la cuenta está borrada, y el borrado lógico deja los roles. El test en rojo
+  (`A_deleted_account_keeps_no_permissions_of_its_roles`) está en `.artifacts/pruebas/nucleo-B2-DeleteUserEndpointTests.cs`,
+  fuera de Git. Se cierra con ese test commiteado y un lector que no le conceda nada a una cuenta borrada o inactiva.
+- [ ] **Menores de la segunda revisión adversarial (2026-11-16), sin decisión nueva:**
+  - F4: quien corrigió una versión anterior puede aprobar. `FormApprovalReader.cs:21-23` mira sólo el `CorrectedByUserId` de
+    la respuesta de la tarea y el `ReviewedByUserId` del documento que apunta a ella, sin recorrer `ReplacesRecordId`.
+  - B1, el toque viejo: `NoLongerIssuable` le contesta a cualquier botón viejo de una respuesta anulada sin `DecisionTapId`,
+    también a una ya emitida y revertida, con un texto un poco inexacto (`FormIssueConfirmationService.cs:45-48`).
+  - F22: el canal de WhatsApp compara códigos `Forms.*` literales, y cualquier otro `Forbidden` dice «tu cuenta no puede
+    armar» (`WhatsAppAssistantAuthoringPolicy.cs:49-50`). Los módulos se cruzan por puertos neutrales: falta un motivo
+    neutral en el puerto.
+- [ ] **Menores que decide el usuario.** Los de migraciones y versiones (2b-1, 2b-2, 2b-5 y `NotApplicable`) conviene
+  cerrarlos antes del primer despliegue. Lo que se corrija lleva su test; lo que se acepte, una línea en la regla.
+  - F2, la auto-consulta de la primera pasada: si `channel.GetAsync` falla sin nada enviado, la reconsulta no encola y el
+    `NotFound` termina «destinatario no disponible», que se reintenta a mano (`FormActionEffectService.cs:86-100`). Reenviar,
+    porque no hubo efecto, o dejarla «En duda».
+  - 2b-1 (F15): sólo la migración y la captura escriben `BusinessFormRecordCatalogFields`. Un campo que selló un nodo viejo
+    durante el despliegue no entra hasta otra captura. Un relleno idempotente en el despliegue siguiente, o aceptarlo por escrito.
+  - 2b-2 (F15): `20261116111033_AddFormRecordCatalogFields.cs:60-69` inserta `->> 'key'` y `-> 'name'` en columnas NOT NULL,
+    sin COALESCE ni filtro. `appdb` no tiene casos (85 campos, 16/11). Corregir el SQL antes del primer despliegue, o dejarlo
+    verificado.
+  - 2b-3 (F31), heredado sin comprobar: un «no encontrado» del motor deja la extracción en `pending` hasta siete días, y quien
+    revisa ve «leyendo». Un plazo menor, si molesta.
+  - 2b-5: `20261116114811_FormActionRunStallNotice.cs:20` marca como avisados los runs fallidos o en duda que ya había. Lo que
+    un nodo viejo deje fallido después lo anuncia el nuevo. Es esperable: falta aceptarlo por escrito.
+  - 2c-6 (F47): el tope de 500 carpetas se aplica sólo al crear una (`FormFolderTree.cs:22`); las del sistema que crea
+    «Agregar» no lo cuentan.
+  - La convivencia de `NotApplicable`, heredado sin comprobar: una copia vieja no toma ese valor por terminal en el reintento
+    de un aviso a un rol y encola a quien se fue del rol. Aceptarlo ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md))
+    o sellar el estado en el run.
+  - La tarea 10, el PDF: un snapshot sin `TimeZoneId` sale en UTC (`SkiaFormPdfRenderer.cs:507-508`), y un `WriteOnce` con un
+    `Uncertain` pendiente podría ver otra hora que el original. Sin producción, sólo toca datos de desarrollo.
+  - F6-4: el escáner de PDF no ve variantes raras de la sintaxis de `stream` ni un `/Filter` por referencia (anotado en F6).
+- **Aceptado por diseño:** 2c-5 (F11). El tope de dos exportaciones o importaciones a la vez por copia lo pueden ocupar dos
+  pedidos lentos de una persona (`BusinessFormsApiRegistration.cs:20-23`). Ese `GlobalLimiter` es el único de la app: si otro
+  módulo asignara uno, lo reemplazaría.
+- [ ] **Antes de pasar de una réplica:** la reserva de una acción que no se renueva (F32). Se cierra con la renovación y un
+  test de dos hosts.
+- [ ] **Con volumen real que medir:** lo demás de F33, F34 a F36, F39, F41 a F46, el aviso de «hay más» de F48 y escribir el
+  XLSX por partes (F11). Los escenarios están en la revisión.
+- [ ] **Pruebas reales:** las de la [revisión](../reviews/2026-11-14-arquitectura-formularios.md#controles-y-pruebas-que-conviene-sumar):
+  millones de filas con `EXPLAIN ANALYZE`, exportaciones y cargas a la vez midiendo la memoria, los encabezados de uso de
+  Meta y un despliegue gradual con dos versiones.
+
+### Pruebas a mano de Formularios: el criterio
+
+Van en la prueba integral; lo que quede abierto después se anota acá.
+
+- [ ] **Carpetas** ([regla](../features/formularios.md#carpetas--cp1-a-a-cp5-a-2026-11-09)): crear una carpeta y una
+  subcarpeta; poner un formulario y un catálogo en dos carpetas y verlos una sola vez en «Todos»; mover una carpeta y ver que
+  no pasa del quinto nivel; borrar una con subcarpetas y comprobar que los elementos quedan en sus otras carpetas o en «Sin
+  carpeta»; poner una carpeta en un menú propio y otra en «Administración»; entrar como alguien que sólo carga y ver sólo las
+  carpetas y los formularios que puede abrir, y que el menú le abre la carga.
+- [ ] **Sólo en la app** ([regla](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09)): crear un
+  formulario de la app, publicarlo, cargarlo, pasarlo a WhatsApp con Meta y volverlo a la app. Mirar «Publicamos la versión
+  N.» sin pasar por «Publicación aceptada», la columna «Dónde se completa» en el listado, que «Enviar formulario» no lo lista,
+  el aviso «Deja de completarse por WhatsApp…» al volver a la app y que un envío abierto de la versión anterior se sigue
+  respondiendo.
+- [ ] **Acciones por resolver, F2** ([regla](../features/formularios.md#motor-de-acciones-y-aprobación--etapa-4-g5-y-g3g4)):
+  con una regla cuya acción falla sin reintento (por ejemplo, «Pedir aprobación» a un rol sin miembros), la columna «Reglas»
+  dice «Por resolver» para todo el que ve la planilla, y quien administra reglas y ve todas las respuestas tiene la pestaña
+  «Por resolver (N)», que filtra y cuenta respuestas. A quien cargó le llega un aviso, una sola vez. Al anular o corregir la
+  respuesta, deja de contar.
+- [ ] **Revisar un tema de «Formularios que faltan», F7** ([regla](../features/formularios.md#formularios-que-faltan--etapa-5)):
+  pedir por WhatsApp un formulario que no existe; el tema nuevo aparece sin revisar, con «Marcar como revisado». Hasta
+  revisarlo, el asistente no se lo ofrece a otra persona; después, sí, sólo con el nombre. Un tema descartado que otro pedido
+  reabre vuelve a quedar sin revisar.
+- [ ] **Confirmar un documento repetido, F13** ([regla](../features/formularios.md#la-bandeja-documentos-recibidos--doc5-a-2026-11-12)):
+  un comprobante que repite una respuesta guardada (la misma operación, monto y fecha) y quedó «para revisar acá». Al pasarlo
+  desde la bandeja, la app avisa que repite la guardada, con su número; sin confirmar no se guarda nada, y al confirmar pasa
+  igual.
+- [ ] **El teléfono, heredado de la Etapa 2 de catálogos** ([verificación de cierre](../features/formularios.md#verificación-de-cierre--2026-10-11)):
+  los máximos de texto, una pregunta opcional sin responder frente a false y una sesión abierta de una versión anterior. Los
+  decimales (12,50 y 12.50) se comprueban con r15 en la prueba integral ([WhatsApp](../features/whatsapp.md#piloto-de-formularios)).
 
 ## Inteligencia artificial
 

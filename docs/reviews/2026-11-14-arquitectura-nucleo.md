@@ -800,7 +800,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   reserva sólo los tipos que conoce; lo que no descifra o no lee vuelve a la cola con una espera de 30 s, hasta diez veces,
   en lugar de borrarse; el correo y la cola de acceso leen estricto; un motivo de lectura desconocido se lee como `Other`; y
   las guías piden escribir lo nuevo un despliegue después. Faltan los demás enums de los modelos neutros que los módulos
-  guardan por nombre ([tarea 31](../plans/2026-11-14-arreglos-del-nucleo.md#etapa-6-lo-trivial-y-la-documentación)).
+  guardan por nombre (tarea 31 de los arreglos; la regla, en la [guía de migración](../guides/migracion.md#convivencia-de-versiones)).
 - **Arreglado el 2026-11-16** en 93f643c1 (lo que faltaba): `StructuredDocumentReadability` no tiene valor neutro, así
   que una lectura con una legibilidad desconocida queda para la copia que la conoce.
 
@@ -1153,10 +1153,10 @@ cambian con su arreglo, no antes: N3 y B4, en [identidad](../features/identidad.
 
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
 - **El plan:** B1 a B5, N1 a N26 (menos N24) y lo que sumaron las decisiones (lo que falta de N27, el ETag de N28, los
-  conteos de N30, los índices de N31 y N33 con N9), en 31 tareas y seis etapas del
-  [plan de los arreglos del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md), que se programa antes de la prueba
+  conteos de N30, los índices de N31 y N33 con N9), en 31 tareas y seis etapas, que se programan antes de la prueba
   integral, como elegiste el mismo día. La lease de N28 va antes de pasar de una réplica; el resto de gran escala, cuando
-  haya volumen real que medir.
+  haya volumen real que medir. Lo que quedó afuera está en
+  [verificación y producción](../plans/verificacion-y-produccion.md#núcleo-lo-que-quedó-fuera-de-los-arreglos-del-2026-11-14).
 - **Programado el 15 y el 16/11:** las 31 tareas están commiteadas, y cada hallazgo de arriba dice en qué commit. Pasaron
   por la revisión adversarial las etapas 1 a 3 y las tareas 15 y 21. Falta la prueba integral, con los pasos de la prueba
   a mano de lo que cambió.

@@ -3,7 +3,8 @@
 Fecha: **2026-10-03**. El usuario eligió implementar la pantalla en la aplicación real,
 después de revisar la maqueta. También pidió ver menú/permisos y quitar el color de las
 filas de permisos del rol. La entrega implementa esas tres cosas; sugerencias y generación
-de respuestas continúan pendientes en el [plan](../plans/2026-10-03-sugerencias-ia-whatsapp.md).
+de respuestas quedaron pendientes. Las resolvió después el borrador del operador de los
+[casos del asistente](../features/whatsapp.md#casos-del-asistente--2026-11-11) ([ADR 0021](../decisions/0021-respuestas-redactadas-por-el-asistente.md)).
 
 ## Revisión y decisiones implementadas
 

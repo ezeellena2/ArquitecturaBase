@@ -55,7 +55,8 @@ Los hallazgos van numerados F1 a F48 y, aparte, B1 a B3; las piezas de la ficha 
 - **Fuera de los criterios:** el «¿La emito?» que se vuelve a preguntar puede ignorar el toque (B1) y, para el núcleo, una cuenta
   borrada conserva sus permisos (B2, confirmado con un test el 2026-11-15).
 - **Tus decisiones** ([decisiones](#decisiones-del-2026-11-14)): el 2026-11-14 elegiste las ocho recomendadas, del horizonte a los
-  números en claro de la bandeja; el plan de «Hoy» está en [arreglos de Formularios](../plans/2026-11-15-arreglos-de-formularios.md).
+  números en claro de la bandeja. El plan de «Hoy» se programó el 15 y el 16/11; cada hallazgo dice su commit, y lo que quedó
+  afuera está en [verificación y producción](../plans/verificacion-y-produccion.md#formularios-lo-que-quedó-fuera-de-los-arreglos-del-2026-11-14).
 
 ## Ficha
 
@@ -244,6 +245,9 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   permisos no conceda nada a una cuenta borrada o inactiva. Chico. Va con la revisión del núcleo.
 - **Confirmado el 2026-11-15:** el test (una cuenta con un rol, borrarla y preguntar sus permisos) falla: la cuenta borrada
   sigue teniendo los permisos de sus roles. No se commiteó en rojo; el arreglo, con el test, es del núcleo.
+- **Al 2026-11-18** sigue igual (`PermissionReader.cs:14-19`) y no entró en los arreglos del núcleo: queda en
+  [verificación y producción](../plans/verificacion-y-produccion.md#formularios-lo-que-quedó-fuera-de-los-arreglos-del-2026-11-14),
+  con el test en rojo.
 
 #### B3. «Pedir aprobación» a un rol que se quedó sin miembros abre una tarea que nadie puede decidir
 
@@ -253,7 +257,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   alguien sume una persona al rol. Se recupera así, sin tocar la base. Gravedad baja.
 - **Evidencia:** `FormActionDispatchService.cs:41-46`, `FormApprovalService.cs:62-63`.
 - **Arreglo:** avisar en el editor de reglas cuando el rol no tiene miembros, o que la acción falle con un motivo propio. Chico.
-- **Arreglado el 2026-11-15** en `84e22c2f`.
+- **Arreglado el 2026-11-15** en `84e22c2f`, con la segunda salida: la acción falla con `Forms.Rule.RoleWithoutMembers`
+  (`FormActionDispatchService.cs:52`). El editor de reglas no avisa.
 - Corregido tras la revisión adversarial del 2026-11-16 en `07839c92`: el conteo de miembros del rol deja afuera a quien cargó la respuesta y a quien la corrigió, que no pueden decidirla; un rol cuya única persona es una de ellas falla con `Forms.Rule.RoleWithoutMembers`.
 
 ### Hoy, con una sola copia
@@ -276,6 +281,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   ayuda que el Flow en las preguntas con decimales. Chico. El Flow también lee con la región
   ([decisión 5](#decisiones-del-2026-11-14)).
 - **Arreglado el 2026-11-15** en `8f518391` del front (la app) y `0c88e7ea` (el Flow): quedó entero.
+- **Distinto de lo previsto:** la app no muestra por defecto la ayuda «sin separador de miles»; alcanza el error de lo que
+  admite dos lecturas (`numberAmbiguous`), que ya pide escribirlo sin separador.
 
 #### F2. Una acción que falla o queda en duda frena el resto de su regla, y nadie se entera
 
@@ -443,6 +450,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   en una carrera), o que el front arme un pedido nuevo después de un 400 sin errores por pregunta; y textos de esos dos errores
   que sirvan también en la app. Chico.
 - **Arreglado el 2026-11-16** en `aba97b16` (el permiso perdido en una carrera no deja recibo; el front arma un pedido nuevo tras un 400 sin errores por pregunta; textos sin «sesión» ni «cuenta vinculada»).
+- **Distinto de lo previsto:** una copia vieja sigue guardando el recibo de una versión que no entiende, porque esa copia no se
+  puede cambiar. Lo cubre el pedido nuevo que arma el front tras ese 400 (`useFormEntry.ts:87-88`).
 
 #### F9. Un documento propuesto que nadie revisa no se borra nunca
 
@@ -605,7 +614,11 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   repetir la verificación completa en cada vista, sino reutilizarla unos minutos; un plazo para la consulta del estado; y leer
   para la vista el mismo tope de opciones que el Flow. Chico. **Prueba que lo resuelve:** medir los encabezados de uso de Meta
   con la cuenta real.
-- **Arreglado el 2026-11-15** en `9f027356` (límite propio y plazo; la verificación reutilizada y el tope de opciones quedaron anotados en el plan).
+- **Arreglado el 2026-11-15** en `9f027356` (límite propio y plazo).
+- **Distinto de lo previsto:** la verificación en Meta no se reutiliza unos minutos: vive en `WhatsAppFlowStatusService`, y
+  reusarla pide un caché en Redis ([ADR 0009](../decisions/0009-redis-como-unico-cache-de-datos.md)). El tope de opciones de la
+  vista no cambia: la oferta del Flow lee lo mismo (`BusinessFormCatalog.MaxItems`) cuando elige primero por un campo, y la
+  vista necesita todos los valores para mostrar los primeros 20. El costo lo acota el límite de 10 por minuto.
 - **Corregido el 2026-11-16** en `4fce41dc`: la consulta de una publicación en curso vuelve al límite de lectura; el de Meta queda en la vista oficial, porque la consulta sólo le pregunta a Meta con la operación fallida o en duda.
 
 #### F18. Una respuesta no se puede seguir de la captura al aviso: el worker no continúa la traza y sus logs no dicen de qué hablan
@@ -703,7 +716,9 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   `FormCatalogFiltersService.cs:62-81`); no hay único por nombre (`BusinessFormCatalogConfiguration.cs:41-48`). Crear desde una
   propuesta sí controla el nombre (`FormCatalogAssistantProposalService.cs:72,80`).
 - **Arreglo:** un id de pedido en la creación, que devuelva el mismo catálogo ante la repetición, como los borradores. Chico.
-- **Arreglado el 2026-11-15** en fb0545a0.
+- **Arreglado el 2026-11-15** en fb0545a0 (front `133b4686`).
+- **Distinto de lo previsto:** el id de pedido quedó opcional (`Guid? RequestId = null` en los contratos de crear), porque
+  unos 69 tests crean catálogos sin él. El front siempre lo manda.
 - **Corregido tras la revisión adversarial del 2026-11-16** en `f8c6f6f3`: el pedido repetido se compara con el catálogo guardado (revisión sin cambios, textos, opciones por código y campos por clave) y, si no coincide, da 409 `Forms.Draft.RequestConflict`; las identidades se emparejan por código y clave; el de filtros devuelve los filtros guardados y da 409 si el id hizo otro tipo de catálogo.
 
 #### F25. La guía para quitar Formularios cuenta 26 tablas y son 29, y no dice qué pasa con ARCA
@@ -1345,10 +1360,12 @@ la regla de los documentos recibidos de la 6 y la 8, y la fila de la retención 
 
 ## Cómo seguir
 
-- **Antes de la prueba integral:** F1, que es chico y cambia datos sin avisar.
+- **Antes de la prueba integral:** F1, que es chico y cambia datos sin avisar. Arreglado el 2026-11-15.
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
-- **El plan de «Hoy»:** [arreglos de Formularios](../plans/2026-11-15-arreglos-de-formularios.md), del 2026-11-15: 41 tareas en
-  siete etapas, sin programar. La etapa 1 (F1) va antes de la prueba integral, y el resto, después del reinicio del cupo.
+- **El plan de «Hoy»:** 41 tareas en siete etapas, programadas el 15 y el 16/11, y la marca de F2, el 17/11. Cada hallazgo dice
+  su commit y, si lo hubo, qué se hizo distinto de lo previsto. La corrida completa del cierre dio verde el 17/11 sobre
+  `02c60e91` (11.656/11.656). Lo que quedó afuera (los menores de la segunda revisión adversarial, B2, F32, la gran escala y
+  las pruebas reales) está en [verificación y producción](../plans/verificacion-y-produccion.md#formularios-lo-que-quedó-fuera-de-los-arreglos-del-2026-11-14).
 - **Lo que ya estaba anotado:** la retención de respuestas y la deuda menor de la Etapa 1, en [planes pendientes](../plans/README.md);
   el lock global, en WhatsApp H32.
 - **Repetir:** cuando el módulo cambie mucho o antes de subir de horizonte, comparando con ésta.

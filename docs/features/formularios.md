@@ -614,7 +614,8 @@ recibe documentos con las tareas 8 y 9.
 Para los documentos que no encajan en ningún formulario (DOC6, decisión 17 de [documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md));
 lo técnico, en los [servicios](formularios-servicios.md#crear-desde-una-propuesta-del-asistente). Pide «Ver documentos recibidos»,
 «Revisar documentos» y «Diseñar formularios» (`formtemplates.read` y `formtemplates.manage`): sus respuestas llevan documentos de la bandeja
-y lo que se leyó en ellos. Está el backend (tarea 14); la página llega con su front.
+y lo que se leyó en ellos. Están el backend (tarea 14) y el front (83465252): el aviso de los parecidos arriba de la bandeja, la
+entrada desde el panel y la página «Armar formulario con la IA».
 
 - **Lo que la bandeja guarda en claro (costo aceptado).** Los números que se leen de un documento (montos, CUIT, CBU o CVU,
   operaciones) se guardan en claro en `SearchText` para buscarlos sin descifrar, y el nombre del archivo y la copia también van en
@@ -1071,7 +1072,8 @@ El autor ordena un formulario largo con títulos entre las preguntas (CW15-B). U
 ## Cálculos — CA1-A, 2026-11-09
 
 Un cálculo es una pregunta de número de sólo lectura que calcula el servidor (CA1-A), como el importe de cada ítem y el total de
-una factura. Es parte del [motor para documentos](../plans/2026-11-09-arca-etapa-2-motor.md) de ARCA. Pantallas:
+una factura. Es parte del motor para documentos de ARCA, con las [condiciones](#condiciones--co1-a-2026-11-09) y el
+[resultado externo](#resultado-externo--re1-a-2026-11-09). Pantallas:
 [motor para documentos](../../../ArquitecturaBaseFront/docs/design/motor-para-documentos.md).
 
 - **El borrador.** Una pregunta `decimal` con `calculation`: `operation` (`multiply`, `sum` o `percent`) y `operands`, las
@@ -1373,8 +1375,9 @@ aparece.
 
 ## Lectura de documentos y validaciones fijas — DOC1, 2026-11-11
 
-Lo que un formulario necesita para leer documentos (DOC1, [documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md));
-leerlos, cargarlos y la bandeja llegan con las tareas siguientes del plan.
+Lo que un formulario necesita para leer documentos (DOC1, [documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md)).
+Leerlos y cargarlos por WhatsApp está en [WhatsApp](whatsapp.md#documento-recibido--tarea-8-de-documentos-2026-11-12), y la
+bandeja, en [su sección](#la-bandeja-documentos-recibidos--doc5-a-2026-11-12).
 
 - **La lectura en el borrador.** `draft.documentReading` es un ajuste del formulario, como «Dónde se completa»: si está prendida,
   «Cómo reconocerlo» (`recognition`, sin espacios alrededor, hasta 1.000 caracteres y obligatorio prendida) y hasta cinco cruces
@@ -1407,12 +1410,14 @@ leerlos, cargarlos y la bandeja llegan con las tareas siguientes del plan.
   `RepeatedRecordNumber` y `RepeatedAtUtc` y su replay lo vuelve a decir, así un canal cuya propia UoW falló después de la captura igual
   contesta, una vez), así dos
   comprobantes mandados juntos no se guardan los dos (`FormRecordRepetitionPolicy`, en la UoW de la captura y después del lock del
-  documento). Lo que pasa quien revisa desde la bandeja no se revisa: lo decide esa persona. Los valores son del núcleo (`Domain/ValueObjects`):
+  documento). Lo que pasa quien revisa desde la bandeja (con `documentRevision`) también se revisa, salvo que el pedido traiga
+  `confirmRepeated`: da 409 `Forms.ReceivedDocument.Repeated` con el número de la guardada y quien revisa decide si lo pasa
+  igual (F13, 2026-11-15). Los valores son del núcleo (`Domain/ValueObjects`):
   `CuitNumber` y `BankAccountKey`, que da la cuenta normalizada, su tipo y el código de su entidad (los dígitos 1 a 3 de una CBU y
   los 4 a 7 de una CVU). Los dígitos pueden venir separados por cualquier espacio (también el que no corta) o guion (también la
   raya y el signo menos); 22 dígitos son siempre una CBU o una CVU y 11 una CUIT, que no es una cuenta: nunca se leen como alias,
   y una clave de puros ceros no vale. Si un alias puede ser sólo números no se pudo confirmar con el BCRA, así que se acepta con
-  otro largo. Avisar el rechazo por WhatsApp y reenviar el formulario llega con la tarea 9.
+  otro largo.
 - **«Comprobante de transferencia»** (`forms.transfer-receipt`, versión 1, prefijo `REC`) lo trae formularios como datos
   (`BusinessFormStandardSource`, con los JSON incrustados de `Resources/Standards`): 15 preguntas atadas en tres secciones
   (origen, destino y transferencia), con la cuenta y la CUIT o el CUIL de cada lado validados; monto, moneda (Pesos o Dólares),
@@ -1445,7 +1450,54 @@ leerlos, cargarlos y la bandeja llegan con las tareas siguientes del plan.
   (`recordId`, `recordNumber` como «REC-000123», `confirmedAtUtc`, `questionId`, y lo leído y lo confirmado como texto, como lo
   muestra un aviso: el número en el idioma de quien pide, la fecha con números, sí o no y una opción por su texto); sin ese
   permiso la clave no va. Se calcula en SQL con las respuestas cuyo origen de captura trae el documento del que salieron
-  (`origin.document`, que suma la tarea 9): hasta entonces cuenta cero y las listas van vacías.
+  (`origin.document`).
+
+## La bandeja «Documentos recibidos» — DOC5-A, 2026-11-12
+
+Los documentos que llegan por un canal y quedan para que alguien del equipo los revise (DOC5-A,
+[documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md#parte-b--la-bandeja-documentos-recibidos-doc5-a-y-doc6);
+las pantallas, en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/documentos.md)). Lo técnico de las filas y de
+DOC6, en los [servicios](formularios-servicios.md).
+
+- **Qué entra.** Todo documento leído o rechazado de una cuenta vinculada y activa que puede cargar respuestas
+  (`IStructuredDocumentChannel.RegisterAsync`, una vez por canal y mensaje) y cada fila de una planilla que se carga (VC1-A,
+  `IStructuredDocumentRowsChannel`). Lo de un número sin cuenta, o de una cuenta que no puede cargar ni armar, no entra. Las
+  tablas son `FormReceivedDocuments` y su historial `FormReceivedDocumentEvents` (migraciones `AddFormReceivedDocuments` y
+  `AddReceivedDocumentRows`).
+- **Qué guarda.** Su copia (`forms/documents/{id}.{ext}`, `WriteOnce` y relectura; las filas comparten la de su planilla y la
+  fuente de retención la conserva mientras alguna la necesite), la lectura y la propuesta cifradas, el formulario y la versión, el
+  estado con su motivo, el tipo de documento, los números para buscar, la respuesta que salió, quién la revisó y el plazo de su
+  envío. Un archivo que no se pudo abrir entra descartado: con su copia si la bandeja puede guardarla y, si no, sólo con su
+  nombre, su tipo y su tamaño.
+- **Los estados.** `Proposed`, `Unclassified`, `Confirmed` y `Discarded`, guardados como texto. Un propuesto espera a su persona
+  hasta que vence su envío y después es «para revisar acá», calculado al leer; el que no se le pudo mandar (CE4-A) o pasó el tope
+  de una planilla es del equipo desde el principio. Mientras espera a su persona nadie lo descarta, le cambia el formulario ni lo
+  pasa: 409 `Forms.ReceivedDocument.AwaitingSender`.
+- **La retención.** Un descartado o sin clasificar se borra a los 90 días con su lectura y su copia, y muestra la fecha. Uno
+  confirmado sigue la retención de su respuesta. Un propuesto «para revisar acá» que nadie toca en 90 días, desde que venció su
+  envío o desde su último cambio, pasa a descartado con motivo «venció» (F9) y sigue esa retención.
+- **Los permisos.** `formdocuments.read` («Ver documentos recibidos») lee la bandeja, su número del menú, el detalle y el
+  archivo; `formdocuments.review` («Revisar documentos») corrige, cambia de formulario, pasa al formulario, descarta y vuelve a
+  abrir.
+- **La planilla.** `POST api/forms/documents/search`, con los filtros en el cuerpo y nunca en la dirección: estado, formulario,
+  quien lo mandó, fecha y la búsqueda por monto, CUIT, cuenta u operación, que se hace en SQL sobre los números normalizados, sin
+  descifrar. Trae los conteos por estado, las facetas y los grupos de parecidos de
+  [DOC6](#armar-formulario-con-la-ia-desde-la-bandeja--doc6-2026-11-12). `GET api/forms/documents/counts` da los que esperan al
+  equipo, para el menú. Una fila muestra «Fila 5» (o «Ventas · fila 5») debajo del archivo.
+- **El detalle.** `GET api/forms/documents/{id}`: la lectura (en una fila, sus celdas con los encabezados), la propuesta con el
+  valor y la marca de cada dato, las opciones de una pregunta de elegir y el historial. `GET …/file` da el archivo (en una fila, la
+  planilla) sin caché y con `nosniff`. `POST …/options` busca entre las opciones de un catálogo de más de 200 que puede elegir
+  quien lo mandó.
+- **Revisar.** Lo que escribe lleva la revisión que se leyó (409 `Forms.ReceivedDocument.RevisionConflict`), en una sola UoW.
+  `POST …/discard` y `…/reopen` descartan y vuelven a abrir. `PUT …/form` cambia de formulario: vuelve a extraer con la lectura
+  guardada, sin leer de nuevo, en una interpretación del canal `forms-documents` con quien revisa como Actor y el formulario
+  fijado; responde 202 y se espera con `GET …/extraction`. `POST …/records` pasa al formulario por la captura de siempre,
+  idempotente por el UUID del pedido: la respuesta es de quien lo mandó, que tiene que seguir activo
+  (`Forms.ReceivedDocument.SenderInactive`), con quien revisa como operador del origen, y el permiso es el de quien revisa. Si
+  repite una respuesta guardada, contesta 409 `Forms.ReceivedDocument.Repeated` con su número, y se pasa igual con
+  `confirmRepeated` (F13).
+- **El origen.** La planilla y el detalle de la respuesta dicen «Documento», revisado por quien lo pasó, o «Salió de una
+  planilla»; sólo lo ve quien ve la bandeja.
 
 ## Carpetas — CP1-A a CP5-A, 2026-11-09
 
@@ -1554,3 +1606,9 @@ WhatsApp, eligió W1-A el mismo día: la ubicación se pide antes del Flow ([reg
   mapa» y la precisión en gris.
 - **Lo que no hace.** El asistente de IA no la propone al armar un formulario ni la prellena o mapea en una sugerencia; sí
   ofrece, sugiere y aclara un formulario que la tenga, y su envío la pide antes del Flow, como el de una persona (W1-A). Un estándar de la biblioteca no la usa. Se ve con `formrecords.read` y se carga con los permisos de carga de hoy.
+- **Lo que recibe una pregunta de texto (W3, UC1-A).** En la zona «Ubicación y contacto» del editor, una pregunta de texto
+  corto o largo, fuera del bloque, sin condición ni validación fija, puede recibir la ubicación (`location`, sólo si el
+  formulario no tiene una pregunta «Ubicación»), el nombre (`contactName`) o el teléfono (`contactPhone`) que la persona
+  comparte por WhatsApp con el formulario abierto; cada dato, en una sola pregunta. Va en `receives`, se sella al publicar y
+  una versión anterior no recibe nada. Con «Sólo en la app» la zona no aparece. Lo que hace el canal está en
+  [WhatsApp](whatsapp.md#contacto-y-dirección-compartidos--w3-tarea-22-2026-11-12).

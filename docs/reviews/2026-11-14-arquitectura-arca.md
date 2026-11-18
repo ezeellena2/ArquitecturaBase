@@ -1047,8 +1047,10 @@ reescribe ([índice de ADR](../decisions/README.md)).
   y 57021f72. La nota de cada etapa en el plan dice qué commit arregló cada hallazgo. H11 va con F2 de la
   [revisión de formularios](2026-11-14-arquitectura-formularios.md). El resto de gran escala espera a que haya volumen real
   que medir.
-- **Falta:** la corrida completa y la prueba integral, la medición del robot en la imagen publicada (H22) y, al cerrar el
-  desarrollo, llevar las decisiones a las premisas, retirar la sección del plan con la auditoría documental y sumar lo
-  programado al traspaso al multitenant.
+- **La corrida completa:** la del 17/11, sobre `02c60e91` (11.656/11.656), ya incluye todo el código de ARCA; después sólo
+  cambiaron sus `AGENTS.md`.
+- **Falta:** la prueba integral, la medición del robot en la imagen publicada (H22) y, al cerrar el desarrollo, llevar las
+  decisiones a las premisas, retirar la sección del plan con la auditoría documental y sumar lo programado al traspaso al
+  multitenant.
 - **Repetir:** después de homologar con la CUIT del usuario, que confirma o corrige lo que hoy sale del manual (el 10016 por
   fecha, los errores de la constancia y la ventana del WSAA).
