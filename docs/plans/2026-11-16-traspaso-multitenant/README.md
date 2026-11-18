@@ -15,10 +15,11 @@ cada etapa, la hoja de ruta con sus decisiones, sus reglas y los tableros del li
   [03 del traspaso 13](../2026-11-14-traspaso-multitenant/03-whatsapp-y-asistente.md).
 - **No es código para copiar** (la decisión 18 del multitenant): se toman las reglas de producto, las pantallas y las
   decisiones, y el código sale del multitenant, con su modelo de organizaciones, RLS, feature gates, empresas y clientes.
-- **Está programado, pero no pasó la prueba integral.** Faltan el cierre (la corrida completa, la exportación de contratos, los
-  controles del front y una prueba de humo), la marca F2 de la planilla de Formularios, repetir la prueba de quitar
-  Formularios y la prueba integral con el usuario. Hasta entonces pueden cambiar detalles; el traspaso siguiente traerá lo
-  que cambie.
+- **Está programado, pero no pasó la prueba integral.** El 2026-11-17 se terminaron el cierre en verde, la marca F2 de la
+  planilla de Formularios y la prueba de quitar Formularios; falta la prueba integral con el usuario. Hasta entonces pueden
+  cambiar detalles; el traspaso siguiente traerá lo que cambie.
+- **Si todavía no incorporaste los traspasos 4 a 13,** empezá por el [traspaso 15](../2026-11-18-traspaso-multitenant/README.md)
+  (2026-11-18): ordena del 4 al 14 en un solo recorrido, junta sus preguntas y trae lo hecho después de este.
 
 ## Cómo leerlo
 

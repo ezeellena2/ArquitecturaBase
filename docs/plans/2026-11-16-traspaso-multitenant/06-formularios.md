@@ -146,8 +146,9 @@ La única etapa que iba antes de todo, porque cambia datos sin avisar. Tarea 1 d
 - **F2, la marca de la planilla.** Hecha el 2026-11-17 (`06ac5482`; front `0b3a75c6`): la columna «Reglas» marca «Por resolver» para todo el que ve
   la planilla, y quien administra reglas y ve todas las respuestas tiene la pestaña «Por resolver (N)», que es el filtro y el contador. Cuenta una
   acción fallida, o en duda esperando a una persona, aunque ya se haya avisado a quien cargó; sin reintento, sigue hasta anular o corregir la respuesta.
-- **Repetir la prueba de quitar Formularios** en una copia (migración `RemoveBusinessForms`, su `Down`); está corriendo. La última fue el 2026-11-04.
-- **El cierre:** la corrida completa con Docker, `MigrationsTests`, la exportación de cohortes y la prueba integral.
+- **Repetir la prueba de quitar Formularios** en una copia (migración `RemoveBusinessForms`, su `Down`): hecha el 2026-11-17 sobre `72510c01`
+  (`04df45ef`), con la guía corregida; el detalle está en el [02 del traspaso 15](../2026-11-18-traspaso-multitenant/02-estado-al-18-11.md#la-prueba-de-quitar-formularios-repetida-2026-11-17).
+- **El cierre:** hecho el 2026-11-17, en verde (la corrida completa con Docker, `MigrationsTests` y la exportación de cohortes). Falta la prueba integral.
 - **Menores anotados** ([plan][plan], «Qué falta»): la tabla de F15 no se completa con un campo sellado sólo por una captura vieja; la migración de F15
   aborta con un campo sin `name` o `key` (la base de desarrollo no los tiene); un «no encontrado» del motor deja la extracción «leyendo» hasta siete
   días; quien corrigió una versión anterior aún puede aprobar; el tope de carpetas sólo vale al crear.
