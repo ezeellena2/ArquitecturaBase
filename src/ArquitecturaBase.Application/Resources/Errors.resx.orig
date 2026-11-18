@@ -1,0 +1,622 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Title.Failure" xml:space="preserve"><value>Error del servidor</value></data>
+  <data name="Title.Validation" xml:space="preserve"><value>Datos inválidos</value></data>
+  <data name="Title.Unauthorized" xml:space="preserve"><value>No autenticado</value></data>
+  <data name="Title.Forbidden" xml:space="preserve"><value>Acceso denegado</value></data>
+  <data name="Title.NotFound" xml:space="preserve"><value>No encontrado</value></data>
+  <data name="Title.Conflict" xml:space="preserve"><value>Conflicto</value></data>
+  <data name="Title.TooManyRequests" xml:space="preserve"><value>Demasiadas solicitudes</value></data>
+  <data name="Validation.Failed" xml:space="preserve"><value>Revisá los campos marcados.</value></data>
+  <data name="Request.Invalid" xml:space="preserve"><value>La solicitud tiene un formato inválido.</value></data>
+  <data name="General.Unexpected" xml:space="preserve"><value>Ocurrió un error inesperado. Si el problema continúa, informá el código de seguimiento.</value></data>
+  <data name="Title.MethodNotAllowed" xml:space="preserve"><value>Operación no permitida</value></data>
+  <data name="Http.Unauthorized" xml:space="preserve"><value>Tenés que iniciar sesión para continuar.</value></data>
+  <data name="Http.Forbidden" xml:space="preserve"><value>No tenés permiso para realizar esta acción.</value></data>
+  <data name="Http.NotFound" xml:space="preserve"><value>No encontramos lo que buscás.</value></data>
+  <data name="Http.MethodNotAllowed" xml:space="preserve"><value>Esta operación no está permitida en este recurso.</value></data>
+  <data name="Http.Conflict" xml:space="preserve"><value>La solicitud entra en conflicto con el estado actual del recurso.</value></data>
+  <data name="Http.TooManyRequests" xml:space="preserve"><value>Hiciste demasiadas solicitudes. Esperá un momento y volvé a intentar.</value></data>
+  <data name="Auth.LoginCode.Invalid" xml:space="preserve"><value>El código no es válido.</value></data>
+  <data name="Auth.LoginCode.Expired" xml:space="preserve"><value>El código venció. Pedí uno nuevo.</value></data>
+  <data name="Auth.LoginCode.AlreadyUsed" xml:space="preserve"><value>El código ya se usó. Pedí uno nuevo.</value></data>
+  <data name="Auth.LoginCode.TooManyAttempts" xml:space="preserve"><value>Superaste los intentos para este código. Pedí uno nuevo.</value></data>
+  <data name="Auth.LoginCode.ResendTooSoon" xml:space="preserve"><value>Esperá un momento antes de pedir otro código.</value></data>
+  <data name="Auth.LoginCode.TooManyRequests" xml:space="preserve"><value>Pediste demasiados códigos. Probá de nuevo más tarde.</value></data>
+  <data name="Auth.Account.Disabled" xml:space="preserve"><value>Tu cuenta está deshabilitada. Contactá a un administrador.</value></data>
+  <data name="Auth.Account.LockedOut" xml:space="preserve"><value>Tu cuenta está bloqueada por unos minutos por demasiados intentos fallidos.</value></data>
+  <data name="Auth.Account.NotInvited" xml:space="preserve"><value>Todavía no tenés acceso al sistema. Para ingresar, pedile una invitación a un administrador.</value></data>
+  <data name="Auth.ExternalLogin.Failed" xml:space="preserve"><value>No pudimos completar el ingreso con Google.</value></data>
+  <data name="Auth.ExternalLogin.EmailNotVerified" xml:space="preserve"><value>Tu cuenta de Google no tiene el email verificado.</value></data>
+  <data name="Auth.ExternalLogin.AccountEmailNotConfirmed" xml:space="preserve"><value>Esa cuenta todavía no confirmó su correo. Entrá primero con un código por correo; después vas a poder usar Google.</value></data>
+  <data name="Auth.WhatsApp.CountryNotSupported" xml:space="preserve"><value>Todavía no mandamos códigos a números de ese país.</value></data>
+  <data name="Auth.LoginLink.Invalid" xml:space="preserve"><value>Este enlace ya no sirve.</value></data>
+  <data name="Auth.LoginLink.TooManyRequests" xml:space="preserve"><value>Esperá un momento antes de pedir otro enlace.</value></data>
+  <data name="Users.Email.Invalid" xml:space="preserve"><value>El email no es válido.</value></data>
+  <data name="Users.Phone.Invalid" xml:space="preserve"><value>Ingresá un número de celular válido.</value></data>
+  <data name="Users.Phone.AlreadyExists" xml:space="preserve"><value>Ya existe una cuenta con ese número.</value></data>
+  <data name="Users.User.NotFound" xml:space="preserve"><value>No encontramos el usuario.</value></data>
+  <data name="Users.User.CannotModifySelf" xml:space="preserve"><value>No podés aplicar este cambio sobre tu propia cuenta.</value></data>
+  <data name="Users.User.LastAdmin" xml:space="preserve"><value>Tiene que quedar al menos un administrador activo en el sistema.</value></data>
+  <data name="Settings.System.NotFound" xml:space="preserve"><value>No encontramos la configuración del sistema.</value></data>
+  <data name="Users.User.AlreadyExists" xml:space="preserve"><value>Ya existe una cuenta con ese correo.</value></data>
+  <data name="Users.User.LastLoginMethod" xml:space="preserve"><value>Es tu único medio de ingreso: para desvincularlo, primero agregá un correo.</value></data>
+  <data name="Users.User.RolesNotHeld" xml:space="preserve"><value>No podés dar ni quitar un rol con permisos que no tenés.</value></data>
+  <data name="Users.User.HasMorePermissions" xml:space="preserve"><value>Esta cuenta tiene permisos que vos no tenés: no podés cambiarle el correo o el número, desvincularle el número, desactivarla, reactivarla ni borrarla.</value></data>
+  <data name="Users.User.InitialAdmin" xml:space="preserve"><value>Es la cuenta del administrador inicial, que recupera Admin en cada arranque: para quitarle Admin o cambiarle el correo, primero hay que cambiar la clave Seed:AdminEmail de la configuración.</value></data>
+  <data name="Users.User.EmailAlreadySet" xml:space="preserve"><value>Tu cuenta ya tiene un correo verificado, y desde tu perfil no se cambia. Si hay que cambiarlo, pedíselo a un administrador.</value></data>
+  <data name="Users.User.PhoneCodeUnavailable" xml:space="preserve"><value>Para agregar un correo hay que confirmarlo con un código a tu WhatsApp, y ahora no se pueden mandar códigos por WhatsApp. Probá más tarde o pedíselo a un administrador.</value></data>
+  <data name="Users.User.ConfirmationCodeRequired" xml:space="preserve"><value>Falta el código que te mandamos para confirmar que sos vos.</value></data>
+  <data name="Users.User.NoVerifiedEmail" xml:space="preserve"><value>Tu cuenta no tiene un correo verificado al que mandarte el código.</value></data>
+  <data name="Users.Identity.Required" xml:space="preserve"><value>Cargá un correo o un número de WhatsApp.</value></data>
+  <data name="Users.Invitation.ConsentRequired" xml:space="preserve"><value>Confirmá que la persona aceptó recibir mensajes por WhatsApp.</value></data>
+  <data name="Users.Invitation.NameRequired" xml:space="preserve"><value>Para invitar por WhatsApp, cargá el nombre de la persona.</value></data>
+  <data name="Users.Invitation.TooManyRequests" xml:space="preserve"><value>Esperá un minuto antes de volver a invitar a esta persona.</value></data>
+  <data name="Users.Invitation.UserInactive" xml:space="preserve"><value>La cuenta está desactivada: activala antes de invitarla.</value></data>
+  <data name="Roles.Role.NotFound" xml:space="preserve"><value>No encontramos el rol.</value></data>
+  <data name="Roles.Role.AlreadyExists" xml:space="preserve"><value>Ya existe un rol con ese nombre.</value></data>
+  <data name="Roles.Role.SystemRoleCannotChange" xml:space="preserve"><value>Los roles del sistema no se pueden renombrar ni borrar, y los permisos de Admin no se cambian.</value></data>
+  <data name="Roles.Role.HasUsers" xml:space="preserve"><value>El rol tiene usuarios asignados. Reasignalos antes de borrarlo.</value></data>
+  <data name="Roles.Role.PermissionsNotHeld" xml:space="preserve"><value>No podés dar ni quitar permisos que no tenés.</value></data>
+  <data name="Roles.Role.UserRoleAdminOnly" xml:space="preserve"><value>Sólo un administrador puede cambiar los permisos de User, el rol que recibe toda cuenta nueva.</value></data>
+  <data name="Auth.Account.NotRegistered" xml:space="preserve"><value>Todavía no tenés una cuenta. Elegí Crear cuenta para registrarte.</value></data>
+  <data name="Auth.Account.AlreadyRegistered" xml:space="preserve"><value>Ya tenés una cuenta. Elegí Iniciar sesión para entrar.</value></data>
+  <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>La configuración cambió. Revisá los valores actuales antes de guardar.</value></data>
+  <data name="Settings.System.CultureInvalid" xml:space="preserve"><value>El idioma predeterminado no es válido.</value></data>
+  <data name="Settings.System.PageSizeInvalid" xml:space="preserve"><value>Elegí 10, 20, 50 o 100 filas por página.</value></data>
+  <data name="Settings.System.AppearanceInvalid" xml:space="preserve"><value>Revisá los colores: deben tener formato #RRGGBB.</value></data>
+  <data name="WhatsApp.Chat.NotFound" xml:space="preserve"><value>No se encontró la conversación.</value></data>
+  <data name="WhatsApp.Chat.ManualRequired" xml:space="preserve"><value>Activá la atención manual antes de responder.</value></data>
+  <data name="WhatsApp.Chat.RevisionConflict" xml:space="preserve"><value>Otra persona cambió el modo. Actualizá el chat y revisalo.</value></data>
+  <data name="WhatsApp.Chat.SendPending" xml:space="preserve"><value>Hay una respuesta pendiente o un envío que necesita revisión.</value></data>
+  <data name="WhatsApp.Chat.WindowClosed" xml:space="preserve"><value>La ventana para responder terminó. Esperá un mensaje nuevo del contacto.</value></data>
+  <data name="WhatsApp.Chat.DestinationMissing" xml:space="preserve"><value>Este contacto no tiene un número válido para responder.</value></data>
+  <data name="WhatsApp.Chat.RequestConflict" xml:space="preserve"><value>Este pedido ya corresponde a otro texto. Revisá el envío.</value></data>
+  <data name="WhatsApp.Chat.ReadPositionInvalid" xml:space="preserve"><value>La posición de lectura no corresponde al historial guardado.</value></data>
+  <data name="WhatsApp.Send.NotAllowed" xml:space="preserve"><value>Este número no está habilitado para recibir mensajes de la cuenta de WhatsApp.</value></data>
+  <data name="WhatsApp.Send.WindowClosed" xml:space="preserve"><value>La ventana para responder terminó antes de que saliera. Esperá un mensaje nuevo del contacto.</value></data>
+  <data name="WhatsApp.Send.Undeliverable" xml:space="preserve"><value>Meta no pudo entregarlo: puede que el número no tenga WhatsApp.</value></data>
+  <data name="WhatsApp.Send.RateLimited" xml:space="preserve"><value>Meta lo frenó por su límite de mensajes. Probá de nuevo en un rato.</value></data>
+  <data name="WhatsApp.Send.TokenInvalid" xml:space="preserve"><value>La conexión con WhatsApp venció o la revocaron. Hay que renovarla.</value></data>
+  <data name="WhatsApp.Send.PermissionMissing" xml:space="preserve"><value>A la conexión con WhatsApp le falta un permiso para enviar.</value></data>
+  <data name="WhatsApp.Send.Unavailable" xml:space="preserve"><value>No se pudo llegar a WhatsApp, ni con los reintentos. Probá de nuevo en un rato.</value></data>
+  <data name="WhatsApp.Send.Rejected" xml:space="preserve"><value>WhatsApp rechazó el mensaje.</value></data>
+  <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Revisá el proveedor y el modelo de la conexión.</value></data>
+  <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configurá una clave para usar o probar la conexión.</value></data>
+  <data name="Ai.Connection.ProviderChanged" xml:space="preserve"><value>Al cambiar de proveedor, reemplazá o quitá la clave.</value></data>
+  <data name="Ai.Connection.RevisionConflict" xml:space="preserve"><value>La conexión cambió. Consultá y revisá la configuración actual.</value></data>
+  <data name="Ai.Connection.RequestConflict" xml:space="preserve"><value>Este identificador ya confirmó otro pedido. Consultá el guardado.</value></data>
+  <data name="Ai.Connection.ChangeNotFound" xml:space="preserve"><value>Todavía no encontramos el comprobante de ese guardado.</value></data>
+  <data name="Ai.Connection.SessionRequired" xml:space="preserve"><value>Ingresá para administrar la conexión.</value></data>
+  <data name="Ai.Connection.CredentialUnavailable" xml:space="preserve"><value>No pudimos leer la clave guardada: reemplazala con «Reemplazar clave» en Inteligencia artificial › Conexión con el proveedor.</value></data>
+  <data name="Ai.Provider.CredentialInvalid" xml:space="preserve"><value>El proveedor rechazó la clave. Revisala en tu cuenta de API.</value></data>
+  <data name="Ai.Provider.ModelUnavailable" xml:space="preserve"><value>El modelo no está disponible para esta cuenta o no admite esta prueba.</value></data>
+  <data name="Ai.Provider.QuotaExceeded" xml:space="preserve"><value>La cuenta de API no tiene cuota disponible. Revisá su facturación.</value></data>
+  <data name="Ai.Provider.Unavailable" xml:space="preserve"><value>El proveedor no está disponible. Probá más tarde.</value></data>
+  <data name="Ai.Provider.ResponseInvalid" xml:space="preserve"><value>No pudimos interpretar la respuesta del proveedor.</value></data>
+  <data name="Ai.Provider.ResponseIncomplete" xml:space="preserve"><value>El proveedor no completó una respuesta de texto. Revisá el modelo antes de volver a probar.</value></data>
+  <data name="Ai.Provider.TestUncertain" xml:space="preserve"><value>No pudimos confirmar la prueba; el proveedor puede haberla procesado y cobrado. Volver a probar inicia otra llamada.</value></data>
+  <data name="Ai.Provider.RateLimited" xml:space="preserve"><value>El proveedor limita las llamadas. Esperá antes de volver a probar.</value></data>
+  <data name="Ai.Provider.Busy" xml:space="preserve"><value>Hay otras pruebas en curso. Esperá antes de volver a probar.</value></data>
+  <data name="Ai.BusinessInformation.Invalid" xml:space="preserve"><value>Revisá la información del negocio.</value></data>
+  <data name="Ai.BusinessInformation.RevisionConflict" xml:space="preserve"><value>Otro administrador cambió la información del negocio. Revisala antes de guardar.</value></data>
+  <data name="Ai.BusinessInformation.RequestConflict" xml:space="preserve"><value>Este identificador de solicitud ya corresponde a otro cambio.</value></data>
+  <data name="Ai.BusinessInformation.ChangeNotFound" xml:space="preserve"><value>El comprobante de guardado no está disponible. Su ausencia no demuestra que el guardado haya fallado.</value></data>
+  <data name="Ai.BusinessInformation.SessionRequired" xml:space="preserve"><value>Ingresá para continuar.</value></data>
+  <data name="Ai.BusinessInformation.InvalidLocation" xml:space="preserve"><value>Revisá la dirección y las coordenadas del negocio.</value></data>
+  <data name="Ai.BusinessInformation.InvalidHours" xml:space="preserve"><value>Revisá la zona horaria, los días y las franjas de atención.</value></data>
+  <data name="Ai.BusinessInformation.InvalidFaq" xml:space="preserve"><value>Revisá las preguntas y respuestas del negocio.</value></data>
+  <data name="Ai.Places.NotConfigured" xml:space="preserve"><value>Configurá la clave de Google Places en el servidor para habilitar la búsqueda.</value></data>
+  <data name="Ai.Places.ConfigurationInvalid" xml:space="preserve"><value>Revisá la clave de Google Places, sus restricciones de servidor, la API habilitada y la facturación.</value></data>
+  <data name="Ai.Places.Unavailable" xml:space="preserve"><value>La búsqueda de lugares no está disponible. Probá más tarde.</value></data>
+  <data name="Ai.Places.ResponseInvalid" xml:space="preserve"><value>No pudimos interpretar la respuesta del buscador de lugares.</value></data>
+  <data name="Ai.Places.RateLimited" xml:space="preserve"><value>La búsqueda de lugares está limitada. Esperá antes de buscar de nuevo.</value></data>
+  <data name="Ai.Places.Busy" xml:space="preserve"><value>Hay otras búsquedas de lugares en curso. Esperá antes de buscar de nuevo.</value></data>
+  <data name="System.Query.NotFound" xml:space="preserve"><value>No se encontró el dato de la fuente.</value></data>
+  <data name="System.Query.Unavailable" xml:space="preserve"><value>La fuente no está disponible en este momento. Probá de nuevo en unos minutos.</value></data>
+  <data name="System.Query.Forbidden" xml:space="preserve"><value>Tu cuenta no puede acceder a esta fuente.</value></data>
+  <data name="System.Query.InvalidArguments" xml:space="preserve"><value>Revisá los argumentos de la consulta.</value></data>
+  <data name="Ai.Assistant.Invalid" xml:space="preserve"><value>Revisá los datos de la consulta.</value></data>
+  <data name="Ai.Assistant.SessionRequired" xml:space="preserve"><value>Ingresá para usar el asistente.</value></data>
+  <data name="Ai.Assistant.Forbidden" xml:space="preserve"><value>No tenés permiso para usar el asistente.</value></data>
+  <data name="Ai.Assistant.NotFound" xml:space="preserve"><value>No encontramos esa conversación u operación.</value></data>
+  <data name="Ai.Assistant.RequestReused" xml:space="preserve"><value>Ese identificador ya se usó con otra consulta. Revisá el intento original.</value></data>
+  <data name="Ai.Assistant.RevisionConflict" xml:space="preserve"><value>La conversación cambió. Revisá su estado actual antes de enviar.</value></data>
+  <data name="Ai.Assistant.ConnectionChanged" xml:space="preserve"><value>La conexión de IA cambió. Actualizá su estado antes de consultar de nuevo.</value></data>
+  <data name="Ai.Assistant.ActiveTurn" xml:space="preserve"><value>Ya tenés una consulta en curso. Esperá su resultado o pedí cancelarla.</value></data>
+  <data name="Ai.Assistant.Unavailable" xml:space="preserve"><value>El asistente no está disponible con la configuración actual.</value></data>
+  <data name="Ai.Assistant.ContentBlocked" xml:space="preserve"><value>Ya no tenés todos los permisos que requiere esta conversación. Podés eliminarla o iniciar otra.</value></data>
+  <data name="Ai.Assistant.ContentUnavailable" xml:space="preserve"><value>No se pudo recuperar el contenido protegido. No repitas la generación automáticamente.</value></data>
+  <data name="Ai.Assistant.FenceRejected" xml:space="preserve"><value>La reserva de la operación ya no está vigente. Revisá el estado confirmado.</value></data>
+  <data name="Ai.Assistant.Canceled" xml:space="preserve"><value>La consulta se canceló. El proveedor puede haber consumido recursos antes de la cancelación.</value></data>
+  <data name="Ai.Assistant.Expired" xml:space="preserve"><value>La consulta venció. Si querés consultar de nuevo, iniciá otro intento.</value></data>
+  <data name="Ai.Assistant.LimitExceeded" xml:space="preserve"><value>La consulta alcanzó su límite de tiempo, herramientas o tamaño. Hacé una pregunta más concreta.</value></data>
+  <data name="Ai.Assistant.ProposalTooLarge" xml:space="preserve"><value>La última propuesta es demasiado grande para seguir ajustándola en esta conversación. Empezá una conversación nueva y pedila con los cambios.</value></data>
+  <data name="Ai.Assistant.InvalidOutput" xml:space="preserve"><value>La respuesta no pudo validarse y no se publicó. Podés iniciar otra consulta.</value></data>
+  <data name="Ai.Assistant.ToolRejected" xml:space="preserve"><value>La fuente solicitada no está autorizada o sus argumentos no son válidos.</value></data>
+  <data name="Ai.Assistant.ProviderUnavailable" xml:space="preserve"><value>No pudimos conectarnos con el proveedor y no se envió nada. Probá de nuevo; si sigue, revisá la red del servidor hacia el proveedor.</value></data>
+  <data name="Ai.Assistant.ProviderUncertain" xml:space="preserve"><value>La consulta pudo enviarse al proveedor, pero no hay un resultado confirmado. Revisá el posible consumo antes de iniciar otra.</value></data>
+  <data name="Ai.Assistant.ProviderRejected" xml:space="preserve"><value>El proveedor rechazó la consulta. Revisá la conexión y el modelo configurados.</value></data>
+  <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>El proveedor devolvió una respuesta incompleta. No se publicó ni se amplió el límite automáticamente.</value></data>
+  <data name="Ai.Assistant.ExecutionFailed" xml:space="preserve"><value>La consulta no se completó por una falla del sistema, no del proveedor. Podés iniciar otra.</value></data>
+  <data name="Ai.Assistant.ProviderCredentialRejected" xml:space="preserve"><value>El proveedor rechazó la clave de la conexión. Revisala o cambiala con «Reemplazar clave» en Inteligencia artificial › Conexión con el proveedor.</value></data>
+  <data name="Ai.Assistant.ProviderLimited" xml:space="preserve"><value>La cuenta del proveedor llegó a su cupo o a su límite de uso. Revisá el crédito y los límites de la cuenta antes de consultar de nuevo.</value></data>
+  <data name="Ai.Assistant.ProviderModelRejected" xml:space="preserve"><value>El proveedor rechazó el modelo configurado para esta tarea, o el archivo o el pedido. Revisá ese modelo; si mandaste un archivo, probá con otro.</value></data>
+  <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>Alcanzaste la cuota de consultas aceptadas. Esperá el plazo indicado.</value></data>
+  <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>El asistente está ocupado. Esperá el plazo indicado antes de volver a enviar.</value></data>
+  <data name="Ai.Assistant.AttachmentForbidden" xml:space="preserve"><value>Para adjuntar planillas, pedile a quien administra la instalación el permiso de administrar catálogos.</value></data>
+  <data name="Ai.Assistant.AttachmentUnavailable" xml:space="preserve"><value>No se pueden adjuntar planillas en esta instalación.</value></data>
+  <data name="Ai.Assistant.AttachmentLegacy" xml:space="preserve"><value>No se puede leer un Excel viejo (.xls). Guardalo como Libro de Excel (.xlsx) o como CSV UTF-8.</value></data>
+  <data name="Ai.Assistant.AttachmentProtected" xml:space="preserve"><value>No se puede leer una planilla con contraseña. Quitale la contraseña y volvé a adjuntarla.</value></data>
+  <data name="Ai.Assistant.AttachmentMacroEnabled" xml:space="preserve"><value>No se puede leer un Excel con macros o binario (.xlsm o .xlsb). Guardalo como Libro de Excel (.xlsx) o como CSV UTF-8.</value></data>
+  <data name="Ai.Assistant.AttachmentTooLarge" xml:space="preserve"><value>La planilla pasa el tope de 10 MB, 10.000 filas y 64 columnas. Achicala o dividila y volvé a adjuntarla.</value></data>
+  <data name="Ai.Assistant.AttachmentUnreadable" xml:space="preserve"><value>No se puede leer la planilla. Adjuntá un Libro de Excel (.xlsx) o un CSV guardado como CSV UTF-8.</value></data>
+  <data name="Ai.Assistant.AttachmentEmpty" xml:space="preserve"><value>La planilla no tiene filas con datos. Revisá que su primera hoja tenga lo que querés usar.</value></data>
+  <data name="Ai.Assistant.AttachmentNotStored" xml:space="preserve"><value>No pudimos guardar la planilla. Volvé a adjuntarla.</value></data>
+  <data name="Ai.Assistant.AttachmentDocumentForbidden" xml:space="preserve"><value>Para adjuntar fotos, PDF o Word, pedile a quien administra la instalación el permiso de diseñar formularios.</value></data>
+  <data name="Ai.Assistant.AttachmentDocumentUnavailable" xml:space="preserve"><value>No se pueden leer fotos ni PDF en esta instalación.</value></data>
+  <data name="Ai.Assistant.AttachmentDocumentNotStored" xml:space="preserve"><value>No pudimos guardar el documento. Volvé a adjuntarlo.</value></data>
+  <data name="Ai.Assistant.AttachmentTooManyPages" xml:space="preserve"><value>Este PDF tiene más de 10 páginas. Mandá uno de hasta 10.</value></data>
+  <data name="Ai.Assistant.AttachmentTooLargeImage" xml:space="preserve"><value>La foto pasa el tope de 16.384 píxeles por lado o 32 megapíxeles. Mandá una más chica.</value></data>
+  <data name="Ai.Assistant.AttachmentProtectedPdf" xml:space="preserve"><value>Este PDF tiene contraseña. Mandá uno sin contraseña.</value></data>
+  <data name="Ai.Assistant.AttachmentProtectedWord" xml:space="preserve"><value>Este Word tiene contraseña. Guardalo sin contraseña.</value></data>
+  <data name="Ai.Assistant.AttachmentLegacyWord" xml:space="preserve"><value>No se puede leer un Word viejo (.doc). Guardalo como .docx.</value></data>
+  <data name="Ai.Assistant.AttachmentMacroEnabledWord" xml:space="preserve"><value>No se puede leer un Word con macros (.docm). Guardalo como .docx.</value></data>
+  <data name="Ai.Assistant.AttachmentEmptyWord" xml:space="preserve"><value>Este Word no tiene texto. Revisá que tenga lo que querés usar.</value></data>
+  <data name="Ai.Assistant.AttachmentUnreadablePdf" xml:space="preserve"><value>No se puede leer este PDF. Mandá otro o una foto del documento.</value></data>
+  <data name="Ai.Assistant.AttachmentUnreadableImage" xml:space="preserve"><value>No se puede leer esta foto. Mandá una foto JPEG o PNG.</value></data>
+  <data name="Ai.Assistant.AttachmentUnreadableWord" xml:space="preserve"><value>No se puede leer este Word. Guardalo de nuevo como .docx.</value></data>
+  <data name="Arca.Connection.CuitInvalid" xml:space="preserve"><value>Revisá la CUIT: tiene once dígitos y el último es el verificador.</value></data>
+  <data name="Arca.Connection.AliasInvalid" xml:space="preserve"><value>El alias va de 3 a 30 letras minúsculas, números o guiones, y empieza con una letra.</value></data>
+  <data name="Arca.Connection.ServiceNotInstalled" xml:space="preserve"><value>Ese servicio de ARCA no está instalado en este sistema.</value></data>
+  <data name="Arca.Connection.CertificateUnreadable" xml:space="preserve"><value>No pudimos leer el certificado. Subí el archivo .crt que te dio ARCA.</value></data>
+  <data name="Arca.Connection.CertificateKeyMismatch" xml:space="preserve"><value>El certificado no corresponde al pedido que generó el sistema. Creá el alias en ARCA con el último pedido.</value></data>
+  <data name="Arca.Connection.CertificateCuitMismatch" xml:space="preserve"><value>El certificado es de otra CUIT.</value></data>
+  <data name="Arca.Connection.CertificateEnvironmentMismatch" xml:space="preserve"><value>El certificado es del otro ambiente: homologación y producción usan certificados distintos.</value></data>
+  <data name="Arca.Connection.CertificateExpired" xml:space="preserve"><value>El certificado está vencido. Generá un pedido nuevo para renovarlo.</value></data>
+  <data name="Arca.Connection.NoPendingRequest" xml:space="preserve"><value>No hay un pedido de certificado pendiente.</value></data>
+  <data name="Arca.Connection.RevisionConflict" xml:space="preserve"><value>Otra persona cambió la conexión. Leé lo actual y volvé a intentar.</value></data>
+  <data name="Arca.Connection.NotConnected" xml:space="preserve"><value>Todavía no hay una conexión con ARCA.</value></data>
+  <data name="Arca.Connection.ServiceNotChosen" xml:space="preserve"><value>La conexión con ARCA no tiene elegido ese servicio.</value></data>
+  <data name="Arca.Connection.NotActive" xml:space="preserve"><value>La conexión con ARCA no está activa.</value></data>
+  <data name="Arca.Connection.CertificateNotLoaded" xml:space="preserve"><value>Subí el certificado de ARCA antes de seguir.</value></data>
+  <data name="Arca.Connection.ServiceNotAuthorized" xml:space="preserve"><value>ARCA no autorizó ese servicio para el certificado. Asocialo en el Administrador de Relaciones de ARCA y volvé a probar.</value></data>
+  <data name="Arca.Connection.ClockSkew" xml:space="preserve"><value>ARCA rechazó el pedido porque la hora del servidor no coincide con la suya. Revisá la hora del servidor.</value></data>
+  <data name="Arca.Connection.Unavailable" xml:space="preserve"><value>ARCA no respondió. Probá de nuevo en unos minutos.</value></data>
+  <data name="Arca.Connection.ServiceRejected" xml:space="preserve"><value>ARCA rechazó la consulta. Probá la conexión para ver el detalle.</value></data>
+  <data name="Arca.Connection.ServiceBlocked" xml:space="preserve"><value>ARCA todavía no acepta otro pedido para ese servicio. Probá de nuevo en unos minutos.</value></data>
+  <data name="Arca.Connection.PlatformNotConfigured" xml:space="preserve"><value>La instalación no tiene configurada la CUIT de la plataforma, así que no se puede delegar. Conectá con el certificado de la empresa.</value></data>
+  <data name="Arca.Connection.ModeUnavailable" xml:space="preserve"><value>Ese modo de conexión todavía no está disponible.</value></data>
+  <data name="Arca.Connection.ServiceNotDelegated" xml:space="preserve"><value>La empresa todavía no delegó ese servicio en la plataforma, o la plataforma no lo aceptó. Seguí la guía de la delegación y verificá de nuevo.</value></data>
+  <data name="Arca.Connection.RobotDisabled" xml:space="preserve"><value>La delegación automática no está prendida en esta instalación. Usá la delegación guiada.</value></data>
+  <data name="Arca.Connection.RobotModeMismatch" xml:space="preserve"><value>Esta conexión no usa la delegación automática.</value></data>
+  <data name="Arca.Connection.RobotConsentMissing" xml:space="preserve"><value>Marcá la autorización para usar tu clave fiscal.</value></data>
+  <data name="Arca.Connection.RobotKeyMissing" xml:space="preserve"><value>Escribí tu clave fiscal.</value></data>
+  <data name="Arca.Connection.RobotRunInProgress" xml:space="preserve"><value>El robot ya está trabajando en esta conexión. Esperá a que termine.</value></data>
+  <data name="Arca.Connection.RobotNotStopped" xml:space="preserve"><value>El robot no se frenó: no hay pasos que seguir a mano. Volvé a cargar la pantalla.</value></data>
+  <data name="Arca.Connection.RobotPlatformNotRejected" xml:space="preserve"><value>ARCA no rechazó la clave de la plataforma: no hay nada que volver a probar. Volvé a cargar la pantalla.</value></data>
+  <data name="Arca.Connection.RobotBusy" xml:space="preserve"><value>El robot no puede tomar otro trámite ahora. Probá de nuevo en unos minutos o seguí con la guía.</value></data>
+  <data name="Arca.Invoicing.CatalogUnknown" xml:space="preserve"><value>ARCA no mantiene ese catálogo.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>El punto de venta va de 1 a 99998.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA ya no ofrece ese punto de venta. Volvé a buscar los puntos de venta.</value></data>
+  <data name="Arca.Registry.CuitInvalid" xml:space="preserve"><value>La CUIT para buscar en ARCA no es válida.</value></data>
+  <data name="Arca.Registry.PersonNotFound" xml:space="preserve"><value>ARCA no tiene datos de esa CUIT en el padrón.</value></data>
+  <data name="Arca.Registry.VatConditionUnclear" xml:space="preserve"><value>La constancia de ARCA trae errores en lo que decide la condición frente al IVA: revisala en ARCA.</value></data>
+  <data name="Arca.Registry.TooManyLookups" xml:space="preserve"><value>Buscaste muchas CUIT nuevas en ARCA en el último minuto. Esperá un momento y volvé a intentar.</value></data>
+  <data name="Forms.Catalog.LookupUnavailable" xml:space="preserve"><value>Ningún padrón instalado completa este catálogo.</value></data>
+  <data name="Arca.Invoicing.VoucherNotFound" xml:space="preserve"><value>No encontramos esa emisión.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleMissing" xml:space="preserve"><value>Elegí el punto de venta de ARCA antes de emitir.</value></data>
+  <data name="Arca.Invoicing.IssuerDataMissing" xml:space="preserve"><value>Probá la conexión con ARCA para traer los datos de la empresa antes de emitir.</value></data>
+  <data name="Arca.Invoicing.ReceiverInvalid" xml:space="preserve"><value>Revisá los datos del cliente: el nombre y el documento.</value></data>
+  <data name="Arca.Invoicing.ConceptInvalid" xml:space="preserve"><value>El concepto es productos, servicios o los dos.</value></data>
+  <data name="Arca.Invoicing.ServicePeriodInvalid" xml:space="preserve"><value>Con servicios, completá el período y el vencimiento del pago, en orden.</value></data>
+  <data name="Arca.Invoicing.IssueDateOutOfRange" xml:space="preserve"><value>ARCA no acepta esa fecha: con productos, hasta 5 días antes o después de hoy; con servicios, hasta 10.</value></data>
+  <data name="Arca.Invoicing.AmountTooLarge" xml:space="preserve"><value>Un importe supera lo que acepta ARCA, que llega hasta 9.999.999.999.999,99. Revisá la cantidad y el precio.</value></data>
+  <data name="Arca.Invoicing.VersionUnknown" xml:space="preserve"><value>Lo encoló una versión de la app que ésta no conoce. Probá de nuevo en unos minutos.</value></data>
+  <data name="Arca.Invoicing.PdfStorageUnavailable" xml:space="preserve"><value>No se pudo guardar el PDF fiscal: el almacén privado no está disponible.</value></data>
+  <data name="Arca.Invoicing.PdfRenderFailed" xml:space="preserve"><value>No se pudo armar el PDF fiscal.</value></data>
+  <data name="Arca.Invoicing.IssueDateBeforeLast" xml:space="preserve"><value>ARCA no acepta una fecha anterior a la del último comprobante de ese tipo que ya salió. Usá una fecha más nueva, como la de hoy.</value></data>
+  <data name="Arca.Invoicing.ItemsInvalid" xml:space="preserve"><value>Revisá los ítems: cada uno con descripción, cantidad y precio, y un total mayor que cero.</value></data>
+  <data name="Arca.Invoicing.ArcaNoAnswer" xml:space="preserve"><value>ARCA no respondió: volvemos a probar solos.</value></data>
+  <data name="Arca.Invoicing.ArcaFailed" xml:space="preserve"><value>ARCA respondió con un error: volvemos a probar solos.</value></data>
+  <data name="Arca.Invoicing.AnswerIncomplete" xml:space="preserve"><value>ARCA tiene el comprobante, pero todavía no su CAE.</value></data>
+  <data name="Arca.Invoicing.AnswerUnclear" xml:space="preserve"><value>La respuesta de ARCA no dice si se emitió el comprobante.</value></data>
+  <data name="Arca.Invoicing.RejectedWithoutReason" xml:space="preserve"><value>ARCA rechazó el comprobante sin decir por qué.</value></data>
+  <data name="Arca.Invoicing.TotalMismatch" xml:space="preserve"><value>El total no coincide con el de los ítems. Volvé a calcularlo.</value></data>
+  <data name="Arca.Invoicing.InvoiceNotAuthorized" xml:space="preserve"><value>Esa factura todavía no está emitida.</value></data>
+  <data name="Arca.Invoicing.InvoiceAlreadyCancelled" xml:space="preserve"><value>Esa factura ya tiene una nota de crédito.</value></data>
+  <data name="Arca.Invoicing.GrossIncomeInvalid" xml:space="preserve"><value>Escribí el número de ingresos brutos, de hasta 30 caracteres.</value></data>
+  <data name="Arca.Invoicing.ActivityStartInvalid" xml:space="preserve"><value>Elegí la fecha de inicio de actividades.</value></data>
+  <data name="Arca.Invoicing.SettingsRevisionConflict" xml:space="preserve"><value>La configuración de Facturación cambió. Volvé a leerla antes de guardar.</value></data>
+  <data name="Arca.Invoicing.IssuerNotRegistered" xml:space="preserve"><value>La empresa no tiene una condición frente al IVA con la que pueda facturar.</value></data>
+  <data name="Arca.Invoicing.ReceiverConditionInvalid" xml:space="preserve"><value>La condición frente al IVA del cliente no corresponde a este comprobante.</value></data>
+  <data name="Arca.Invoicing.VoucherNotInReview" xml:space="preserve"><value>Esta emisión ya no espera una revisión.</value></data>
+  <data name="Arca.Invoicing.VoucherRevisionConflict" xml:space="preserve"><value>La emisión cambió. Volvé a cargarla antes de decidir.</value></data>
+  <data name="Arca.Invoicing.ReviewDecisionInvalid" xml:space="preserve"><value>Esa decisión no corresponde a lo que espera la emisión.</value></data>
+  <data name="Arca.Invoicing.VoucherNotCancellable" xml:space="preserve"><value>La emisión ya tiene número: no se puede cancelar.</value></data>
+  <data name="Forms.Draft.RevisionConflict" xml:space="preserve">
+    <value>El borrador cambió. Volvé a cargarlo antes de guardar.</value>
+  </data>
+  <data name="Forms.Draft.QuestionTypeUnavailable" xml:space="preserve">
+    <value>Este tipo de pregunta no está disponible en esta etapa.</value>
+  </data>
+  <data name="Forms.Draft.IdentityInvalid" xml:space="preserve"><value>La identidad no pertenece a este borrador o pregunta.</value></data>
+  <data name="Forms.Draft.IdentityRetired" xml:space="preserve"><value>Una identidad retirada no se puede volver a usar.</value></data>
+  <data name="Forms.Draft.QuestionConfigurationInvalid" xml:space="preserve"><value>La configuración de la pregunta no corresponde a su tipo.</value></data>
+  <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Escribí el texto de la opción.</value></data>
+  <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>Esta pregunta la necesita el estándar del que viene el formulario: sólo se le cambian el texto, la ayuda, el orden y lo que recibe.</value></data>
+  <data name="Forms.Draft.ReceivesQuestionInvalid" xml:space="preserve"><value>Sólo una pregunta de texto, fuera del bloque, sin condición ni validación fija, puede recibir la ubicación o el contacto.</value></data>
+  <data name="Forms.Draft.ReceivesTaken" xml:space="preserve"><value>Otra pregunta ya recibe ese dato.</value></data>
+  <data name="Forms.Draft.ReceivesLocationAsked" xml:space="preserve"><value>El formulario tiene una pregunta «Ubicación»: la ubicación va ahí.</value></data>
+  <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>No está ese estándar en la biblioteca.</value></data>
+  <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>Falta un catálogo que necesita el estándar.</value></data>
+  <data name="Forms.Folder.NotFound" xml:space="preserve"><value>No se encontró la carpeta.</value></data>
+  <data name="Forms.Folder.NameInvalid" xml:space="preserve"><value>Escribí un nombre de hasta 80 caracteres.</value></data>
+  <data name="Forms.Folder.NameTaken" xml:space="preserve"><value>Ya hay una carpeta con ese nombre en este lugar.</value></data>
+  <data name="Forms.Folder.TooDeep" xml:space="preserve"><value>Las carpetas llegan hasta cinco niveles.</value></data>
+  <data name="Forms.Folder.Cycle" xml:space="preserve"><value>Una carpeta no puede ir adentro de sí misma ni de sus subcarpetas.</value></data>
+  <data name="Forms.Folder.IconInvalid" xml:space="preserve"><value>Ese ícono no está en la lista o la carpeta no es un menú propio.</value></data>
+  <data name="Forms.Folder.RevisionConflict" xml:space="preserve"><value>La carpeta cambió. Recargala e intentá de nuevo.</value></data>
+  <data name="Forms.Folder.SetChanged" xml:space="preserve"><value>Las carpetas de este elemento cambiaron. Recargalas e intentá de nuevo.</value></data>
+  <data name="Forms.Folder.RequestInvalid" xml:space="preserve"><value>El pedido de carpetas no es válido.</value></data>
+  <data name="Forms.Definition.Forbidden" xml:space="preserve"><value>No tenés el permiso necesario para este formulario.</value></data>
+  <data name="Forms.Definition.NotFound" xml:space="preserve"><value>No se encontró el formulario.</value></data>
+  <data name="Forms.Definition.PrefixLocked" xml:space="preserve"><value>El prefijo ya no se puede cambiar.</value></data>
+  <data name="Forms.Definition.PrefixTaken" xml:space="preserve"><value>Ese prefijo ya está en uso.</value></data>
+  <data name="Forms.Definition.Unauthorized" xml:space="preserve"><value>Ingresá para continuar.</value></data>
+  <data name="Forms.Draft.ChangeExpired" xml:space="preserve"><value>Venció el resultado recuperable de este intento. No reutilices su identificador.</value></data>
+  <data name="Forms.Draft.ChangeNotFound" xml:space="preserve"><value>Todavía no se encontró un cambio confirmado para este intento.</value></data>
+  <data name="Forms.Draft.ContentInvalid" xml:space="preserve"><value>Revisá el valor y los límites de autoría del borrador.</value></data>
+  <data name="Forms.Draft.RequestConflict" xml:space="preserve"><value>Este identificador corresponde a otro intento. Revisá el resultado anterior.</value></data>
+  <data name="Forms.Draft.ResultTooLarge" xml:space="preserve"><value>El resultado supera el tamaño permitido para un borrador.</value></data>
+  <data name="Forms.Draft.TranslationsWouldBeLost" xml:space="preserve"><value>Conservá los textos existentes o indicá explícitamente cuáles querés borrar.</value></data>
+  <data name="Title.Gone" xml:space="preserve"><value>Resultado vencido</value></data>
+  <data name="WhatsApp.Flow.NumberAmbiguous" xml:space="preserve"><value>Ese número se puede leer de dos maneras. Escribilo sin separador de miles, como 1500 o 1500,5.</value></data>
+  <data name="WhatsApp.Flow.InvalidValue" xml:space="preserve"><value>El valor no corresponde al tipo o a las opciones de la pregunta.</value></data>
+  <data name="Forms.Publication.DraftMustBeSaved" xml:space="preserve"><value>Guardá el borrador antes de comprobar la publicación.</value></data>
+  <data name="Forms.Publication.ChannelUnavailable" xml:space="preserve"><value>No hay un canal de formularios instalado.</value></data>
+  <data name="Forms.Publication.CatalogTooLargeForMultiple" xml:space="preserve"><value>Una pregunta para elegir varias opciones usa un catálogo con más de 20 opciones activas. Filtrá las opciones o usá una pregunta de una opción.</value></data>
+  <data name="Forms.Publication.CatalogInvalid" xml:space="preserve"><value>Una pregunta usa un catálogo que no está disponible para publicar.</value></data>
+  <data name="WhatsApp.Flow.MissingTranslation" xml:space="preserve"><value>Falta el texto requerido en el idioma objetivo.</value></data>
+  <data name="WhatsApp.Flow.UnsupportedConfiguration" xml:space="preserve"><value>Esta configuración no se puede representar en el perfil de publicación.</value></data>
+  <data name="WhatsApp.Flow.ConditionCatalogValues" xml:space="preserve"><value>En WhatsApp, una condición sobre una pregunta de catálogo admite una sola respuesta. Dejá una, o elegí «Sólo en la app».</value></data>
+  <data name="WhatsApp.Flow.ConditionTooDeep" xml:space="preserve"><value>En WhatsApp, una pregunta puede depender de otra hasta tres veces seguidas. Acortá la cadena, o elegí «Sólo en la app».</value></data>
+  <data name="WhatsApp.Flow.ComponentBudgetExceeded" xml:space="preserve"><value>El formulario supera el límite de componentes de una pantalla.</value></data>
+  <data name="WhatsApp.Flow.TextTooLong" xml:space="preserve"><value>El texto supera el límite del componente. Revisá el texto indicado.</value></data>
+  <data name="Forms.Publication.MissingTranslation" xml:space="preserve"><value>Completá este texto para publicar en ese idioma.</value></data>
+  <data name="Forms.Publication.CheckExpired" xml:space="preserve"><value>La comprobación venció o cambió. Volvé a comprobar antes de publicar.</value></data>
+  <data name="Forms.Publication.PayloadMismatch" xml:space="preserve"><value>Este intento de publicación ya pertenece a otro contenido.</value></data>
+  <data name="Forms.Publication.InProgress" xml:space="preserve"><value>Ya hay una publicación en curso para este formulario.</value></data>
+  <data name="Forms.Publication.StateConflict" xml:space="preserve"><value>El estado o la reserva de la publicación cambió.</value></data>
+  <data name="Forms.Publication.AccountUnavailable" xml:space="preserve"><value>La publicación no está disponible para la conexión configurada.</value></data>
+  <data name="Forms.Publication.NotFound" xml:space="preserve"><value>No se encontró el intento de publicación.</value></data>
+  <data name="WhatsApp.Flow.AccountUnavailable" xml:space="preserve"><value>La conexión no está disponible para publicar formularios.</value></data>
+  <data name="WhatsApp.Flow.RecipientContextChanged" xml:space="preserve"><value>La persona vinculada o su acceso al formulario cambió. Revisá el destinatario y volvé a intentar.</value></data>
+  <data name="WhatsApp.Flow.FormUnavailable" xml:space="preserve"><value>El formulario publicado ya no está disponible para enviar.</value></data>
+  <data name="WhatsApp.Flow.AccountMismatch" xml:space="preserve"><value>El número configurado no pertenece a la cuenta de publicación.</value></data>
+  <data name="WhatsApp.Flow.ResponseTooLarge" xml:space="preserve"><value>La respuesta máxima posible del formulario supera el límite seguro de WhatsApp. Reducí el máximo de caracteres o de opciones que se pueden elegir.</value></data>
+  <data name="WhatsApp.Flow.StateConflict" xml:space="preserve"><value>La reserva o el estado de publicación cambió. Revisá el resultado actual.</value></data>
+  <data name="WhatsApp.Flow.PayloadMismatch" xml:space="preserve"><value>El intento de publicación corresponde a otro contenido.</value></data>
+  <data name="WhatsApp.Flow.ProviderRejected" xml:space="preserve"><value>WhatsApp rechazó la publicación. Revisá su estado antes de volver a intentar.</value></data>
+  <data name="WhatsApp.Flow.ValidationFailed" xml:space="preserve"><value>WhatsApp encontró problemas en el formulario. Revisá los campos indicados.</value></data>
+  <data name="WhatsApp.Flow.ValidationUnlocated" xml:space="preserve"><value>WhatsApp no aceptó cómo la app armó el formulario. No es un problema de tus preguntas: si vuelve a pasar, avisá al equipo.</value></data>
+  <data name="WhatsApp.Flow.AuthorizationChanged" xml:space="preserve"><value>Los permisos para publicar cambiaron. Revisá el acceso actual.</value></data>
+  <data name="WhatsApp.Flow.NotFound" xml:space="preserve"><value>No se encontró la publicación del formulario.</value></data>
+  <data name="WhatsApp.Flow.PreviewUnavailable" xml:space="preserve"><value>El preview oficial no está disponible. Revisá el estado de publicación.</value></data>
+  <data name="Forms.Preview.NotAvailable" xml:space="preserve"><value>El preview oficial no está disponible para esta versión.</value></data>
+  <data name="Forms.Preview.Expired" xml:space="preserve"><value>El preview oficial venció. Volvé a abrirlo.</value></data>
+  <data name="Forms.Preview.CultureInvalid" xml:space="preserve"><value>Elegí es o en para la vista previa.</value></data>
+  <data name="Forms.Record.InvalidResponse" xml:space="preserve"><value>La respuesta no coincide con el formulario publicado.</value></data>
+  <data name="Forms.Record.ReplayConflict" xml:space="preserve"><value>Esta sesión ya se usó con otra respuesta.</value></data>
+  <data name="Forms.Record.AuthorizationChanged" xml:space="preserve"><value>La cuenta vinculada ya no puede responder este formulario.</value></data>
+  <data name="Forms.Catalog.NotFound" xml:space="preserve"><value>No se encontró el catálogo.</value></data>
+  <data name="Forms.Catalog.RevisionConflict" xml:space="preserve"><value>El catálogo cambió. Recargalo e intentá de nuevo.</value></data>
+  <data name="Forms.Catalog.Inactive" xml:space="preserve"><value>El catálogo está dado de baja.</value></data>
+  <data name="Forms.Catalog.ItemNotFound" xml:space="preserve"><value>No se encontró la opción del catálogo.</value></data>
+  <data name="Forms.Catalog.ManualItemsUnavailable" xml:space="preserve"><value>Este catálogo no admite opciones escritas a mano.</value></data>
+  <data name="Forms.Catalog.FiltersUnavailable" xml:space="preserve"><value>Este catálogo no tiene filtros.</value></data>
+  <data name="Forms.Catalog.DuplicateItemCode" xml:space="preserve"><value>Ya existe una opción con ese código en el catálogo.</value></data>
+  <data name="Forms.Catalog.TooManyItems" xml:space="preserve"><value>Un catálogo admite hasta 10.000 opciones.</value></data>
+  <data name="Forms.Catalog.ReadOnly" xml:space="preserve"><value>Lo mantiene su origen: no se edita ni se importa desde acá.</value></data>
+  <data name="Forms.Catalog.FeedTextTooLong" xml:space="preserve"><value>El origen mandó una opción de más de 30 caracteres.</value></data>
+  <data name="Forms.Catalog.FeedInvalid" xml:space="preserve"><value>El origen mandó opciones repetidas o vacías.</value></data>
+  <data name="Forms.Catalog.FeedUnavailable" xml:space="preserve"><value>El origen del catálogo no respondió.</value></data>
+  <data name="Forms.Catalog.ContentInvalid" xml:space="preserve"><value>Revisá los datos del catálogo.</value></data>
+  <data name="Forms.Record.CatalogUnavailable" xml:space="preserve"><value>El catálogo no está disponible.</value></data>
+  <data name="Forms.Record.CatalogTooLarge" xml:space="preserve"><value>El catálogo supera las 200 opciones. Ajustá los filtros antes de mandar.</value></data>
+  <data name="Forms.Record.CatalogTooLargeForMultiple" xml:space="preserve"><value>A esta persona le tocarían más de 20 opciones en una pregunta de varias. Filtrá las opciones o usá una pregunta de una opción antes de mandar.</value></data>
+  <data name="Forms.Record.CatalogInsufficientOptions" xml:space="preserve"><value>No hay suficientes opciones disponibles para el mínimo de esta pregunta.</value></data>
+  <data name="Forms.Record.CatalogEmpty" xml:space="preserve"><value>La pregunta obligatoria no tiene opciones disponibles.</value></data>
+  <data name="Forms.Record.CatalogOptionInvalid" xml:space="preserve"><value>Una opción supera los límites de WhatsApp: texto de 30 caracteres y detalle de 300. Ajustá el catálogo sin recortar datos.</value></data>
+  <data name="Forms.Entry.VersionChanged" xml:space="preserve"><value>Se publicó una versión nueva del formulario.</value></data>
+  <data name="Forms.Entry.Unavailable" xml:space="preserve"><value>El formulario se dio de baja y ya no se puede cargar.</value></data>
+  <data name="Forms.Entry.QuestionNotFound" xml:space="preserve"><value>La pregunta no tiene catálogo en esta versión.</value></data>
+  <data name="Forms.Entry.NoIssuance" xml:space="preserve"><value>Este formulario no emite un comprobante al enviarlo.</value></data>
+  <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>Una opción se dio de baja. La respuesta no se guardó. Podés mandar otro formulario.</value></data>
+  <data name="Forms.Record.BankAccountInvalid" xml:space="preserve"><value>Revisá la cuenta: los números no dan. Copiala del comprobante.</value></data>
+  <data name="Forms.Record.TaxIdInvalid" xml:space="preserve"><value>Revisá la CUIT o CUIL: los números no dan. Copiala del comprobante.</value></data>
+  <data name="Forms.Record.Repeated" xml:space="preserve"><value>Este comprobante ya se cargó en otra respuesta con los mismos datos. No se guarda de nuevo.</value></data>
+<data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>No se pudo preparar el catálogo. Revisá las opciones antes de mandar.</value></data>
+  <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>No pudimos guardar la respuesta después de varios intentos. Podés mandar el formulario de nuevo.</value></data>
+  <data name="Forms.Publication.TooManyFiles" xml:space="preserve"><value>El formulario admite hasta 10 archivos. Bajá el máximo de alguna pregunta.</value></data>
+  <data name="Forms.Publication.FileStorageUnavailable" xml:space="preserve"><value>Configurá el almacenamiento privado antes de publicar preguntas con archivos.</value></data>
+  <data name="Files.Content.HashMismatch" xml:space="preserve"><value>El archivo no coincide con el que entregó WhatsApp. La respuesta no se guardó.</value></data>
+  <data name="Files.Content.InvalidType" xml:space="preserve"><value>El archivo no es del tipo que indica o no se admite. La respuesta no se guardó.</value></data>
+  <data name="Files.Content.TooLarge" xml:space="preserve"><value>Un archivo o la respuesta supera el tamaño permitido. La respuesta no se guardó.</value></data>
+  <data name="Files.Content.InvalidMetadata" xml:space="preserve"><value>Los datos del archivo no son válidos. La respuesta no se guardó.</value></data>
+  <data name="Files.Content.Unavailable" xml:space="preserve"><value>No pudimos bajar los archivos de WhatsApp. La respuesta no se guardó.</value></data>
+  <data name="Files.Content.NotFound" xml:space="preserve"><value>El archivo no pertenece a esta respuesta.</value></data>
+  <data name="Forms.Record.NotFound" xml:space="preserve"><value>No encontramos esa respuesta o no está disponible.</value></data>
+  <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Revisá los filtros: el campo, el operador y el valor deben corresponder a ese formulario.</value></data>
+  <data name="Forms.Record.PeriodInvalid" xml:space="preserve"><value>Elegí cómo agrupar el tablero: por día, por semana o por mes.</value></data>
+<data name="Forms.Record.ExportTooLarge" xml:space="preserve"><value>Podés exportar hasta 10.000 respuestas. Acotá los filtros para continuar.</value></data>
+<data name="Forms.Record.ExportTooManyRows" xml:space="preserve"><value>El Excel tendría más de 100.000 filas, una por ítem. Acotá los filtros o sacá el bloque de las columnas.</value></data>
+<data name="Forms.Record.ExportBudgetExceeded" xml:space="preserve"><value>La exportación demoró demasiado. Acotá los filtros y volvé a intentar.</value></data>
+  <data name="Forms.Rule.ContentInvalid" xml:space="preserve"><value>Revisá las condiciones y las acciones de la regla.</value></data>
+  <data name="Forms.Rule.RevisionConflict" xml:space="preserve"><value>Las reglas cambiaron. Recargá la revisión vigente antes de guardar.</value></data>
+  <data name="Forms.Rule.RevisionNotFound" xml:space="preserve"><value>No encontramos esa revisión de reglas.</value></data>
+  <data name="Forms.Rule.RoleWithoutMembers" xml:space="preserve"><value>El rol elegido no tiene personas activas que puedan decidir. Sumá a alguien al rol y reintentá.</value></data>
+  <data name="Forms.Rule.RoleUnavailable" xml:space="preserve"><value>El rol elegido ya no está disponible.</value></data>
+  <data name="Forms.Rule.PlaceholderInvalid" xml:space="preserve"><value>Usá el número, el motivo o el nombre exacto de una pregunta entre llaves.</value></data>
+  <data name="Forms.Record.StateConflict" xml:space="preserve"><value>La respuesta cambió de estado. Recargá antes de continuar.</value></data>
+  <data name="Forms.Action.StateConflict" xml:space="preserve"><value>La acción cambió. Actualizá antes de reintentar.</value></data>
+  <data name="Forms.Action.NotFound" xml:space="preserve"><value>No encontramos esa acción.</value></data>
+  <data name="Forms.Action.ApprovalAlreadyPending" xml:space="preserve"><value>Esta respuesta ya tiene una aprobación pendiente.</value></data>
+  <data name="Forms.Action.ChannelUnavailable" xml:space="preserve"><value>El canal para enviar avisos no está disponible.</value></data>
+  <data name="Forms.Action.NoLongerInRole" xml:space="preserve"><value>La persona ya no es del rol.</value></data>
+  <data name="Forms.Action.NoLongerIssuable" xml:space="preserve"><value>Esa respuesta ya no se puede emitir.</value></data>
+  <data name="Forms.Action.RecipientUnavailable" xml:space="preserve"><value>La persona no tiene un canal confirmado disponible.</value></data>
+  <data name="Forms.Action.EffectUnconfirmed" xml:space="preserve"><value>La acción quedó sin confirmar. Consultá su estado antes de reintentar.</value></data>
+  <data name="Forms.Action.AwaitingConfirmation" xml:space="preserve"><value>La emisión espera que la confirme quien cargó la respuesta.</value></data>
+  <data name="Forms.Rule.IssuerUnavailable" xml:space="preserve"><value>Esta acción sólo vale en un formulario copiado de su estándar, con el módulo instalado.</value></data>
+  <data name="Forms.Rule.RecordsReadRequired" xml:space="preserve"><value>Las reglas de este formulario citan respuestas de preguntas: necesitás también el permiso para ver las respuestas.</value></data>
+  <data name="Forms.Rule.IssuerPermissionRequired" xml:space="preserve"><value>Las reglas de este formulario emiten comprobantes: necesitás también el permiso para emitirlos.</value></data>
+  <data name="Forms.Action.IssuerUnavailable" xml:space="preserve"><value>El módulo que emite el comprobante no está instalado.</value></data>
+  <data name="Forms.Action.IssueDataUnavailable" xml:space="preserve"><value>El formulario no tiene las preguntas del estándar que necesita la emisión.</value></data>
+  <data name="Forms.Action.NotIssued" xml:space="preserve"><value>No se emitió.</value></data>
+  <data name="Forms.Action.CopyNotQueued" xml:space="preserve"><value>La copia no entró en la cola de correo. Reintentala en un rato.</value></data>
+  <data name="Forms.Action.MessageTooLong" xml:space="preserve"><value>El texto completo supera el límite del aviso. Usá un mensaje más corto y dejá las respuestas largas en el PDF.</value></data>
+  <data name="Forms.Approval.NotFound" xml:space="preserve"><value>No encontramos la tarea de aprobación.</value></data>
+  <data name="Forms.Approval.RevisionConflict" xml:space="preserve"><value>Otra persona ya decidió esta tarea. Volvé a cargarla.</value></data>
+  <data name="Forms.Approval.OwnResponse" xml:space="preserve"><value>No podés decidir una respuesta que cargaste vos.</value></data>
+  <data name="Forms.Approval.RoleChanged" xml:space="preserve"><value>Ya no pertenecés al rol asignado.</value></data>
+  <data name="Forms.Approval.ContentInvalid" xml:space="preserve"><value>Revisá la decisión de aprobación.</value></data>
+  <data name="Forms.Approval.ReasonRequired" xml:space="preserve"><value>Escribí un motivo para rechazar la respuesta.</value></data>
+  <data name="Forms.Pdf.ContentInvalid" xml:space="preserve"><value>Revisá el diseño del PDF.</value></data>
+  <data name="Forms.Pdf.RevisionConflict" xml:space="preserve"><value>El diseño del PDF cambió. Volvé a cargarlo.</value></data>
+  <data name="Forms.Pdf.NotFound" xml:space="preserve"><value>No encontramos el PDF.</value></data>
+  <data name="WhatsApp.FormAction.ChannelUnavailable" xml:space="preserve"><value>WhatsApp no está disponible.</value></data>
+  <data name="WhatsApp.FormAction.RecipientUnavailable" xml:space="preserve"><value>El destinatario no está disponible para recibir el aviso.</value></data>
+  <data name="WhatsApp.FormAction.RecipientChanged" xml:space="preserve"><value>Cambió el vínculo del destinatario con WhatsApp.</value></data>
+  <data name="WhatsApp.FormAction.WindowClosed" xml:space="preserve"><value>Se cerró la ventana de 24 horas. El destinatario tiene que volver a escribir.</value></data>
+  <data name="WhatsApp.FormAction.InvalidMessage" xml:space="preserve"><value>Revisá el texto y el largo del mensaje.</value></data>
+  <data name="WhatsApp.FormAction.DocumentUnavailable" xml:space="preserve"><value>El PDF no está disponible.</value></data>
+  <data name="WhatsApp.FormAction.UploadFailed" xml:space="preserve"><value>No pudimos subir el PDF a WhatsApp.</value></data>
+  <data name="WhatsApp.FormAction.SendRejected" xml:space="preserve"><value>WhatsApp rechazó el envío.</value></data>
+  <data name="WhatsApp.FormAction.StateConflict" xml:space="preserve"><value>Este envío cambió. Volvé a cargarlo.</value></data>
+  <data name="WhatsApp.FormAction.ReviewedNotSent" xml:space="preserve">
+    <value>Se revisó que el aviso no salió. Podés reintentarlo.</value>
+  </data>
+  <data name="Assistant.Operation.Unavailable" xml:space="preserve"><value>El asistente no está disponible.</value></data>
+  <data name="WhatsApp.Chat.SessionRequired" xml:space="preserve"><value>Ingresá para cambiar el modo de atención.</value></data>
+  <data name="WhatsApp.Chat.Forbidden" xml:space="preserve"><value>Tu cuenta no tiene permiso para cambiar a ese modo de atención.</value></data>
+  <data name="WhatsApp.Chat.AssistantUnavailable" xml:space="preserve"><value>El asistente no está disponible. Revisá la conexión de IA.</value></data>
+  <data name="Forms.Suggestion.ContentInvalid" xml:space="preserve"><value>Revisá las condiciones y los datos de la sugerencia.</value></data>
+  <data name="Forms.Suggestion.ReadUnavailable" xml:space="preserve"><value>No pudimos leer las sugerencias del formulario.</value></data>
+  <data name="Forms.Suggestion.RevisionConflict" xml:space="preserve"><value>Las sugerencias cambiaron. Recargalas y volvé a intentar.</value></data>
+  <data name="Forms.Suggestion.RevisionNotFound" xml:space="preserve"><value>No encontramos esa revisión de sugerencias.</value></data>
+  <data name="Forms.Suggestion.SourceNotPublished" xml:space="preserve"><value>Publicá el formulario antes de configurar qué sugerir después.</value></data>
+  <data name="WhatsApp.Assistant.SessionRequired" xml:space="preserve"><value>Iniciá sesión para usar una sugerencia.</value></data>
+  <data name="WhatsApp.Assistant.Forbidden" xml:space="preserve"><value>Tu cuenta no puede usar esta sugerencia.</value></data>
+  <data name="WhatsApp.Assistant.StateConflict" xml:space="preserve"><value>La sugerencia o el modo de la conversación cambió. Revisá su estado.</value></data>
+  <data name="WhatsApp.Assistant.InvalidRequest" xml:space="preserve"><value>Revisá los datos de la solicitud al asistente.</value></data>
+  <data name="WhatsApp.Assistant.InvalidProposal" xml:space="preserve"><value>La propuesta ya no es válida para esta persona. Pedí una sugerencia nueva.</value></data>
+  <data name="WhatsApp.Assistant.Unavailable" xml:space="preserve"><value>El asistente no pudo preparar esta sugerencia. Podés seguir con atención manual.</value></data>
+  <data name="WhatsApp.AssistantAgent.Invalid" xml:space="preserve"><value>Revisá la configuración del asistente.</value></data>
+  <data name="WhatsApp.AssistantAgent.RevisionConflict" xml:space="preserve"><value>Otra persona cambió el asistente. Revisá sus cambios antes de guardar.</value></data>
+  <data name="Forms.MissingRequest.ContentInvalid" xml:space="preserve">
+    <value>El pedido de formulario no es válido.</value>
+  </data>
+  <data name="Forms.MissingRequest.RevisionConflict" xml:space="preserve">
+    <value>El tema cambió. Recargá la lista y probá de nuevo.</value>
+  </data>
+  <data name="Forms.MissingRequest.NotFound" xml:space="preserve">
+    <value>No encontramos ese tema.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.NotFound" xml:space="preserve">
+    <value>No encontramos ese documento.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ContentInvalid" xml:space="preserve">
+    <value>El pedido sobre el documento no es válido.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.RevisionConflict" xml:space="preserve">
+    <value>El documento cambió. Recargalo y probá de nuevo.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.StateConflict" xml:space="preserve">
+    <value>El documento ya no está para eso. Recargalo para ver cómo quedó.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ReadingUnavailable" xml:space="preserve">
+    <value>Este documento no tiene una lectura para volver a usar.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.FormUnavailable" xml:space="preserve">
+    <value>Ese formulario no está publicado y activo.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.SenderInactive" xml:space="preserve">
+    <value>Quien mandó el documento ya no está activo.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ExtractionNotFound" xml:space="preserve">
+    <value>No encontramos esa lectura para otro formulario. Recargá el documento.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.FileUnavailable" xml:space="preserve">
+    <value>No pudimos abrir el archivo del documento. Probá de nuevo más tarde.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.FileNotStored" xml:space="preserve">
+    <value>El archivo de este documento no se guardó: no se podía abrir.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.AwaitingSender" xml:space="preserve">
+    <value>Quien lo mandó todavía puede completarlo por su canal. Esperá a que venza su respuesta.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.RequestConflict" xml:space="preserve">
+    <value>Ese pedido ya se usó con otros datos.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ExtractionUnavailable" xml:space="preserve">
+    <value>No pudimos leer el documento para otro formulario. Probá de nuevo en un rato.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ProposalNotFound" xml:space="preserve">
+    <value>No encontramos esa propuesta.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ProposalUnavailable" xml:space="preserve">
+    <value>No pudimos armar la propuesta. Probá de nuevo en un momento; los documentos siguen en la bandeja.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.GroupUnavailable" xml:space="preserve">
+    <value>Ya no quedan documentos sin clasificar de ese tema para armar el formulario.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.AssistantUnavailable" xml:space="preserve">
+    <value>El asistente no está disponible por ahora; se vuelve a intentar en un momento.</value>
+  </data>
+  <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
+    <value>Solo podés dar de baja un formulario publicado que esté activo.</value>
+  </data>
+  <data name="Forms.Definition.HasResponses" xml:space="preserve">
+    <value>No podés eliminar este formulario porque ya tiene respuestas.</value>
+  </data>
+  <data name="Forms.Definition.OpenSends" xml:space="preserve">
+    <value>No podés eliminar este formulario mientras haya envíos abiertos o respuestas en procesamiento.</value>
+  </data>
+  <data name="WhatsApp.Flow.DeprecationRejected" xml:space="preserve">
+    <value>Meta rechazó la baja del formulario. Se comprobará su estado antes de volver a intentarlo.</value>
+  </data>
+  <data name="Forms.Catalog.ItemValueRequired" xml:space="preserve"><value>Cargá el valor de la opción.</value></data>
+  <data name="Forms.Catalog.ItemValueInvalid" xml:space="preserve"><value>El valor no corresponde al tipo del catálogo.</value></data>
+  <data name="Forms.CatalogImport.FileUnreadable" xml:space="preserve"><value>No pudimos leer el archivo. Subí un XLSX o un CSV UTF-8.</value></data>
+  <data name="Forms.CatalogImport.FileTooLarge" xml:space="preserve"><value>El archivo supera el tamaño permitido.</value></data>
+  <data name="Forms.CatalogImport.TooManyRows" xml:space="preserve"><value>La planilla supera las 10.000 filas.</value></data>
+  <data name="Forms.CatalogImport.TooManyColumns" xml:space="preserve"><value>La planilla tiene demasiadas columnas.</value></data>
+  <data name="Forms.CatalogImport.TooManyCells" xml:space="preserve"><value>El archivo tiene demasiadas celdas, incluso vacías o con formato. Quitá las que no uses y volvé a cargarlo.</value></data>
+  <data name="Forms.CatalogImport.MissingColumn" xml:space="preserve"><value>Falta una columna obligatoria.</value></data>
+  <data name="Forms.CatalogImport.DuplicateColumn" xml:space="preserve"><value>Hay dos columnas con el mismo encabezado.</value></data>
+  <data name="Forms.CatalogImport.UnknownColumn" xml:space="preserve"><value>Esta columna no es del catálogo: se ignora.</value></data>
+  <data name="Forms.CatalogImport.SheetChanged" xml:space="preserve"><value>La planilla no es la que revisaste. Revisala de nuevo.</value></data>
+  <data name="Forms.CatalogImport.SheetUnavailable" xml:space="preserve"><value>La planilla que viste en el chat ya no está disponible. Podés subir el archivo a mano.</value></data>
+  <data name="Forms.CatalogImport.ConfirmationRequired" xml:space="preserve"><value>Confirmá las bajas o las filas con errores antes de aplicar.</value></data>
+  <data name="Forms.CatalogImport.RequiredValue" xml:space="preserve"><value>Falta: es obligatorio.</value></data>
+  <data name="Forms.CatalogImport.DuplicateCode" xml:space="preserve"><value>Repetido: también está en otra fila.</value></data>
+  <data name="Forms.CatalogImport.TextTooLong" xml:space="preserve"><value>Tiene más de 30 caracteres: WhatsApp muestra hasta 30.</value></data>
+  <data name="Forms.CatalogImport.CodeTooLong" xml:space="preserve"><value>El código supera los 80 caracteres.</value></data>
+  <data name="Forms.CatalogImport.DetailTooLong" xml:space="preserve"><value>El detalle supera los 300 caracteres.</value></data>
+  <data name="Forms.CatalogImport.ActiveInvalid" xml:space="preserve"><value>Usá Sí o No para indicar si la opción está activa.</value></data>
+  <data name="Forms.CatalogImport.DuplicateText" xml:space="preserve"><value>Este texto también está en otra opción.</value></data>
+  <data name="Forms.CatalogImport.FormulaValueMissing" xml:space="preserve"><value>La fórmula no tiene un valor guardado. Guardá la planilla y volvé a subirla.</value></data>
+  <data name="Forms.CatalogImport.CellUnreadable" xml:space="preserve"><value>No pudimos leer el valor de esta celda.</value></data>
+  <data name="Forms.CatalogImport.ValueAmbiguous" xml:space="preserve"><value>El número puede tener dos valores. Quitá los separadores de miles o usá una columna de valor canónico.</value></data>
+  <data name="Forms.Catalog.TooManyFields" xml:space="preserve"><value>Un catálogo admite hasta 20 campos.</value></data>
+  <data name="Forms.Catalog.FieldKeyDuplicate" xml:space="preserve"><value>Ya hay un campo con esa clave.</value></data>
+  <data name="Forms.Catalog.FieldInvalid" xml:space="preserve"><value>Revisá el tipo, las reglas y el papel del campo.</value></data>
+  <data name="Forms.Catalog.ItemInUse" xml:space="preserve"><value>La opción está en uso y no se puede eliminar. Podés darla de baja.</value></data>
+  <data name="Forms.Catalog.FieldInUse" xml:space="preserve"><value>El campo está en uso. Sacá esos usos para quitarlo o para cambiarle el papel, el tipo o el catálogo.</value></data>
+  <data name="Forms.Catalog.FieldRemovalNotConfirmed" xml:space="preserve"><value>Confirmá que querés quitar el campo y sus valores.</value></data>
+  <data name="Forms.Catalog.FieldTypeNotConvertible" xml:space="preserve"><value>Hay valores que no se convierten al tipo nuevo.</value></data>
+  <data name="Forms.Catalog.FieldValuesIncompatible" xml:space="preserve"><value>Hay valores que no cumplen las reglas del campo.</value></data>
+  <data name="Forms.Catalog.FieldValuesMissing" xml:space="preserve"><value>Faltan valores en opciones activas para hacerlo obligatorio.</value></data>
+  <data name="Forms.Catalog.FieldValueInvalid" xml:space="preserve"><value>El valor no corresponde al tipo del campo.</value></data>
+  <data name="Forms.Catalog.FieldValueRequired" xml:space="preserve"><value>Este campo es obligatorio.</value></data>
+  <data name="Forms.Catalog.FieldValueDuplicate" xml:space="preserve"><value>Ese valor ya está en otra opción y el campo es único.</value></data>
+  <data name="Forms.Catalog.SourceInUse" xml:space="preserve"><value>Un campo o un dato de las personas toma sus valores de este catálogo: no se puede dar de baja.</value></data>
+  <data name="Forms.Catalog.PresentationInvalid" xml:space="preserve"><value>El título necesita al menos un campo, y los campos tienen que existir.</value></data>
+  <data name="Forms.PersonAttribute.NotFound" xml:space="preserve"><value>El dato no existe.</value></data>
+  <data name="Forms.PersonAttribute.RevisionConflict" xml:space="preserve"><value>Otra persona cambió el dato. Volvé a cargarlo.</value></data>
+  <data name="Forms.PersonAttribute.KeyDuplicate" xml:space="preserve"><value>Ya hay un dato con esa clave.</value></data>
+  <data name="Forms.PersonAttribute.InUse" xml:space="preserve"><value>Un filtro usa este dato: no se puede quitar ni cambiar su tipo.</value></data>
+  <data name="Forms.PersonAttribute.TooMany" xml:space="preserve"><value>Se pueden definir hasta 20 datos.</value></data>
+  <data name="Forms.PersonAttribute.Invalid" xml:space="preserve"><value>Revisá el dato y su catálogo fuente.</value></data>
+  <data name="Forms.PersonAttribute.SourceUnavailable" xml:space="preserve"><value>El catálogo fuente no está disponible.</value></data>
+  <data name="Forms.PersonAttribute.ValueRemovalNotConfirmed" xml:space="preserve"><value>Confirmá que querés cambiar el dato y borrar los valores que tienen cargados las personas.</value></data>
+  <data name="Forms.PersonData.RevisionConflict" xml:space="preserve"><value>Otra persona cambió estos datos. Volvé a cargarlos.</value></data>
+  <data name="Forms.PersonData.ValueInvalid" xml:space="preserve"><value>El valor no corresponde al dato.</value></data>
+  <data name="Forms.PersonData.UserNotFound" xml:space="preserve"><value>La persona no existe.</value></data>
+  <data name="Forms.Publication.MatchInvalid" xml:space="preserve">
+    <value>El filtro usa un campo que no está disponible o no sirve para filtrar.</value>
+  </data>
+  <data name="Forms.Publication.MatchValueUnavailable" xml:space="preserve">
+    <value>El valor fijo de un filtro ya no es una opción activa de su catálogo. Elegí otro valor.</value>
+  </data>
+  <data name="Forms.Publication.MatchSourceMismatch" xml:space="preserve">
+    <value>El campo y el dato de la persona tienen que usar el mismo catálogo de valores.</value>
+  </data>
+  <data name="Forms.Publication.MatchQuestionInvalid" xml:space="preserve">
+    <value>La respuesta de la que depende tiene que ser de una pregunta anterior, de elegir una, que elija del mismo catálogo que el campo.</value>
+  </data>
+  <data name="Forms.Publication.DependsOnAnswer" xml:space="preserve">
+    <value>Por WhatsApp no se puede mandar mientras una pregunta dependa de otra respuesta. En la app se carga igual.</value>
+  </data>
+  <data name="Forms.Publication.GroupByInvalid" xml:space="preserve">
+    <value>El campo para elegir primero ya no está en el catálogo, está dado de baja o no es de texto ni una opción de un catálogo.</value>
+  </data>
+  <data name="Forms.Publication.CatalogTitleTooLong" xml:space="preserve">
+    <value>La presentación del catálogo arma títulos de más de 30 caracteres.</value>
+  </data>
+  <data name="Forms.Publication.QuestionTitleTooLong" xml:space="preserve">
+    <value>La presentación de la pregunta arma títulos de más de 30 caracteres.</value>
+  </data>
+  <data name="Forms.Publication.OptionsPerRecipientHigh" xml:space="preserve">
+    <value>Revisá el máximo de opciones por persona frente al límite de WhatsApp.</value>
+  </data>
+  <data name="Forms.Publication.RecipientsWithoutData" xml:space="preserve">
+    <value>Hay personas sin el dato que necesita este filtro.</value>
+  </data>
+  <data name="Forms.Publication.GroupEmpty" xml:space="preserve">
+    <value>Agregá al menos una pregunta al bloque.</value>
+  </data>
+  <data name="Forms.Publication.SectionEmpty" xml:space="preserve">
+    <value>Agregá al menos una pregunta debajo del título.</value>
+  </data>
+  <data name="Forms.Publication.CalculationInvalid" xml:space="preserve">
+    <value>Elegí preguntas de número que vayan antes. En el bloque, multiplicar y porcentaje usan las del mismo ítem, y una suma va afuera.</value>
+  </data>
+  <data name="Forms.Publication.ConditionInvalid" xml:space="preserve">
+    <value>Elegí una pregunta anterior de elegir una o de sí o no, afuera del bloque, y respuestas que tenga.</value>
+  </data>
+  <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
+    <value>En WhatsApp se cargan menos ítems que el máximo del bloque.</value>
+  </data>
+  <data name="Forms.Publication.MinRowsOverChannelLimit" xml:space="preserve">
+    <value>En WhatsApp se cargan menos ítems que el mínimo del bloque.</value>
+  </data>
+  <data name="Forms.Publication.DocumentLookupInvalid" xml:space="preserve"><value>Revisá el cruce con el catálogo de la lectura de documentos: el campo ya no está o no se puede comparar con esa pregunta.</value></data>
+  <data name="Forms.Publication.PresentationInvalid" xml:space="preserve">
+    <value>Revisá lo que viaja a WhatsApp: el título no puede quedar vacío y la descripción admite hasta 300 caracteres.</value>
+  </data>
+  <data name="Forms.Record.RecipientDataMissing" xml:space="preserve">
+    <value>A esta persona le falta un dato necesario para las opciones del formulario.</value>
+  </data>
+  <data name="Forms.Record.CatalogFilterUnavailable" xml:space="preserve">
+    <value>El campo o el dato de la persona usado para filtrar ya no está disponible.</value>
+  </data>
+  <data name="Forms.Record.CatalogDependsOnAnswer" xml:space="preserve">
+    <value>Las opciones dependen de otra respuesta: este formulario se carga desde la app.</value>
+  </data>
+  <data name="Forms.Record.AmendUnavailable" xml:space="preserve"><value>La respuesta cambió y ya no se puede corregir ni anular. Recargá para ver cómo quedó.</value></data>
+  <data name="Forms.Record.IssuedNotAmendable" xml:space="preserve"><value>La respuesta tiene un comprobante emitido o en curso: anulala y cargá otra.</value></data>
+  <data name="Forms.Record.Voiding" xml:space="preserve"><value>La respuesta ya se está anulando.</value></data>
+  <data name="Forms.Record.ReasonRequired" xml:space="preserve"><value>Escribí el motivo.</value></data>
+  <data name="Forms.Record.ReasonInvalid" xml:space="preserve"><value>El motivo puede tener hasta 500 caracteres.</value></data>
+  <data name="Forms.Definition.NameTaken" xml:space="preserve"><value>Ya hay un formulario con ese nombre.</value></data>
+  <data name="Forms.Definition.CatalogUnavailable" xml:space="preserve"><value>Una pregunta usa un catálogo que ya no está disponible.</value></data>
+  <data name="Forms.Definition.ProposalUnavailable" xml:space="preserve"><value>Esta propuesta ya no está disponible. Pedila de nuevo en el chat.</value></data>
+  <data name="Forms.Definition.ProposalReplaced" xml:space="preserve"><value>Esa propuesta ya cambió. Usá la última.</value></data>
+  <data name="Forms.Catalog.NameTaken" xml:space="preserve"><value>Ya hay un catálogo con ese nombre.</value></data>
+  <data name="Forms.Catalog.ProposalUnavailable" xml:space="preserve"><value>Esta propuesta ya no está disponible. Pedila de nuevo en el chat.</value></data>
+  <data name="Forms.Catalog.ProposalReplaced" xml:space="preserve"><value>Esa propuesta ya cambió. Usá la última.</value></data>
+</root>

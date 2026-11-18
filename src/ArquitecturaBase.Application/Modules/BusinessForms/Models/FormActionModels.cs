@@ -21,6 +21,7 @@ public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionar
     /// <summary>Why the issuer decided that document, by language, and the amounts it itemizes before the total.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string,string>? Info { get; init; }
+    /// <summary>The date of the document, a day without time (yyyy-MM-dd in the JSON).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public DateOnly? Date { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]

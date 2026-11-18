@@ -103,7 +103,7 @@ public sealed record StructuredIssuePreview(IReadOnlyDictionary<string, string>?
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, string>? Info { get; init; }
 
-    /// <summary>The date of the document, in canonical form (yyyy-MM-dd); null when it has none.</summary>
+    /// <summary>The date of the document, a day without time (yyyy-MM-dd in the JSON, as runs stored it); null when it has none.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public DateOnly? Date { get; init; }
 

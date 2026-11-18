@@ -648,6 +648,9 @@ Lo que el diseño no fijaba, resuelto con la opción más simple que cumple el p
       con su número;
     - al capturar se vuelven a correr las validaciones fijas y los repetidos con lo corregido, con el aviso y el reenvío del
       punto 6.
+    - un revisor que pasa un documento desde la bandeja también ve la repetición (F13, 2026-11-15): si repite una respuesta
+      guardada, el servidor contesta 409 `Forms.ReceivedDocument.Repeated` con su número, y lo pasa con la marca `confirmRepeated`
+      en un pedido nuevo.
 13. **Cómo viene leyendo** (DOC1) se calcula en SQL con los orígenes de las respuestas que salieron de un documento: por
     formulario y por pregunta, de los últimos 30 días, cuántos documentos se confirmaron, qué parte de los datos se confirmó sin
     cambios y qué pregunta se corrige más, con `formtemplates.read`. «Ver los ejemplos» lista las últimas correcciones (lo leído y
