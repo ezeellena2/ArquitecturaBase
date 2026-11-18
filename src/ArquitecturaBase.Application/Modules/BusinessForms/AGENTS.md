@@ -1,6 +1,6 @@
 # BusinessForms: casos de uso de formularios
 
-Leer [formularios](../../../../docs/features/formularios.md) y el [resumen de la etapa en curso](../../../../docs/plans/formularios/README.md).
+Leer [formularios](../../../../docs/features/formularios.md) y los [pendientes del módulo](../../../../docs/plans/formularios/README.md).
 
 Módulo opcional: autoría, publicación, ciclo de vida, catálogos, captura, planilla, reglas, PDF, asistente y sugerencias; persistencia en Infrastructure y rutas en Api.
 

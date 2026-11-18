@@ -1,6 +1,6 @@
 # BusinessForms: borde HTTP
 
-Leer [formularios](../../../../docs/features/formularios.md) y el [resumen de la etapa en curso](../../../../docs/plans/formularios/README.md).
+Leer [formularios](../../../../docs/features/formularios.md) y los [pendientes del módulo](../../../../docs/plans/formularios/README.md).
 
 Controllers MVC y contratos de entrada del módulo, bajo `api/forms`. Los casos de uso están en Application; acá se adaptan rutas, permisos, límites y respuestas. `BusinessFormsApiRegistration.cs` registra sus políticas de rate limit: `forms-read`, `forms-write`, `forms-files-read`, `forms-meta-read` (vista oficial, F17) y `forms-export`, con dos a la vez por copia (F11).
 
