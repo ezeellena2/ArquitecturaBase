@@ -2,8 +2,9 @@
 
 Decidido por el usuario el 2026-11-19, durante la prueba integral, en la fila RO3 del lienzo
 [Roles y permisos: rediseño](https://claude.ai/artifact/MDJUPkopujPycib3mnFqcc) (versión 14). Reemplaza la matriz RO1-A del
-2026-11-11 ([diseño](../../../ArquitecturaBaseFront/docs/design/roles-y-permisos.md)). **Aprobado el 2026-11-19 y en
-programación.** El usuario eligió hacerlo **antes de la prueba integral**.
+2026-11-11 ([diseño](../../../ArquitecturaBaseFront/docs/design/roles-y-permisos.md)). **Programado y en la app el
+2026-11-19**, antes de la prueba integral, como eligió el usuario. Faltan la prueba manual, la corrida completa y el
+traspaso 16.
 
 ## Por qué
 
@@ -98,7 +99,9 @@ No entran:
 ## Etapas
 
 0. **Los estados de D en el lienzo:** Admin, rol nuevo, carga, error, sin permiso y conflicto, con la lista de chequeo y una
-   revisión adversarial contra las capturas. Se dibujan mientras se programa el backend, antes del front.
+   revisión adversarial contra las capturas. Se dibujan mientras se programa el backend, antes del front. **Hecha el
+   2026-11-19:** fila RO4 del lienzo. Admin va sin tilde en la banda, como la matriz, que no tenía la columna del área. En
+   la versión 18, los tableros del celular separan la flecha de la casilla del área.
 1. **Backend, con TDD.** **Hecha el 2026-11-19** (`cbd5ed08`).
    - Hecho: Domain declara las once inclusiones (`Permissions.Includes` y el `Includes` de cada módulo) e
      `IPermissionCatalog` suma `Includes(code)`, con su clausura en el orden del catálogo, y `Effective(codes)`; al
@@ -115,7 +118,12 @@ No entran:
    - Integración: el catálogo trae `includes`; guardar sólo «Administrar usuarios» guarda los dos; un rol viejo con sólo
      `users.manage` entra a `GET /api/users`.
    - El OpenAPI, los ejemplos exportados y las cohortes que lee el front.
-2. **Front, con TDD**, en una copia fuera de la carpeta del front.
+2. **Front, con TDD**, en una copia fuera de la carpeta del front. **Hecha el 2026-11-19**: front `68fa867b` a `61364814`,
+   siete commits pasados desde la copia sin cambios.
+   - Revisión adversarial corregida (`6f0294af`): en el celular, la zona de la casilla del área se montaba sobre la de la
+     flecha, y un toque en el borde de la flecha marcaba el área entera. Ahora van una al lado de la otra, con una prueba
+     de toques. Además, un conflicto sin nada que elegir adopta lo guardado, y el fixture del video trae `includes`.
+   - Verificado en la copia: tipos y oxlint limpios, vitest de roles y arquitectura (145) y las escenas de roles (32).
    - `PermissionPicker`, su `lib` y `RoleEditorPage`, con el esquema que suma `includes`.
    - Pruebas: `PermissionPicker.test.tsx`, `permissionPicker.test.ts` y `RoleEditorPage.test.tsx`.
    - Escenas y capturas: `role-groups.spec.ts` (Admin, editor 1440 y 390), `design.spec.ts` (editor 1440 y 320) y
@@ -126,7 +134,11 @@ No entran:
    - Backend: la regla de los permisos que incluyen en `docs/features` y en las premisas. Hecha con la etapa 1:
      `administracion.md` («Un permiso incluye a otro»), `identidad.md`, el documento de cada módulo, `backend.md`, las
      premisas, `permiso-nuevo.md` y los `AGENTS.md` de las carpetas.
-   - El traspaso 16: el multitenant conserva sus áreas plegables (el 13, §3 del 05, le pedía la matriz) y suma la regla.
+   - Front, hecha con la etapa 2 (`485f352b` y `7f4afb89`): `roles-y-permisos.md` reescrito, «Roles» de
+     `visual-baseline.md`, el estándar, las premisas del front, la arquitectura, el mapa y los `AGENTS.md`. La banda del
+     área quedó escrita como excepción a `TableSectionToggle`, porque lleva una casilla al frente.
+   - **Pendiente:** el traspaso 16. El multitenant conserva sus áreas plegables (el 13, §3 del 05, le pedía la matriz) y
+     suma la regla.
 4. **Verificación y entrada.**
    - En cada corte, el build y las pruebas rápidas del área. Al terminar: el build sin advertencias, los unitarios y
      `ArchitectureTests` enteros, la integración de roles, permisos y usuarios; en el front, tipos, oxlint, vitest de roles
@@ -135,6 +147,14 @@ No entran:
      falsos.
    - **Entrada:** el backend entra cuando se pueda reiniciar la app (`aspire stop` y `aspire run`), y el front cuando el
      usuario diga que no está cargando nada, porque Vite le recarga la página.
+   - **Entró el 2026-11-19, con el OK del usuario y en un solo corte:**
+     - `aspire stop`, el front aplicado y el backend compilado sin advertencias;
+     - `aspire run --detach --no-build`, con la API y el front sanos;
+     - el OpenAPI vivo trae `includes` y Vite sirve el selector nuevo;
+     - en la base, ningún rol quedó con un permiso que incluye otro sin lo incluido. Los roles de la prueba ya estaban
+       completos, así que el arranque no anotó nada.
+   - **Pendiente:** la corrida completa (el `dotnet test` entero, vitest entero y las escenas visuales) y la prueba manual
+     de `roles-y-permisos.md`.
 
 ## Riesgos
 
