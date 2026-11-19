@@ -99,7 +99,13 @@ No entran:
 
 0. **Los estados de D en el lienzo:** Admin, rol nuevo, carga, error, sin permiso y conflicto, con la lista de chequeo y una
    revisión adversarial contra las capturas. Se dibujan mientras se programa el backend, antes del front.
-1. **Backend, con TDD.**
+1. **Backend, con TDD.** **Hecha el 2026-11-19** (`cbd5ed08`).
+   - Hecho: Domain declara las once inclusiones (`Permissions.Includes` y el `Includes` de cada módulo) e
+     `IPermissionCatalog` suma `Includes(code)`, con su clausura en el orden del catálogo, y `Effective(codes)`; al
+     componerse valida que lo incluido esté en el catálogo, sea de la misma área y lo declare su fuente. `RoleService`
+     guarda lo incluido y da o quita la diferencia entre lo que el rol permitía y lo que permite. No hay ejemplos
+     exportados ni cohortes de `GET /api/permissions`: el OpenAPI suma `includes` solo. Seis pruebas de módulos que pedían
+     403 a quien sólo tenía «Administrar», «Responder» o «Revisar» usan ahora un permiso que no incluye «Ver».
    - La lista de inclusiones, la función que calcula lo que una cuenta tiene, su uso en `PermissionService` y en
      `PermissionDelegationGuard`, guardar con lo incluido y `Includes` en el contrato.
    - Unitarios: el catálogo, `RoleService` y la guarda.
@@ -114,7 +120,9 @@ No entran:
 3. **Documentación.**
    - Front: `roles-y-permisos.md` (RO3-D reemplaza la regla de la matriz), «Roles» de `visual-baseline.md`, el estándar
      visual y el `AGENTS.md` de roles.
-   - Backend: la regla de los permisos que incluyen en `docs/features` y en las premisas.
+   - Backend: la regla de los permisos que incluyen en `docs/features` y en las premisas. Hecha con la etapa 1:
+     `administracion.md` («Un permiso incluye a otro»), `identidad.md`, el documento de cada módulo, `backend.md`, las
+     premisas, `permiso-nuevo.md` y los `AGENTS.md` de las carpetas.
    - El traspaso 16: el multitenant conserva sus áreas plegables (el 13, §3 del 05, le pedía la matriz) y suma la regla.
 4. **Verificación y entrada.**
    - En cada corte, el build y las pruebas rápidas del área. Al terminar: el build sin advertencias, los unitarios y
