@@ -31,8 +31,9 @@ public sealed partial class FormDraftEndpointsTests
     public async Task Read_and_manage_permissions_and_own_attempt_isolation_are_enforced()
     {
         using var anonymous = factory.CreateClient(); using var noSession = await anonymous.GetAsync("/api/forms/definitions", Ct); Assert.Equal(HttpStatusCode.Unauthorized, noSession.StatusCode);
-        using var manageOnly = await OperatorAsync([BusinessFormsPermissions.Manage]);
-        using var denied = await manageOnly.PostAsJsonAsync("/api/forms/definitions", Payload(), Ct); Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        // «Administrar formularios» incluye «Ver formularios» (2026-11-19): sin «Ver», un permiso de otra área no alcanza.
+        using var withoutRead = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        using var denied = await withoutRead.PostAsJsonAsync("/api/forms/definitions", Payload(), Ct); Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
         using var readonlyUser = await OperatorAsync([BusinessFormsPermissions.Read]);
         using var deniedWrite = await readonlyUser.PostAsJsonAsync("/api/forms/definitions", Payload(), Ct); Assert.Equal(HttpStatusCode.Forbidden, deniedWrite.StatusCode);
         using var admin = await AdminAsync(); var payload = Payload(); var original = await CreateAsync(admin, payload);

@@ -7,6 +7,7 @@ internal sealed class ArcaPermissionCatalogSource : IPermissionCatalogSource
 {
     internal static ResourceManager ResourceManager { get; } = new("ArquitecturaBase.Application.Modules.Arca.Resources.Permissions", typeof(ArcaPermissionCatalogSource).Assembly);
     public IReadOnlyCollection<string> Codes => ArcaPermissions.All;
+    public IReadOnlyDictionary<string, IReadOnlyCollection<string>> Includes => ArcaPermissions.Includes;
     public string Area(string area) => Text("Area." + area);
     public string Name(string code) => Text("Permission." + code);
     public string Description(string code) => Text("PermissionDescription." + code);

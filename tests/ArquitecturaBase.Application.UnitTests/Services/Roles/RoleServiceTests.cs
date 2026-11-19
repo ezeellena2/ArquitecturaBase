@@ -60,6 +60,9 @@ public sealed class RoleServiceTests
         Assert.Equal(usersAreaName, groups[0].Name);
         Assert.Equal(Permissions.All, groups.SelectMany(group => group.Permissions).Select(permission => permission.Code));
         Assert.Equal(usersReadName, groups[0].Permissions.First().Name);
+        Assert.Equal(
+            [[], [Permissions.Users.Read], [], [Permissions.Roles.Read], []],
+            groups.SelectMany(group => group.Permissions).Select(permission => permission.Includes));
         Assert.Equal(0, reader.ListCalls);
         Assert.Equal(
             ["Handling GetPermissions", "Handled GetPermissions"],

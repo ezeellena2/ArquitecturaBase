@@ -36,9 +36,10 @@ public sealed class AiConnectionEndpointsTests(ApiFactory factory) : IClassFixtu
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         using var anotherOperator = await manager.GetAsync($"/api/ai/connection/changes/{id}", Ct);
         Assert.Equal(HttpStatusCode.NotFound, anotherOperator.StatusCode);
+        // «Administrar conexión» incluye «Ver conexión» (2026-11-19).
         using var manageOnly = await OperatorAsync([ArtificialIntelligencePermissions.Manage]);
-        using var missingRead = await manageOnly.GetAsync("/api/ai/connection", Ct);
-        Assert.Equal(HttpStatusCode.Forbidden, missingRead.StatusCode);
+        using var includedRead = await manageOnly.GetAsync("/api/ai/connection", Ct);
+        Assert.Equal(HttpStatusCode.OK, includedRead.StatusCode);
     }
 
     [Fact]

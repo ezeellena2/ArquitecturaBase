@@ -6,7 +6,7 @@ SystemQueries aporta usuarios agregados, roles y ayuda curada versionada; son fu
 
 ## Al modificar
 
-- `PermissionCatalog` compone el catálogo estático y fuentes opcionales; no conoce nombres de módulos. Sus textos siguen la cultura actual y falla por códigos duplicados. [ADR 0010](../../../docs/decisions/0010-catalogo-de-permisos-extensible.md).
+- `PermissionCatalog` compone el catálogo estático y fuentes opcionales; no conoce nombres de módulos. Sus textos siguen la cultura actual y falla por códigos duplicados o por una inclusión que no es de su fuente, no está en el catálogo o es de otra área. Junta lo que incluye cada permiso (`Includes`, también a través de otro) y calcula lo que permiten unos códigos (`Effective`). [ADR 0010](../../../docs/decisions/0010-catalogo-de-permisos-extensible.md).
 
 - El canal verifica sus precondiciones y encola según el contrato. No abre una transacción ni guarda por su cuenta.
 - El correo se registra como un canal entre varios; una implementación deshabilitada conserva el comportamiento del núcleo cuando no hay proveedor.

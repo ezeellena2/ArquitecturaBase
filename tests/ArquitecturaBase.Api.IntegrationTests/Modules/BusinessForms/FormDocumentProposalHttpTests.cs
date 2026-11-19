@@ -463,7 +463,9 @@ public sealed class FormDocumentProposalHttpTests(ApiFactory factory)
     {
         await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
         var designer = await scenario.PersonAsync("Dora Diseña", Designer, Ct);
-        var blind = await scenario.PersonAsync("Bruno Diseña", [.. Designer.Except([BusinessFormsPermissions.DocumentsRead])], Ct);
+        // «Revisar documentos» incluye «Ver documentos recibidos» (2026-11-19): sin ver la bandeja, sin ninguno de los dos.
+        var blind = await scenario.PersonAsync("Bruno Diseña",
+            [.. Designer.Except([BusinessFormsPermissions.DocumentsRead, BusinessFormsPermissions.DocumentsReview])], Ct);
         var sent = await UnclassifiedAsync(scenario, Topic(), Ct);
         var requestId = Guid.NewGuid();
         using (var asked = await scenario.Client(designer).PostAsJsonAsync(Proposals, new { requestId, documentId = sent.Id }, Ct))

@@ -8,7 +8,7 @@ Cada instalación es independiente y tiene una conexión compartida, en Administ
 
 ## Contrato HTTP y permisos
 
-La conexión usa `ai.read` y `ai.manage`; Información del negocio, `ai.business.read` y `ai.business.manage`. Ninguno da acceso al otro formulario ni a sugerencias en WhatsApp.
+La conexión usa `ai.read` y `ai.manage`; Información del negocio, `ai.business.read` y `ai.business.manage`. Cada «Administrar» incluye su «Ver» (desde el 2026-11-19, [administración](administracion.md)); ninguno da acceso al otro formulario ni a sugerencias en WhatsApp.
 
 | Verbo/ruta | Permisos | Resultado |
 | --- | --- | --- |

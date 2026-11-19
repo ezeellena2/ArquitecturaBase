@@ -164,11 +164,10 @@ public sealed class AiBusinessInformationEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, write.StatusCode);
         using var deniedSearch = await reader.PostAsJsonAsync("/api/ai/business-information/places/search", new { input = "Clinic Example City" }, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, deniedSearch.StatusCode);
+        // «Administrar información del negocio» incluye verla (2026-11-19).
         using var manageOnly = await OperatorAsync([ArtificialIntelligencePermissions.BusinessManage]);
-        using var noRead = await manageOnly.GetAsync("/api/ai/business-information", Ct);
-        Assert.Equal(HttpStatusCode.Forbidden, noRead.StatusCode);
-        using var deniedManageSearch = await manageOnly.PostAsJsonAsync("/api/ai/business-information/places/search", new { input = "Clinic Example City" }, Ct);
-        Assert.Equal(HttpStatusCode.Forbidden, deniedManageSearch.StatusCode);
+        using var includedRead = await manageOnly.GetAsync("/api/ai/business-information", Ct);
+        Assert.Equal(HttpStatusCode.OK, includedRead.StatusCode);
         using var admin = await AdminAsync();
         var revision = (await ReadAsync(admin)).GetProperty("revision").GetInt64();
         var id = Guid.NewGuid();

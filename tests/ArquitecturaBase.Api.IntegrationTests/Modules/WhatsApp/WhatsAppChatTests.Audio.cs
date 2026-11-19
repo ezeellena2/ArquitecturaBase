@@ -61,10 +61,11 @@ public sealed partial class WhatsAppChatTests
     [Fact]
     public async Task Audio_routes_require_read_and_conceal_cross_contact_messages()
     {
-        var row=await AddAudioAsync(Now);var reader=await OperatorAsync(WhatsAppPermissions.Read);var sender=await OperatorAsync(WhatsAppPermissions.Send);using var client=factory.CreateClient();
+        // «Responder» incluye «Ver chats» (2026-11-19): sin ver, un permiso del área que no lo incluye.
+        var row=await AddAudioAsync(Now);var reader=await OperatorAsync(WhatsAppPermissions.Read);var withoutRead=await OperatorAsync(WhatsAppPermissions.ConfigureAssistant);using var client=factory.CreateClient();
         var route=$"/api/whatsapp/chats/{row.Contact}/messages/{row.Message}";
         using var anonymous=await client.SendAsync(HttpMethod.Post,route+"/audio-transcription");Assert.Equal(HttpStatusCode.Unauthorized,anonymous.StatusCode);
-        using var forbidden=await client.SendAsync(HttpMethod.Post,route+"/audio-transcription",userId:sender.ToString());Assert.Equal(HttpStatusCode.Forbidden,forbidden.StatusCode);
+        using var forbidden=await client.SendAsync(HttpMethod.Post,route+"/audio-transcription",userId:withoutRead.ToString());Assert.Equal(HttpStatusCode.Forbidden,forbidden.StatusCode);
         using var other=await client.SendAsync(HttpMethod.Post,$"/api/whatsapp/chats/{Guid.NewGuid()}/messages/{row.Message}/audio-transcription",userId:reader.ToString());Assert.Equal(HttpStatusCode.NotFound,other.StatusCode);
         using var missing=await client.SendAsync(HttpMethod.Get,route+"/audio",userId:reader.ToString());Assert.Equal(HttpStatusCode.NotFound,missing.StatusCode);
     }

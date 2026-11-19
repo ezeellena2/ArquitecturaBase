@@ -124,13 +124,14 @@ public sealed class PermissionServiceTests(ApiFactory factory)
             .Where(role => role.Name == SystemRoles.Admin).Select(role => role.Id).SingleAsync(Ct));
         try
         {
+            // Uno que ningún otro incluye: «Ver usuarios» lo seguiría dando «Administrar usuarios».
             await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
-                .UpdateAsync(adminId, SystemRoles.Admin, null, factory.Services.GetRequiredService<IPermissionCatalog>().All.Where(permission => permission != Permissions.Users.Read).ToArray(), Ct));
-            Assert.False(await HasUsersReadAsync(userId));
+                .UpdateAsync(adminId, SystemRoles.Admin, null, factory.Services.GetRequiredService<IPermissionCatalog>().All.Where(permission => permission != Permissions.Settings.Manage).ToArray(), Ct));
+            Assert.False(await HasSettingsManageAsync(userId));
 
             await factory.Services.SeedDatabaseAsync(Ct);
 
-            Assert.True(await HasUsersReadAsync(userId));
+            Assert.True(await HasSettingsManageAsync(userId));
         }
         finally
         {
@@ -206,8 +207,27 @@ public sealed class PermissionServiceTests(ApiFactory factory)
         Assert.Equal([Permissions.Users.Read], await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct)));
     }
 
+    /// <summary>
+    /// Un rol guardado con «Administrar usuarios» y sin «Ver usuarios», de antes de las inclusiones (2026-11-19), los da a
+    /// los dos sin migración.
+    /// </summary>
+    [Fact]
+    public async Task A_role_stored_without_what_its_permissions_include_still_gives_it()
+    {
+        var role = await CreateRoleAsync(Permissions.Users.Manage);
+        var userId = await CreateUserAsync(role.Name);
+
+        Assert.Equal(
+            new[] { Permissions.Users.Manage, Permissions.Users.Read }.Order(StringComparer.Ordinal),
+            await WithPermissionsAsync(service => service.GetPermissionsAsync(userId, Ct)));
+        Assert.True(await HasUsersReadAsync(userId));
+    }
+
     private Task<bool> HasUsersReadAsync(Guid userId) =>
         WithPermissionsAsync(service => service.HasPermissionAsync(userId, Permissions.Users.Read, Ct));
+
+    private Task<bool> HasSettingsManageAsync(Guid userId) =>
+        WithPermissionsAsync(service => service.HasPermissionAsync(userId, Permissions.Settings.Manage, Ct));
 
     /// <summary>Una cuenta nueva con exactamente esos roles, como la dejan el alta y la edición de sus roles.</summary>
     private Task<Guid> CreateUserAsync(params string[] roles) =>

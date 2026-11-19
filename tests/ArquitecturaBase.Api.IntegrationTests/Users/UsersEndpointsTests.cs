@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.ValueObjects;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Users;
@@ -69,6 +70,34 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("Http.Forbidden", problem.GetProperty("code").GetString());
         Assert.Equal("No tenés permiso para realizar esta acción.", problem.GetProperty("detail").GetString());
+    }
+
+    /// <summary>
+    /// Un rol guardado antes de las inclusiones, con «Administrar usuarios» y sin «Ver usuarios» (directo, sin pasar por
+    /// RoleService): lo incluye igual, sin migración.
+    /// </summary>
+    [Fact]
+    public async Task A_role_saved_with_only_manage_users_lists_users_without_a_migration()
+    {
+        var email = TestEmails.Unique("soloadministrar");
+        var roleName = "solo-administrar-" + Guid.NewGuid().ToString("N")[..8];
+        var roleId = await factory.InTransactionAsync(async services =>
+        {
+            var id = await services.GetRequiredService<IRoleRepository>().CreateAsync(roleName, null, [Permissions.Users.Manage], Ct);
+            var users = services.GetRequiredService<IUserRepository>();
+            var user = await users.CreateAsync(Email.Create(email).Value, phone: null, phoneConfirmed: false, displayName: null, "es", Ct);
+            await users.SetRolesAsync(user.Id, [roleName], Ct);
+            return id;
+        });
+        var stored = await factory.ExecuteDbContextAsync(db => db.RoleClaims
+            .Where(claim => claim.RoleId == roleId).Select(claim => claim.ClaimValue).ToListAsync(Ct));
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, email);
+
+        using var response = await client.GetWithTokenAsync("/api/users", tokens.AccessToken);
+
+        Assert.Equal([Permissions.Users.Manage], stored);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]

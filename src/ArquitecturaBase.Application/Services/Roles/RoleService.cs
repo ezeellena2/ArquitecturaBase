@@ -17,7 +17,9 @@ namespace ArquitecturaBase.Application.Services.Roles;
 /// afuera y corre en un solo ExecuteInTransactionAsync. Los permisos no tienen caché que invalidar: cada pedido los lee de
 /// la base (N9 y N33, 2026-11-16). Quien pide sólo da o quita los permisos que tiene, y los de User sólo los cambia Admin
 /// (<see cref="PermissionDelegationGuard"/>, que sabe quién pide y lee sus permisos de la base adentro del límite). Cada
-/// alta, edición o borrado deja su historia en el mismo límite (<see cref="AdministrativeChangeRecorder"/>, N13).
+/// alta, edición o borrado deja su historia en el mismo límite (<see cref="AdministrativeChangeRecorder"/>, N13). Un rol
+/// se guarda con lo que incluye cada permiso pedido (<see cref="IPermissionCatalog.Effective"/>): lo guardado es lo que
+/// permite.
 /// </summary>
 internal sealed class RoleService(
     IRoleReader roles,
@@ -85,7 +87,8 @@ internal sealed class RoleService(
                         [.. group.Select(permission => new PermissionItem(
                             permission,
                             catalog.Name(permission),
-                            catalog.Description(permission)))])),
+                            catalog.Description(permission),
+                            catalog.Includes(permission)))])),
             ];
 
             return Task.FromResult(Result.Success(groups));
@@ -145,7 +148,9 @@ internal sealed class RoleService(
             return RoleErrors.AlreadyExists;
         }
 
-        IReadOnlyCollection<string> permissions = [.. (request.Permissions ?? []).Distinct(StringComparer.Ordinal)];
+        // Lo pedido más lo que incluye: «Administrar usuarios» se guarda con «Ver usuarios».
+        IReadOnlyCollection<string> permissions =
+            [.. catalog.Effective(request.Permissions ?? []).Order(StringComparer.Ordinal)];
         var delegated = await delegation.EnsureCanChangePermissionsAsync(permissions, cancellationToken);
         if (delegated.IsFailure)
         {
@@ -176,29 +181,30 @@ internal sealed class RoleService(
 
         var name = request.Name!.Trim();
         IReadOnlyCollection<string> permissions =
-            [.. (request.Permissions ?? []).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+            [.. catalog.Effective(request.Permissions ?? []).Order(StringComparer.Ordinal)];
 
-        // Admin y User no se renombran; Admin conserva siempre todos sus permisos. Se comparan sólo los del catálogo
-        // (B3): el pedido no puede traer el permiso de un módulo quitado, que Admin todavía guarda.
+        // Lo que el rol permitía, con lo incluido y sólo del catálogo (B3): el pedido no puede traer el permiso de un
+        // módulo quitado, que Admin todavía guarda, y un rol guardado sin lo que incluye ya lo permitía.
+        var allowed = catalog.Effective(role.Permissions);
+
+        // Admin y User no se renombran; Admin conserva siempre todos sus permisos.
         if (role.IsSystemRole && !string.Equals(role.Name, name, StringComparison.Ordinal))
         {
             return RoleErrors.SystemRoleCannotChange;
         }
 
         if (string.Equals(role.Name, SystemRoles.Admin, StringComparison.Ordinal)
-            && !permissions.SequenceEqual(
-                role.Permissions.Where(catalog.Contains).Order(StringComparer.Ordinal),
-                StringComparer.Ordinal))
+            && !permissions.SequenceEqual(allowed.Order(StringComparer.Ordinal), StringComparer.Ordinal))
         {
             return RoleErrors.SystemRoleCannotChange;
         }
 
-        // Lo que se da o se quita, del catálogo: un claim de un módulo quitado no cuenta como cambio.
+        // Lo que se da o se quita es la diferencia entre lo que permitía y lo que permite: un claim de un módulo quitado
+        // no cuenta como cambio, y lo incluido que el rol no guardaba tampoco.
         string[] changed =
         [
-            .. permissions.Except(role.Permissions, StringComparer.Ordinal)
-                .Concat(role.Permissions.Except(permissions, StringComparer.Ordinal))
-                .Where(catalog.Contains),
+            .. permissions.Except(allowed, StringComparer.Ordinal)
+                .Concat(allowed.Except(permissions, StringComparer.Ordinal)),
         ];
 
         // User lo recibe toda cuenta nueva: darle un permiso es dárselo a cualquiera que se registre.

@@ -20,8 +20,9 @@ namespace ArquitecturaBase.Application.Services.Roles;
 /// roles se comparan por id, así un rol renombrado entre dos lecturas no se confunde con otro.</item>
 /// <item>Quien pide tiene los permisos de sus roles más los de User, que recibe toda cuenta nueva y sólo edita Admin.</item>
 /// <item>La cuenta de <c>Seed:AdminEmail</c> cuenta con Admin aunque hoy no lo tenga, porque el arranque se lo da.</item>
-/// <item>Como en <c>PermissionService</c>, sólo cuentan los permisos del catálogo: el claim de un módulo quitado no da ni
-/// pide nada.</item>
+/// <item>Como en <c>PermissionService</c>, sólo cuentan los permisos del catálogo, más lo que incluyen
+/// (<see cref="IPermissionCatalog.Effective"/>): el claim de un módulo quitado no da ni pide nada, y quien tiene
+/// «Administrar usuarios» tiene «Ver usuarios» aunque su rol no lo guarde.</item>
 /// </list>
 /// </summary>
 internal sealed class PermissionDelegationGuard(
@@ -126,11 +127,11 @@ internal sealed class PermissionDelegationGuard(
 
     // Los de sus roles más los de User: User lo recibe toda cuenta nueva, también las que da de alta quien administra
     // cuentas, y sólo lo edita Admin, así que lo que tiene lo tiene cualquiera.
-    private async Task<HashSet<string>> ListHeldPermissionsAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlySet<string>> ListHeldPermissionsAsync(CancellationToken cancellationToken)
     {
         if (currentUser.UserId is not { } actorId)
         {
-            return [];
+            return new HashSet<string>(StringComparer.Ordinal);
         }
 
         var own = await roles.ListRolesForUserAsync(actorId, cancellationToken);
@@ -155,6 +156,6 @@ internal sealed class PermissionDelegationGuard(
         return await roles.FindByNameAsync(SystemRoles.Admin, cancellationToken) is { } admin ? [.. held, admin] : held;
     }
 
-    private HashSet<string> PermissionsOf(IEnumerable<RoleRow> held) =>
-        held.SelectMany(role => role.Permissions).Where(catalog.Contains).ToHashSet(StringComparer.Ordinal);
+    private IReadOnlySet<string> PermissionsOf(IEnumerable<RoleRow> held) =>
+        catalog.Effective(held.SelectMany(role => role.Permissions));
 }

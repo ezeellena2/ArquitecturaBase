@@ -33,10 +33,11 @@ public sealed class ArcaConnectionEndpointsTests(ApiFactory factory) : IDisposab
     {
         using var anonymous = factory.CreateClient();
         using var reader = await ArcaHttpScenario.OperatorAsync(factory, [ArcaPermissions.Read]);
-        using var manager = await ArcaHttpScenario.OperatorAsync(factory, [ArcaPermissions.Manage]);
+        // «Administrar conexión» incluye «Ver conexión» (2026-11-19); «Emitir» no la incluye.
+        using var withoutRead = await ArcaHttpScenario.OperatorAsync(factory, [ArcaPermissions.Issue]);
 
         Assert.Equal(HttpStatusCode.Unauthorized, await StatusAsync(anonymous, method, path));
-        Assert.Equal(HttpStatusCode.Forbidden, await StatusAsync(manager, method, path));
+        Assert.Equal(HttpStatusCode.Forbidden, await StatusAsync(withoutRead, method, path));
         if (manages) Assert.Equal(HttpStatusCode.Forbidden, await StatusAsync(reader, method, path));
     }
 

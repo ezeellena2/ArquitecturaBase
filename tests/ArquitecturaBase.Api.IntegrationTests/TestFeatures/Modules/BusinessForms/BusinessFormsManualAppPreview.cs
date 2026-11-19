@@ -44,7 +44,8 @@ internal sealed class BusinessFormsManualAppPreview(string webRoot, string state
         await AddSessionAsync("manager", [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
             BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage]);
         await AddSessionAsync("reader", [BusinessFormsPermissions.CatalogsRead]);
-        await AddSessionAsync("no-read", [BusinessFormsPermissions.CatalogsManage]);
+        // «Administrar catálogos» incluye «Ver catálogos»: sin ver, sin permisos de catálogos.
+        await AddSessionAsync("no-read", []);
         await AddSessionAsync("second-writer", [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage]);
         return sessions;
 

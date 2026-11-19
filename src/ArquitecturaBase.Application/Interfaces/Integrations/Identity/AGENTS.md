@@ -10,6 +10,7 @@ Antes de tocar esto, leé [`docs/features/identidad.md`](../../../../../docs/fea
 
 - Los contratos usan datos de Application y resultados de Domain, sin tipos de UserManager, cookies ni protocolo HTTP.
 - Las operaciones de guardado técnico de Identity participan del límite del llamador; el puerto no introduce un caso de uso nuevo.
+- `IPermissionCatalog` compone los permisos del núcleo y de los módulos, con lo que incluye cada uno; `Effective` da lo que permiten unos códigos, y lo usan `PermissionService` y la guarda de delegación.
 - `IPermissionService` sólo consulta permisos y puede usarse desde capacidades de lectura. No tiene caché: un cambio confirmado vale desde el pedido siguiente, sin invalidar nada ([ADR 0032](../../../../../docs/decisions/0032-sin-redis-la-app-sigue.md)).
 
 ## Verificación y ejemplos

@@ -10,6 +10,7 @@ internal sealed class WhatsAppPermissionCatalogSource : IPermissionCatalogSource
     internal static ResourceManager ResourceManager { get; } =
         new("ArquitecturaBase.Application.Modules.WhatsApp.Resources.Permissions", typeof(WhatsAppPermissionCatalogSource).Assembly);
     public IReadOnlyCollection<string> Codes => WhatsAppPermissions.All;
+    public IReadOnlyDictionary<string, IReadOnlyCollection<string>> Includes => WhatsAppPermissions.Includes;
     public string Area(string area) => Text("Area." + area);
     public string Name(string code) => Text("Permission." + code);
     public string Description(string code) => Text("PermissionDescription." + code);

@@ -111,6 +111,25 @@ public sealed class RoleCrudEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Saving_a_role_with_only_manage_users_also_saves_see_users()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        var name = UniqueName("incluye");
+
+        var roleId = await CreateAsync(client, tokens.AccessToken, name, [Permissions.Users.Manage]);
+        var created = Strings(await FindAsync(client, tokens.AccessToken, roleId), "permissions");
+        using var update = await client.PutWithRevisionAsync($"/api/roles/{roleId}",
+            tokens.AccessToken,
+            new { name, permissions = new[] { Permissions.Roles.Read, Permissions.Users.Manage } });
+        var updated = Strings(await FindAsync(client, tokens.AccessToken, roleId), "permissions");
+
+        Assert.Equal([Permissions.Users.Manage, Permissions.Users.Read], created);
+        Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
+        Assert.Equal([Permissions.Roles.Read, Permissions.Users.Manage, Permissions.Users.Read], updated);
+    }
+
+    [Fact]
     public async Task Changing_the_permissions_of_a_role_takes_effect_for_its_users_right_away()
     {
         using var client = factory.CreateClient();

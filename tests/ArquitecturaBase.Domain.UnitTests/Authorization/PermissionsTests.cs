@@ -27,6 +27,14 @@ public sealed partial class PermissionsTests
     }
 
     [Fact]
+    public void Managing_users_or_roles_includes_seeing_them()
+    {
+        Assert.Equal(
+            [(Permissions.Users.Manage, Permissions.Users.Read), (Permissions.Roles.Manage, Permissions.Roles.Read)],
+            Permissions.Includes.SelectMany(pair => pair.Value.Select(included => (pair.Key, included))));
+    }
+
+    [Fact]
     public void System_roles_are_admin_and_user()
     {
         Assert.Equal([SystemRoles.Admin, SystemRoles.User], SystemRoles.All);

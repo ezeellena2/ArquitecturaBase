@@ -4,6 +4,12 @@ namespace ArquitecturaBase.Application.Interfaces.Channels;
 public interface IPermissionCatalogSource
 {
     IReadOnlyCollection<string> Codes { get; }
+
+    /// <summary>
+    /// What each of its permissions includes (the module's <c>*Permissions.Includes</c>): only its own codes, and only
+    /// codes of the same area.
+    /// </summary>
+    IReadOnlyDictionary<string, IReadOnlyCollection<string>> Includes { get; }
     string Area(string area);
     string Name(string code);
     string Description(string code);

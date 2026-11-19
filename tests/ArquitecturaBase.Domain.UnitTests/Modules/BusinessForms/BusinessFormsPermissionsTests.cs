@@ -20,6 +20,21 @@ public sealed class BusinessFormsPermissionsTests
         Assert.Single(all, BusinessFormsPermissions.RecordsAmend);
     }
 
+    /// <summary>Lo que no sirve sin el «Ver» de su área lo incluye (2026-11-19); nada incluye a otra área.</summary>
+    [Fact]
+    public void What_does_not_work_without_seeing_its_area_includes_seeing_it()
+    {
+        Assert.Equal(
+            [
+                (BusinessFormsPermissions.Manage, BusinessFormsPermissions.Read),
+                (BusinessFormsPermissions.Publish, BusinessFormsPermissions.Read),
+                (BusinessFormsPermissions.RecordsAmend, BusinessFormsPermissions.RecordsRead),
+                (BusinessFormsPermissions.CatalogsManage, BusinessFormsPermissions.CatalogsRead),
+                (BusinessFormsPermissions.DocumentsReview, BusinessFormsPermissions.DocumentsRead),
+            ],
+            BusinessFormsPermissions.Includes.SelectMany(pair => pair.Value.Select(included => (pair.Key, included))));
+    }
+
     [Fact]
     public void Catalog_permissions_follow_area_action_and_are_in_the_module_catalog()
     {

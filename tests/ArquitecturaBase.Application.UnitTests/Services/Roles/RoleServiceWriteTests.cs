@@ -50,7 +50,8 @@ public sealed class RoleServiceWriteTests
         Assert.Null(fixture.Reader.ExcludedRoleId);
         Assert.Equal("Reviewers", fixture.Repository.WrittenName);
         Assert.Equal("Description", fixture.Repository.Description);
-        Assert.Equal([Permissions.Users.Read, Permissions.Roles.Read], fixture.Repository.WrittenPermissions);
+        // Ordenados, como en la edición.
+        Assert.Equal([Permissions.Roles.Read, Permissions.Users.Read], fixture.Repository.WrittenPermissions);
         Assert.Equal(["create", "commit"], fixture.Events);
         Assert.Equal(CommitPolicy.OnSuccess, fixture.UnitOfWork.LastPolicy);
     }
@@ -342,6 +343,53 @@ public sealed class RoleServiceWriteTests
         Assert.Equal(RoleErrors.UserRoleAdminOnly, byRoleManager.Error);
         Assert.True(descriptionOnly.IsSuccess);
         Assert.True(byAdmin.IsSuccess);
+    }
+
+    [Fact]
+    public async Task Saving_a_role_also_saves_what_each_permission_includes()
+    {
+        var fixture = new Fixture();
+        fixture.Reader.Role = NewRole("Mesa", permissions: Permissions.Roles.Read);
+
+        var created = await fixture.Service.CreateAsync(new CreateRoleRequest("Usuarios", null, [Permissions.Users.Manage]), Ct);
+        var createdPermissions = fixture.Repository.WrittenPermissions;
+        var updated = await fixture.Service.UpdateAsync(
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Mesa", null, [Permissions.Roles.Read, Permissions.Users.Manage], 1), Ct);
+
+        Assert.True(created.IsSuccess);
+        Assert.True(updated.IsSuccess);
+        Assert.Equal([Permissions.Users.Manage, Permissions.Users.Read], createdPermissions);
+        Assert.Equal([Permissions.Roles.Read, Permissions.Users.Manage, Permissions.Users.Read], fixture.Repository.WrittenPermissions);
+        Assert.Equal([Permissions.Users.Manage, Permissions.Users.Read], fixture.Changes.Changes[0].Added);
+    }
+
+    [Fact]
+    public async Task Whoever_manages_users_gives_seeing_them_even_with_a_role_saved_without_it()
+    {
+        // Un rol de antes de las inclusiones: «Administrar usuarios» sin «Ver usuarios», que igual lo incluye.
+        var fixture = new Fixture();
+        fixture.ActAs(NewRole("Mesa vieja", false, 1, Permissions.Users.Manage));
+
+        var readers = await fixture.Service.CreateAsync(new CreateRoleRequest("Lectores", null, [Permissions.Users.Read]), Ct);
+        var managers = await fixture.Service.CreateAsync(new CreateRoleRequest("Mesa", null, [Permissions.Users.Manage]), Ct);
+
+        Assert.True(readers.IsSuccess);
+        Assert.True(managers.IsSuccess);
+    }
+
+    [Fact]
+    public async Task What_a_role_already_included_does_not_count_as_given_when_it_is_saved()
+    {
+        // Quien edita roles no tiene «Ver usuarios»: guardar el rol viejo lo escribe, pero no da nada que no permitiera.
+        var fixture = new Fixture();
+        fixture.ActAs(RoleManagersRole());
+        fixture.Reader.Role = NewRole("Mesa vieja", false, 0, Permissions.Users.Manage);
+
+        var result = await fixture.Service.UpdateAsync(
+            new UpdateRoleRequest(fixture.Reader.Role.Id, "Mesa", null, [Permissions.Users.Manage], 1), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([Permissions.Users.Manage, Permissions.Users.Read], fixture.Repository.WrittenPermissions);
     }
 
     [Fact]

@@ -29,7 +29,8 @@ que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-esta
 ## Permisos y pantalla
 
 - `arca.read` lee; cambiar algo o llamar a ARCA pide también `arca.manage` (`ArcaPermissions`, por
-  `IPermissionCatalogSource`). Sin `arca.read`, «ARCA» no aparece en el menú.
+  `IPermissionCatalogSource`). Sin `arca.read`, «ARCA» no aparece en el menú. `arca.manage` incluye `arca.read` (desde el
+  2026-11-19, [administración](administracion.md)); `arca.issue` no.
 - `arca.issue` decide sobre una emisión en revisión y anula una respuesta con factura (la nota de crédito), además de los
   permisos de formularios. También lo pide poner a emitir un formulario: agregar «Factura» de la biblioteca, con
   `formrules.manage`, o guardar una regla que emite (H6). Cargar la «Factura» no lo pide.

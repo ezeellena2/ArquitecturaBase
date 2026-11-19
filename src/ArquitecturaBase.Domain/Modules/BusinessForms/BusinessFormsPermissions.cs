@@ -20,4 +20,17 @@ public static class BusinessFormsPermissions
     /// <summary>«Revisar documentos»: change a received document's form, pass it to the form, discard it and reopen it.</summary>
     public const string DocumentsReview = "formdocuments.review";
     public static IReadOnlyCollection<string> All { get; } = [Read, Manage, Publish, RecordsCreate, RecordsRead, RecordsExport, RecordsAmend, CatalogsRead, CatalogsManage, RulesManage, ApprovalsDecide, SuggestionsManage, PersonDataManage, DocumentsRead, DocumentsReview];
+    /// <summary>
+    /// Lo que incluye cada permiso que no sirve sin el «Ver» de su área (como <c>Permissions.Includes</c>). Los que sirven
+    /// solos o dependen de otra área (reglas, sugerencias, datos de personas, exportar, aprobar) no incluyen nada.
+    /// </summary>
+    public static IReadOnlyDictionary<string, IReadOnlyCollection<string>> Includes { get; } =
+        new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.Ordinal)
+        {
+            [Manage] = [Read],
+            [Publish] = [Read],
+            [RecordsAmend] = [RecordsRead],
+            [CatalogsManage] = [CatalogsRead],
+            [DocumentsReview] = [DocumentsRead],
+        }.AsReadOnly();
 }

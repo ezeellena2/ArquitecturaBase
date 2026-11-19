@@ -219,9 +219,10 @@ public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
         using var deniedWrite = await readOnly.PostAsJsonAsync("/api/forms/catalogs", Payload(), Ct);
         Assert.Equal(HttpStatusCode.Forbidden, deniedWrite.StatusCode);
 
+        // «Administrar catálogos» incluye «Ver catálogos» (2026-11-19): pasa el permiso y el catálogo no existe.
         using var manageOnly = await OperatorAsync(BusinessFormsPermissions.CatalogsManage);
-        using var deniedRead = await manageOnly.GetAsync("/api/forms/catalogs/" + Guid.NewGuid(), Ct);
-        Assert.Equal(HttpStatusCode.Forbidden, deniedRead.StatusCode);
+        using var includedRead = await manageOnly.GetAsync("/api/forms/catalogs/" + Guid.NewGuid(), Ct);
+        Assert.Equal(HttpStatusCode.NotFound, includedRead.StatusCode);
     }
 
     [Fact]
