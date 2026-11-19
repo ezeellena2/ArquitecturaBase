@@ -2,8 +2,8 @@
 
 Decidido por el usuario el 2026-11-19, durante la prueba integral, en la fila RO3 del lienzo
 [Roles y permisos: rediseño](https://claude.ai/artifact/MDJUPkopujPycib3mnFqcc) (versión 14). Reemplaza la matriz RO1-A del
-2026-11-11 ([diseño](../../../ArquitecturaBaseFront/docs/design/roles-y-permisos.md)). **Sin programar.** El usuario eligió
-hacerlo **antes de la prueba integral**.
+2026-11-11 ([diseño](../../../ArquitecturaBaseFront/docs/design/roles-y-permisos.md)). **Aprobado el 2026-11-19 y en
+programación.** El usuario eligió hacerlo **antes de la prueba integral**.
 
 ## Por qué
 
@@ -49,14 +49,13 @@ Entran los que no sirven sin el «Ver» de su misma área:
 | `whatsapp.send` | `whatsapp.read` | Se responde dentro del chat, que pide «Ver chats». |
 | `formtemplates.publish` | `formtemplates.read` | El front ya lo exige (`useFormPublication`). |
 | `formdocuments.review` | `formdocuments.read` | La bandeja y cada documento piden «Ver documentos recibidos». |
+| `formrecords.amend` | `formrecords.read` | `FormRecordAmendmentGuard` sólo lo usa junto con «Ver respuestas»: sin él queda lo mismo que «Completar formularios» (confirmado el 2026-11-19). |
 
 No entran:
 
 - **Los que sirven solos:** `whatsapp.configureassistant`, que tiene su pantalla (`/whatsapp/asistente`);
   `formrecords.export`, que también sirve con «Completar formularios», sobre las respuestas propias; `formrecords.create`;
   `formapprovals.decide` y `ai.assistant.use`.
-- **`formrecords.amend`, a confirmar en la etapa 1.** Si sirve sin «Ver respuestas» (sobre las propias, ya decididas), no
-  entra: incluirlo le daría ver todas las respuestas.
 - **Los que dependen de otra área:** `arca.issue` (de las respuestas), `formrules.manage` y `formsuggestions.manage` (del
   editor de formularios), `formpersondata.manage` (de «Ver usuarios») y armar un formulario desde un documento (de los
   permisos de Formularios). Dar otra área sin que se vea en la fila que se tocó sería dar acceso sin avisar. Su (i) dice qué
@@ -74,8 +73,8 @@ No entran:
 - **Guardar.** `RoleService` guarda el rol con lo incluido: lo guardado es lo que permite. La guarda de delegación compara
   contra los permisos de quien pide, calculados igual.
 - **El contrato.** `PermissionItem` suma `Includes` (los códigos que incluye). El OpenAPI, los ejemplos exportados y el
-  esquema del front cambian juntos. El backend entra antes que el front, o en el mismo momento, porque zod rechazaría una
-  respuesta sin `includes`.
+  tipo del front cambian juntos. El backend entra antes que el front, o en el mismo momento, porque el front nuevo cuenta
+  con `includes` (lee `GET /api/permissions` sin esquema de validación).
 - **Sin ADR.** Es una regla de identidad: va en `docs/features` y en las premisas, y no cambia la estructura.
 
 ### La pantalla
@@ -103,7 +102,7 @@ No entran:
 1. **Backend, con TDD.**
    - La lista de inclusiones, la función que calcula lo que una cuenta tiene, su uso en `PermissionService` y en
      `PermissionDelegationGuard`, guardar con lo incluido y `Includes` en el contrato.
-   - Unitarios: el catálogo, `RoleService`, la guarda y `amend`.
+   - Unitarios: el catálogo, `RoleService` y la guarda.
    - Integración: el catálogo trae `includes`; guardar sólo «Administrar usuarios» guarda los dos; un rol viejo con sólo
      `users.manage` entra a `GET /api/users`.
    - El OpenAPI, los ejemplos exportados y las cohortes que lee el front.
@@ -128,7 +127,7 @@ No entran:
 
 ## Riesgos
 
-- La regla le da «Ver» a quien tiene lo que lo incluye. Es lo buscado; por eso no entran los de otra área ni `amend` sin
-  confirmar.
-- El contrato cambia en los dos lados a la vez; con un front nuevo y un backend viejo, la pantalla diría «Algo salió mal».
+- La regla le da «Ver» a quien tiene lo que lo incluye. Es lo buscado; por eso no entran los de otra área.
+- El contrato cambia en los dos lados a la vez; con un front nuevo y un backend viejo, el editor fallaría al leer
+  `includes`.
 - Las capturas de roles cambian todas, y la de Admin cambia de forma.
