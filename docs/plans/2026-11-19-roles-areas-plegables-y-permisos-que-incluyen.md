@@ -106,6 +106,9 @@ No entran:
      guarda lo incluido y da o quita la diferencia entre lo que el rol permitía y lo que permite. No hay ejemplos
      exportados ni cohortes de `GET /api/permissions`: el OpenAPI suma `includes` solo. Seis pruebas de módulos que pedían
      403 a quien sólo tenía «Administrar», «Responder» o «Revisar» usan ahora un permiso que no incluye «Ver».
+   - Revisión adversarial, el 2026-11-19 (`39ed143b`): el seed completa cada rol con lo que incluyen sus permisos, con su
+     historia sin actor; el asistente lista lo que el rol permite; las inclusiones se validan con todo el prefijo; vuelve
+     el 403 sin «Ver catálogos», y las premisas pasan a RO3-D.
    - La lista de inclusiones, la función que calcula lo que una cuenta tiene, su uso en `PermissionService` y en
      `PermissionDelegationGuard`, guardar con lo incluido y `Includes` en el contrato.
    - Unitarios: el catálogo, `RoleService` y la guarda.
