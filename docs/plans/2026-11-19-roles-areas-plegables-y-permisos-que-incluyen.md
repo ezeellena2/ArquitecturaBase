@@ -153,8 +153,21 @@ No entran:
      - el OpenAPI vivo trae `includes` y Vite sirve el selector nuevo;
      - en la base, ningún rol quedó con un permiso que incluye otro sin lo incluido. Los roles de la prueba ya estaban
        completos, así que el arranque no anotó nada.
-   - **Pendiente:** la corrida completa (el `dotnet test` entero, vitest entero y las escenas visuales) y la prueba manual
-     de `roles-y-permisos.md`.
+   - **Corrida completa del 2026-11-19,** con la app levantada y la PC cargada:
+     - **Backend,** sobre `47feb444`: 11.672 de 11.678, en 2 h 18 min.
+       - Cinco pruebas pedían 403 con un permiso que ahora incluye «Ver»: borrar, dar de baja, publicar, el chequeo de
+         publicación y elegir un formulario en el chat. Se corrigieron en `9f74a236` y pasan solas (14 casos).
+       - Una de WhatsApp con dos hosts se cortó por tiempo y pasa sola.
+     - **Front,** sobre `61364814`:
+       - tipos y oxlint limpios;
+       - vitest, 6.030 de 6.031: un corte por tiempo en `FormLifecycle.test.tsx`, que pasa solo;
+       - escenas visuales, 14 fallas que también fallan en el front de antes del cambio (`91b5556d`), así que no son de
+         roles: apariencia (1), C5 de formularios en el chat (6), CW2-A a CW5 (3) y AR2-A (3) de la carga, y la entrega de
+         WhatsApp a 320 (1).
+   - **Pendiente:**
+     - otra corrida completa del backend, porque la regla del repo la pide después de corregir lo que falló;
+     - las 14 escenas visuales rotas desde antes, que son de otras áreas;
+     - la prueba manual de `roles-y-permisos.md`.
 
 ## Riesgos
 
