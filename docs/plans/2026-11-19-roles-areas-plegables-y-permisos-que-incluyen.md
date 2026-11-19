@@ -164,8 +164,14 @@ No entran:
        - escenas visuales, 14 fallas que también fallan en el front de antes del cambio (`91b5556d`), así que no son de
          roles: apariencia (1), C5 de formularios en el chat (6), CW2-A a CW5 (3) y AR2-A (3) de la carga, y la entrega de
          WhatsApp a 320 (1).
+   - **Segunda corrida completa del backend,** sobre `523fcc23`, todavía con la app levantada: 11.674 de 11.678, en 2 h 05 min.
+     - Las cinco pruebas corregidas pasan.
+     - Fallaron cuatro de WhatsApp por tiempos: la de dos hosts otra vez, y tres de envío de formularios, que en la
+       primera habían pasado (un conteo de 11 contra 12, una lista vacía y un envío todavía «Pending»).
+     - Las cuatro pasan solas, dos veces seguidas (12 de 12). Ninguna mira lo que cambió: la guarda del envío manual pide
+       «Ver» y «Responder» juntos, y lo incluido no le suma a nadie «Completar formularios».
    - **Pendiente:**
-     - otra corrida completa del backend, porque la regla del repo la pide después de corregir lo que falló;
+     - una corrida completa en verde con la máquina quieta (la app apagada), al cierre de la prueba integral;
      - las 14 escenas visuales rotas desde antes, que son de otras áreas;
      - la prueba manual de `roles-y-permisos.md`.
 
