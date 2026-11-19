@@ -1,6 +1,6 @@
 # Catálogos: hoja de ruta
 
-**Estado al 2026-11-18:** implementación parcial. Están programadas las fases 1, 2 y 4: [E1 y E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) y el asistente que arma catálogos e importa la planilla ([etapa 1](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04) y [etapa 2](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-2-planillas-2026-11-09-a-2026-11-11) de la IA). También existe la copia local de un origen, por ahora sólo para las listas que trae un módulo ([`External`](../features/formularios.md#catálogos-que-mantiene-un-módulo--external-2026-11-11), 2026-11-11). Las fases 3, 5 y 6 siguen como propuesta: no se programan hasta que el usuario las defina. La prueba física de E1 y E2 sigue en el [piloto único real](verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2).
+**Estado al 2026-11-18:** implementación parcial. Están programadas las fases 1, 2 y 4: [E1 y E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) y el asistente que arma catálogos e importa la planilla ([etapa 1](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04) y [etapa 2](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-2-planillas-2026-11-09-a-2026-11-11) de la IA). También existe la copia local de un origen, por ahora sólo para las listas que trae un módulo ([`External`](../features/formularios.md#catálogos-que-mantiene-un-módulo--external-2026-11-11), 2026-11-11). Las fases 3, 5 y 6 siguen como propuesta: no se programan hasta que el usuario las defina. La prueba física de E1 y E2 sigue en el [piloto único real](verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2). El 2026-11-19 se sumaron los tamaños de [dos bases reales del ERP](#dos-bases-reales-del-mismo-erp-2026-11-19).
 
 ## Lo que definió el usuario
 
@@ -116,9 +116,40 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 | **5** | Recepción por API, conector para Macrosistemas y plantillas de origen | Por diseñar |
 | **6** | Lectura de APIs; conexión directa solo si hace falta | Por diseñar |
 
+## Dos bases reales del mismo ERP (2026-11-19)
+
+Responde la primera pregunta abierta con lo medido en dos bases del ERP, una en SQL Server 2022 y otra en SQL Server 2012, sólo
+con consultas de lectura y sin datos de personas. Una es de una acopiadora que vende insumos y tiene producción propia; la otra,
+de un productor agrícola y ganadero (medida el 2026-10-28). Sus procesos están en
+[procesos del campo](2026-11-19-procesos-del-campo.md).
+
+| Lista | Tabla | Acopiadora | Productor | En WhatsApp |
+| --- | --- | --- | --- | --- |
+| Campañas | `campanias` | 30 | 24 | Entra |
+| Campos | `CAMPOS`, una fila por campaña | 651 por campaña, 134 con siembra propia | 18 por campaña | Los propios entran. Nombres de hasta 38 caracteres, que se cortan a 30 |
+| Lotes | `Lotes`, una fila por campaña | 770 por campaña, 218 con siembra propia | 97 por campaña | Pasan de 200: elegir primero por campo. Muchos se llaman igual («LOTE 1»), así que el texto lleva el campo |
+| Cultivos | `cultivos` | 37, de los que se siembran 5 | 26 | Entra |
+| Artículos | `articulo`, por `rubro` | unos 720 insumos y 1.000 semillas vigentes, con descripciones de hasta 52 caracteres | 609, 271 sin rubro | Elegir primero por rubro, con el texto cortado a 30 y el nombre completo en el detalle |
+| Depósitos | Los códigos están en `stock`; `deposito` está vacía | 70 códigos con stock, de los que el negocio cuenta 8 | 23 códigos | Se cargan a mano: el ERP no tiene sus nombres |
+| Clientes | `Clientes`; activos con `motivo_baja = 'A'` | 5.819 activos, 460 con pedidos en el último año (hasta 119 por vendedor) | 165 | Los activos no entran ni filtrados por vendedor (uno tiene 2.004); los que compraron en el año, sí |
+| Proveedores | `proveedores`, por zona | 107 de insumos activos | 4.256 | Con un filtro por zona o rubro |
+| Contratistas y máquinas | `equipos` y `tractor` | 147 equipos por campaña | 142 tractores | Entran |
+| Labores | `laboreos`, por campaña | 15 por campaña | 424 | Entran, filtradas por campaña |
+
+Lo que deja para el diseño:
+
+- **Una campaña nueva reemplaza los campos y los lotes:** el catálogo lleva sólo la vigente, y se reimporta, o se sincroniza, al
+  cambiar de campaña.
+- **Los catálogos `External` necesitan campos** para servir de origen a estas listas: lotes por campo, artículos por rubro y
+  clientes por vendedor. Sin campos, el conector tendría que escribir en catálogos Manual por la importación.
+- **La búsqueda en vivo** sigue siendo la salida para una lista grande sin un filtro natural, como todos los clientes activos de
+  un vendedor.
+- **El ERP convive con aplicaciones que le escriben, aunque no tenga API:** la base de la acopiadora tiene tablas de
+  sincronización (`*_sincro`) y recibe las órdenes de trabajo de otra aplicación (`trabajos_bajada`, unas 1.600 por año).
+
 ## Preguntas abiertas
 
-1. **Macrosistemas:** ¿qué motor y versión de base usa (SQL Server)? ¿Qué listas hacen falta primero (proveedores, artículos, sucursales, clientes) y cuántas filas tiene cada una?
+1. **Macrosistemas:** ¿qué motor y versión de base usa (SQL Server)? ¿Qué listas hacen falta primero (proveedores, artículos, sucursales, clientes) y cuántas filas tiene cada una? Respondida el 2026-11-19 en [dos bases reales](#dos-bases-reales-del-mismo-erp-2026-11-19).
 2. **Primera instalación de OCHA:** ¿servidor del cliente o Azure? Si es su servidor, ¿cómo llega WhatsApp y quién mantiene PostgreSQL y Redis?
 3. **Opciones que vienen de afuera:** ¿se pueden ocultar o renombrar localmente? Recomendado: solo ocultar.
 4. **Formularios:** al elegir una opción, ¿se completan otras preguntas con sus campos extra?
@@ -128,6 +159,7 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 - El [ADR 0019](../decisions/0019-sql-de-configuracion-acotado-a-catalogos.md) sigue vigente para «Consulta» sobre nuestra base. Conectarse a la base del cliente necesita su propio ADR.
 - El [intercambio cifrado con Meta](formularios/README.md#después-de-la-etapa-5) sube de prioridad por los catálogos grandes.
 - Los [casos del asistente](2026-10-21-casos-del-asistente.md) comparten la idea de que la IA propone y el sistema ejecuta. MCP encaja en su etapa de agentes.
+- [Procesos del campo](2026-11-19-procesos-del-campo.md) usa estos catálogos y pide catálogos de referencia del rubro, mantenidos por la plataforma (C16), y las integraciones de C15.
 - En el multitenant, todo va por organización.
 
 [0018]: ../decisions/0018-robustez-proporcional-al-efecto.md
