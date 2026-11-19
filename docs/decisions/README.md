@@ -40,7 +40,7 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 | [0017](0017-inicio-asistente-y-operaciones-durables.md) | Inicio con assistant-ui y operaciones durables | Aceptada, 2026-10-04 |
 | [0018](0018-robustez-proporcional-al-efecto.md) | Robustez proporcional al efecto y verificación por paso | Aceptada, 2026-10-11 |
 | [0019](0019-sql-de-configuracion-acotado-a-catalogos.md) | SQL de configuración acotado a catálogos | Aceptada, 2026-10-11; sin SQL configurable por ahora: Query/K5 se retoma si Filters no alcanza |
-| [0020](0020-motor-unico-de-ia-con-capacidades.md) | Motor único de IA con capacidades por módulo | Aceptada, 2026-10-16; rige desde la Etapa 5 de formularios |
+| [0020](0020-motor-unico-de-ia-con-capacidades.md) | Motor único de IA con capacidades por módulo | Aceptada, 2026-10-16; rige desde la Etapa 5 de formularios; enmendada por el 0034 desde la etapa 1 de su plan (para crear, editar o eliminar, acciones declaradas y una propuesta común) |
 | [0021](0021-respuestas-redactadas-por-el-asistente.md) | Respuestas redactadas por el asistente, con límites | Aceptada, 2026-10-21; rige desde Casos del asistente |
 | [0022](0022-lectura-de-documentos-con-ia.md) | Lectura de documentos con IA | Aceptada, 2026-10-22; rige desde Documentos por WhatsApp |
 | [0023](0023-arca-como-modulo-opcional.md) | ARCA como módulo opcional y sus credenciales | Aceptada, 2026-11-03; rige desde la etapa 1 de ARCA |
@@ -53,5 +53,6 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 | [0030](0030-contenido-del-chat-cifrado.md) | El contenido del chat de WhatsApp se guarda cifrado | Aceptada, 2026-11-14; rige desde la tarea 20 del [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md) |
 | [0031](0031-fecha-rechazada-y-numero-adelantado-arca.md) | La fecha que ARCA rechaza y el número que ARCA tiene adelantado van a una persona | Aceptada, 2026-11-14; la fecha rige desde la etapa 1 de los [arreglos de la revisión de ARCA](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura) y el número adelantado, desde su tarea 13 |
 | [0032](0032-sin-redis-la-app-sigue.md) | Sin Redis la app sigue, y los permisos se leen de la base | Aceptada, 2026-11-14; rige desde el 2026-11-16 (N9 de la [revisión del núcleo](../reviews/2026-11-14-arquitectura-nucleo.md)); enmienda el 0009 y el 0010 |
+| [0034](0034-acciones-del-asistente.md) | Acciones del asistente: la IA prepara y la pantalla de siempre confirma | Aceptada, 2026-11-19; rige desde la etapa 1 de [su plan](../plans/2026-11-19-procesos-del-campo.md#acciones-del-asistente); enmienda el 0020 |
 
 Un enlace a un plan dice desde cuándo rige; al retirar ese plan, la auditoría documental lo cambia por la regla que quedó en `features` o en la arquitectura.
