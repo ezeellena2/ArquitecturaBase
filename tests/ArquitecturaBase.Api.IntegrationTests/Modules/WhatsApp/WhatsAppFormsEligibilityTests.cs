@@ -46,11 +46,16 @@ public sealed class WhatsAppFormsEligibilityTests(ApiFactory factory)
         Assert.Equal(employeeId, linkedContact.GetProperty("linkedAccount").GetProperty("userId").GetGuid());
         Assert.True(linkedContact.GetProperty("linkedAccount").GetProperty("isActive").GetBoolean());
         Assert.Equal("NoEligibleForms", linkedContact.GetProperty("formEligibility").GetProperty("status").GetString());
-        foreach (var permissions in new[] { new[] { WhatsAppPermissions.Read }, new[] { WhatsAppPermissions.Send } })
+        using (var readOnly = await OperatorAsync(WhatsAppPermissions.Read))
+        using (var denied = await readOnly.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct))
         {
-            using var denied = await OperatorAsync(permissions);
-            using var response = await denied.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct);
-            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        }
+        // «Responder chats» incluye «Ver chats» (2026-11-19): solo, ya alcanza para elegir un formulario.
+        using (var sendOnly = await OperatorAsync(WhatsAppPermissions.Send))
+        using (var allowed = await sendOnly.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct))
+        {
+            Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
         }
         using var anonymous = factory.CreateClient();
         using var unauthenticated = await anonymous.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct);

@@ -164,7 +164,7 @@ public sealed partial class FormDraftEndpointsTests
     public async Task Publication_check_requires_read_and_publish_but_does_not_require_manage()
     {
         using var admin = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var saved = await CreateAsync(admin, Payload()); var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
-        foreach (var codes in new[] { new[] { BusinessFormsPermissions.Read }, new[] { BusinessFormsPermissions.Publish }, new[] { BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage } })
+        foreach (var codes in new[] { new[] { BusinessFormsPermissions.Read }, new[] { BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage } })
         {
             using var denied = await OperatorAsync(codes);
             using var response = await denied.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
@@ -173,6 +173,10 @@ public sealed partial class FormDraftEndpointsTests
         using var publisher = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Publish]);
         using var allowed = await publisher.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        // «Publicar formularios» incluye «Ver formularios» (2026-11-19): solo, también alcanza.
+        using var publishOnly = await OperatorAsync([BusinessFormsPermissions.Publish]);
+        using var allowedAlone = await publishOnly.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        Assert.Equal(HttpStatusCode.OK, allowedAlone.StatusCode);
     }
 
     [Fact]

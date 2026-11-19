@@ -8,7 +8,8 @@ public sealed partial class FormDraftEndpointsTests
     [Theory]
     [InlineData("", HttpStatusCode.Forbidden)]
     [InlineData("formtemplates.read", HttpStatusCode.Forbidden)]
-    [InlineData("formtemplates.publish", HttpStatusCode.Forbidden)]
+    // «Publicar formularios» incluye «Ver formularios» (2026-11-19): solo, ya alcanza para dar de baja.
+    [InlineData("formtemplates.publish", HttpStatusCode.NotFound)]
     [InlineData("formtemplates.read|formtemplates.manage", HttpStatusCode.Forbidden)]
     [InlineData("formtemplates.read|formtemplates.publish", HttpStatusCode.NotFound)]
     public async Task Deactivation_routes_require_read_and_publish_without_requiring_manage(string grantedPermissions, HttpStatusCode expected)

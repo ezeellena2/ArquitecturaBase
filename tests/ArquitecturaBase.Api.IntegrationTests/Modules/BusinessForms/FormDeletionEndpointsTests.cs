@@ -9,7 +9,8 @@ public sealed partial class FormDraftEndpointsTests
     [Theory]
     [InlineData("", HttpStatusCode.Forbidden)]
     [InlineData("formtemplates.read", HttpStatusCode.Forbidden)]
-    [InlineData("formtemplates.manage", HttpStatusCode.Forbidden)]
+    // «Administrar formularios» incluye «Ver formularios» (2026-11-19): solo, ya alcanza para borrar.
+    [InlineData("formtemplates.manage", HttpStatusCode.NotFound)]
     [InlineData("formtemplates.read|formtemplates.publish", HttpStatusCode.Forbidden)]
     [InlineData("formtemplates.read|formtemplates.manage", HttpStatusCode.NotFound)]
     public async Task Deleting_requires_read_and_manage_without_requiring_publish(string permissions, HttpStatusCode expected)

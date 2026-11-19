@@ -110,7 +110,8 @@ public sealed partial class FormDraftEndpointsTests
         using var anonymous = host.CreateClient();
         using var unauthorized = await anonymous.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
         Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
-        foreach (var codes in new[] { new[] { BusinessFormsPermissions.Read }, new[] { BusinessFormsPermissions.Publish }, new[] { BusinessFormsPermissions.Manage } })
+        // «Publicar formularios» solo ya no es un caso denegado: incluye «Ver formularios» (2026-11-19).
+        foreach (var codes in new[] { new[] { BusinessFormsPermissions.Read }, new[] { BusinessFormsPermissions.Manage } })
         {
             using var deniedActor = await OperatorAsync(codes);
             using var denied = await deniedActor.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
