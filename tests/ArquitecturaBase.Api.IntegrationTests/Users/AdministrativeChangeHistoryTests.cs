@@ -170,6 +170,9 @@ public sealed class AdministrativeChangeHistoryTests(ApiFactory factory)
     [Fact]
     public async Task Running_the_seed_again_writes_no_history()
     {
+        // Otro test pudo dejar un rol sin lo que incluyen sus permisos (lo escribe directo con el repositorio), y el seed
+        // lo completa con su fila (2026-11-19): la primera corrida lo deja al día y la segunda ya no escribe nada.
+        await factory.Services.SeedDatabaseAsync(Ct);
         var before = await SeedChangeCountAsync();
 
         await factory.Services.SeedDatabaseAsync(Ct);

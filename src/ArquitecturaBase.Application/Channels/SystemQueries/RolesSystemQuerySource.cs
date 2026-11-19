@@ -67,8 +67,9 @@ internal sealed class RolesSystemQuerySource(IRoleReader roles, IUserReader user
         List<SystemQueryValue> values =
         [new(SystemHelpTexts.Get("RoleName", culture), role.Name), new(SystemHelpTexts.Get("RoleDescription", culture), role.Description ?? ""),
             new(SystemHelpTexts.Get("AssignedAccounts", culture), DisplayNumbers.Number(role.UserCount, culture))];
+        // Lo que el rol permite: lo del catálogo más lo que incluye cada permiso, como la autorización.
         if (includePermissions)
-            values.AddRange(role.Permissions.Where(catalog.Contains).Order(StringComparer.Ordinal)
+            values.AddRange(catalog.Effective(role.Permissions).Order(StringComparer.Ordinal)
                 .Select(code => new SystemQueryValue(code, catalog.Name(code))));
         return new(role.Id, values);
     }

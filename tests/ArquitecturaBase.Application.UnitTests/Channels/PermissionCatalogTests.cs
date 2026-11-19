@@ -1,6 +1,8 @@
 using ArquitecturaBase.Application.Channels;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Domain.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Application.UnitTests.Channels;
 
@@ -79,6 +81,43 @@ public sealed class PermissionCatalogTests
     {
         Assert.Throws<InvalidOperationException>(() => new PermissionCatalog(
             [new ControlSource(["control.manage"], new() { ["control.manage"] = [Permissions.Users.Read] })]));
+    }
+
+    /// <summary>
+    /// Se compara todo el prefijo, hasta el último punto: <c>ai.business.manage</c> sólo incluye <c>ai.business.*</c>, y
+    /// <c>ai.manage</c>, sólo <c>ai.*</c> de un segmento, aunque las dos empiecen con <c>ai</c>.
+    /// </summary>
+    [Theory]
+    [InlineData("control.business.manage", "control.read")]
+    [InlineData("control.manage", "control.business.read")]
+    public void An_inclusion_with_another_prefix_fails_composition_even_in_the_same_first_segment(string code, string included)
+    {
+        Assert.Throws<InvalidOperationException>(() => new PermissionCatalog(
+            [new ControlSource(["control.read", "control.manage", "control.business.read", "control.business.manage"],
+                new() { [code] = [included] })]));
+    }
+
+    /// <summary>
+    /// Las inclusiones del núcleo y de cada módulo presente (once con los cuatro, que cuentan los tests de Domain) tienen
+    /// su mismo prefijo: el catálogo se compone como en la Api, sin nombrar los módulos, y cada una queda en Includes.
+    /// </summary>
+    [Fact]
+    public void The_inclusions_of_the_core_and_of_every_present_module_still_compose()
+    {
+        var services = new ServiceCollection();
+        services.AddApplication();
+        TestSupport.ModuleApplicationRegistration.AddAll(services);
+        using var provider = services.BuildServiceProvider();
+
+        var catalog = provider.GetRequiredService<IPermissionCatalog>();
+        var declared = provider.GetServices<IPermissionCatalogSource>()
+            .SelectMany(source => source.Includes)
+            .Concat(Permissions.Includes)
+            .SelectMany(pair => pair.Value.Select(included => (Code: pair.Key, Included: included)))
+            .ToArray();
+
+        Assert.NotEmpty(declared);
+        Assert.All(declared, pair => Assert.Contains(pair.Included, catalog.Includes(pair.Code)));
     }
 
     [Fact]

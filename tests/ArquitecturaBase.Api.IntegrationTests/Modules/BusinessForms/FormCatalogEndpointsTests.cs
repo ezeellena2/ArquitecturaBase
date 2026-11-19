@@ -223,6 +223,11 @@ public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
         using var manageOnly = await OperatorAsync(BusinessFormsPermissions.CatalogsManage);
         using var includedRead = await manageOnly.GetAsync("/api/forms/catalogs/" + Guid.NewGuid(), Ct);
         Assert.Equal(HttpStatusCode.NotFound, includedRead.StatusCode);
+
+        // «Administrar formularios» incluye «Ver formularios», no «Ver catálogos».
+        using var withoutRead = await OperatorAsync(BusinessFormsPermissions.Manage);
+        using var deniedRead = await withoutRead.GetAsync("/api/forms/catalogs/" + Guid.NewGuid(), Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, deniedRead.StatusCode);
     }
 
     [Fact]

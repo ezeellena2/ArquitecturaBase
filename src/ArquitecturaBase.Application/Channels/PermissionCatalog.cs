@@ -8,7 +8,8 @@ namespace ArquitecturaBase.Application.Channels;
 /// <summary>
 /// El catálogo compuesto: los permisos del núcleo y los de cada módulo presente, con lo que incluye cada uno. Al
 /// componerse falla por un código repetido y por una inclusión que no es de la misma fuente, que no está en el catálogo o
-/// que es de otra área (el prefijo antes del primer punto: <c>ai.business.manage</c> es de <c>ai</c>).
+/// que no tiene el mismo prefijo, todo lo que va antes del último punto: <c>ai.business.manage</c> sólo incluye
+/// <c>ai.business.*</c>, y <c>ai.manage</c>, <c>ai.read</c> pero no <c>ai.business.read</c>.
 /// </summary>
 internal sealed class PermissionCatalog : IPermissionCatalog
 {
@@ -68,7 +69,7 @@ internal sealed class PermissionCatalog : IPermissionCatalog
     public string Name(string code) => sources.TryGetValue(code, out var source) ? source.Name(code) : PermissionTexts.Permission(code);
     public string Description(string code) => sources.TryGetValue(code, out var source) ? source.Description(code) : PermissionTexts.Description(code);
 
-    // Cada fuente declara inclusiones sólo de sus códigos, hacia códigos del catálogo de la misma área.
+    // Cada fuente declara inclusiones sólo de sus códigos, hacia códigos del catálogo con el mismo prefijo.
     private Dictionary<string, IReadOnlyCollection<string>> DirectInclusions(
         IEnumerable<(IReadOnlyCollection<string> Owned, IReadOnlyDictionary<string, IReadOnlyCollection<string>> Includes)> declared)
     {
@@ -82,9 +83,9 @@ internal sealed class PermissionCatalog : IPermissionCatalog
                     throw new InvalidOperationException("Permission catalog sources must declare inclusions only for their own codes.");
                 }
 
-                if (included.Any(other => !codes.Contains(other) || !string.Equals(AreaOf(other), AreaOf(code), StringComparison.Ordinal)))
+                if (included.Any(other => !codes.Contains(other) || !string.Equals(PrefixOf(other), PrefixOf(code), StringComparison.Ordinal)))
                 {
-                    throw new InvalidOperationException("A permission can only include catalog codes of its own area.");
+                    throw new InvalidOperationException("A permission can only include catalog codes with its own prefix.");
                 }
 
                 direct.Add(code, included);
@@ -113,6 +114,7 @@ internal sealed class PermissionCatalog : IPermissionCatalog
         return [.. All.Where(reached.Contains)];
     }
 
-    private static string AreaOf(string code) =>
-        code.IndexOf('.', StringComparison.Ordinal) is var dot and >= 0 ? code[..dot] : code;
+    // Todo lo que va antes del último punto: el de ai.business.manage es ai.business.
+    private static string PrefixOf(string code) =>
+        code.LastIndexOf('.') is var dot and >= 0 ? code[..dot] : code;
 }

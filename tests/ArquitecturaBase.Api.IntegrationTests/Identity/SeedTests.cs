@@ -1,7 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Roles;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,6 +67,64 @@ public sealed class SeedTests(ApiFactory factory)
         Assert.Equal(seeded, await RevisionsAsync(adminId));
     }
 
+    /// <summary>
+    /// Un rol guardado antes de que un permiso incluyera a otro (2026-11-19) queda al arrancar con lo que permite: el seed
+    /// le agrega a cada rol, también a User y a los que creó la gente, lo que incluyen sus permisos y le falta, sólo del
+    /// catálogo. Avanza su revisión y deja la historia sin actor, con lo agregado. Sembrar otra vez no cambia nada ni deja
+    /// filas. Así, editar el rol después no escribe lo incluido en nombre de quien edita.
+    /// </summary>
+    [Fact]
+    public async Task Seeding_completes_each_role_with_what_its_permissions_include_and_seeding_again_changes_nothing()
+    {
+        // Otro test pudo dejar un rol sin lo que incluyen sus permisos (lo escribe directo con el repositorio): esta
+        // corrida lo completa antes de tomar la base.
+        await factory.Services.SeedDatabaseAsync(Ct);
+        var user = await RoleAsync(SystemRoles.User);
+        var name = "incompleto-" + Guid.NewGuid().ToString("N")[..8];
+        var custom = await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+            .CreateAsync(name, null, [Permissions.Users.Manage, "removedmodule.manage"], Ct));
+        var userChanges = (await ChangesOfAsync(user.Id)).Select(change => change.Id).ToHashSet();
+        try
+        {
+            // User, como lo guardaba antes un Admin: «Administrar roles» sin «Ver roles».
+            await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+                .UpdateAsync(user.Id, SystemRoles.User, user.Description, [.. user.Permissions, Permissions.Roles.Manage], Ct));
+            var before = (Custom: await RoleAsync(name), User: await RoleAsync(SystemRoles.User));
+
+            await factory.Services.SeedDatabaseAsync(Ct);
+            var seeded = (Custom: await RoleAsync(name), User: await RoleAsync(SystemRoles.User));
+            var seedChanges = await SeedChangeCountAsync();
+            await factory.Services.SeedDatabaseAsync(Ct);
+            var again = (Custom: await RoleAsync(name), User: await RoleAsync(SystemRoles.User));
+
+            // El claim de un módulo quitado no incluye nada y se queda.
+            Assert.Equal(["removedmodule.manage", Permissions.Users.Manage, Permissions.Users.Read], seeded.Custom.Permissions);
+            Assert.Equal(
+                user.Permissions.Concat([Permissions.Roles.Manage, Permissions.Roles.Read]).Order(StringComparer.Ordinal),
+                seeded.User.Permissions);
+            Assert.Equal((before.Custom.Revision + 1, before.User.Revision + 1), (seeded.Custom.Revision, seeded.User.Revision));
+            var completed = Assert.Single(await ChangesOfAsync(custom));
+            Assert.Equal(AdministrativeChangeKind.RolePermissionsChanged, completed.Kind);
+            Assert.Null(completed.ActorUserId);
+            Assert.Equal(name, completed.TargetName);
+            Assert.Equal([Permissions.Users.Read], completed.Added);
+            Assert.Empty(completed.Removed);
+            var userCompleted = Assert.Single(await ChangesOfAsync(user.Id), change => !userChanges.Contains(change.Id));
+            Assert.Equal(AdministrativeChangeKind.RolePermissionsChanged, userCompleted.Kind);
+            Assert.Null(userCompleted.ActorUserId);
+            Assert.Equal([Permissions.Roles.Read], userCompleted.Added);
+            Assert.Equal(seeded.Custom.Permissions, again.Custom.Permissions);
+            Assert.Equal(seeded.User.Permissions, again.User.Permissions);
+            Assert.Equal((seeded.Custom.Revision, seeded.User.Revision), (again.Custom.Revision, again.User.Revision));
+            Assert.Equal(seedChanges, await SeedChangeCountAsync());
+        }
+        finally
+        {
+            await factory.InTransactionAsync(services => services.GetRequiredService<IRoleRepository>()
+                .UpdateAsync(user.Id, SystemRoles.User, user.Description, user.Permissions, Ct));
+        }
+    }
+
     [Fact]
     public async Task Seeding_again_keeps_a_single_web_client()
     {
@@ -75,6 +136,23 @@ public sealed class SeedTests(ApiFactory factory)
 
         Assert.Equal(1, clients);
     }
+
+    // Con sus permisos en orden ordinal, como los lee la pantalla.
+    private async Task<RoleRow> RoleAsync(string name)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+
+        return await scope.ServiceProvider.GetRequiredService<IRoleReader>().FindByNameAsync(name, Ct)
+            ?? throw new InvalidOperationException("The role does not exist.");
+    }
+
+    private Task<AdministrativeChange[]> ChangesOfAsync(Guid roleId) =>
+        factory.ExecuteDbContextAsync(db => db.AdministrativeChanges.AsNoTracking()
+            .Where(change => change.TargetId == roleId)
+            .ToArrayAsync(Ct));
+
+    private Task<int> SeedChangeCountAsync() =>
+        factory.ExecuteDbContextAsync(db => db.AdministrativeChanges.CountAsync(change => change.ActorUserId == null, Ct));
 
     private Task<(Guid RoleId, long Role, long User)> RevisionsAsync(Guid adminId) =>
         factory.ExecuteDbContextAsync(async db =>

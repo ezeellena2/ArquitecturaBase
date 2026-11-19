@@ -167,6 +167,23 @@ public sealed class SystemQuerySourcesTests
         Assert.Null(fixture.Roles.FoundName);
     }
 
+    // Lo que el rol permite, como la autorización (2026-11-19): un rol con «Administrar usuarios» también ve usuarios.
+    [Fact]
+    public async Task Role_permissions_lists_what_the_role_allows_with_what_each_permission_includes()
+    {
+        var fixture = Create("roles.permissions");
+        var role = Assert.Single(fixture.Roles.Roles) with { Permissions = [Permissions.Users.Manage, "removed.permission"] };
+        fixture.Roles.Roles = [role];
+        var arguments = JsonSerializer.Serialize(new { roleId = role.Id, roleName = (string?)null });
+
+        var result = await fixture.Source.ExecuteAsync(Request(fixture.ActorId, "roles.permissions", arguments), Ct);
+
+        Assert.True(result.IsSuccess);
+        var row = Assert.Single(Assert.Single(result.Value.Evidences).Rows);
+        // Los tres primeros son el nombre, la descripción y las cuentas.
+        Assert.Equal([Permissions.Users.Manage, Permissions.Users.Read], row.Values.Skip(3).Select(value => value.Label));
+    }
+
     [Fact]
     public async Task A_truncated_role_catalog_preserves_the_state_without_inventing_evidence()
     {

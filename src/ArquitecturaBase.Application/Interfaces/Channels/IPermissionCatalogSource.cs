@@ -7,7 +7,8 @@ public interface IPermissionCatalogSource
 
     /// <summary>
     /// What each of its permissions includes (the module's <c>*Permissions.Includes</c>): only its own codes, and only
-    /// codes of the same area.
+    /// codes with the same prefix, everything before the last dot (<c>ai.business.manage</c> includes only
+    /// <c>ai.business.*</c>).
     /// </summary>
     IReadOnlyDictionary<string, IReadOnlyCollection<string>> Includes { get; }
     string Area(string area);

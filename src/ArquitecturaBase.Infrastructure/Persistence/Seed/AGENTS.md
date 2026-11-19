@@ -7,6 +7,7 @@
 - El lock de seed serializa réplicas antes de leer. Conservá un único commit y rollback completo si un seeder falla.
 - El seed debe ser idempotente: los ajustes existentes no se reemplazan por defaults de configuración.
 - Un permiso nuevo se incorpora al catálogo y al rol Admin; conservá roles y cliente del sistema.
+- Cada rol, también User y los que creó la gente, se completa con lo que incluyen sus permisos y le falta (`IPermissionCatalog.Effective`, sólo del catálogo): lo guardado es lo que permite. Avanza su revisión y deja su historia sin actor; una segunda corrida no cambia nada ([un permiso incluye a otro](../../../../docs/features/administracion.md)).
 - Después del commit completo se descartan en Redis sólo los ajustes: los permisos no tienen caché ([ADR 0032](../../../../docs/decisions/0032-sin-redis-la-app-sigue.md)). No descartar desde un seeder parcial ni omitirlo porque sea arranque; si Redis no responde, el arranque sigue con un Warning y lo que Redis conserve vence con su TTL.
 - Probá arranque repetido, dos hosts, un Redis que conserva entradas entre procesos y un Redis caído.
 
