@@ -25,7 +25,5 @@ public sealed record BusinessKnowledge(BusinessKnowledgeAvailability Availabilit
 {
     public static BusinessKnowledge NotInstalled { get; } = new(BusinessKnowledgeAvailability.NotInstalled, 0, [], 0);
 
-    public IEnumerable<BusinessKnowledgeFact> Facts => Sections.SelectMany(section => section.Facts);
-
     public override string ToString() => "BusinessKnowledge { content: [REDACTED] }";
 }

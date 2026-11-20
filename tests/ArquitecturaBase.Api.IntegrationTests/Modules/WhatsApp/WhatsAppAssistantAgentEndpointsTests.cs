@@ -67,6 +67,9 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory fact
         Assert.Equal((0, "NoReply", 400), (read.GetProperty("revision").GetInt64(), read.GetProperty("fallback").GetProperty("kind").GetString(),
             read.GetProperty("limits").GetProperty("maxReplyLength").GetInt32()));
         Assert.Empty(read.GetProperty("cases").EnumerateArray());
+        // The front reads a closed contract: the knowledge carries its zones and nothing derived from them.
+        Assert.Equal(["availability", "revision", "sections", "unansweredQuestions"],
+            read.GetProperty("knowledge").EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         await WhatsAppAssistantAgentContractCapture.WriteAsync(defaults, "agent-defaults", Ct);
 
         using var saved = await host.SendAsync("PUT", Route, manager, Agent(0));
