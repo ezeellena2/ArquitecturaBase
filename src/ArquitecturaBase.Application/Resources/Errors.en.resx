@@ -290,11 +290,11 @@
   <data name="Forms.Folder.NameInvalid" xml:space="preserve"><value>Enter a name of up to 80 characters.</value></data>
   <data name="Forms.Folder.NameTaken" xml:space="preserve"><value>A folder with that name already exists here.</value></data>
   <data name="Forms.Folder.TooMany" xml:space="preserve"><value>There are already 500 folders. Remove one before creating another.</value></data>
-  <data name="Forms.Folder.TooDeep" xml:space="preserve"><value>Folders go up to five levels.</value></data>
+  <data name="Forms.Folder.TooDeep" xml:space="preserve"><value>A folder goes in the menu or inside a folder of the menu: there is no third level, and a folder with subfolders cannot go inside another.</value></data>
   <data name="Forms.Folder.Cycle" xml:space="preserve"><value>A folder cannot go inside itself or one of its subfolders.</value></data>
-  <data name="Forms.Folder.IconInvalid" xml:space="preserve"><value>That icon is not in the list or the folder is not its own menu.</value></data>
+  <data name="Forms.Folder.IconInvalid" xml:space="preserve"><value>A folder of the menu takes one of the twelve icons and a subfolder takes none.</value></data>
   <data name="Forms.Folder.RevisionConflict" xml:space="preserve"><value>The folder changed. Reload it and try again.</value></data>
-  <data name="Forms.Folder.SetChanged" xml:space="preserve"><value>The folders of this item changed. Reload them and try again.</value></data>
+  <data name="Forms.Folder.SetChanged" xml:space="preserve"><value>The folders changed while you were editing them. Reload them and try again.</value></data>
   <data name="Forms.Folder.RequestInvalid" xml:space="preserve"><value>The folder request is not valid.</value></data>
   <data name="Forms.Definition.Forbidden" xml:space="preserve"><value>You do not have the required form permission.</value></data>
   <data name="Forms.Definition.NotFound" xml:space="preserve"><value>The form was not found.</value></data>

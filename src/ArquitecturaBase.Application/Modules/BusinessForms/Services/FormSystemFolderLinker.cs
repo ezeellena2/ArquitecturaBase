@@ -6,8 +6,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// Files what the system creates (the catalogs of ARCA, a standard of the library) in the folder it keeps under a key. The folder is
-/// found by its key even after a rename or a move; if someone deleted it, it is created again at the top, outside the menu, like any
-/// new folder. A top folder with that same name and no key is adopted instead of repeating the name. The library can instead file in a
+/// found by its key even after a rename or a move; if someone deleted it, it is created again at the top, as a menu with the first free
+/// icon, like any new folder (CM1 to CM6). A top folder with that same name and no key is adopted instead of repeating the name. The library can instead file in a
 /// folder chosen when adding. It runs inside its caller's transaction, takes the folders lock after the caller's own locks and never
 /// saves; it has no route of its own.
 /// </summary>
@@ -21,7 +21,7 @@ internal sealed class FormSystemFolderLinker(IFormFolderRepository repository)
         var folder = folders.SingleOrDefault(value => value.SystemKey == systemKey);
         if (folder is null)
         {
-            var created = BusinessFormFolder.Create(null, name, systemKey);
+            var created = BusinessFormFolder.Create(null, name, BusinessFormFolder.FirstFreeIcon(folders), systemKey);
             if (created.IsFailure) return created.Error;
             var sameName = folders.SingleOrDefault(value => value.ParentId is null && value.NormalizedName == created.Value.NormalizedName);
             if (sameName is { SystemKey: not null }) return FormFolderErrors.NameTaken;

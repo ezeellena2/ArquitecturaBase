@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Persistence.Extensions;
@@ -15,6 +16,14 @@ internal static class AdvisoryLockExtensions
             dbContext.Database.ExecuteSql($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))");
         }
     }
+    /// <summary>
+    /// El mismo lock que <see cref="AcquireAdvisoryLocksAsync"/>, como sentencia de una migración, que corre en su propia
+    /// transacción y lo suelta al confirmar. Recibe el número que da hashtextextended(clave, 0): una migración no nombra la
+    /// clave de un módulo, y la prueba de esa migración compara el número con la clave.
+    /// </summary>
+    public static string TransactionLockStatement(long key) =>
+        string.Create(CultureInfo.InvariantCulture, $"SELECT pg_advisory_xact_lock({key});");
+
     /// <summary>
     /// Toma un pg_advisory_xact_lock por clave (ver AdvisoryLockKeys). Dura lo que la transacción del caso de uso, que
     /// abre IUnitOfWork.ExecuteInTransactionAsync: este método no abre una propia, la exige. Las claves se toman ordenadas

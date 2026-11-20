@@ -27,6 +27,14 @@ internal sealed class FormFolderRepository(ApplicationDbContext dbContext) : IFo
         return memberships.Local.Where(membership => membership.ItemKind == kind && membership.ItemId == itemId).ToArray();
     }
 
+    public async Task<IReadOnlyList<BusinessFormFolderMembership>> ListFolderMembershipsAsync(Guid folderId, FormFolderItemKind kind,
+        CancellationToken cancellationToken)
+    {
+        var memberships = dbContext.Set<BusinessFormFolderMembership>();
+        await memberships.Where(membership => membership.FolderId == folderId && membership.ItemKind == kind).LoadAsync(cancellationToken);
+        return memberships.Local.Where(membership => membership.FolderId == folderId && membership.ItemKind == kind).ToArray();
+    }
+
     public void Add(BusinessFormFolder folder)
     {
         dbContext.RequireTransaction();

@@ -65,6 +65,8 @@ EncryptWhatsAppOutgoingContent (H16, parte 2) hace lo mismo con lo que dice una 
 
 EncryptWhatsAppMessageContent (H16, parte 3) hace lo mismo con las trece columnas de contenido de un mensaje, y WhatsAppMessageContentEncryptionMigrationTests lo prueba igual. Un test que baja por debajo de H16 vacía antes el contenido (`WhatsAppChatContentMigration`) y escribe lo de antes en el esquema anterior al cifrado.
 
+FoldersAsMenus (CM1 a CM6) es el primero de dos despliegues: deja dos niveles y quita sólo el CHECK viejo del ícono; `MenuPlacement` y su CHECK quedan, con default `None`, hasta la migración siguiente ([pendiente](../../../../docs/plans/verificacion-y-produccion.md)). Lo prueba FormFolderMenuMigrationTests.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

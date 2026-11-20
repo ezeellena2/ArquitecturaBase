@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 
-// CP5-A: the folders in the side menu. Any active account reads it; whoever cannot open forms gets it empty.
+// CM1 to CM6: the folders of the side menu. Any active account reads it; whoever neither opens nor administers forms gets it empty.
 [ApiController]
 [Route("api/forms/menu")]
 [Tags("Form folders")]

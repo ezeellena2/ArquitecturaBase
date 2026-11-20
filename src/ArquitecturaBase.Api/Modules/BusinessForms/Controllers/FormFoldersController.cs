@@ -10,8 +10,8 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 
-// CP1-A, CP3-A and CP5-A: the tree of a listing is read by whoever sees that listing (the service checks the one of «kind»); creating,
-// renaming, moving, deleting and the place in the menu need to manage forms or catalogs.
+// CP1-A, CP3-A and CM1 to CM6: the tree of a listing is read by whoever sees that listing (the service checks the one of «kind»);
+// creating, renaming, moving, changing the icon of a menu, deleting and choosing the forms of a folder need to manage forms.
 [ApiController]
 [Route("api/forms/folders")]
 [Tags("Form folders")]
@@ -29,37 +29,48 @@ public sealed class FormFoldersController(IFormFolderService service) : Controll
         (await service.ListAsync(new(kind), cancellationToken)).ToActionResult(this);
 
     [HttpPost]
-    [HasAnyPermission(BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsManage)]
+    [HasPermission(BusinessFormsPermissions.Manage)]
     [ProducesResponseType<FormFolderResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Create([FromBody] CreateFormFolderHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.CreateAsync(new(request.ParentId, request.Name), cancellationToken)).ToActionResult(this);
+        (await service.CreateAsync(new(request.ParentId, request.Name, request.Icon), cancellationToken)).ToActionResult(this);
 
     [HttpPut("{id:guid}")]
-    [HasAnyPermission(BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsManage)]
+    [HasPermission(BusinessFormsPermissions.Manage)]
     [ProducesResponseType<FormFolderResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateFormFolderHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.UpdateAsync(id, new(request.ExpectedRevision, request.Name, request.ParentId), cancellationToken)).ToActionResult(this);
+        (await service.UpdateAsync(id, new(request.ExpectedRevision, request.Name, request.ParentId, request.Icon), cancellationToken)).ToActionResult(this);
 
     [HttpGet("{id:guid}/deletion")]
-    [HasAnyPermission(BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsManage)]
+    [HasPermission(BusinessFormsPermissions.Manage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
     [ProducesResponseType<FormFolderDeletionResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDeletion([FromRoute] Guid id, CancellationToken cancellationToken) =>
         (await service.GetDeletionAsync(id, cancellationToken)).ToActionResult(this);
 
     [HttpDelete("{id:guid}")]
-    [HasAnyPermission(BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsManage)]
+    [HasPermission(BusinessFormsPermissions.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete([FromRoute] Guid id, [FromBody] DeleteFormFolderHttpRequest request, CancellationToken cancellationToken) =>
         (await service.DeleteAsync(id, new(request.ExpectedRevision), cancellationToken)).ToActionResult(this);
 
-    [HttpPut("{id:guid}/menu")]
-    [HasAnyPermission(BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsManage)]
-    [ProducesResponseType<FormFolderResponse>(StatusCodes.Status200OK)]
+    [HttpGet("{id:guid}/forms")]
+    [HasPermission(BusinessFormsPermissions.Manage)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
+    [ProducesResponseType<FormFolderFormsResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetForms([FromRoute] Guid id, CancellationToken cancellationToken) =>
+        (await service.GetFormsAsync(id, cancellationToken)).ToActionResult(this);
+
+    // Up to 1000 forms, twice with the ones that were read: more than the 64 KiB of the other bodies.
+    [HttpPut("{id:guid}/forms")]
+    [HasPermission(BusinessFormsPermissions.Manage)]
+    [RequestSizeLimit(131072)]
+    [ProducesResponseType<FormFolderFormsResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> SetMenu([FromRoute] Guid id, [FromBody] SetFormFolderMenuHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.SetMenuAsync(id, new(request.ExpectedRevision, request.Placement, request.Icon), cancellationToken)).ToActionResult(this);
+    public async Task<IActionResult> SetForms([FromRoute] Guid id, [FromBody] SetFormFolderFormsHttpRequest request, CancellationToken cancellationToken) =>
+        (await service.SetFormsAsync(id, new(request.ExpectedFormIds, request.FormIds), cancellationToken)).ToActionResult(this);
 }

@@ -5,7 +5,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 // What the system files (ARCA, the library) goes to the folder it created, found by its key even after a rename, and created again
-// at the top if someone deleted it. It runs inside its caller's transaction and never saves.
+// at the top, as a menu with the first free icon, if someone deleted it. It runs inside its caller's transaction and never saves.
 public sealed class FormSystemFolderLinkerTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -24,9 +24,9 @@ public sealed class FormSystemFolderLinkerTests
         }, CommitPolicy.OnSuccess, Ct);
         var folder = Assert.Single(fixture.Folders);
         Assert.Equal(("ARCA", "arca", (Guid?)null), (folder.Name, folder.SystemKey, folder.ParentId));
-        Assert.Equal(FormFolderMenuPlacement.None, folder.MenuPlacement);
+        Assert.Equal("folder", folder.MenuIcon);
         Assert.Single(fixture.Memberships);
-        Assert.True(folder.Update(1, "Impuestos", null).IsSuccess);
+        Assert.True(folder.Update(1, "Impuestos", null, folder.MenuIcon).IsSuccess);
 
         await fixture.UnitOfWork.ExecuteInTransactionAsync(ct => fixture.Linker.FileAsync(FormFolderItemKind.Catalog, second, "arca", "ARCA", ct),
             CommitPolicy.OnSuccess, Ct);
@@ -58,6 +58,20 @@ public sealed class FormSystemFolderLinkerTests
         Assert.NotEqual(own.Id, again.Id);
         Assert.Equal(("ARCA", "arca"), (again.Name, again.SystemKey));
         Assert.Equal(again.Id, Assert.Single(fixture.Memberships).FolderId);
+    }
+
+    [Fact]
+    public async Task A_new_system_folder_is_a_menu_with_the_first_free_icon()
+    {
+        using var fixture = new FormFolderFixture();
+        fixture.Arrange("Archivo", icon: "folder");
+        fixture.Arrange("Camiones", icon: "package");
+
+        await fixture.UnitOfWork.ExecuteInTransactionAsync(ct => fixture.Linker.FileAsync(FormFolderItemKind.Catalog, Guid.NewGuid(), "arca", "ARCA", ct),
+            CommitPolicy.OnSuccess, Ct);
+
+        var folder = Assert.Single(fixture.Folders, value => value.SystemKey == "arca");
+        Assert.Equal(((Guid?)null, "truck"), (folder.ParentId, folder.MenuIcon));
     }
 
     [Fact]

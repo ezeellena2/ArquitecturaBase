@@ -8,13 +8,16 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 internal static class FormFolderRequestValidation
 {
     public const int MaxFoldersPerItem = 100;
+    public const int MaxFormsPerFolder = 1000;
     public static readonly IReadOnlyList<string> Kinds = ["forms", "designs", "catalogs"];
-    public static readonly IReadOnlyList<string> Placements = Enum.GetNames<FormFolderMenuPlacement>();
 
     public static string Invalid() => ErrorMessages.Get(FormFolderErrors.RequestInvalid.Code);
     public static bool IsRevision(long? revision) => revision is >= 1 and <= 9007199254740991;
-    public static bool IsFolderList(IReadOnlyList<Guid>? ids) =>
-        ids is { Count: <= MaxFoldersPerItem } && !ids.Contains(Guid.Empty) && ids.Distinct().Count() == ids.Count;
+    public static bool IsFolderList(IReadOnlyList<Guid>? ids) => IsIdList(ids, MaxFoldersPerItem);
+    public static bool IsFormList(IReadOnlyList<Guid>? ids) => IsIdList(ids, MaxFormsPerFolder);
+
+    private static bool IsIdList(IReadOnlyList<Guid>? ids, int max) =>
+        ids is not null && ids.Count <= max && !ids.Contains(Guid.Empty) && ids.Distinct().Count() == ids.Count;
 }
 
 internal sealed class ListFormFoldersRequestValidator : AbstractValidator<ListFormFoldersRequest>
@@ -24,6 +27,7 @@ internal sealed class ListFormFoldersRequestValidator : AbstractValidator<ListFo
             .WithMessage(_ => FormFolderRequestValidation.Invalid());
 }
 
+// The icon is checked by the folder itself against its level, so its error keeps its own code (Forms.Folder.IconInvalid) on «icon».
 internal sealed class CreateFormFolderRequestValidator : AbstractValidator<CreateFormFolderRequest>
 {
     public CreateFormFolderRequestValidator()
@@ -49,22 +53,20 @@ internal sealed class DeleteFormFolderRequestValidator : AbstractValidator<Delet
         RuleFor(request => request.ExpectedRevision).Must(FormFolderRequestValidation.IsRevision).WithMessage(_ => FormFolderRequestValidation.Invalid());
 }
 
-internal sealed class SetFormFolderMenuRequestValidator : AbstractValidator<SetFormFolderMenuRequest>
-{
-    public SetFormFolderMenuRequestValidator()
-    {
-        RuleFor(request => request.ExpectedRevision).Must(FormFolderRequestValidation.IsRevision).WithMessage(_ => FormFolderRequestValidation.Invalid());
-        RuleFor(request => request.Placement).Must(placement => placement is not null && FormFolderRequestValidation.Placements.Contains(placement))
-            .WithMessage(_ => FormFolderRequestValidation.Invalid());
-        // The icon is checked by the folder itself, so its error keeps its own code (Forms.Folder.IconInvalid) on «icon».
-    }
-}
-
 internal sealed class SetFormItemFoldersRequestValidator : AbstractValidator<SetFormItemFoldersRequest>
 {
     public SetFormItemFoldersRequestValidator()
     {
         RuleFor(request => request.ExpectedFolderIds).Must(FormFolderRequestValidation.IsFolderList).WithMessage(_ => FormFolderRequestValidation.Invalid());
         RuleFor(request => request.FolderIds).Must(FormFolderRequestValidation.IsFolderList).WithMessage(_ => FormFolderRequestValidation.Invalid());
+    }
+}
+
+internal sealed class SetFormFolderFormsRequestValidator : AbstractValidator<SetFormFolderFormsRequest>
+{
+    public SetFormFolderFormsRequestValidator()
+    {
+        RuleFor(request => request.ExpectedFormIds).Must(FormFolderRequestValidation.IsFormList).WithMessage(_ => FormFolderRequestValidation.Invalid());
+        RuleFor(request => request.FormIds).Must(FormFolderRequestValidation.IsFormList).WithMessage(_ => FormFolderRequestValidation.Invalid());
     }
 }

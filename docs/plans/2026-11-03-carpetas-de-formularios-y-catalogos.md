@@ -11,10 +11,11 @@ biblioteca de estándares y lo de ARCA. Lo pidió el usuario al decidir la etapa
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md) lo ubica en la etapa 2. Pertenece al módulo de formularios
 (BusinessForms), no a ARCA. Las reglas de hoy están en [formularios](../features/formularios.md).
 
-**Rediseño del 2026-11-20, aprobado y sin programar:** las carpetas pasan a ser menús del menú lateral
+**Rediseño del 2026-11-20, aprobado y programado el mismo día:** las carpetas pasan a ser menús del menú lateral
 ([CM1 a CM6](#las-carpetas-son-menús-cm1-a-cm6-2026-11-20)). Reemplaza el panel de los listados, la administración en el
-panel y «En el menú…» (decisiones 4, 6 y 7) y el límite de cinco niveles. Hasta que se programe, el código sigue lo que
-describen las secciones de CP1-A a CP5-A.
+panel y «En el menú…» (decisiones 4, 6 y 7) y el límite de cinco niveles. Las secciones de CP1-A a CP5-A quedan como
+procedencia. Faltan la corrida completa con la exportación de los ejemplos HTTP, la prueba a mano y el segundo despliegue
+de la migración (corte 5).
 
 **Tableros:** CP1 a CP4 en el lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M),
 en las filas «Carpetas», y CP5 a su derecha. Las elegidas llevan la banda verde y el sello «elegida». El lienzo
@@ -353,7 +354,7 @@ Cada punto queda igual a su tablero.
 - **Los formularios de una carpeta:**
   - `GET api/forms/folders/{id}/forms` devuelve `{ formIds }`.
   - `PUT api/forms/folders/{id}/forms` recibe `{ expectedFormIds, formIds }` y responde 409 `Forms.Folder.SetChanged` si la
-    lista cambió.
+    lista cambió, antes de mirar que existan los formularios.
   - Pide `formtemplates.manage`, en una transacción con el lock `forms:folders`.
   - Reemplaza sólo los formularios que no están dados de baja. Los dados de baja quedan como estaban, así vuelven si se
     reactivan.
@@ -367,15 +368,41 @@ Cada punto queda igual a su tablero.
 - **Los listados:**
   - `api/forms/overview` deja de recibir `folderId` y `withoutFolder`.
   - El de diseños y el de catálogos los conservan.
-- **La migración:**
-  1. Las pertenencias de las carpetas del tercer nivel o más abajo pasan a su antecesora del segundo nivel, sin repetir (hay
-     un índice único por carpeta, tipo y elemento).
-  2. Si una de esas tenía clave del sistema y la que la recibe no, la recibe.
-  3. Se borran esas carpetas.
-  4. `MenuIcon` toma el ícono que tenía, o «folder», en el primer nivel, y queda nulo en el segundo.
-  5. La restricción pasa a «primer nivel si y sólo si tiene ícono».
-  6. Se quitan `MenuPlacement` y su restricción.
-  Las carpetas del primer nivel que estaban fuera del menú o adentro de un panel pasan a ser menús.
+- **La migración, en dos despliegues** ([convivencia de versiones](../guides/migracion.md#convivencia-de-versiones)): el
+  primero deja que las dos versiones toleren el cambio y el siguiente lo empieza a usar.
+  - **Primero, `FoldersAsMenus`:** antes que nada toma el lock `forms:folders`, el de toda escritura de carpetas, en la
+    transacción de la migración: lo que escriba la versión anterior mientras corre el bundle espera al commit.
+    1. Las pertenencias de las carpetas del tercer nivel o más abajo pasan a su antecesora del segundo nivel, sin repetir
+       (hay un índice único por carpeta, tipo y elemento).
+    2. Si una de esas tenía clave del sistema y la que la recibe no, la recibe.
+    3. Se borran esas carpetas.
+    4. En el primer nivel, `MenuIcon` toma el ícono que tenía o «folder». Las subcarpetas conservan el suyo: la versión
+       anterior las sigue mostrando como menú propio y la nueva no lo lee.
+    5. Se quita la restricción vieja, que ataba el ícono al menú propio. `MenuPlacement` y su restricción se quedan para la
+       versión anterior, con sus valores, y la columna toma el default `None`, porque la nueva ya no la escribe.
+
+    Las carpetas del primer nivel que estaban fuera del menú o adentro de un panel pasan a ser menús. El Down saca el
+    default y, como el Up no toca `MenuPlacement`, devuelve lo de antes: deja sin ícono lo que no es `Own`, pone «folder» en
+    lo `Own` sin ícono y vuelve a poner la restricción vieja; lo borrado no vuelve.
+  - **Mientras tanto,** la versión nueva lee y escribe como dos niveles lo que escriba la anterior
+    (`BusinessFormFolder.TwoLevels`, en `FormFolderReader` y en `FormFolderService`): un menú sin ícono sale con `folder`, una
+    subcarpeta con ícono sale sin él (cambiarla se lo borra) y lo de más abajo del segundo nivel no sale en el árbol ni en el
+    menú, ni lo que tiene adentro, y responde 404 en todas las rutas. Guardar lo que se muestra no cambia nada, ni la
+    revisión, y la que sube al primer nivel toma el primero libre: el ícono que escondía no cuenta. La altura y el tope no
+    cuentan lo escondido; la cuenta de borrar sí lo suma debajo de una carpeta, porque el `DELETE` se lo lleva.
+  - **Después, pendiente:** otra migración en otro despliegue, sólo cuando `FoldersAsMenus` ya esté desplegada en todos los
+    ambientes. Repite los pasos 1 a 4 para lo que haya escrito la versión anterior y recién ahí anula el ícono de las
+    subcarpetas; agrega a la configuración la restricción «primer nivel si y sólo si tiene ícono» (`CK_FormFolders_MenuIcon`,
+    generada) y borra a mano `CK_FormFolders_MenuPlacement` y la columna `MenuPlacement`. Después se saca del código la
+    tolerancia. Está en [verificación y producción](verificacion-y-produccion.md), con lo que EF había generado.
+  - **Lo que se acepta,** sin código:
+    - Una clave del sistema puede perderse al plegar, si la antecesora del segundo nivel ya tenía una. Después
+      `FormSystemFolderLinker` crea o adopta por nombre una carpeta del primer nivel. Es raro: hacen falta carpetas del
+      sistema anidadas a mano.
+    - El tope de 1000 de «Agregar formularios» es por pedido. Una carpeta con más de 1000 formularios, que sólo puede llegar
+      por «Carpetas…» o por el sistema, no se edita desde ahí. No se protege, porque ese caso no existe.
+    - Las capturas `menu-es`, `created` y `menu-manager-es` salen de la base compartida y cambian en cada corrida: es el
+      patrón que ya existía.
 - **Las carpetas del sistema:** `FormSystemFolderLinker` las crea en el primer nivel, con el primer ícono libre.
 - **Rutas:**
   - Se suman `GET` y `PUT api/forms/folders/{id}/forms` y se quita `PUT api/forms/folders/{id}/menu`, en
@@ -421,6 +448,7 @@ Cada punto queda igual a su tablero.
   - el `PUT` de los formularios de una carpeta;
   - `overview` sin `folderId`;
   - la migración con una carpeta del tercer nivel, una del sistema y pertenencias repetidas;
+  - el árbol y el menú sobre lo que escribe la versión anterior entre los dos despliegues;
   - las rutas en el inventario.
 - **Front, con Vitest:**
   - el menú con las carpetas después de WhatsApp;
@@ -444,12 +472,18 @@ Cada punto queda igual a su tablero.
 
 ### Cortes
 
-1. **Backend:** dominio, migración, rutas, menú, los formularios de una carpeta, listados, permisos, pruebas y ejemplos HTTP.
+1. **Backend:** dominio, migración (el primero de dos despliegues, con la tolerancia del lector), rutas, menú, los formularios
+   de una carpeta, listados, permisos, pruebas y ejemplos HTTP.
 2. **Front, el menú:** la sección de carpetas, el panel, los ⋮, los diálogos, el cajón, la barra contraída, los estados, la
    relectura y sus escenas.
 3. **Front, los listados:** sin panel, el filtro «Carpeta», «Carpetas…» con dos niveles y sus escenas.
 4. **Documentación y cierre:** `visual-baseline.md`, la guía de quitar formularios, la regla de
    [formularios](../features/formularios.md) y este plan, con la corrida que corresponda.
+5. **El segundo despliegue de la migración** (no se programa con los anteriores): sólo cuando `FoldersAsMenus` ya esté
+   desplegada en todos los ambientes, otra migración repite los pasos 1 a 4, anula el ícono de las subcarpetas, agrega
+   `CK_FormFolders_MenuIcon` y borra
+   `MenuPlacement` con su restricción; después se saca la tolerancia del lector. El pendiente está en
+   [verificación y producción](verificacion-y-produccion.md).
 
 ## Relación con otros planes
 

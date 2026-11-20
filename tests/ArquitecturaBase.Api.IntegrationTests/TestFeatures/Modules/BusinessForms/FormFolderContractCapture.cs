@@ -1,6 +1,6 @@
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 
-// CP1-A to CP5-A: intact HTTP bodies of the folders for the front, under forms-http/folders, only with FORMS_HTTP_CONTRACT_OUTPUT.
+// CM1 to CM6: intact HTTP bodies of the folders for the front, under forms-http/folders, only with FORMS_HTTP_CONTRACT_OUTPUT.
 internal static class FormFolderContractCapture
 {
     public static async Task WriteAsync(HttpResponseMessage response, string name, CancellationToken cancellationToken)

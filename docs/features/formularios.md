@@ -1504,47 +1504,87 @@ DOC6, en los [servicios](formularios-servicios.md).
 Las carpetas ordenan formularios y catálogos en un solo árbol, con subcarpetas, y un mismo elemento puede estar en varias.
 Lo eligió el usuario en los tableros CP1 a CP5 (el [plan](../plans/2026-11-03-carpetas-de-formularios-y-catalogos.md)).
 Están el backend y el front (2026-11-11). Los ejemplos HTTP (`forms-http/folders`) entraron con la exportación conjunta
-del 2026-11-17; el front todavía no tiene un test que los lea.
+del 2026-11-17; el front todavía no tiene un test que los lea. Las capturas `menu-es`, `created` y `menu-manager-es` salen
+de la base compartida y cambian en cada corrida: es el patrón que ya existía.
 
-**Rediseño aprobado el 2026-11-20, sin programar** ([CM1 a CM6](../plans/2026-11-03-carpetas-de-formularios-y-catalogos.md#las-carpetas-son-menús-cm1-a-cm6-2026-11-20)).
-Cambia cómo se ven y se administran las carpetas:
+**Rediseño del 2026-11-20, programado el mismo día** ([CM1 a CM6](../plans/2026-11-03-carpetas-de-formularios-y-catalogos.md#las-carpetas-son-menús-cm1-a-cm6-2026-11-20)).
+Faltan la corrida completa con la exportación de los ejemplos HTTP, la prueba a mano y el segundo despliegue de la
+migración. Cambia cómo se ven y se administran las carpetas:
 
 - **Cada carpeta del primer nivel es un menú del menú lateral,** después de WhatsApp, con sus formularios activos y un grupo
   por subcarpeta.
 - **Se administran en el menú,** con «Nueva carpeta», los ⋮ y «Agregar formularios», y lo hace quien tiene `formtemplates.manage`.
-- **Los listados quedan sin panel.** Diseñar formularios y Catálogos suman un filtro «Carpeta».
+- **Los listados quedan sin panel.** Diseñar formularios y Catálogos suman un filtro «Carpeta»; Formularios no, porque sus
+  carpetas son el menú.
 - **Hay dos niveles en lugar de cinco.**
 - **El menú se relee solo** cuando un formulario se publica, se da de baja, se reactiva o se elimina.
 
-Hasta que se programe, rige lo de abajo.
+Lo de abajo es lo programado.
 
-- **Tope (F47).** Hasta 500 carpetas: crear otra da `Forms.Folder.TooMany` (400). El menú arma el índice de hijos una vez y calcula sólo los subárboles de las carpetas que muestra.
-- **Sólo ordenan.** No dan ni quitan acceso, y no hay permisos nuevos. Hasta cinco niveles; el nombre (hasta 80
-  caracteres) no se repite en una misma carpeta sin distinguir mayúsculas. Profundidad, ciclos y nombres se revisan contra
-  el árbol entero bajo el lock `forms:folders`, en una transacción por operación. Las tablas son `FormFolders` y
-  `FormFolderMemberships` (migración `AddFormFolders`).
+- **Tope (F47).** Hasta 500 carpetas: crear otra da `Forms.Folder.TooMany` (400).
+- **Sólo ordenan.** No dan ni quitan acceso, y no hay permisos nuevos. Dos niveles (CM1 a CM6): una carpeta del primer
+  nivel es un menú y lleva siempre uno de los doce íconos (`folder, truck, package, receipt, users, calendar, clipboard,
+  chart, wrench, store, leaf, file`); una subcarpeta es un grupo de su panel y no lleva ninguno (`Forms.Folder.IconInvalid`).
+  No hay tercer nivel y una carpeta con subcarpetas no entra en otra (`Forms.Folder.TooDeep`). El nombre (hasta 80
+  caracteres) no se repite en una misma carpeta sin distinguir mayúsculas. Niveles, ciclos, nombres e íconos se revisan
+  contra el árbol entero bajo el lock `forms:folders`, en una transacción por operación. Las tablas son `FormFolders` y
+  `FormFolderMemberships` (migraciones `AddFormFolders` y `FoldersAsMenus`, que pasó lo de más abajo a la antecesora del
+  segundo nivel y le dio un ícono a cada carpeta del primero).
+- **Dos despliegues.** `FoldersAsMenus` es el primero: la versión anterior todavía lee y escribe `MenuPlacement`, así que la
+  columna y su CHECK siguen, con sus valores y el default `None` para ésta, que ya no la escribe, y sólo se va el CHECK que
+  ataba el ícono al menú propio. Antes que nada toma el lock `forms:folders`, así lo que guarde la anterior mientras corre
+  el bundle espera al commit. Las subcarpetas conservan su ícono, que la anterior sigue mostrando como menú propio, y el Down
+  devuelve los menús según `MenuPlacement`, que el Up no toca. Hasta el segundo, lo que escriba la anterior se lee y se
+  escribe como dos niveles (`BusinessFormFolder.TwoLevels`): un menú sin ícono sale con `folder`, una subcarpeta con ícono
+  sale sin él (cambiarla se lo borra) y lo de más abajo del segundo nivel no sale en el árbol ni en el menú, ni lo que tiene
+  adentro, y responde 404 en todas las rutas. Guardar lo que se muestra no cambia nada, la que sube al primer nivel toma el
+  primero libre, y la altura y el tope no cuentan lo escondido; sólo la cuenta de borrar lo suma debajo de una carpeta,
+  porque el `DELETE` se lo lleva. El segundo, otra migración, vuelve a pasar lo de más abajo, recién ahí anula el ícono de
+  las subcarpetas, agrega el CHECK «primer nivel si y sólo si tiene ícono» y borra la columna con su CHECK; después se saca
+  esa tolerancia ([pendiente](../plans/verificacion-y-produccion.md)). Una clave del sistema puede perderse al plegar, si la
+  antecesora del segundo nivel ya tenía una; después `FormSystemFolderLinker` crea o adopta por nombre una carpeta del primer
+  nivel. Es raro: hacen falta carpetas del sistema anidadas a mano.
 - **El árbol.** `GET api/forms/folders?kind=forms|designs|catalogs` lee el árbol de un listado con el permiso de ese
-  listado. Quien administra (`formtemplates.manage` o `formcatalogs.manage`) ve todas las carpetas, también las vacías;
-  los demás, sólo las que tienen algo visible para ellos, con sus madres.
-- **Administrar** (`formtemplates.manage` o `formcatalogs.manage`): `POST api/forms/folders` crea, `PUT
-  api/forms/folders/{id}` renombra o mueve, `GET api/forms/folders/{id}/deletion` cuenta subcarpetas, formularios y
+  listado. Quien administra formularios o catálogos ve todas las carpetas, también las vacías (un catálogo se pone en
+  cualquier carpeta que exista); los demás, sólo las que tienen algo visible para ellos, con sus madres. `canManage` es
+  `true` sólo con `formtemplates.manage`. Cada carpeta trae `icon`, que no es nulo sólo en el primer nivel.
+- **Administrar** (`formtemplates.manage`): `POST api/forms/folders` crea (en el primer nivel, con el `icon` que venga o el
+  primero de la lista que ningún menú usa; si se usaron todos, `folder`), `PUT api/forms/folders/{id}` renombra, mueve o
+  cambia el ícono (la que sube al primer nivel toma el que venga o el primero libre, la que queda arriba conserva el suyo si
+  no viene otro y la que entra en otra lo pierde), `GET api/forms/folders/{id}/deletion` cuenta subcarpetas, formularios y
   catálogos antes de borrar y `DELETE api/forms/folders/{id}` borra la carpeta con sus subcarpetas y sus membresías, nunca
-  un formulario ni un catálogo. Renombrar, mover, borrar y el menú llevan la revisión de la carpeta y responden 409
-  `Forms.Folder.RevisionConflict`.
+  un formulario ni un catálogo. Renombrar, mover, cambiar el ícono y borrar llevan la revisión de la carpeta y responden
+  409 `Forms.Folder.RevisionConflict`; guardar sin cambios no la sube.
 - **Las carpetas de un elemento** (CP2-A): `GET`/`PUT api/forms/definitions/{id}/folders` y `api/forms/catalogs/{id}/folders`.
   Leer pide el permiso de lectura del elemento; guardar, el de administrarlo, y reemplaza el conjunto entero si sigue
   siendo el que se leyó (`expectedFolderIds`); si no, 409 `Forms.Folder.SetChanged`.
-- **Los listados** (`api/forms/overview`, el de diseños y el de catálogos) reciben `folderId` (la carpeta con sus
-  subcarpetas, con una consulta recursiva) o `withoutFolder`, nunca los dos. Se filtra en SQL antes de contar, ordenar y
-  paginar, y un elemento aparece una sola vez. Un elemento borrado oculta sus membresías.
-- **El menú** (CP5-A). `PUT api/forms/folders/{id}/menu` elige el lugar de una carpeta: ninguno, un menú propio con uno de
-  doce íconos genéricos (la carpeta por defecto), «Gestión de formularios» o «Administración». `GET api/forms/menu` lo lee
-  cualquier cuenta activa, ya podado: sólo formularios activos que esa persona puede abrir, en orden alfabético, sin nada
-  vacío. Un menú propio lleva sus formularios y un grupo por subcarpeta con todo lo que está debajo (nunca más de dos
-  niveles); una carpeta en un panel es un grupo con todos los formularios de abajo.
+- **Los formularios de una carpeta** (CM2, «Agregar formularios»). `GET api/forms/folders/{id}/forms` devuelve `{ formIds }`:
+  los formularios que están directamente en esa carpeta, no en sus subcarpetas, con los borradores y los dados de baja y sin
+  los borrados. `PUT` con `{ expectedFormIds, formIds }` reemplaza ese conjunto si sigue siendo el que se leyó, sin importar
+  el orden; si no, 409 `Forms.Folder.SetChanged`. Las dos piden `formtemplates.manage` y el `PUT` va en una transacción con
+  el lock `forms:folders`. `formIds` lleva hasta 1000 formularios sin repetir (el cuerpo admite 128 KiB), cada uno uno que
+  existe y no está borrado (si no, 404 `Forms.Definition.NotFound`, después de comparar el conjunto: uno que cambió porque se
+  borró un formulario da el 409). El tope es por pedido: una carpeta con más de 1000 formularios, que sólo llega por
+  «Carpetas…» o por el sistema, no se edita desde «Agregar formularios», y no se protege porque ese caso no existe. Una
+  carpeta que no existe, o que el árbol no lee por
+  estar debajo del segundo nivel, da 404 `Forms.Folder.NotFound`. Un formulario que pasaría las 100 carpetas recibe la misma
+  respuesta que en «Carpetas…» (400 en `formIds`). No toca los catálogos de la carpeta ni lo de sus subcarpetas, y la
+  membresía de un formulario borrado queda como estaba. El front arma `formIds` con lo que leyó, sumando lo que se tilda y
+  sacando lo que se destilda: así conserva los dados de baja, que no lista.
+- **Los listados.** El de diseños (`api/forms/definitions`) y el de catálogos reciben `folderId` (la carpeta con sus
+  subcarpetas, con una consulta recursiva) o `withoutFolder`, nunca los dos: es el filtro «Carpeta» del front. Se filtra en
+  SQL antes de contar, ordenar y paginar, y un elemento aparece una sola vez. Un elemento borrado oculta sus membresías.
+  Formularios (`api/forms/overview`) ya no recibe ninguno de los dos (CM3), y si llegan no filtra por ellos.
+- **El menú** (CM1 a CM6). `GET api/forms/menu` devuelve `{ canManage, menus }`: un menú por carpeta del primer nivel, con
+  su ícono, su revisión, los formularios activos que están directamente en ella y un grupo por subcarpeta (con su revisión)
+  con los suyos, todo en orden alfabético. Lo lee cualquier cuenta activa: quien administra formularios ve todas las
+  carpetas, también las vacías, todos los formularios activos y `catalogCount` (los catálogos de la carpeta y sus
+  subcarpetas, sin repetir); quien puede abrir formularios (ver, aprobar o cargar respuestas) ve sólo los que puede abrir,
+  sin grupos ni menús vacíos y con `catalogCount` en 0; a cualquier otra le llega vacío.
 - **Las carpetas del sistema.** `FormSystemFolderLinker` archiva lo que crea el sistema (los catálogos de ARCA, la copia de
   un estándar) en la carpeta que recuerda por su clave, aunque la hayan renombrado o movido; si la borraron, la crea otra
-  vez arriba de todo y fuera del menú, y adopta una del primer nivel con el mismo nombre y sin clave. Corre dentro de la
+  vez en el primer nivel, como un menú con el primer ícono libre, y adopta una del primer nivel con el mismo nombre y sin
+  clave. Corre dentro de la
   transacción de quien lo llama y no tiene ruta propia.
 - **Fuera del alcance:** las carpetas no viajan a WhatsApp, al asistente ni a «Formularios que faltan».
 

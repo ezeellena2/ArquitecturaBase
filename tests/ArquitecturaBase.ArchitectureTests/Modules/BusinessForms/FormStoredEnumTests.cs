@@ -26,7 +26,6 @@ public sealed class FormStoredEnumTests
         ["BusinessFormPersonAttributeType"] = "Catalog,Text",
         ["FormActionRunState"] = "Waiting,Running,Completed,Failed,Uncertain,NotApplicable",
         ["FormFolderItemKind"] = "Form,Catalog",
-        ["FormFolderMenuPlacement"] = "None,Own,Forms,Administration",
         ["FormPublicationState"] = "Accepted,Preparing,Publishing,Uncertain,ActivationPending,Published,Failed",
         ["FormReceivedDocumentEventKind"] = "Received,Discarded,Reopened,ExtractionRequested,FormChanged,ExtractionFailed,Confirmed,ChoseOther,FormChosen,Sent,OverLimit",
         ["FormReceivedDocumentNotSentReason"] = "NotSendable,OverLimit",

@@ -18,7 +18,7 @@ Por área:
 - **Respuestas:** registros, valores tipados, recibos de captura, referencias de catálogo y archivos; `FormRecordRepository`, `FormRecordReader`, `FormOverviewReader` (tabla de formularios), `FormEntryReader` (carga desde la app), `FormResponseReader` (planilla, facetas, export y cadena de origen), `FormCaptureReceiptReader` y `FormFileReader`.
 - **Reglas y efectos:** revisiones de reglas, runs, tareas de aprobación, documentos y diseños PDF; `FormRule*`, `FormActionRun*`, `FormApproval*`, `FormPdfDesign*`, `FormDocumentRepository` y `FormActionRecipientReader`.
 - **Sugerencias y pedidos faltantes:** `BusinessFormSuggestions`, temas y pedidos; `FormSuggestion*` y `FormMissingRequest*`.
-- **Carpetas:** `FormFolders` (árbol con revisión, clave del sistema y lugar en el menú) y `FormFolderMemberships` (carpeta, tipo de elemento y su Id, sin FK al elemento); `FormFolderRepository`, `FormFolderReader` (árbol, conteos para borrar y menú) y `FormFolderScope`, el filtro recursivo de los tres listados antes de paginar.
+- **Carpetas:** `FormFolders` (árbol con revisión, clave del sistema e ícono del menú) y `FormFolderMemberships` (carpeta, tipo de elemento y su Id, sin FK al elemento); `FormFolderRepository`, `FormFolderReader` (árbol, conteos para borrar y menú) y `FormFolderScope`, el filtro recursivo de diseños y catálogos antes de paginar.
 
 ## Al modificar
 

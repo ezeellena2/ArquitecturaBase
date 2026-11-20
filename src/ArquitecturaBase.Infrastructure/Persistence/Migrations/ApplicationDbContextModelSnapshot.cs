@@ -2207,11 +2207,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
-                    b.Property<string>("MenuPlacement")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2250,12 +2245,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ParentId", "NormalizedName"), false);
 
-                    b.ToTable("FormFolders", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_FormFolders_MenuIcon", "(\"MenuPlacement\" = 'Own') = (\"MenuIcon\" IS NOT NULL)");
-
-                            t.HasCheckConstraint("CK_FormFolders_MenuPlacement", "\"MenuPlacement\" IN ('None', 'Own', 'Forms', 'Administration')");
-                        });
+                    b.ToTable("FormFolders", (string)null);
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolderMembership", b =>

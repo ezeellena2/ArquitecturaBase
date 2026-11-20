@@ -17,6 +17,9 @@ public interface IFormFolderRepository
     /// <summary>The folders of an item, tracked, including the ones this transaction added.</summary>
     Task<IReadOnlyList<BusinessFormFolderMembership>> ListMembershipsAsync(FormFolderItemKind kind, Guid itemId, CancellationToken cancellationToken);
 
+    /// <summary>What a folder directly holds of one kind, tracked, including what this transaction added.</summary>
+    Task<IReadOnlyList<BusinessFormFolderMembership>> ListFolderMembershipsAsync(Guid folderId, FormFolderItemKind kind, CancellationToken cancellationToken);
+
     void Add(BusinessFormFolder folder);
 
     void Add(BusinessFormFolderMembership membership);

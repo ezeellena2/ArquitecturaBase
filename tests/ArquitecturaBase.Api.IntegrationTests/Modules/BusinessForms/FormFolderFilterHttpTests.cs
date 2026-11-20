@@ -4,12 +4,13 @@ using P = ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormsPermissions
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-// CP1-A with PostgreSQL: the folder filter of the three listings takes the subfolders before counting and paging, an item in two
-// subfolders comes once, «Sin carpeta» takes what is in none, and the facets stay inside the folder.
+// CP1-A with PostgreSQL: the folder filter of «Diseñar formularios» and «Catálogos» takes the subfolders before counting and paging,
+// an item in two subfolders comes once, «Sin carpeta» takes what is in none, and the facets stay inside the folder. «Formularios» no
+// longer filters by folder (CM3): its folders are the menu.
 public sealed partial class FormFolderHttpTests
 {
     [Fact]
-    public async Task The_three_listings_filter_by_a_folder_with_its_subfolders_before_paging_and_without_repeating()
+    public async Task Designs_and_catalogs_filter_by_a_folder_with_its_subfolders_before_paging_and_without_repeating()
     {
         using var manager = await OperatorAsync(P.Read, P.Manage, P.CatalogsRead, P.CatalogsManage, P.RecordsRead);
         var top = await CreateAsync(manager, null, Unique("Ventas"));
@@ -40,22 +41,29 @@ public sealed partial class FormFolderHttpTests
             return (page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetGuid()).ToArray(), page.GetProperty("totalCount").GetInt32());
         }
 
-        foreach (var (path, items) in new[] { ("/api/forms/definitions", ""), ("/api/forms/overview", "forms") })
-        {
-            var first = await PageAsync($"{path}?search={prefix}&folderId={top.Id}&pageSize=2", items);
-            var second = await PageAsync($"{path}?search={prefix}&folderId={top.Id}&pageSize=2&page=2", items);
-            Assert.Equal((2, 3), (first.Ids.Length, first.Total));
-            Assert.Equal(new[] { inTop, inNorth, inBoth }.Order(), first.Ids.Concat(second.Ids).Order());
-            Assert.Equal([inBoth], (await PageAsync($"{path}?search={prefix}&folderId={south.Id}", items)).Ids);
-            Assert.Equal([loose], (await PageAsync($"{path}?search={prefix}&withoutFolder=true", items)).Ids);
-            Assert.Equal(HttpStatusCode.BadRequest, (await manager.GetAsync($"{path}?folderId={top.Id}&withoutFolder=true", Ct)).StatusCode);
-            Assert.Empty((await PageAsync($"{path}?search={prefix}&folderId={Guid.NewGuid()}", items)).Ids);
-        }
+        const string path = "/api/forms/definitions";
+        var first = await PageAsync($"{path}?search={prefix}&folderId={top.Id}&pageSize=2", "");
+        var second = await PageAsync($"{path}?search={prefix}&folderId={top.Id}&pageSize=2&page=2", "");
+        Assert.Equal((2, 3), (first.Ids.Length, first.Total));
+        Assert.Equal(new[] { inTop, inNorth, inBoth }.Order(), first.Ids.Concat(second.Ids).Order());
+        Assert.Equal([inBoth], (await PageAsync($"{path}?search={prefix}&folderId={south.Id}", "")).Ids);
+        Assert.Equal([loose], (await PageAsync($"{path}?search={prefix}&withoutFolder=true", "")).Ids);
+        Assert.Equal(HttpStatusCode.BadRequest, (await manager.GetAsync($"{path}?folderId={top.Id}&withoutFolder=true", Ct)).StatusCode);
+        Assert.Empty((await PageAsync($"{path}?search={prefix}&folderId={Guid.NewGuid()}", "")).Ids);
         using var facets = await manager.GetAsync($"/api/forms/definitions/facets?search={prefix}&folderId={top.Id}", Ct);
         var counts = await facets.ReadJsonAsync();
         Assert.Equal((3, 3, 0), (counts.GetProperty("active").GetInt32(), counts.GetProperty("published").GetInt32(), counts.GetProperty("drafts").GetInt32()));
-        using var overview = await manager.GetAsync($"/api/forms/overview?search={prefix}&folderId={north.Id}", Ct);
-        Assert.Equal(2, (await overview.ReadJsonAsync()).GetProperty("filterCounts").GetProperty("active").GetInt32());
+
+        var overview = await PageAsync($"/api/forms/overview?search={prefix}", "forms");
+        Assert.Equal(new[] { inTop, inNorth, inBoth, loose, elsewhere }.Order(), overview.Ids.Order());
+        foreach (var filter in new[] { $"&folderId={north.Id}", "&withoutFolder=true", $"&folderId={top.Id}&withoutFolder=true" })
+        {
+            using var ignored = await manager.GetAsync($"/api/forms/overview?search={prefix}{filter}", Ct);
+            Assert.Equal(HttpStatusCode.OK, ignored.StatusCode);
+            var json = await ignored.ReadJsonAsync();
+            Assert.Equal(overview.Ids.Order(), json.GetProperty("forms").GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetGuid()).Order());
+            Assert.Equal(5, json.GetProperty("filterCounts").GetProperty("active").GetInt32());
+        }
 
         var catalogPage = await PageAsync($"/api/forms/catalogs?search={prefix}&folderId={top.Id}", "");
         Assert.Equal([catalogInSouth], catalogPage.Ids);

@@ -14,8 +14,8 @@ using P = ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormsPermissions
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-// CP1-A to CP5-A with PostgreSQL: the tree pruned per listing, deleting with subfolders without touching items, the folders lock
-// against cycles, the 409s, the system folder and the menu. Folders are shared by the whole database, so every assertion looks only at
+// CP1-A to CP4-A and CM1 to CM6 with PostgreSQL: the tree pruned per listing, two levels with the icon of each menu, deleting with
+// subfolders without touching items, the folders lock against cycles, the 409s, the system folder and the menu. Folders are shared by the whole database, so every assertion looks only at
 // this test's own folders and items.
 [Collection(ApiTestGroup.Name)]
 public sealed partial class FormFolderHttpTests(ApiFactory factory)
@@ -30,31 +30,50 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         using var nothing = await OperatorAsync();
         using var designs = await OperatorAsync(P.Read);
         using var catalogs = await OperatorAsync(P.CatalogsRead);
+        using var catalogManager = await OperatorAsync(P.CatalogsRead, P.CatalogsManage);
         using var manager = await OperatorAsync(P.Read, P.Manage);
         var folder = await CreateAsync(manager, null, Unique("Permisos"));
         var form = await SeedFormAsync(Actor(manager), Unique("Permiso"));
 
-        foreach (var path in new[] { "/api/forms/folders?kind=designs", "/api/forms/menu", $"/api/forms/definitions/{form}/folders" })
+        foreach (var path in new[] { "/api/forms/folders?kind=designs", "/api/forms/menu", $"/api/forms/definitions/{form}/folders", $"/api/forms/folders/{folder.Id}/forms" })
             Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(path, Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await nothing.GetAsync("/api/forms/folders?kind=designs", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await catalogs.GetAsync("/api/forms/folders?kind=designs", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await designs.GetAsync("/api/forms/folders?kind=forms", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await designs.GetAsync("/api/forms/folders?kind=menu", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await designs.PostAsJsonAsync("/api/forms/folders", new { name = Unique("No") }, Ct)).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await designs.PutAsJsonAsync($"/api/forms/folders/{folder.Id}/menu",
-            new { expectedRevision = 1, placement = "Own" }, Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await designs.PutAsJsonAsync($"/api/forms/definitions/{form}/folders",
             new { expectedFolderIds = Array.Empty<Guid>(), folderIds = new[] { folder.Id } }, Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await manager.GetAsync($"/api/forms/catalogs/{Guid.NewGuid()}/folders", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await designs.GetAsync($"/api/forms/definitions/{Guid.NewGuid()}/folders", Ct)).StatusCode);
 
+        // CM1 to CM6: administering folders is administering forms; whoever only manages catalogs files catalogs in folders that exist.
+        Assert.Equal(HttpStatusCode.Forbidden, (await catalogManager.PostAsJsonAsync("/api/forms/folders", new { name = Unique("No") }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await catalogManager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}",
+            new { expectedRevision = 1, name = "Otra" }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await catalogManager.GetAsync($"/api/forms/folders/{folder.Id}/deletion", Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await DeleteAsync(catalogManager, folder.Id, 1)).StatusCode);
+        foreach (var client in new[] { catalogManager, designs })
+        {
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync($"/api/forms/folders/{folder.Id}/forms", Ct)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.PutAsJsonAsync($"/api/forms/folders/{folder.Id}/forms",
+                new { expectedFormIds = Array.Empty<Guid>(), formIds = new[] { form } }, Ct)).StatusCode);
+        }
+        using var catalogTree = await catalogManager.GetAsync("/api/forms/folders?kind=catalogs", Ct);
+        var tree = await catalogTree.ReadJsonAsync();
+        Assert.False(tree.GetProperty("canManage").GetBoolean());
+        Assert.Contains(tree.GetProperty("folders").EnumerateArray(), item => item.GetProperty("id").GetGuid() == folder.Id);
+        var catalog = await SeedCatalogAsync(Unique("Rubros"));
+        await FileAsync(catalogManager, "catalogs", catalog, folder.Id);
+
         using var menu = await nothing.GetAsync("/api/forms/menu", Ct);
         Assert.Equal(HttpStatusCode.OK, menu.StatusCode);
         Assert.True(menu.Headers.CacheControl?.NoStore);
         var empty = await menu.ReadJsonAsync();
+        Assert.False(empty.GetProperty("canManage").GetBoolean());
         Assert.Empty(empty.GetProperty("menus").EnumerateArray());
-        Assert.Empty(empty.GetProperty("forms").EnumerateArray());
-        Assert.Empty(empty.GetProperty("administration").EnumerateArray());
+        Assert.False(empty.TryGetProperty("forms", out _));
+        Assert.False(empty.TryGetProperty("administration", out _));
     }
 
     [Fact]
@@ -89,7 +108,11 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
             if (client == manager && kind == "designs") await FormFolderContractCapture.WriteAsync(response, "tree-designs-es", Ct);
             var json = await response.ReadJsonAsync();
             Assert.Equal(client == manager, json.GetProperty("canManage").GetBoolean());
-            return json.GetProperty("folders").EnumerateArray().Select(folder => folder.GetProperty("id").GetGuid()).Where(mine.Contains).ToArray();
+            var folders = json.GetProperty("folders").EnumerateArray().Where(folder => mine.Contains(folder.GetProperty("id").GetGuid())).ToArray();
+            // A menu carries its icon and a subfolder none.
+            Assert.All(folders, folder => Assert.Equal(folder.GetProperty("parentId").ValueKind == JsonValueKind.Null,
+                folder.GetProperty("icon").ValueKind == JsonValueKind.String));
+            return folders.Select(folder => folder.GetProperty("id").GetGuid()).ToArray();
         }
 
         Assert.Equal(new[] { top.Id, child.Id, published.Id }.Order(), (await TreeAsync(designs, "designs")).Order());
@@ -104,20 +127,19 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         using var manager = await OperatorAsync(P.Read, P.Manage, P.CatalogsRead, P.CatalogsManage);
         var top = await CreateAsync(manager, null, Unique("Archivo"));
         var child = await CreateAsync(manager, top.Id, "Viejos");
-        var grandchild = await CreateAsync(manager, child.Id, "Muy viejos");
         var other = await CreateAsync(manager, null, Unique("Vigentes"));
         var actor = Actor(manager);
         var kept = await SeedFormAsync(actor, Unique("Remito"));
         var lonely = await SeedFormAsync(actor, Unique("Recibo"));
         var catalog = await SeedCatalogAsync(Unique("Depósitos"));
-        await FileAsync(manager, "definitions", kept, grandchild.Id, other.Id);
+        await FileAsync(manager, "definitions", kept, child.Id, other.Id);
         await FileAsync(manager, "definitions", lonely, top.Id, child.Id);
         await FileAsync(manager, "catalogs", catalog, child.Id);
 
         using var preview = await manager.GetAsync($"/api/forms/folders/{top.Id}/deletion", Ct);
         await FormFolderContractCapture.WriteAsync(preview, "deletion", Ct);
         var impact = await preview.ReadJsonAsync();
-        Assert.Equal((1L, 2, 2, 1), (impact.GetProperty("revision").GetInt64(), impact.GetProperty("subfolderCount").GetInt32(),
+        Assert.Equal((1L, 1, 2, 1), (impact.GetProperty("revision").GetInt64(), impact.GetProperty("subfolderCount").GetInt32(),
             impact.GetProperty("formCount").GetInt32(), impact.GetProperty("catalogCount").GetInt32()));
         using var stale = await DeleteAsync(manager, top.Id, 2);
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
@@ -127,7 +149,7 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         var remaining = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormFolder>().Where(folder =>
-            folder.Id == top.Id || folder.Id == child.Id || folder.Id == grandchild.Id || folder.Id == other.Id).Select(folder => folder.Id).ToListAsync(Ct));
+            folder.Id == top.Id || folder.Id == child.Id || folder.Id == other.Id).Select(folder => folder.Id).ToListAsync(Ct));
         Assert.Equal([other.Id], remaining);
         Assert.Equal([other.Id], await FoldersOfAsync(manager, "definitions", kept));
         Assert.Empty(await FoldersOfAsync(manager, "definitions", lonely));
@@ -153,30 +175,39 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         var refused = await moves.Single(move => move.StatusCode == HttpStatusCode.BadRequest).ReadJsonAsync();
         Assert.Equal("Forms.Folder.Cycle", refused.GetProperty("code").GetString());
         Assert.True(refused.GetProperty("errors").TryGetProperty("parentId", out _));
-        var parents = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormFolder>().Where(folder => folder.Id == first.Id || folder.Id == second.Id)
-            .ToDictionaryAsync(folder => folder.Id, folder => folder.ParentId, Ct));
-        Assert.Single(parents.Values, parent => parent is null);
+        var folders = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormFolder>().Where(folder => folder.Id == first.Id || folder.Id == second.Id)
+            .ToDictionaryAsync(folder => folder.Id, folder => (folder.ParentId, folder.MenuIcon), Ct));
+        Assert.Single(folders.Values, folder => folder.ParentId is null && folder.MenuIcon is not null);
+        Assert.Single(folders.Values, folder => folder.ParentId is not null && folder.MenuIcon is null);
         foreach (var move in moves) move.Dispose();
     }
 
     [Fact]
-    public async Task Names_are_unique_per_parent_without_case_and_the_fifth_level_is_the_last()
+    public async Task Names_are_unique_per_parent_without_case_and_the_second_level_is_the_last()
     {
-        using var manager = await OperatorAsync(P.CatalogsManage);
+        using var manager = await OperatorAsync(P.Manage);
         var name = Unique("Compras");
-        var top = await CreateAsync(manager, null, name);
+        var top = await CreateAsync(manager, null, name, "package");
 
         using var repeated = await manager.PostAsJsonAsync("/api/forms/folders", new { name = " " + name.ToUpperInvariant() + " " }, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, repeated.StatusCode);
         var error = await repeated.ReadJsonAsync();
         Assert.Equal("Forms.Folder.NameTaken", error.GetProperty("code").GetString());
         Assert.True(error.GetProperty("errors").TryGetProperty("name", out _));
-        Assert.Equal(top.Id, (await CreateAsync(manager, top.Id, name)).ParentId);
-        var deepest = top;
-        for (var level = 2; level <= 5; level++) deepest = await CreateAsync(manager, deepest.Id, "Nivel " + level);
-        using var tooDeep = await manager.PostAsJsonAsync("/api/forms/folders", new { parentId = deepest.Id, name = "Nivel 6" }, Ct);
+        Assert.Equal("package", top.Icon);
+        var group = await CreateAsync(manager, top.Id, name);
+        Assert.Equal((top.Id, (string?)null), (group.ParentId, group.Icon));
+        using var tooDeep = await manager.PostAsJsonAsync("/api/forms/folders", new { parentId = group.Id, name = "Nivel 3" }, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, tooDeep.StatusCode);
         Assert.Equal("Forms.Folder.TooDeep", (await tooDeep.ReadJsonAsync()).GetProperty("code").GetString());
+        foreach (var body in new object[] { new { name = Unique("Cohete"), icon = "rocket" }, new { parentId = top.Id, name = "Con ícono", icon = "truck" } })
+        {
+            using var icon = await manager.PostAsJsonAsync("/api/forms/folders", body, Ct);
+            Assert.Equal(HttpStatusCode.BadRequest, icon.StatusCode);
+            var invalid = await icon.ReadJsonAsync();
+            Assert.Equal("Forms.Folder.IconInvalid", invalid.GetProperty("code").GetString());
+            Assert.True(invalid.GetProperty("errors").TryGetProperty("icon", out _));
+        }
         using var missingParent = await manager.PostAsJsonAsync("/api/forms/folders", new { parentId = Guid.NewGuid(), name = "Huérfana" }, Ct);
         Assert.Equal(HttpStatusCode.NotFound, missingParent.StatusCode);
         using var unknown = await manager.PostAsJsonAsync("/api/forms/folders", new { name = "Extra", color = "red" }, Ct);
@@ -193,21 +224,23 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
 
         using var renamed = await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}", new { expectedRevision = 1, name = folder.Name + " B" }, Ct);
         Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
-        Assert.Equal(2, (await renamed.ReadJsonAsync()).GetProperty("revision").GetInt64());
-        foreach (var stale in new[]
-        {
-            await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}", new { expectedRevision = 1, name = "Otra" }, Ct),
-            await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}/menu", new { expectedRevision = 1, placement = "Own" }, Ct),
-        })
-        {
-            Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
-            Assert.Equal("Forms.Folder.RevisionConflict", (await stale.ReadJsonAsync()).GetProperty("code").GetString());
-        }
-        using var menu = await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}/menu", new { expectedRevision = 2, placement = "Own", icon = "truck" }, Ct);
-        var placed = await menu.ReadJsonAsync();
-        Assert.Equal(("Own", "truck", 3L), (placed.GetProperty("menuPlacement").GetString(), placed.GetProperty("menuIcon").GetString(), placed.GetProperty("revision").GetInt64()));
-        using var icon = await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}/menu", new { expectedRevision = 3, placement = "Administration", icon = "truck" }, Ct);
-        Assert.Equal("Forms.Folder.IconInvalid", (await icon.ReadJsonAsync()).GetProperty("code").GetString());
+        var afterRename = await renamed.ReadJsonAsync();
+        Assert.Equal((2L, folder.Icon), (afterRename.GetProperty("revision").GetInt64(), afterRename.GetProperty("icon").GetString()));
+        using var stale = await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}", new { expectedRevision = 1, name = "Otra", icon = "truck" }, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        Assert.Equal("Forms.Folder.RevisionConflict", (await stale.ReadJsonAsync()).GetProperty("code").GetString());
+        using var icon = await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}", new { expectedRevision = 2, name = folder.Name + " B", icon = "truck" }, Ct);
+        var withIcon = await icon.ReadJsonAsync();
+        Assert.Equal(("truck", 3L), (withIcon.GetProperty("icon").GetString(), withIcon.GetProperty("revision").GetInt64()));
+        using var unchanged = await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}", new { expectedRevision = 3, name = folder.Name + " B" }, Ct);
+        Assert.Equal(3L, (await unchanged.ReadJsonAsync()).GetProperty("revision").GetInt64());
+        using var inside = await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}",
+            new { expectedRevision = 3, name = folder.Name, parentId = other.Id, icon = "truck" }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, inside.StatusCode);
+        Assert.Equal("Forms.Folder.IconInvalid", (await inside.ReadJsonAsync()).GetProperty("code").GetString());
+        using var moved = await manager.PutAsJsonAsync($"/api/forms/folders/{folder.Id}", new { expectedRevision = 3, name = folder.Name, parentId = other.Id }, Ct);
+        var group = await moved.ReadJsonAsync();
+        Assert.Equal((other.Id, JsonValueKind.Null), (group.GetProperty("parentId").GetGuid(), group.GetProperty("icon").ValueKind));
 
         await FileAsync(manager, "definitions", form, folder.Id);
         using var changed = await manager.PutAsJsonAsync($"/api/forms/definitions/{form}/folders",
@@ -220,7 +253,7 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
     [Fact]
     public async Task The_system_folder_comes_back_even_after_a_rename_and_is_created_again_after_a_delete()
     {
-        using var manager = await OperatorAsync(P.CatalogsRead, P.CatalogsManage);
+        using var manager = await OperatorAsync(P.Manage, P.CatalogsRead, P.CatalogsManage);
         var key = "test." + Guid.NewGuid().ToString("N");
         var name = Unique("Sistema");
         var first = await SeedCatalogAsync(Unique("Alícuotas"));
@@ -229,7 +262,8 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
 
         var folder = await SystemFileAsync(first, key, name);
         var row = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormFolder>().SingleAsync(value => value.Id == folder, Ct));
-        Assert.Equal((name, key, (Guid?)null, FormFolderMenuPlacement.None), (row.Name, row.SystemKey, row.ParentId, row.MenuPlacement));
+        Assert.Equal((name, key, (Guid?)null), (row.Name, row.SystemKey, row.ParentId));
+        Assert.Contains(row.MenuIcon, BusinessFormFolder.MenuIcons);
         Assert.True((await manager.PutAsJsonAsync($"/api/forms/folders/{folder}", new { expectedRevision = 1, name = name + " propia" }, Ct)).IsSuccessStatusCode);
 
         Assert.Equal(folder, await SystemFileAsync(second, key, name));
@@ -243,21 +277,19 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task The_menu_holds_only_active_forms_pruned_by_permission_with_the_subfolders_in_their_group()
+    public async Task The_menu_has_a_menu_per_folder_with_its_groups_pruned_for_whoever_opens_and_whole_for_whoever_administers()
     {
         using var manager = await OperatorAsync(P.Read, P.Manage, P.CatalogsRead, P.CatalogsManage);
         using var loader = await OperatorAsync(P.RecordsCreate);
         using var designer = await OperatorAsync(P.Read, P.Manage);
         loader.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
-        var own = await CreateAsync(manager, null, Unique("Repartos"));
+        designer.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var own = await CreateAsync(manager, null, Unique("Repartos"), "truck");
         var north = await CreateAsync(manager, own.Id, "Norte");
-        var late = await CreateAsync(manager, north.Id, "Tarde");
         var empty = await CreateAsync(manager, own.Id, "Vacía");
         var admin = await CreateAsync(manager, null, Unique("Facturación"));
         var panel = await CreateAsync(manager, null, Unique("Solo borradores"));
-        await PlaceAsync(manager, own.Id, "Own", "truck");
-        await PlaceAsync(manager, admin.Id, "Administration", null);
-        await PlaceAsync(manager, panel.Id, "Forms", null);
+        var blank = await CreateAsync(manager, null, Unique("Compras"));
         var actor = Actor(manager);
         var prefix = "M" + Guid.NewGuid().ToString("N")[..6];
         var route = await SeedFormAsync(actor, prefix + " Hoja de ruta");
@@ -265,33 +297,50 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         var load = await SeedFormAsync(actor, prefix + " Carga en ruta");
         var draft = await SeedFormAsync(actor, prefix + " Borrador", published: false);
         var off = await SeedFormAsync(actor, prefix + " Dada de baja", deactivated: true);
+        var rubros = await SeedCatalogAsync(prefix + " Rubros");
         await FileAsync(manager, "definitions", route, own.Id);
         await FileAsync(manager, "definitions", delivery, north.Id, admin.Id);
-        await FileAsync(manager, "definitions", load, late.Id);
+        await FileAsync(manager, "definitions", load, north.Id);
         await FileAsync(manager, "definitions", draft, own.Id, empty.Id, panel.Id);
         await FileAsync(manager, "definitions", off, own.Id, panel.Id);
-        await FileAsync(manager, "catalogs", await SeedCatalogAsync(prefix + " Rubros"), own.Id, panel.Id);
+        await FileAsync(manager, "catalogs", rubros, own.Id, empty.Id, panel.Id);
+        await FileAsync(manager, "catalogs", await SeedCatalogAsync(prefix + " Depósitos"), north.Id);
 
         using var response = await loader.GetAsync("/api/forms/menu", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         await FormFolderContractCapture.WriteAsync(response, "menu-es", Ct);
         var menu = await response.ReadJsonAsync();
 
-        var section = menu.GetProperty("menus").EnumerateArray().Single(item => item.GetProperty("folderId").GetGuid() == own.Id);
-        Assert.Equal((own.Name, "truck"), (section.GetProperty("name").GetString(), section.GetProperty("icon").GetString()));
+        Assert.False(menu.GetProperty("canManage").GetBoolean());
+        var section = Menu(menu, own.Id);
+        Assert.Equal((own.Name, "truck", 1L, 0), (section.GetProperty("name").GetString(), section.GetProperty("icon").GetString(),
+            section.GetProperty("revision").GetInt64(), section.GetProperty("catalogCount").GetInt32()));
         Assert.Equal([route], Ids(section.GetProperty("forms")));
         var group = Assert.Single(section.GetProperty("groups").EnumerateArray());
-        Assert.Equal((north.Id, "Norte"), (group.GetProperty("folderId").GetGuid(), group.GetProperty("name").GetString()));
+        Assert.Equal((north.Id, "Norte", 1L), (group.GetProperty("folderId").GetGuid(), group.GetProperty("name").GetString(), group.GetProperty("revision").GetInt64()));
         Assert.Equal([load, delivery], Ids(group.GetProperty("forms")));
         Assert.Equal(prefix + " Carga en ruta", group.GetProperty("forms")[0].GetProperty("name").GetString());
-        var billing = menu.GetProperty("administration").EnumerateArray().Single(item => item.GetProperty("folderId").GetGuid() == admin.Id);
-        Assert.Equal([delivery], Ids(billing.GetProperty("forms")));
-        Assert.DoesNotContain(menu.GetProperty("forms").EnumerateArray(), item => item.GetProperty("folderId").GetGuid() == panel.Id);
+        Assert.Equal([delivery], Ids(Menu(menu, admin.Id).GetProperty("forms")));
+        Assert.DoesNotContain(menu.GetProperty("menus").EnumerateArray(), item => item.GetProperty("folderId").GetGuid() == panel.Id
+            || item.GetProperty("folderId").GetGuid() == blank.Id);
 
-        using var none = await designer.GetAsync("/api/forms/menu", Ct);
-        var nothing = await none.ReadJsonAsync();
-        Assert.DoesNotContain(nothing.GetProperty("menus").EnumerateArray(), item => item.GetProperty("folderId").GetGuid() == own.Id);
-        Assert.Empty(nothing.GetProperty("administration").EnumerateArray());
+        // Whoever administers forms sees every folder, also the empty ones, every active form and the catalogs of each menu, without
+        // being able to open responses: an empty folder, a group, an empty group and a folder with only catalogs (and forms that are
+        // not active) go in its capture.
+        using var forDesigner = await designer.GetAsync("/api/forms/menu", Ct);
+        await FormFolderContractCapture.WriteAsync(forDesigner, "menu-manager-es", Ct);
+        var whole = await forDesigner.ReadJsonAsync();
+        Assert.True(whole.GetProperty("canManage").GetBoolean());
+        var designed = Menu(whole, own.Id);
+        Assert.Equal(2, designed.GetProperty("catalogCount").GetInt32());
+        Assert.Equal([route], Ids(designed.GetProperty("forms")));
+        Assert.Equal([north.Id, empty.Id], designed.GetProperty("groups").EnumerateArray().Select(item => item.GetProperty("folderId").GetGuid()));
+        Assert.Empty(designed.GetProperty("groups")[1].GetProperty("forms").EnumerateArray());
+        var drafts = Menu(whole, panel.Id);
+        Assert.Equal((1, 0), (drafts.GetProperty("catalogCount").GetInt32(), drafts.GetProperty("forms").GetArrayLength()));
+        var vacant = Menu(whole, blank.Id);
+        Assert.Equal((0, 0, 0), (vacant.GetProperty("catalogCount").GetInt32(), vacant.GetProperty("forms").GetArrayLength(),
+            vacant.GetProperty("groups").GetArrayLength()));
 
         // F20: whoever only decides approvals sees the forms with something for them to decide, as the tree does; here, none.
         using var approver = await OperatorAsync(P.ApprovalsDecide);
@@ -300,6 +349,9 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         var approverMenu = (await forApprover.ReadJsonAsync()).GetRawText();
         foreach (var form in new[] { route, delivery, load }) Assert.DoesNotContain(form.ToString(), approverMenu);
     }
+
+    private static JsonElement Menu(JsonElement menu, Guid folderId) =>
+        menu.GetProperty("menus").EnumerateArray().Single(item => item.GetProperty("folderId").GetGuid() == folderId);
 
     private static Guid[] Ids(JsonElement forms) => forms.EnumerateArray().Select(form => form.GetProperty("id").GetGuid()).ToArray();
 
@@ -328,18 +380,12 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         return Task.FromResult(client);
     }
 
-    private static async Task<FormFolderResponse> CreateAsync(HttpClient client, Guid? parentId, string name)
+    private static async Task<FormFolderResponse> CreateAsync(HttpClient client, Guid? parentId, string name, string? icon = null)
     {
-        using var response = await client.PostAsJsonAsync("/api/forms/folders", new { parentId, name }, Ct);
+        using var response = await client.PostAsJsonAsync("/api/forms/folders", new { parentId, name, icon }, Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         await FormFolderContractCapture.WriteAsync(response, "created", Ct);
         return (await response.Content.ReadFromJsonAsync<FormFolderResponse>(Json, Ct))!;
-    }
-
-    private static async Task PlaceAsync(HttpClient client, Guid id, string placement, string? icon)
-    {
-        using var response = await client.PutAsJsonAsync($"/api/forms/folders/{id}/menu", new { expectedRevision = 1, placement, icon }, Ct);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     private static Task<HttpResponseMessage> DeleteAsync(HttpClient client, Guid id, long expectedRevision) =>

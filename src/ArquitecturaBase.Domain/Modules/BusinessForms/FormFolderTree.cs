@@ -10,7 +10,8 @@ public sealed record FormFolderMembershipPlan(IReadOnlyList<Guid> Added, IReadOn
 
 /// <summary>
 /// The rules of the whole tree, over every folder read under the folders lock: an existing parent, up to
-/// <see cref="BusinessFormFolder.MaxDepth"/> levels counting the subfolders that move along, no cycles and a unique name per parent.
+/// <see cref="BusinessFormFolder.MaxDepth"/> levels (a menu and its groups, CM1 to CM6) counting the subfolders that move along, so a
+/// folder with subfolders never goes inside another; no cycles and a unique name per parent.
 /// </summary>
 public static class FormFolderTree
 {
@@ -60,8 +61,8 @@ public static class FormFolderTree
     }
 
     /// <summary>
-    /// The items' folders change only if they are still the ones that were read (<paramref name="expected"/>, in any order); otherwise
-    /// <see cref="FormFolderErrors.SetChanged"/>.
+    /// A set of memberships (the folders of an item, or the forms of a folder) changes only if it is still the one that was read
+    /// (<paramref name="expected"/>, in any order); otherwise <see cref="FormFolderErrors.SetChanged"/>.
     /// </summary>
     public static Result<FormFolderMembershipPlan> PlanMemberships(IReadOnlyCollection<Guid> current, IReadOnlyCollection<Guid> expected,
         IReadOnlyCollection<Guid> target)

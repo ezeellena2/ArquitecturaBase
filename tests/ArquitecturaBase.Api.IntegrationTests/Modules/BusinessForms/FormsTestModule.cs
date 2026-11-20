@@ -48,7 +48,8 @@ internal sealed class FormsTestModule : IApiTestModule
         "GET /api/forms/catalog-filter-options", "POST /api/forms/catalog-previews", "POST /api/forms/catalogs/filters", "PUT /api/forms/catalogs/{id:guid}/filters",
         "GET /api/forms/library", "POST /api/forms/library/{key}/copies",
         "GET /api/forms/folders", "POST /api/forms/folders", "PUT /api/forms/folders/{id:guid}", "DELETE /api/forms/folders/{id:guid}",
-        "GET /api/forms/folders/{id:guid}/deletion", "PUT /api/forms/folders/{id:guid}/menu", "GET /api/forms/menu",
+        "GET /api/forms/folders/{id:guid}/deletion", "GET /api/forms/menu",
+        "GET /api/forms/folders/{id:guid}/forms", "PUT /api/forms/folders/{id:guid}/forms",
         "GET /api/forms/definitions/{id:guid}/folders", "PUT /api/forms/definitions/{id:guid}/folders",
         "GET /api/forms/catalogs/{id:guid}/folders", "PUT /api/forms/catalogs/{id:guid}/folders"];
     public void ConfigureSettings(IWebHostBuilder builder) { }

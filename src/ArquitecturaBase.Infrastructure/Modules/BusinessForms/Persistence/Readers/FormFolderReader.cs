@@ -8,10 +8,13 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 
 internal sealed class FormFolderReader(ApplicationDbContext dbContext) : IFormFolderReader
 {
+    // Two levels, also over what the previous version may still write until the next migration folds it again (FoldersAsMenus), as the
+    // writes see them (BusinessFormFolder.TwoLevels): a menu without an icon reads as the folder, a subfolder with one reads without it,
+    // and nothing below the second level is read, neither the folder nor, since the tree and the menu start here, what it holds.
     public async Task<IReadOnlyList<FormFolderRow>> ListAsync(CancellationToken cancellationToken) =>
-        (await dbContext.Set<BusinessFormFolder>().AsNoTracking().ToListAsync(cancellationToken))
+        BusinessFormFolder.TwoLevels(await dbContext.Set<BusinessFormFolder>().AsNoTracking().ToListAsync(cancellationToken))
             .Select(folder => new FormFolderRow(folder.Id, folder.ParentId, folder.Name, folder.NormalizedName, folder.SystemKey,
-                folder.MenuPlacement.ToString(), folder.MenuIcon, folder.Revision)).ToArray();
+                folder.ShownIcon, folder.Revision)).ToArray();
 
     public async Task<IReadOnlyList<Guid>> ListFolderIdsWithItemsAsync(FormFolderListing listing, Guid actorUserId, bool canReadRecords,
         bool canDecide, bool canCreate, CancellationToken cancellationToken)
@@ -30,30 +33,63 @@ internal sealed class FormFolderReader(ApplicationDbContext dbContext) : IFormFo
             .Where(membership => membership.ItemKind == kind && membership.ItemId == itemId)
             .OrderBy(membership => membership.FolderId).Select(membership => membership.FolderId).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Guid>> ListFolderFormIdsAsync(Guid folderId, CancellationToken cancellationToken) =>
+        await Holding(FormFolderItemKind.Form, Definitions()).Where(membership => membership.FolderId == folderId)
+            .OrderBy(membership => membership.ItemId).Select(membership => membership.ItemId).ToListAsync(cancellationToken);
+
+    // Every folder counts, also one the tree does not read below the second level: the limit is the one «Carpetas…» saves.
+    public async Task<IReadOnlyList<FormFolderCountRow>> ListFormFolderCountsAsync(IReadOnlyCollection<Guid> formIds, CancellationToken cancellationToken)
+    {
+        var ids = formIds.ToArray();
+        var memberships = dbContext.Set<BusinessFormFolderMembership>().AsNoTracking().Where(membership => membership.ItemKind == FormFolderItemKind.Form);
+        return await dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(definition => ids.Contains(definition.Id))
+            .Select(definition => new FormFolderCountRow(definition.Id, memberships.Count(membership => membership.ItemId == definition.Id)))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<bool> ExistsItemAsync(FormFolderItemKind kind, Guid itemId, CancellationToken cancellationToken) =>
         (kind == FormFolderItemKind.Form ? Definitions() : Catalogs()).AnyAsync(id => id == itemId, cancellationToken);
 
-    public async Task<FormFolderItemCounts> CountItemsAsync(IReadOnlyCollection<Guid> folderIds, CancellationToken cancellationToken)
+    // The whole subtree the delete takes by cascade, also below the second level.
+    public async Task<FormFolderDeletionCounts> CountDeletionAsync(Guid folderId, CancellationToken cancellationToken)
     {
-        var ids = folderIds.ToArray();
+        var nodes = await dbContext.Set<BusinessFormFolder>().AsNoTracking()
+            .Select(folder => new { folder.Id, folder.ParentId, folder.NormalizedName }).ToListAsync(cancellationToken);
+        var ids = FormFolderTree.Subtree(folderId, nodes.Select(node => new FormFolderNode(node.Id, node.ParentId, node.NormalizedName)).ToArray()).ToArray();
         var forms = await Holding(FormFolderItemKind.Form, Definitions()).Where(membership => ids.Contains(membership.FolderId))
             .Select(membership => membership.ItemId).Distinct().CountAsync(cancellationToken);
         var catalogs = await Holding(FormFolderItemKind.Catalog, Catalogs()).Where(membership => ids.Contains(membership.FolderId))
             .Select(membership => membership.ItemId).Distinct().CountAsync(cancellationToken);
-        return new(forms, catalogs);
+        return new(ids.Length - 1, forms, catalogs);
     }
 
-    public async Task<IReadOnlyList<FormFolderMenuFormRow>> ListMenuFormsAsync(IReadOnlyCollection<Guid> folderIds, string culture,
-        Guid actorUserId, bool canReadRecords, bool canCreate, CancellationToken cancellationToken)
+    // The same forms the tree shows this person, not deactivated ones.
+    public Task<IReadOnlyList<FormFolderMenuFormRow>> ListMenuFormsAsync(IReadOnlyCollection<Guid> folderIds, string culture,
+        Guid actorUserId, bool canReadRecords, bool canCreate, CancellationToken cancellationToken) =>
+        MenuFormsAsync(folderIds, culture, FormOverviewDefinitionQuery.VisibleIds(dbContext, actorUserId, canReadRecords, canCreate), cancellationToken);
+
+    public Task<IReadOnlyList<FormFolderMenuFormRow>> ListActiveMenuFormsAsync(IReadOnlyCollection<Guid> folderIds, string culture,
+        CancellationToken cancellationToken) => MenuFormsAsync(folderIds, culture, null, cancellationToken);
+
+    // A menu is a folder of the first level (BusinessFormFolder.MaxDepth is two): its own catalogs and its subfolders' count once.
+    public async Task<IReadOnlyList<FormMenuCatalogCountRow>> ListMenuCatalogCountsAsync(CancellationToken cancellationToken) =>
+        await (from membership in Holding(FormFolderItemKind.Catalog, Catalogs())
+               join folder in dbContext.Set<BusinessFormFolder>().AsNoTracking() on membership.FolderId equals folder.Id
+               group membership.ItemId by folder.ParentId ?? folder.Id into menu
+               select new FormMenuCatalogCountRow(menu.Key, menu.Distinct().Count()))
+            .ToListAsync(cancellationToken);
+
+    // The active forms directly in these folders: every one, or only the visible ones when they come.
+    private async Task<IReadOnlyList<FormFolderMenuFormRow>> MenuFormsAsync(IReadOnlyCollection<Guid> folderIds, string culture,
+        IQueryable<Guid>? visible, CancellationToken cancellationToken)
     {
-        // The same forms the tree shows this person, not deactivated ones.
-        var visible = FormOverviewDefinitionQuery.VisibleIds(dbContext, actorUserId, canReadRecords, canCreate);
         var ids = folderIds.ToArray();
         var nameColumn = culture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        var active = FormOverviewDefinitionQuery.Published(dbContext).Where(definition => definition.DeactivatedAtUtc == null);
+        if (visible is not null) active = active.Where(definition => visible.Contains(definition.Id));
         return await (from membership in dbContext.Set<BusinessFormFolderMembership>().AsNoTracking()
                       where membership.ItemKind == FormFolderItemKind.Form && ids.Contains(membership.FolderId)
-                      join definition in FormOverviewDefinitionQuery.Published(dbContext).Where(definition => definition.DeactivatedAtUtc == null && visible.Contains(definition.Id))
-                          on membership.ItemId equals definition.Id
+                      join definition in active on membership.ItemId equals definition.Id
                       join version in dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.PublishedCultures != null)
                           on definition.ActiveVersionId equals version.Id
                       select new FormFolderMenuFormRow(membership.FolderId, definition.Id,

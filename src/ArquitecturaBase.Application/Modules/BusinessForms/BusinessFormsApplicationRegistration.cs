@@ -159,8 +159,8 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<CreateFormFolderRequest>, CreateFormFolderRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<UpdateFormFolderRequest>, UpdateFormFolderRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<DeleteFormFolderRequest>, DeleteFormFolderRequestValidator>());
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SetFormFolderMenuRequest>, SetFormFolderMenuRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SetFormItemFoldersRequest>, SetFormItemFoldersRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SetFormFolderFormsRequest>, SetFormFolderFormsRequestValidator>());
         services.TryAddScoped<IFormDraftProposalService, FormDraftProposalService>();
         services.TryAddScoped<FormDefinitionReadPolicy>();
         services.TryAddScoped<FormLifecycleAccessGuard>();

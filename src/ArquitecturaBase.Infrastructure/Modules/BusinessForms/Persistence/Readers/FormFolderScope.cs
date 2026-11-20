@@ -5,8 +5,9 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 
 /// <summary>
-/// The folder filter of the three listings (CP1-A), in SQL before counting, sorting and paging: a folder takes what is in it or in
-/// any of its subfolders (a recursive query), each item once; «Sin carpeta» takes what is in no folder.
+/// The folder filter of «Diseñar formularios» and «Catálogos» (CP1-A; «Formularios» lost it with CM3), in SQL before counting,
+/// sorting and paging: a folder takes what is in it or in any of its subfolders (a recursive query), each item once; «Sin carpeta»
+/// takes what is in no folder.
 /// </summary>
 internal static class FormFolderScope
 {

@@ -217,6 +217,26 @@ distinto de lo previsto. Esto quedó afuera. Contrastado con el código el 2026-
   - La tarea 10, el PDF: un snapshot sin `TimeZoneId` sale en UTC (`SkiaFormPdfRenderer.cs:507-508`), y un `WriteOnce` con un
     `Uncertain` pendiente podría ver otra hora que el original. Sin producción, sólo toca datos de desarrollo.
   - F6-4: el escáner de PDF no ve variantes raras de la sintaxis de `stream` ni un `/Filter` por referencia (anotado en F6).
+- [ ] **El segundo despliegue de las carpetas como menús (CM1 a CM6).** `FoldersAsMenus` es el primero de dos: deja
+  `MenuPlacement` y `CK_FormFolders_MenuPlacement` para la versión anterior, con el default `None`, y no agrega el CHECK del
+  ícono ([plan](2026-11-03-carpetas-de-formularios-y-catalogos.md), «La migración, en dos despliegues»). El segundo va en otra
+  migración y otro despliegue, sólo cuando `FoldersAsMenus` ya esté desplegada en todos los ambientes. Esa migración:
+  - repite los pasos 1 a 4 de `FoldersAsMenus` para lo que haya escrito la versión anterior: pasa lo del tercer nivel o más
+    abajo a su antecesora del segundo, con la clave del sistema que le falte, borra esas carpetas y pone `folder` en el
+    primer nivel que no tenga ícono;
+  - recién ahí anula el ícono de las subcarpetas, que `FoldersAsMenus` les deja porque la versión anterior las sigue
+    mostrando como menú propio;
+  - agrega a `BusinessFormFolderConfiguration` el CHECK `CK_FormFolders_MenuIcon` =
+    `("ParentId" IS NULL) = ("MenuIcon" IS NOT NULL)`, que sale generado, y lo anota en `MigrationCoexistenceTests`: la
+    versión anterior, la de `FoldersAsMenus`, ya lo cumple;
+  - borra a mano, en esa misma migración, `CK_FormFolders_MenuPlacement` y la columna `MenuPlacement`. Es lo que EF había
+    generado y se sacó de `FoldersAsMenus`: en Up, `DropCheckConstraint("CK_FormFolders_MenuPlacement")` y
+    `DropColumn("MenuPlacement")`; en Down, `AddColumn<string>` (`character varying(16)`, no nula, default `None`) y
+    `AddCheckConstraint` con `"MenuPlacement" IN ('None', 'Own', 'Forms', 'Administration')`.
+
+  Después se saca del código la tolerancia: `BusinessFormFolder.TwoLevels` y `ShownIcon`, con los que `FormFolderReader` y
+  `FormFolderService` leen y escriben como dos niveles lo que guardó la versión anterior (el menú sin ícono, la subcarpeta
+  con ícono y lo de más abajo del segundo nivel).
 - **Aceptado por diseño:** 2c-5 (F11). El tope de dos exportaciones o importaciones a la vez por copia lo pueden ocupar dos
   pedidos lentos de una persona (`BusinessFormsApiRegistration.cs:20-23`). Ese `GlobalLimiter` es el único de la app: si otro
   módulo asignara uno, lo reemplazaría.
