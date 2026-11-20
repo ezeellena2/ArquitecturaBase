@@ -1506,6 +1506,18 @@ Lo eligió el usuario en los tableros CP1 a CP5 (el [plan](../plans/2026-11-03-c
 Están el backend y el front (2026-11-11). Los ejemplos HTTP (`forms-http/folders`) entraron con la exportación conjunta
 del 2026-11-17; el front todavía no tiene un test que los lea.
 
+**Rediseño aprobado el 2026-11-20, sin programar** ([CM1 a CM6](../plans/2026-11-03-carpetas-de-formularios-y-catalogos.md#las-carpetas-son-menús-cm1-a-cm6-2026-11-20)).
+Cambia cómo se ven y se administran las carpetas:
+
+- **Cada carpeta del primer nivel es un menú del menú lateral,** después de WhatsApp, con sus formularios activos y un grupo
+  por subcarpeta.
+- **Se administran en el menú,** con «Nueva carpeta», los ⋮ y «Agregar formularios», y lo hace quien tiene `formtemplates.manage`.
+- **Los listados quedan sin panel.** Diseñar formularios y Catálogos suman un filtro «Carpeta».
+- **Hay dos niveles en lugar de cinco.**
+- **El menú se relee solo** cuando un formulario se publica, se da de baja, se reactiva o se elimina.
+
+Hasta que se programe, rige lo de abajo.
+
 - **Tope (F47).** Hasta 500 carpetas: crear otra da `Forms.Folder.TooMany` (400). El menú arma el índice de hijos una vez y calcula sólo los subárboles de las carpetas que muestra.
 - **Sólo ordenan.** No dan ni quitan acceso, y no hay permisos nuevos. Hasta cinco niveles; el nombre (hasta 80
   caracteres) no se repite en una misma carpeta sin distinguir mayúsculas. Profundidad, ciclos y nombres se revisan contra
