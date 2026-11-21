@@ -27,6 +27,8 @@ Este traspaso no trae desarrollos nuevos: ordena los anteriores.
   prueba.
 - **Para después de la prueba:** homologar ARCA con CUIT reales, la corrida real del robot, Azure dev y los horizontes de
   «varias copias» y «gran escala» de las revisiones de arquitectura.
+- **El [traspaso 16](../2026-11-21-traspaso-multitenant/README.md)** (2026-11-21) trae lo que cambió después de este, con la
+  prueba integral hasta el 21/11, y se lee encima de este.
 
 ## Reglas para leer todo junto
 
