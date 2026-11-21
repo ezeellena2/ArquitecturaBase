@@ -277,7 +277,8 @@ Van en la prueba integral; lo que quede abierto después se anota acá.
   igual.
 - [ ] **El teléfono, heredado de la Etapa 2 de catálogos** ([verificación de cierre](../features/formularios.md#verificación-de-cierre--2026-10-11)):
   los máximos de texto, una pregunta opcional sin responder frente a false y una sesión abierta de una versión anterior. Los
-  decimales (12,50 y 12.50) se comprueban con r15 en la prueba integral ([WhatsApp](../features/whatsapp.md#piloto-de-formularios)).
+  decimales (12,50 y 12.50): hasta r15 WhatsApp rechazaba la coma (O29); con r16 pasa en WhatsApp Web y falta el celular
+  ([WhatsApp](../features/whatsapp.md#piloto-de-formularios)).
 
 ## Inteligencia artificial
 

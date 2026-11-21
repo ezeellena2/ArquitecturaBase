@@ -9,6 +9,8 @@ internal static class FlowProfileFixtures
         ["es"] = (Escaped("Ingresá un número; usá punto para los decimales."), Escaped("Ingresá el número sin separador de miles; usá coma para los decimales.")),
         ["en"] = (Escaped("Enter a number; use a dot for decimals."), Escaped("Enter the number without thousands separators; use a dot for decimals.")),
     };
+    private static readonly (string Before, string After) DecimalPattern =
+        (Escaped("^-?(0|[1-9][0-9]*)([.,][0-9]+)?$"), Escaped("^-?(0|[1-9][0-9]*)([,.][0-9]+)?$"));
 
     /// <summary>A fixture by its file name without the extension, for example <c>flow-static-7.3-r14-es</c>.</summary>
     public static string Read(string name)
@@ -25,6 +27,13 @@ internal static class FlowProfileFixtures
     /// </summary>
     public static string AsR15(string json, string culture) =>
         json.Replace(DecimalHelp[culture].Before, DecimalHelp[culture].After, StringComparison.Ordinal);
+
+    /// <summary>
+    /// What r16 compiles where an earlier profile compiled <paramref name="json"/>: what r15 compiles, with the comma first in the
+    /// pattern of a decimal (O29).
+    /// </summary>
+    public static string AsR16(string json, string culture) =>
+        AsR15(json, culture).Replace(DecimalPattern.Before, DecimalPattern.After, StringComparison.Ordinal);
 
     private static string Escaped(string text) => System.Text.Json.JsonSerializer.Serialize(text)[1..^1];
 }

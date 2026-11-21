@@ -15,14 +15,16 @@ public static class WhatsAppFlowProfile
     // reading it compiles the same bytes as r13. r15 (H18 of the architecture review) changes the help of a decimal without its own:
     // in Spanish it asks for a comma, as es-AR writes it and the codec accepts, and in both languages for no thousands separator,
     // because the codec reads either mark as the decimal one. The text is sealed in each Flow, so the published ones keep theirs;
-    // a form without a decimal compiles the same bytes as r14.
-    public const string Revision = "flow-static-7.3-r15";
+    // a form without a decimal compiles the same bytes as r14. r16 (O29 of the integral test) puts the comma first in the pattern
+    // of a decimal (DecimalPattern): with it last, WhatsApp dropped it and rejected «1,5». The published Flows keep their pattern;
+    // a form without a decimal compiles the same bytes as r15.
+    public const string Revision = "flow-static-7.3-r16";
     public static IReadOnlySet<string> PrefillRevisions { get; } = new[]
     {
         "flow-static-7.3-r8", "flow-static-7.3-r9", "flow-static-7.3-r10", "flow-static-7.3-r11", "flow-static-7.3-r12",
-        "flow-static-7.3-r13", "flow-static-7.3-r14", "flow-static-7.3-r15"
+        "flow-static-7.3-r13", "flow-static-7.3-r14", "flow-static-7.3-r15", "flow-static-7.3-r16"
     }.ToFrozenSet(StringComparer.Ordinal);
-    // The rows r10 to r15 compile, prefill and map from their sealed bytes: another cap is another revision, and the webhook
+    // The rows r10 to r16 compile, prefill and map from their sealed bytes: another cap is another revision, and the webhook
     // keeps accepting _r10 from the flows already published. Publishing warns with the same number (StructuredFormLimits).
     public const int MaxRows = 10;
     public const string GraphApiVersion = "v25.0";
@@ -31,6 +33,9 @@ public static class WhatsAppFlowProfile
     public const int MaxMediaResponseJsonBytes = 64 * 1024;
     public const string ResponseErrorProperty = "_flow_error";
     public const string ResponseTooLargeError = "ResponseTooLarge";
-    public const string DecimalPattern = "^-?(0|[1-9][0-9]*)([.,][0-9]+)?$";
+    // WhatsApp's Flows client removes every comma followed by `]` or `}` from the Flow JSON before parsing it, strings included
+    // (WAFlowsRemoveTrailingCommas, read on 2026-11-21): `[.,]` reached the control as `[.]`. The same grammar as the codec's, with
+    // no comma before a closing bracket.
+    public const string DecimalPattern = "^-?(0|[1-9][0-9]*)([,.][0-9]+)?$";
     public const int DecimalMaxChars = 60;
 }

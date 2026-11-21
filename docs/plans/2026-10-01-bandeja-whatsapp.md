@@ -165,7 +165,7 @@ dependencias que se nombran.
 
 **Hecha el 2026-11-13:** H17 en 64d878a0, H22 en ac5403bc, H15 en 54b213a4 y H18 en 5372b7b4 (con c0caf0ad). H18 pide en
 la ayuda decimal, además, no separar los miles en los dos idiomas, porque el codec toma cualquiera de las dos marcas como la
-decimal. Queda para la prueba integral comprobar con Meta que el celular y la vista oficial aceptan la coma con r15. La suite
+decimal. En la prueba integral WhatsApp no dejó escribir la coma (O29, 2026-11-21): lo arregla r16. La suite
 completa con Docker sobre una copia de c0caf0ad dio 10.569 de 10.582, con el build sin advertencias; las 13 fallas son ajenas: 12
 ya fallaban en be294cdb (`FormSpreadsheetPhysicalLimitsTests`, cuyo fixture no siguió a c9db1571, y una de planillas de la IA) y
 una de cargas por WhatsApp pasa sola.
@@ -393,5 +393,5 @@ lleva al multitenant. El test intermitente de la etapa 4 dependía del orden de 
 - **Gran escala, con volumen real que medir:** H27 a H30, H32, H34 y, de H31, subir el PDF una vez y mandar varios a la vez.
 - **Heredado por confirmar:** con `MessageRetentionDays` en 1, el mínimo, un archivo que reintenta puede salir de la retención
   antes de rendirse (aviso de la etapa 4).
-- **En la prueba integral:** que el celular y la vista oficial acepten la coma con r15
-  ([r15](../features/whatsapp.md#selección-múltiple-y-perfil-r9)).
+- **En la prueba integral:** la coma decimal en el celular; con r16 ya pasa en WhatsApp Web (O29,
+  [r16](../features/whatsapp.md#selección-múltiple-y-perfil-r9)).

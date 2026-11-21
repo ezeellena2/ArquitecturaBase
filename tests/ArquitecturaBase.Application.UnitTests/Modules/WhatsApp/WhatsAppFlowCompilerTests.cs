@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
@@ -238,11 +239,14 @@ public sealed class WhatsAppFlowCompilerTests
         FlowProfileFixtureWriter.Export(WhatsAppFlowCompiler.ProfileRevision, culture, compiled.Json);
         Assert.Equal(FlowProfileFixtures.Read($"{WhatsAppFlowCompiler.ProfileRevision}-{culture}"), compiled.Json);
 
-        // r15 only changes the help of a decimal (H18): every other byte is what r14 compiled, the same as r8.
-        var previous = FlowProfileFixtures.Read($"flow-static-7.3-r14-{culture}");
-        Assert.Equal(FlowProfileFixtures.Read($"flow-static-7.3-r8-{culture}"), previous);
-        Assert.Equal(FlowProfileFixtures.AsR15(previous, culture), compiled.Json);
-        Assert.NotEqual(previous, compiled.Json);
+        // r16 only puts the comma first in the pattern of a decimal (O29) and r15 only changed its help (H18): every other byte is
+        // what r14 compiled, the same as r8.
+        var r14 = FlowProfileFixtures.Read($"flow-static-7.3-r14-{culture}");
+        var r15 = FlowProfileFixtures.Read($"flow-static-7.3-r15-{culture}");
+        Assert.Equal(FlowProfileFixtures.Read($"flow-static-7.3-r8-{culture}"), r14);
+        Assert.Equal(FlowProfileFixtures.AsR15(r14, culture), r15);
+        Assert.Equal(FlowProfileFixtures.AsR16(r15, culture), compiled.Json);
+        Assert.NotEqual(r15, compiled.Json);
     }
 
     [Theory]
@@ -254,9 +258,33 @@ public sealed class WhatsAppFlowCompilerTests
 
         using var json = JsonDocument.Parse(compiled.Json);
         var controls = json.RootElement.GetProperty("screens")[0].GetProperty("layout").GetProperty("children")[0].GetProperty("children");
-        Assert.Equal("^-?(0|[1-9][0-9]*)([.,][0-9]+)?$", controls[2].GetProperty("pattern").GetString());
+        Assert.Equal("^-?(0|[1-9][0-9]*)([,.][0-9]+)?$", controls[2].GetProperty("pattern").GetString());
         Assert.Equal(help, controls[2].GetProperty("helper-text").GetString());
-        Assert.Equal("flow-static-7.3-r15", WhatsAppFlowCompiler.ProfileRevision);
+        Assert.Equal("flow-static-7.3-r16", WhatsAppFlowCompiler.ProfileRevision);
+    }
+
+    // WhatsApp's Flows client removes every comma followed by `]` or `}` from the Flow JSON before parsing it, strings included
+    // (its WAFlowsRemoveTrailingCommas, read in the official preview on 2026-11-21): `[.,]` reached the control as `[.]`, and the phone,
+    // WhatsApp Web and the preview rejected «1,5» (O29).
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void A_decimal_takes_a_comma_after_whatsapp_removes_the_trailing_commas_of_the_flow(string culture)
+    {
+        var compiled = WhatsAppFlowCompiler.Compile(Request()).Flows.Single(flow => flow.Culture == culture);
+
+        var received = DecimalPattern(Regex.Replace(compiled.Json, @",\s*([\]}])", "$1"));
+
+        Assert.Equal(DecimalPattern(compiled.Json), received);
+        foreach (var value in new[] { "1,5", "15300,5", "-0,25", "1.5", "1500" }) Assert.Matches(received, value);
+        foreach (var value in new[] { "1.500,5", "1,500.25", "1,", ",5", "01" }) Assert.DoesNotMatch(received, value);
+    }
+
+    private static string DecimalPattern(string flow)
+    {
+        using var json = JsonDocument.Parse(flow);
+        return json.RootElement.GetProperty("screens")[0].GetProperty("layout").GetProperty("children")[0].GetProperty("children")[2]
+            .GetProperty("pattern").GetString()!;
     }
 
     [Fact]
