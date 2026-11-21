@@ -11,9 +11,9 @@ public sealed partial class WhatsAppFlowReplyServiceTests
 {
     private static readonly byte[] Receipt = [9, 8, 7, 6];
 
-    private static async Task<Fixture> WithServerFileAsync(byte[] stored)
+    private static async Task<Fixture> WithServerFileAsync(byte[] stored, bool optional = true)
     {
-        var host = new Fixture(media: true, assisted: true, automatic: true, optionalMedia: true);
+        var host = new Fixture(media: true, assisted: true, automatic: true, optionalMedia: optional);
         var key = "whatsapp/documents/" + Guid.NewGuid().ToString("N") + ".jpg";
         await host.Files.WriteAsync(key, new MemoryStream(stored), "image/jpeg", CancellationToken.None);
         host.SessionProtector.Content = host.SessionProtector.Content! with
@@ -35,6 +35,26 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         Assert.Equal(WhatsAppFlowCaptureState.Completed, reply.FlowCaptureState);
         var file = Assert.Single(Assert.IsType<StructuredRecordCaptureRequest>(host.Sink.Request).Files!);
         Assert.Equal((host.Mapping[0].FieldId, "comprobante.jpg", "image/jpeg"), (file.FieldId, file.Name, file.ContentType));
+        Assert.Equal(Receipt, file.Content);
+        Assert.Equal(0, host.Media.DownloadCount);
+    }
+
+    // The question may ask for one file, like the library's receipt: its twin in the Flow is optional, and Meta returns no array when
+    // the person keeps the document the send carries. The server adds it instead of rejecting the reply.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_question_that_asks_for_one_file_takes_the_document_the_send_carries_when_the_flow_returns_none(bool emptyArray)
+    {
+        var host = await WithServerFileAsync(Receipt, optional: false);
+        var reply = emptyArray ? host.AddEmptyFileReply("wamid.server-file-required-empty")
+            : host.AddReply("wamid.server-file-required-absent", new Dictionary<string, string>());
+
+        await host.Service.ProcessPendingAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(WhatsAppFlowCaptureState.Completed, reply.FlowCaptureState);
+        var file = Assert.Single(Assert.IsType<StructuredRecordCaptureRequest>(host.Sink.Request).Files!);
+        Assert.Equal(host.Mapping[0].FieldId, file.FieldId);
         Assert.Equal(Receipt, file.Content);
         Assert.Equal(0, host.Media.DownloadCount);
     }

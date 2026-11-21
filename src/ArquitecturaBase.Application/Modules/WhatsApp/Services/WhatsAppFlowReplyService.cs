@@ -165,7 +165,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
 
         var fileArrays = arrayValues.Where(pair => projection.Mapping.Any(field => field.Key == pair.Key
             && field.Type is "photo" or "document")).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
-        var files = WhatsAppFlowMediaPolicy.Decode(projection, answers, fileArrays);
+        var files = WhatsAppFlowMediaPolicy.Decode(projection, answers, fileArrays, assistant.Value?.Server?.File?.FieldId);
         if (files.IsFailure)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected,

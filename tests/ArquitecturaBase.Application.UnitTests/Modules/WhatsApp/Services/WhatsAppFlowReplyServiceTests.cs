@@ -571,6 +571,9 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         public WhatsAppMessage AddFileReply(string id) => AddReplyJson(id, JsonSerializer.Serialize(new Dictionary<string, object>
         { ["flow_token"] = _token, [Mapping[0].Key] = new[] { new { id = "123", file_name = "photo.png", mime_type = "image/png", sha256 = new string('a', 64) } } }));
 
+        public WhatsAppMessage AddEmptyFileReply(string id) => AddReplyJson(id, JsonSerializer.Serialize(new Dictionary<string, object>
+        { ["flow_token"] = _token, [Mapping[0].Key] = Array.Empty<object>() }));
+
         public WhatsAppMessage AddReply(string waMessageId, IReadOnlyDictionary<string, string> answers, DateTime? occurredAtUtc = null)
         {
             var json = JsonSerializer.Serialize(new Dictionary<string, string>(answers, StringComparer.Ordinal)

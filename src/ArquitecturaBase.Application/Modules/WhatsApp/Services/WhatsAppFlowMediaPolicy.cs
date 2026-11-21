@@ -9,8 +9,13 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal static class WhatsAppFlowMediaPolicy
 {
+    /// <summary>
+    /// The files the person chose in the Flow, by question and order, without bytes. <paramref name="filledByServer"/> is the question
+    /// the send's own document fills (task 9 of the documents): its twin in the Flow is optional, so it may come without files and the
+    /// caller adds that document.
+    /// </summary>
     public static Result<IReadOnlyList<StructuredRecordFileInput>> Decode(WhatsAppFlowProjection projection,
-        IReadOnlyDictionary<string, string> answers, IReadOnlyDictionary<string, string> arrays)
+        IReadOnlyDictionary<string, string> answers, IReadOnlyDictionary<string, string> arrays, Guid? filledByServer = null)
     {
         var fields = projection.Mapping.Where(field => field.Type is "photo" or "document").ToArray();
         if (arrays.Keys.Any(key => !fields.Any(field => field.Key == key))) return FlowErrors.InvalidValue;
@@ -23,16 +28,17 @@ internal static class WhatsAppFlowMediaPolicy
                 currentFieldId = field.FieldId;
                 if (answers.ContainsKey(field.Key) || field.Files is not { MinFiles: >= 0, MaxFiles: <= 10 } settings
                     || settings.MaxFiles < 1 || settings.MinFiles > settings.MaxFiles) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
+                var minimum = field.FieldId == filledByServer ? 0 : settings.MinFiles;
                 if (!arrays.TryGetValue(field.Key, out var raw))
                 {
-                    if (settings.MinFiles > 0) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
+                    if (minimum > 0) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
                     continue;
                 }
                 using var json = JsonDocument.Parse(raw, new JsonDocumentOptions { MaxDepth = 3 });
                 var array = json.RootElement;
                 if (array.ValueKind != JsonValueKind.Array) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
                 if (array.EnumerateArray().Any(file => file.ValueKind != JsonValueKind.Object)) return FlowErrors.InvalidValue;
-                if (array.GetArrayLength() < settings.MinFiles || array.GetArrayLength() > settings.MaxFiles
+                if (array.GetArrayLength() < minimum || array.GetArrayLength() > settings.MaxFiles
                     || result.Count + array.GetArrayLength() > 10) return FileErrors.AtField(FileErrors.InvalidMetadata, currentFieldId);
                 var position = 0;
                 foreach (var file in array.EnumerateArray())
