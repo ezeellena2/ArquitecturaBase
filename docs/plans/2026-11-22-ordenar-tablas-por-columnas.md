@@ -1,7 +1,8 @@
 # Ordenar las tablas por sus columnas
 
-Fecha: 2026-11-22. Estado: **decidido el mismo día (OT1-C). El usuario pidió arrancar el backend durante la prueba integral:
-B1 (la regla común) y B2 (Formularios) están programados; siguen B3 a B11.** El front va después del cierre de la prueba y de
+Fecha: 2026-11-22. Estado: **decidido el mismo día (OT1-C; «Por aprobar» queda como cola). El usuario pidió arrancar el
+backend durante la prueba integral: B1 (la regla común) y B2 (Formularios) están en `366bedb7`, B3 y B4 (Usuarios y Roles) en
+`21ffbfdb`; siguen B5, B6, B7, B9, B10 y B11.** El front va después del cierre de la prueba y de
 que entre la [pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md),
 cuya lista usa «Ordenar por».
 
@@ -48,7 +49,8 @@ corrige acá antes de programar.
 9. **No cambian** las tablas cuyo orden es un dato: las opciones de un catálogo (su «Ordenar por…» guarda el orden, OR1-A), los
    atributos de Datos de personas (su posición es el orden de las columnas de personas), los renglones de una respuesta, las
    preguntas de una propuesta, la lectura de documentos del editor, las vistas previas de una importación, las comparaciones y
-   las secciones del conocimiento del asistente. Las listas que no son tablas (los chats, las conversaciones y los casos del
+   las secciones del conocimiento del asistente. Tampoco «Por aprobar», que es una cola: va de la más vieja a la más nueva y la
+   revisión con ↑/↓ la recorre en ese orden (el usuario eligió «Dejarla como cola», 22/11). Las listas que no son tablas (los chats, las conversaciones y los casos del
    asistente, las filas de ARCA) quedan afuera.
 
 ## El diseño elegido, anclado al tablero OT1-C
@@ -89,7 +91,7 @@ renombra el `id` del front.
 | Formularios que faltan | `/formularios/faltantes` | Servidor | `lastRequestedAtUtc` | `name`, `discardedBy`, `discardedAtUtc`, `requestCount`, `personCount` |
 | Documentos recibidos | `/formularios/documentos` | Servidor | `receivedAtUtc` | `document`, `sender`, `form`, `state`, `deleteAfterUtc`, `record` |
 | Planilla de respuestas | `/formularios/:id/respuestas` | Servidor | `number`, `submittedAtUtc`, `actor`, `field` | `corrected`, `channel`, `state`, `rules`, los campos de un catálogo y los resultados |
-| Por aprobar | dentro de la planilla | Servidor | Ninguna (la más vieja primero) | `number`, `author`, `requestedAtUtc`, `role` |
+| Por aprobar | dentro de la planilla | Servidor | Ninguna (la más vieja primero) | Ninguno: queda como cola (22/11) |
 | Datos de personas › Personas | `/datos-de-personas` | Servidor | Ninguna en pantalla (el back acepta `displayName`) | `attribute` con `sortAttributeId` |
 | Usuarios | `/usuarios` | Servidor | `email`, `displayName`, `createdAtUtc` | `whatsapp`, `verified` |
 | Roles | `/roles` | Servidor | Ninguna (el back acepta `name`, `createdAtUtc`) | `description`, `userCount`, `permissions` |
@@ -144,9 +146,8 @@ de la tabla). Cada lista, con sus tests HTTP y su pantalla (F4 a F7).
 
 La planilla (B7: `corrected`, `channel`, `state`, `rules`; los campos de un catálogo de una pregunta de una opción, por el valor
 guardado del ítem elegido; los resultados de las reglas, por su valor guardado y, si resulta que se calculan al leer, quedan sin
-orden y se anota acá), Por aprobar (B8; en la dirección, `approvalSort`, al lado de `approvalPage`), Documentos recibidos (B9),
-Formularios que faltan (B10) y Datos de personas (B11: el valor de un atributo, con `sortAttributeId`). Cada una con su
-pantalla (F8 a F12).
+orden y se anota acá), Documentos recibidos (B9), Formularios que faltan (B10) y Datos de personas (B11: el valor de un
+atributo, con `sortAttributeId`). Cada una con su pantalla (F8 a F12). B8 (Por aprobar) no se hace: queda como cola.
 
 ### Corte 4: las listas enteras
 
