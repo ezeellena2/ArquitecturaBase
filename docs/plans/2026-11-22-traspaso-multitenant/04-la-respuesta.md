@@ -23,7 +23,7 @@ Programada (CW, AR1-A y AR2-A, del 30/10 al 5/11).
   completa en el celular; elegir primero por un campo y las listas que dependen de otra respuesta; la ubicación, que pide el
   permiso recién al tocar «Usar mi ubicación»; y el cálculo, en gris, de sólo lectura, con su fórmula en la (i).
 - **Elegir, en la pieza única** (22/11): el Sí o No (sin nada marcado al empezar), las opciones en fila y elegir varias pasan
-  a la pieza ([03](03-filtros-y-elegir.md) §2). Está en la copia de la pieza, sin aplicar.
+  a la pieza ([03](03-filtros-y-elegir.md) §2). Se está programando en la copia de la pieza; todavía no está en la app.
 - **El bloque de ítems:** una tabla, un ítem por fila, donde la zona tiene columnas; un recuadro por ítem en el panel y en el
   celular.
 - **Página o panel:** «Nueva respuesta» es una página; desde la planilla, en la compu, un panel al costado. Los dos tienen

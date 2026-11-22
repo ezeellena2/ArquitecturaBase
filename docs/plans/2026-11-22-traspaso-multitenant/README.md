@@ -26,7 +26,7 @@ problemas, porque si no, los formularios quedan feos al verlos y la información
 | Reglas | Estado en ArquitecturaBase |
 | --- | --- |
 | Un dato por columna, líneas entre columnas y números a la derecha, fechas y números, lo elegido, las esperas, los avisos, el motivo de lo apagado, las filas con íconos, las acciones del encabezado, los filtros simples, las lecturas en pasos y lado a lado, la carga con dos anchos y el editor de catálogos | Programado y en la app |
-| La pieza única para elegir (DS1-A y DS2-A) y su extensión del 22/11 | Programada en una copia del front; se aplica al cerrar la prueba integral |
+| La pieza única para elegir (DS1-A y DS2-A) y su extensión del 22/11 | Programada en una copia del front, con la extensión del 22/11 en curso; se aplica al cerrar la prueba integral |
 | Ordenar por columnas (OT1-C) | El backend de la regla común, Formularios, Usuarios y Roles, programado; las demás listas y el front, después de la pieza única |
 | La respuesta como el formulario (VF1-A), la actividad fila por fila (VF2-A) y «nada debajo de otro dato» | Decidido el 22/11, sin programar |
 
