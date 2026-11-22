@@ -2,9 +2,10 @@
 
 Fecha: 2026-11-22. Estado: **decidido el mismo día (OT1-C; «Por aprobar» queda como cola). El usuario pidió arrancar el
 backend durante la prueba integral: B1 (la regla común) y B2 (Formularios) están en `366bedb7`, B3 y B4 (Usuarios y Roles) en
-`21ffbfdb`; siguen B5, B6, B7, B9, B10 y B11.** El front va después del cierre de la prueba y de
-que entre la [pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md),
-cuya lista usa «Ordenar por».
+`21ffbfdb`, B5 y B6 (Catálogos y Diseñar formularios) en `525d748f`, B9 y B10 (Documentos recibidos y Formularios que faltan)
+en `67924ec4`; siguen B7 y B11.** El front se programa en una copia y entra después del cierre de la prueba, junto con la
+[pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md), cuya lista
+usa «Ordenar por».
 
 El 2026-11-22, durante la prueba integral y mirando la lista «Formularios» (`/formularios/respuestas`), el usuario pidió:
 «todas las tablas sean ordenables por las columnas como se quiera ordenar tanto como por un botón que diga ordenar por y
@@ -140,13 +141,16 @@ rápidos del área; lo visual, las capturas y la corrida completa van al cierre.
 
 Usuarios (B3: `whatsapp` por el número guardado, `verified`), Roles (B4: `description`, `userCount` y `permissions`, la
 cantidad de permisos), Catálogos (B5: `state`; `kind` pasa al orden de declaración) y Diseñar formularios (B6: los seis campos
-de la tabla). Cada lista, con sus tests HTTP y su pantalla (F4 a F7).
+de la tabla). Cada lista, con sus tests HTTP y su pantalla (F4 a F7). En Catálogos la columna `origin` del front pasa a `kind`;
+«Uso» en 0 muestra «—» y ordena como 0. En Diseñar formularios no ordenan «Deprecación» (la da el canal de WhatsApp y no se une
+en SQL), «Estado» en «Dados de baja» (la misma razón) ni «Respuestas» sin «Ver respuestas».
 
 ### Corte 3: respuestas y documentos
 
 La planilla (B7: `corrected`, `channel`, `state`, `rules`; los campos de un catálogo de una pregunta de una opción, por el valor
 guardado del ítem elegido; los resultados de las reglas, por su valor guardado y, si resulta que se calculan al leer, quedan sin
-orden y se anota acá), Documentos recibidos (B9), Formularios que faltan (B10) y Datos de personas (B11: el valor de un
+orden y se anota acá), Documentos recibidos (B9: los datos leídos, una columna por pregunta, no ordenan porque viven en la
+propuesta cifrada), Formularios que faltan (B10) y Datos de personas (B11: el valor de un
 atributo, con `sortAttributeId`). Cada una con su pantalla (F8 a F12). B8 (Por aprobar) no se hace: queda como cola.
 
 ### Corte 4: las listas enteras
