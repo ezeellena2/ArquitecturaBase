@@ -30,6 +30,12 @@ public interface IArcaConnectionService
     Task<Result<ArcaConnectionResponse>> ChooseServicesAsync(IReadOnlyCollection<string> services, long expectedRevision,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// RC7-B: desde cuántos días antes del vencimiento del certificado se avisa, de 1 a 365. Fuera de rango, <c>CertificateNoticeInvalid</c>
+    /// sin abrir la transacción; sin conexión, <c>NotConnected</c>.
+    /// </summary>
+    Task<Result<ArcaConnectionResponse>> ChangeCertificateNoticeAsync(int days, long expectedRevision, CancellationToken cancellationToken);
+
     Task<Result<ArcaPendingRequestResponse>> GetPendingRequestAsync(CancellationToken cancellationToken);
 
     Task<Result<ArcaConnectionResponse>> CancelRenewalAsync(long expectedRevision, CancellationToken cancellationToken);

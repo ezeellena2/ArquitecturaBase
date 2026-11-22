@@ -74,6 +74,15 @@ public sealed class ArcaConnectionController(IArcaConnectionService service, IAr
     public async Task<IActionResult> ChooseServices([FromBody] ChooseArcaServicesHttpRequest request, CancellationToken cancellationToken) =>
         (await service.ChooseServicesAsync(request.Services ?? [], request.ExpectedRevision, cancellationToken)).ToActionResult(this);
 
+    [HttpPut("certificate-notice")]
+    [HasPermission(ArcaPermissions.Manage)]
+    [EnableRateLimiting(ArcaApiRegistration.WritePolicy)]
+    [ProducesResponseType<ArcaConnectionResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ChangeCertificateNotice([FromBody] ChangeArcaCertificateNoticeHttpRequest request, CancellationToken cancellationToken) =>
+        (await service.ChangeCertificateNoticeAsync(request.Days, request.ExpectedRevision, cancellationToken)).ToActionResult(this);
+
     [HttpPut("certificate")]
     [HasPermission(ArcaPermissions.Manage)]
     [EnableRateLimiting(ArcaApiRegistration.RemotePolicy)]

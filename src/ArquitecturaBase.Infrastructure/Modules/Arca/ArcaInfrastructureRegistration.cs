@@ -53,6 +53,10 @@ public static class ArcaInfrastructureRegistration
         services.AddSingleton<IArcaAccessTicketProvider, ArcaAccessTicketProvider>();
         services.AddScoped<IArcaConnectionRepository, ArcaConnectionRepository>();
         services.AddScoped<IArcaConnectionReader, ArcaConnectionReader>();
+        services.AddScoped<IArcaNoticeRecipientReader, ArcaNoticeRecipientReader>();
+        services.AddOptions<ArcaCertificateNoticeOptions>().Bind(configuration.GetSection("Arca:CertificateNotice"))
+            .Validate(x => x.IsValid(), "Configure Arca:CertificateNotice:Interval between one minute and one day.").ValidateOnStart();
+        services.AddHostedService<ArcaCertificateNoticeBackgroundService>();
         ConfigureClient(services.AddHttpClient(WsaaHttpClientName));
         AddRobot(services, configuration);
     }

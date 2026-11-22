@@ -18,5 +18,7 @@ internal sealed class ArcaConnectionConfiguration : IEntityTypeConfiguration<Arc
         builder.Property(x => x.PlatformCuit).HasMaxLength(11);
         builder.Property(x => x.EnabledServices).HasColumnType("text[]");
         builder.Property(x => x.Revision).IsConcurrencyToken();
+        // RC7-B: lo guardado antes, y lo que escriba la versión anterior mientras conviven, lee el valor por defecto.
+        builder.Property(x => x.CertificateNoticeDays).HasDefaultValue(ArcaConnection.DefaultCertificateNoticeDays);
     }
 }

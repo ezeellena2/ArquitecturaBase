@@ -189,6 +189,46 @@ public sealed class ArcaConnectionTests
     }
 
     // H15: a new connection starts at the revision it is given (the instant of its alta), so it does not repeat the one of another.
+    // RC7-B: «Avisar N días antes» del vencimiento del certificado, 30 por defecto y de 1 a 365.
+    [Fact]
+    public void A_new_connection_warns_thirty_days_before_the_certificate_expires()
+    {
+        Assert.Equal(30, Start([Invoicing]).CertificateNoticeDays);
+        Assert.Equal(30, ArcaConnection.DefaultCertificateNoticeDays);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(45)]
+    [InlineData(365)]
+    public void The_notice_days_change_between_1_and_365_and_advance_the_revision(int days)
+    {
+        var connection = Active();
+        var revision = connection.Revision;
+        var status = connection.Status;
+
+        Assert.True(connection.ChangeCertificateNotice(days).IsSuccess);
+
+        Assert.Equal(days, connection.CertificateNoticeDays);
+        Assert.Equal(revision + 1, connection.Revision);
+        Assert.Equal(status, connection.Status);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(366)]
+    public void Notice_days_out_of_range_are_rejected_without_changes(int days)
+    {
+        var connection = Active();
+        var revision = connection.Revision;
+
+        Assert.Equal(ArcaConnectionErrors.CertificateNoticeInvalid, connection.ChangeCertificateNotice(days).Error);
+
+        Assert.Equal(30, connection.CertificateNoticeDays);
+        Assert.Equal(revision, connection.Revision);
+    }
+
     [Fact]
     public void A_connection_starts_at_the_revision_it_is_given()
     {

@@ -53,6 +53,14 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
                 (connection, _) => Task.FromResult(connection.ChooseServices(chosen, catalog.InstalledCodes, catalog.RequiredCodes)), token), cancellationToken);
         });
 
+    public Task<Result<ArcaConnectionResponse>> ChangeCertificateNoticeAsync(int days, long expectedRevision, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync(logger, "ChangeArcaCertificateNotice", async () =>
+        {
+            if (!ArcaConnection.IsValidCertificateNotice(days)) return ArcaConnectionErrors.CertificateNoticeInvalid;
+            return await SaveAsync(token => ChangeCoreAsync(expectedRevision,
+                (connection, _) => Task.FromResult(connection.ChangeCertificateNotice(days)), token), cancellationToken);
+        });
+
     public Task<Result<ArcaPendingRequestResponse>> GetPendingRequestAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<ArcaPendingRequestResponse>>(logger, "GetArcaPendingRequest", async () =>
             await reader.FindPendingRequestAsync(cancellationToken) is { } pending

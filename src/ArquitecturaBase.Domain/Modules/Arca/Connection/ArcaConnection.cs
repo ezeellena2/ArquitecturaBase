@@ -12,6 +12,11 @@ namespace ArquitecturaBase.Domain.Modules.Arca.Connection;
 /// </summary>
 public sealed class ArcaConnection : Entity, IAuditable
 {
+    /// <summary>RC7-B: «Avisar N días antes» del vencimiento del certificado, de 1 a 365; 30 mientras nadie lo cambie.</summary>
+    public const int DefaultCertificateNoticeDays = 30;
+    public const int MinCertificateNoticeDays = 1;
+    public const int MaxCertificateNoticeDays = 365;
+
     private ArcaConnection() { }
 
     public int Scope { get; private set; } = 1;
@@ -29,6 +34,12 @@ public sealed class ArcaConnection : Entity, IAuditable
     public bool? LastTestPassed { get; private set; }
     public DateTime? LastTestedAtUtc { get; private set; }
     public long Revision { get; private set; }
+
+    /// <summary>
+    /// RC7-B: desde cuántos días antes del vencimiento del certificado activo la pantalla lo avisa y sale el correo a quienes
+    /// administran la conexión. Es configuración de la conexión: se guarda con su revisión.
+    /// </summary>
+    public int CertificateNoticeDays { get; private set; } = DefaultCertificateNoticeDays;
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -77,6 +88,17 @@ public sealed class ArcaConnection : Entity, IAuditable
         var added = services.Except(EnabledServices, StringComparer.Ordinal).Any();
         EnabledServices = services;
         if (added && Status == ArcaConnectionStatus.Active) (Status, LastTestPassed) = (ArcaConnectionStatus.NeedsAttention, null);
+        Advance();
+        return Result.Success();
+    }
+
+    public static bool IsValidCertificateNotice(int days) => days is >= MinCertificateNoticeDays and <= MaxCertificateNoticeDays;
+
+    /// <summary>RC7-B: cambia los días del aviso de vencimiento, sin tocar el estado.</summary>
+    public Result ChangeCertificateNotice(int days)
+    {
+        if (!IsValidCertificateNotice(days)) return ArcaConnectionErrors.CertificateNoticeInvalid;
+        CertificateNoticeDays = days;
         Advance();
         return Result.Success();
     }

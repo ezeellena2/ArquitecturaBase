@@ -78,6 +78,10 @@ legal ni costo: se dimensionan por copia, dividiendo el total que se quiere por 
 secuencias por vuelta). Después de una vuelta que pidió un CAE o guardó un PDF, la siguiente sale sin esperar `PollInterval`.
 En los tests de integración va apagado y cada prueba procesa la cola a mano.
 
+`Arca:CertificateNotice` gobierna el aviso de vencimiento del certificado (RC7-B): `RunInBackground` (prendido) e `Interval`
+(cada hora, de un minuto a un día). Los días del aviso no van acá: se eligen en la pantalla. En los tests de integración va
+apagado y cada prueba corre una vuelta.
+
 Cada reserva tiene que cubrir lo que cuida, y la Api no arranca si no lo cubre:
 
 | Reserva | Tiene que cubrir | De fábrica |
@@ -176,7 +180,8 @@ imagen con Chromium y qué hacer cuando se rompe están en [correr y mantener el
 
 ## Renovar el certificado
 
-Treinta días antes del vencimiento, la pantalla avisa en amarillo; vencido, en rojo, y la conexión pasa a «Requiere
+Desde los días de «Aviso de vencimiento» (30 por defecto, en la zona «Certificado»), la pantalla avisa en amarillo y
+quienes administran la conexión reciben un correo, uno por certificado; vencido, en rojo, y la conexión pasa a «Requiere
 atención». «Renovar», en la zona «Certificado», pide el alias del certificado nuevo y genera otro pedido mientras el actual
 sigue andando. En ARCA se repiten los pasos del alta con ese pedido, incluida la autorización de los servicios si el alias
 es otro. Al subir el certificado nuevo, la app lo prueba y, si sale bien, reemplaza al anterior. «Cancelar la renovación»

@@ -69,6 +69,7 @@ internal sealed class ArcaApplicationHost : IDisposable
         services.AddSingleton<IArcaRobotRunReader>(Runs);
         services.AddSingleton<IArcaCompanyRobotQueue>(RobotQueue);
         services.AddSingleton<IEmailQueue>(Emails);
+        services.AddSingleton<IArcaNoticeRecipientReader>(NoticeRecipients);
         services.AddSingleton<ICurrentUser>(User);
         Store.InTransaction = () => Work.InTransaction;
         Runs.InTransaction = () => Work.InTransaction;
@@ -83,6 +84,7 @@ internal sealed class ArcaApplicationHost : IDisposable
     public FakeArcaRobotRuns Runs { get; } = new();
     public FakeArcaRobotQueue RobotQueue { get; } = new();
     public FakeEmailQueue Emails { get; } = new();
+    public FakeArcaNoticeRecipients NoticeRecipients { get; } = new();
     public FakeCurrentUser User { get; } = new() { UserId = Guid.CreateVersion7() };
     public FakeArcaDefinition RegistryFamily { get; } = new("ws_sr_constancia_inscripcion", "Registry", required: true, delegated: false);
     public FakeArcaDefinition InvoicingFamily { get; } = new("wsfe", "Invoicing", required: false);
@@ -94,6 +96,7 @@ internal sealed class ArcaApplicationHost : IDisposable
     public IArcaConnectionTestService Test => Provider.GetRequiredService<IArcaConnectionTestService>();
     public IArcaRobotService Robot => Provider.GetRequiredService<IArcaRobotService>();
     public IArcaRobotRunStore RobotStore => Provider.GetRequiredService<IArcaRobotRunStore>();
+    public IArcaCertificateNoticeService Notice => Provider.GetRequiredService<IArcaCertificateNoticeService>();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -159,6 +162,15 @@ internal sealed class FakeArcaCredentials : IArcaCredentialService
 
     public (string Token, string Sign)? UnprotectTicket(Guid connectionId, Guid certificateId, ArcaServiceCode service, string protectedCredentials) =>
         throw new NotSupportedException("The application services never read tickets.");
+}
+
+/// <summary>RC7-B: quienes administran la conexión con el correo confirmado, programables desde el test.</summary>
+internal sealed class FakeArcaNoticeRecipients : IArcaNoticeRecipientReader
+{
+    public List<ArcaNoticeRecipientRow> People { get; } = [];
+
+    public Task<IReadOnlyList<ArcaNoticeRecipientRow>> ListManagersAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<ArcaNoticeRecipientRow>>([.. People]);
 }
 
 internal sealed class FakeArcaTickets : IArcaAccessTicketProvider

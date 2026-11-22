@@ -68,7 +68,7 @@ internal sealed class FakeArcaStore : IArcaConnectionRepository, IArcaConnection
 
     public Task<ArcaConnectionRow?> FindAsync(CancellationToken cancellationToken) => Task.FromResult(Connection is { } connection
         ? new ArcaConnectionRow(connection.Id, connection.Mode, connection.Environment, connection.Cuit, connection.PlatformCuit, connection.Status,
-            [.. connection.EnabledServices], connection.LastTestPassed, connection.LastTestedAtUtc, connection.Revision,
+            [.. connection.EnabledServices], connection.LastTestPassed, connection.LastTestedAtUtc, connection.Revision, connection.CertificateNoticeDays,
             [.. Certificates.OrderBy(certificate => certificate.Role).Select(certificate => new ArcaCertificateRow(certificate.Id, certificate.Role,
                 certificate.Alias, certificate.IsLoaded, certificate.NotBeforeUtc, certificate.NotAfterUtc, certificate.Thumbprint))])
         : null);

@@ -63,11 +63,12 @@ cambiaron), y el estado se recalcula en el mismo guardado.
 
 | Verbo y ruta | Qué hace |
 | --- | --- |
-| `GET api/arca/connection` | Estado, modo, ambiente, CUIT, la CUIT de la plataforma (en delegación), la plataforma configurada, servicios instalados (con su familia y si se delegan) y elegidos, certificados sin secretos, última prueba y revisión |
+| `GET api/arca/connection` | Estado, modo, ambiente, CUIT, la CUIT de la plataforma (en delegación), la plataforma configurada, servicios instalados (con su familia y si se delegan) y elegidos, certificados sin secretos, última prueba, revisión y los días del aviso de vencimiento (`certificateNoticeDays`; sin conexión, 30) |
 | `POST api/arca/connection/certificate-requests` | Con CUIT, ambiente, alias, servicios y modo (por defecto, el certificado de la empresa) genera la clave y el pedido. Sin conexión la crea; con conexión pide otro certificado para ella (renovación, o un pedido nuevo en el alta), con su modo, y reemplaza el pendiente |
 | `GET api/arca/connection/certificate-requests/current` | Descarga el `.csr` pendiente (`application/pkcs10`, `arca-<alias>.csr`) |
 | `DELETE api/arca/connection/certificate-requests/current` | Cancela la renovación (revisión en la query) |
 | `PUT api/arca/connection/services` | Elige los servicios que usa la empresa |
+| `PUT api/arca/connection/certificate-notice` | «Avisar N días antes» del vencimiento del certificado (`days`, de 1 a 365) con la revisión leída. Fuera de rango, 400 `Arca.Connection.CertificateNoticeInvalid` sin abrir la transacción; sin conexión, `Arca.Connection.NotConnected` (RC7-B) |
 | `PUT api/arca/connection/certificate` | Sube el `.crt` en PEM, lo valida y prueba; responde el resultado de la prueba. En una renovación, el nuevo reemplaza al activo sólo con la prueba en verde |
 | `POST api/arca/connection/test` | Prueba los servicios elegidos con la prueba de cada familia |
 | `PUT api/arca/connection` | Cambia CUIT, ambiente o modo en el alta (H30): con los datos del alta y la revisión leída, borra la conexión con todo lo suyo y crea la nueva con su pedido, en un solo guardado. Sin conexión responde `Arca.Connection.NotConnected` |
@@ -96,6 +97,21 @@ cambiaron), y el estado se recalcula en el mismo guardado.
   de IA), con un AAD atado a la instalación, la clave del anillo, el propósito, la conexión y el certificado. La Api no
   arranca sin el anillo. Si la clave guardada no se descifra, es una falla del anillo, no de la persona.
 - **Desconectar** borra de verdad la conexión, los certificados, los tickets y los datos de cada familia: hay secretos.
+
+### Aviso de vencimiento (RC7-B, 2026-11-22)
+
+- **«Avisar N días antes»** es de la conexión (`CertificateNoticeDays`): de 1 a 365 y 30 mientras nadie lo cambie, también lo
+  guardado antes y lo que escriba la versión anterior mientras conviven (la columna tiene ese valor por defecto). Se cambia
+  en el renglón «Aviso de vencimiento» de la zona «Certificado» (AC5-A, en el
+  [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-conexion.md)), con la revisión de la conexión y el 409 de
+  siempre; desconectar se lo lleva y una conexión nueva vuelve a 30. Desde ese día la pantalla muestra el aviso amarillo.
+- **El correo:** el worker (`Arca:CertificateNotice`, al arrancar y cada hora) mira el certificado activo y, cuando entra en
+  esos días y todavía no venció, encola un correo para cada cuenta activa cuyos roles dan `arca.manage` y que tiene el
+  correo confirmado (los administradores lo tienen), en su idioma y con la fecha sólo con números en su zona, y marca el
+  certificado (`ExpiryNoticeSentAtUtc`): uno por certificado. El certificado de una renovación trae su propio aviso.
+- **Una vez y entero:** corre con el lock de la conexión, y los correos van por la cola transaccional en la misma transacción
+  que marca el certificado: si la cola no toma uno, no queda ninguno y la vuelta siguiente vuelve a probar. Sin nadie a quien
+  avisar queda un log de advertencia y el certificado sin marcar, así le llega a quien reciba el permiso después.
 
 ## Ticket de acceso (WSAA)
 

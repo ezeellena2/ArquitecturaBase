@@ -7,6 +7,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 /// La conexión con ARCA tal como la ve la pantalla: sin conexión, el estado es null y la revisión 0, pero los servicios
 /// instalados y la plataforma configurada vienen igual, para el alta. Los certificados van sin clave ni pedido. En modo
 /// delegación, <paramref name="PlatformCuit"/> es la CUIT de la plataforma que guardó la conexión.
+/// <paramref name="CertificateNoticeDays"/> dice desde cuántos días antes del vencimiento se avisa (RC7-B): el de la conexión, o
+/// el valor por defecto sin conexión.
 /// </summary>
 public sealed record ArcaConnectionResponse(
     ArcaConnectionStatus? Status,
@@ -20,7 +22,8 @@ public sealed record ArcaConnectionResponse(
     IReadOnlyList<ArcaCertificateResponse> Certificates,
     bool? LastTestPassed,
     DateTime? LastTestedAtUtc,
-    long Revision)
+    long Revision,
+    int CertificateNoticeDays)
 {
     /// <summary>
     /// La conexión como la ve la pantalla. El vencimiento del certificado se calcula al leer (B4): una conexión activa con el
@@ -32,11 +35,11 @@ public sealed record ArcaConnectionResponse(
         IReadOnlyList<ArcaInstalledServiceResponse> services =
             [.. installed.Select(service => new ArcaInstalledServiceResponse(service.Code.Value, service.Family, service.Required, service.Delegated))];
         return row is null
-            ? new(null, null, null, null, null, platform, services, [], [], null, null, 0)
+            ? new(null, null, null, null, null, platform, services, [], [], null, null, 0, ArcaConnection.DefaultCertificateNoticeDays)
             : new(StatusAt(row, nowUtc), row.Mode, row.Environment, row.Cuit, row.PlatformCuit, platform, services, row.EnabledServices,
                 [.. row.Certificates.Select(certificate => new ArcaCertificateResponse(certificate.Role, certificate.Alias, certificate.IsLoaded,
                     certificate.NotBeforeUtc, certificate.NotAfterUtc, certificate.Thumbprint))],
-                row.LastTestPassed, row.LastTestedAtUtc, row.Revision);
+                row.LastTestPassed, row.LastTestedAtUtc, row.Revision, row.CertificateNoticeDays);
     }
 
     private static ArcaConnectionStatus StatusAt(ArcaConnectionRow row, DateTime nowUtc) =>

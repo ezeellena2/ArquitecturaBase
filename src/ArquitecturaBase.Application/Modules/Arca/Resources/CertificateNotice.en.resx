@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Notice.Subject" xml:space="preserve"><value>The ARCA certificate expires on {0}</value></data>
+  <data name="Notice.Body" xml:space="preserve"><value>The certificate of the ARCA connection expires on {0}. Renew it beforehand in Settings › ARCA so invoicing is not interrupted.</value></data>
+</root>

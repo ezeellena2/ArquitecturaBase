@@ -27,6 +27,9 @@ public sealed class ArcaCertificate : Entity, IAuditable
     public DateTime? NotBeforeUtc { get; private set; }
     public DateTime? NotAfterUtc { get; private set; }
     public string? Thumbprint { get; private set; }
+
+    /// <summary>RC7-B: cuándo salió el aviso de su vencimiento; uno por certificado.</summary>
+    public DateTime? ExpiryNoticeSentAtUtc { get; private set; }
     public bool IsLoaded => CertificatePem is not null;
 
     /// <summary>Entre 3 y 30 minúsculas, dígitos o guiones, empezando por letra.</summary>
@@ -64,6 +67,12 @@ public sealed class ArcaCertificate : Entity, IAuditable
     public bool IsExpired(DateTime nowUtc) => NotAfterUtc is { } notAfter && notAfter <= nowUtc;
 
     public bool ExpiresWithin(TimeSpan window, DateTime nowUtc) => NotAfterUtc is { } notAfter && notAfter - nowUtc <= window;
+
+    /// <summary>RC7-B: el aviso le toca desde que entra en la ventana hasta que vence, una sola vez.</summary>
+    public bool NeedsExpiryNotice(TimeSpan window, DateTime nowUtc) =>
+        IsLoaded && ExpiryNoticeSentAtUtc is null && !IsExpired(nowUtc) && ExpiresWithin(window, nowUtc);
+
+    public void ExpiryNoticeSent(DateTime nowUtc) => ExpiryNoticeSentAtUtc = nowUtc;
 
     public override string ToString() => $"ArcaCertificate {{ id: {Id}, alias: {Alias}, role: {Role}, privateKey: [REDACTED] }}";
 }

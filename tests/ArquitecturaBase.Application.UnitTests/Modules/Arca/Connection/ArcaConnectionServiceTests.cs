@@ -144,6 +144,56 @@ public sealed class ArcaConnectionServiceTests
         Assert.Equal([Registry, Invoicing], host.Store.Connection.EnabledServices);
     }
 
+    // RC7-B: «Avisar N días antes» del vencimiento del certificado se guarda con la revisión de la conexión.
+    [Fact]
+    public async Task The_notice_days_are_saved_with_the_revision_without_changing_the_status()
+    {
+        using var host = new ArcaApplicationHost();
+        var active = await host.ActivateAsync(Invoicing);
+        Assert.Equal(30, active.CertificateNoticeDays);
+
+        var changed = (await host.Connection.ChangeCertificateNoticeAsync(45, active.Revision, Ct)).Value;
+
+        Assert.Equal((45, active.Revision + 1, ArcaConnectionStatus.Active),
+            (changed.CertificateNoticeDays, changed.Revision, changed.Status));
+        Assert.Equal(45, host.Store.Connection!.CertificateNoticeDays);
+    }
+
+    [Fact]
+    public async Task Changing_the_notice_days_with_a_stale_revision_is_a_conflict_that_changes_nothing()
+    {
+        using var host = new ArcaApplicationHost();
+        var active = await host.ActivateAsync(Invoicing);
+
+        Assert.Equal(ArcaConnectionErrors.RevisionConflict, (await host.Connection.ChangeCertificateNoticeAsync(45, active.Revision - 1, Ct)).Error);
+
+        Assert.Equal((30, active.Revision), (host.Store.Connection!.CertificateNoticeDays, host.Store.Connection.Revision));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(366)]
+    public async Task Notice_days_out_of_range_are_rejected_before_opening_the_transaction(int days)
+    {
+        using var host = new ArcaApplicationHost();
+        var active = await host.ActivateAsync(Invoicing);
+        var transactions = host.Work.Transactions;
+
+        Assert.Equal(ArcaConnectionErrors.CertificateNoticeInvalid, (await host.Connection.ChangeCertificateNoticeAsync(days, active.Revision, Ct)).Error);
+
+        Assert.Equal(transactions, host.Work.Transactions);
+        Assert.Equal(30, host.Store.Connection!.CertificateNoticeDays);
+    }
+
+    [Fact]
+    public async Task Without_a_connection_the_notice_days_cannot_change_and_read_the_default()
+    {
+        using var host = new ArcaApplicationHost();
+
+        Assert.Equal(30, (await host.Connection.GetAsync(Ct)).Value.CertificateNoticeDays);
+        Assert.Equal(ArcaConnectionErrors.NotConnected, (await host.Connection.ChangeCertificateNoticeAsync(45, 0, Ct)).Error);
+    }
+
     [Fact]
     public async Task An_invalid_certificate_returns_the_inspector_error_and_changes_nothing()
     {

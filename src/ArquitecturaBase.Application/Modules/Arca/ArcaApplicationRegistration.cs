@@ -40,6 +40,7 @@ public static class ArcaApplicationRegistration
         services.TryAddScoped<IArcaConnectionService, ArcaConnectionService>();
         services.TryAddScoped<IArcaDisconnectionService, ArcaDisconnectionService>();
         services.TryAddScoped<IArcaConnectionTestService, ArcaConnectionTestService>();
+        services.TryAddScoped<IArcaCertificateNoticeService, ArcaCertificateNoticeService>();
         services.AddOptions<ArcaRobotOptions>().BindConfiguration("Arca:Robot")
             .Validate(x => x.IsValid(), "Configure Arca:Robot with positive lapses, a lease of 30 seconds or more, 1 to 20 attempts and a valid alert email, or leave it empty.")
             .ValidateOnStart();

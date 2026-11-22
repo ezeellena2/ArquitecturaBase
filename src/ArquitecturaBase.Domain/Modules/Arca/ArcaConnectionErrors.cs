@@ -14,6 +14,8 @@ public static class ArcaConnectionErrors
     public static readonly Error CertificateCuitMismatch = Error.Validation("Arca.Connection.CertificateCuitMismatch", "The certificate belongs to another CUIT.");
     public static readonly Error CertificateEnvironmentMismatch = Error.Validation("Arca.Connection.CertificateEnvironmentMismatch", "The certificate belongs to the other environment.");
     public static readonly Error CertificateExpired = Error.Validation("Arca.Connection.CertificateExpired", "The certificate has expired.");
+    public static readonly Error CertificateNoticeInvalid = Error.Validation("Arca.Connection.CertificateNoticeInvalid", "The expiry notice goes from 1 to 365 days before.");
+    public static readonly Error ExpiryNoticeNotQueued = Error.Failure("Arca.Connection.ExpiryNoticeNotQueued", "The certificate expiry notice was not queued.");
     public static readonly Error NoPendingRequest = Error.Validation("Arca.Connection.NoPendingRequest", "There is no pending certificate request.");
     public static readonly Error RevisionConflict = Error.Conflict("Arca.Connection.RevisionConflict", "The connection changed. Review its current revision.");
     public static readonly Error ServiceNotChosen = Error.Validation("Arca.Connection.ServiceNotChosen", "The ARCA connection has not chosen that service.");

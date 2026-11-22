@@ -196,6 +196,8 @@
   <data name="Arca.Connection.CertificateExpired" xml:space="preserve"><value>The certificate has expired. Generate a new request to renew it.</value></data>
   <data name="Arca.Connection.NoPendingRequest" xml:space="preserve"><value>There is no pending certificate request.</value></data>
   <data name="Arca.Connection.RevisionConflict" xml:space="preserve"><value>Someone else changed the connection. Read the current one and try again.</value></data>
+  <data name="Arca.Connection.CertificateNoticeInvalid" xml:space="preserve"><value>The notice goes from 1 to 365 days before the expiry.</value></data>
+  <data name="Arca.Connection.ExpiryNoticeNotQueued" xml:space="preserve"><value>We couldn&apos;t queue the certificate expiry notice. It is tried again on the next round.</value></data>
   <data name="Arca.Connection.NotConnected" xml:space="preserve"><value>There is no ARCA connection yet.</value></data>
   <data name="Arca.Connection.ServiceNotChosen" xml:space="preserve"><value>The ARCA connection has not chosen that service.</value></data>
   <data name="Arca.Connection.NotActive" xml:space="preserve"><value>The ARCA connection is not active.</value></data>

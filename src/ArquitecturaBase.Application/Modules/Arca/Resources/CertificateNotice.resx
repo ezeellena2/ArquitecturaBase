@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Notice.Subject" xml:space="preserve"><value>El certificado de ARCA vence el {0}</value></data>
+  <data name="Notice.Body" xml:space="preserve"><value>El certificado de la conexión con ARCA vence el {0}. Renovalo antes en Configuración › ARCA para no cortar la facturación.</value></data>
+</root>

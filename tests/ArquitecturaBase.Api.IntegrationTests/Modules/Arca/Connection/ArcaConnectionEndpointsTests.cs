@@ -20,6 +20,7 @@ public sealed class ArcaConnectionEndpointsTests(ApiFactory factory) : IDisposab
     [InlineData("GET", "/api/arca/connection/certificate-requests/current", true)]
     [InlineData("DELETE", "/api/arca/connection/certificate-requests/current?expectedRevision=1", true)]
     [InlineData("PUT", "/api/arca/connection/services", true)]
+    [InlineData("PUT", "/api/arca/connection/certificate-notice", true)]
     [InlineData("PUT", "/api/arca/connection/certificate", true)]
     [InlineData("POST", "/api/arca/connection/test", true)]
     [InlineData("DELETE", "/api/arca/connection?expectedRevision=1", true)]
@@ -135,6 +136,29 @@ public sealed class ArcaConnectionEndpointsTests(ApiFactory factory) : IDisposab
 
         Assert.Equal("Arca.Connection.RevisionConflict", problem.GetProperty("code").GetString());
         Assert.True(problem.TryGetProperty("traceId", out _));
+    }
+
+    // RC7-B: «Avisar N días antes» del vencimiento se guarda con la revisión de la conexión; fuera de rango es un 400 con su código.
+    [Fact]
+    public async Task The_notice_days_are_saved_with_the_revision_and_a_stale_or_out_of_range_change_is_rejected()
+    {
+        await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
+        var active = await scenario.ActivateAsync();
+        var revision = active.GetProperty("revision").GetInt64();
+        Assert.Equal(30, active.GetProperty("certificateNoticeDays").GetInt32());
+
+        var invalid = await scenario.ReadAsync(await scenario.Client.PutAsJsonAsync("/api/arca/connection/certificate-notice",
+            new { days = 366, expectedRevision = revision }, Ct), HttpStatusCode.BadRequest);
+        var changed = await scenario.ReadAsync(await scenario.Client.PutAsJsonAsync("/api/arca/connection/certificate-notice",
+            new { days = 45, expectedRevision = revision }, Ct), HttpStatusCode.OK);
+        var stale = await scenario.ReadAsync(await scenario.Client.PutAsJsonAsync("/api/arca/connection/certificate-notice",
+            new { days = 60, expectedRevision = revision }, Ct), HttpStatusCode.Conflict);
+
+        Assert.Equal("Arca.Connection.CertificateNoticeInvalid", invalid.GetProperty("code").GetString());
+        Assert.Equal((45, revision + 1, "Active"), (changed.GetProperty("certificateNoticeDays").GetInt32(), changed.GetProperty("revision").GetInt64(),
+            changed.GetProperty("status").GetString()));
+        Assert.Equal("Arca.Connection.RevisionConflict", stale.GetProperty("code").GetString());
+        Assert.Equal(45, (await scenario.GetConnectionAsync()).GetProperty("certificateNoticeDays").GetInt32());
     }
 
     [Fact]

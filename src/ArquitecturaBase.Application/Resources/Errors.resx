@@ -196,6 +196,8 @@
   <data name="Arca.Connection.CertificateExpired" xml:space="preserve"><value>El certificado está vencido. Generá un pedido nuevo para renovarlo.</value></data>
   <data name="Arca.Connection.NoPendingRequest" xml:space="preserve"><value>No hay un pedido de certificado pendiente.</value></data>
   <data name="Arca.Connection.RevisionConflict" xml:space="preserve"><value>Otra persona cambió la conexión. Leé lo actual y volvé a intentar.</value></data>
+  <data name="Arca.Connection.CertificateNoticeInvalid" xml:space="preserve"><value>El aviso va de 1 a 365 días antes del vencimiento.</value></data>
+  <data name="Arca.Connection.ExpiryNoticeNotQueued" xml:space="preserve"><value>No pudimos encolar el aviso de vencimiento del certificado. Vuelve a probar en la próxima vuelta.</value></data>
   <data name="Arca.Connection.NotConnected" xml:space="preserve"><value>Todavía no hay una conexión con ARCA.</value></data>
   <data name="Arca.Connection.ServiceNotChosen" xml:space="preserve"><value>La conexión con ARCA no tiene elegido ese servicio.</value></data>
   <data name="Arca.Connection.NotActive" xml:space="preserve"><value>La conexión con ARCA no está activa.</value></data>

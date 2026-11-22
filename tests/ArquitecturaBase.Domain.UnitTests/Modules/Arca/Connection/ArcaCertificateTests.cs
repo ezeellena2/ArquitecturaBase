@@ -65,6 +65,26 @@ public sealed class ArcaCertificateTests
         Assert.False(certificate.ExpiresWithin(TimeSpan.FromDays(30), To.AddDays(-31)));
     }
 
+    // RC7-B: the notice goes once per certificate, from the first day of the window until it expires.
+    [Fact]
+    public void The_expiry_notice_is_due_inside_the_window_until_it_expires_and_only_once()
+    {
+        var window = TimeSpan.FromDays(30);
+        var certificate = Request(Guid.CreateVersion7());
+        Assert.False(certificate.NeedsExpiryNotice(window, To.AddDays(-1)));
+
+        certificate.Load("CERTIFICATE", From, To, "THUMBPRINT");
+        Assert.False(certificate.NeedsExpiryNotice(window, To.AddDays(-31)));
+        Assert.True(certificate.NeedsExpiryNotice(window, To.AddDays(-30)));
+        Assert.True(certificate.NeedsExpiryNotice(window, To.AddSeconds(-1)));
+        Assert.False(certificate.NeedsExpiryNotice(window, To));
+
+        certificate.ExpiryNoticeSent(To.AddDays(-30));
+        Assert.Equal(To.AddDays(-30), certificate.ExpiryNoticeSentAtUtc);
+        Assert.False(certificate.NeedsExpiryNotice(window, To.AddDays(-29)));
+        Assert.False(certificate.NeedsExpiryNotice(TimeSpan.FromDays(60), To.AddDays(-29)));
+    }
+
     [Fact]
     public void The_text_representation_never_shows_the_key_or_the_documents()
     {

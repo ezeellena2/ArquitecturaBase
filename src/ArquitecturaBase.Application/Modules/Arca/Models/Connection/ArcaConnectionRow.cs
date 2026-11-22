@@ -14,6 +14,7 @@ public sealed record ArcaConnectionRow(
     bool? LastTestPassed,
     DateTime? LastTestedAtUtc,
     long Revision,
+    int CertificateNoticeDays,
     IReadOnlyList<ArcaCertificateRow> Certificates)
 {
     public override string ToString() => $"ArcaConnectionRow {{ cuit: {CuitNumber.Mask(Cuit)}, status: {Status} }}";

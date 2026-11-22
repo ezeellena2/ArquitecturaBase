@@ -17,7 +17,15 @@ public sealed class ArcaConnectionResponseTests
         Assert.Equal(ArcaConnectionStatus.Unverified, ArcaConnectionResponse.From(Row(ArcaConnectionStatus.Unverified, Now.AddMinutes(-1)), [], null, Now).Status);
     }
 
+    // RC7-B: the screen warns as many days before as the connection says; without a connection, the default.
+    [Fact]
+    public void The_notice_days_come_from_the_connection_or_the_default_without_one()
+    {
+        Assert.Equal(45, ArcaConnectionResponse.From(Row(ArcaConnectionStatus.Active, Now.AddDays(1)), [], null, Now).CertificateNoticeDays);
+        Assert.Equal(30, ArcaConnectionResponse.From(null, [], null, Now).CertificateNoticeDays);
+    }
+
     private static ArcaConnectionRow Row(ArcaConnectionStatus status, DateTime notAfterUtc) => new(Guid.NewGuid(), ArcaAccessMode.CompanyCertificate,
-        ArcaEnvironment.Testing, "30710001231", null, status, ["wsfe"], status == ArcaConnectionStatus.Active, Now.AddDays(-1), 3,
+        ArcaEnvironment.Testing, "30710001231", null, status, ["wsfe"], status == ArcaConnectionStatus.Active, Now.AddDays(-1), 3, 45,
         [new ArcaCertificateRow(Guid.NewGuid(), ArcaCertificateRole.Active, "facturacion", true, notAfterUtc.AddYears(-1), notAfterUtc, "ab12")]);
 }
