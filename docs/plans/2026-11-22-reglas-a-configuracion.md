@@ -1,6 +1,7 @@
 # Reglas fijas que pasan a Configuración: inventario
 
-Fecha: 2026-11-22. Estado: **propuesta sin decidir, sin programar.**
+Fecha: 2026-11-22. Estado: **decidido el mismo día (RC1-A, RC2-B, RC3-A, RC4-A, RC6-B y RC7-B); RC5 programado (`1b48cf9d`) y
+el resto sin programar.**
 
 El 2026-11-21 el usuario pidió que ninguna regla de negocio quede fija en el código: «toda configuración o regla tenemos que
 tratar de colocarla en la zona de configuraciones del administrador». El primer caso ya está hecho: el tope de ofrecimientos de
@@ -125,20 +126,38 @@ Como TO1-A, por grupo y con su tablero antes de tocar una pantalla:
 - un texto que nombra el número lo recibe como parámetro;
 - la política de privacidad lee los mismos plazos.
 
-## Decisiones para el usuario
+## Decisiones del usuario (2026-11-22)
 
-- **RC1.** Retención y privacidad: ¿pasan a Configuración, cada módulo en la suya?
-- **RC2.** Asistente de WhatsApp: ¿la ráfaga, las cargas por planilla, las páginas y el emparejado van a Límites? ¿Y las dos
-  reglas que hoy no son constantes?
-- **RC3.** WhatsApp en general: ¿una Configuración › WhatsApp con la vida del formulario y los países?
-- **RC4.** Formularios: ¿una Configuración › Formularios con el tamaño de archivo, las relecturas y los grupos, y las dos
-  reglas de aprobación en cada formulario?
-- **RC5.** IA: el día de los cupos ya usa la zona horaria del negocio (decidido y programado el 2026-11-22). Queda: ¿los cupos
-  por persona en pantalla, con techo?
-- **RC6.** Núcleo: ¿invitaciones, nombre, logo y remitente en Configuración general? ¿Con qué modo de registro arranca una
-  instalación nueva?
-- **RC7.** ARCA: ¿el aviso de certificado por vencer y la moneda, como funciones nuevas?
+- **RC1-A.** La retención pasa a Configuración, cada módulo en la suya, con mínimos y máximos, y la política de privacidad lee los
+  mismos valores:
+  - la identidad en Configuración general › «Privacidad y retención» (ingresos, 12 meses; códigos e invitaciones, 30 días);
+  - WhatsApp en Configuración › WhatsApp (90 días);
+  - la IA en Configuración › IA (30 días, con el techo de 30 en `appsettings`);
+  - los documentos recibidos en Configuración › Formularios, en dos plazos (vencer los propuestos sin revisar y borrar los
+    descartados, 90 días cada uno).
+- **RC2-B.** Límites del asistente suma formularios por planilla (3), páginas de un PDF (10) y «Volver a ofrecer un formulario
+  rechazado»: nunca (por defecto) o a los N días. La ráfaga, el emparejado y «no repetir un formulario ya enviado hoy» quedan
+  como están.
+- **RC3-A.** Pantalla nueva, Configuración › WhatsApp: la vida de un formulario enviado (24 h, de 1 a 168), los países que reciben
+  códigos (Argentina, con un aviso de costo) y la retención de RC1.
+- **RC4-A.** Pantalla nueva, Configuración › Formularios: tamaño máximo por archivo (25 MiB, el techo de WhatsApp), relecturas por
+  persona y día (5), desde cuántos documentos parecidos se sugiere armar un formulario (3) y la retención de documentos de RC1. La
+  acción «Pedir aprobación» de cada formulario suma «Puede decidir quien cargó» (no, por defecto) y «Exigir motivo al rechazar»
+  (sí, por defecto). Primero las dos casillas.
+- **RC5.** Hecho (`1b48cf9d`). Sigue abierto si los cupos por persona de la IA se muestran en pantalla, con techo.
+- **RC6-B.** Configuración › Apariencia suma el nombre de la aplicación, el logo de los correos y el nombre del remitente. Los
+  cupos de invitaciones siguen en `appsettings`, y una instalación nueva arranca «sólo por invitación».
+- **RC7-B.** Configuración › ARCA suma «Avisar N días antes» del vencimiento del certificado (30), por correo y en la pantalla. La
+  moneda espera a que un cliente la pida.
 
-Orden sugerido: RC1 (la política de privacidad promete esos plazos),
-RC2 (mismo patrón que TO1-A), RC6, RC3, RC4 y RC7. Desde el 2026-11-15 la lista está congelada hasta la prueba integral: lo
-que el usuario no pida antes va después.
+## Cómo se programa
+
+En cuatro tandas por módulo, porque varias decisiones comparten pantalla. Son independientes entre sí y cada pantalla pasa antes
+por su tablero:
+
+1. **WhatsApp:** RC3-A, RC2-B y la retención de WhatsApp de RC1.
+2. **Formularios:** RC4-A y la retención de documentos de RC1.
+3. **Núcleo e IA:** RC6-B y la retención de identidad y de la IA de RC1, con la política de privacidad leyendo los plazos.
+4. **ARCA:** RC7-B.
+
+Desde el 2026-11-15 la lista está congelada hasta la prueba integral: se programan después, salvo lo que el usuario pida antes.
