@@ -110,8 +110,10 @@ public sealed partial class FormDraftEndpointsTests
         Assert.All(initials, (values, index) => Assert.Contains(index == 0 ? "\"C\"" : "\"O\"", values));
         // The catalog comes once with the options the standard declares, in their order; the second copy does not add them again.
         var options = await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogItem>()
-            .Where(item => item.CatalogId == catalog.Id).OrderBy(item => item.Position).Select(item => new { item.Id, item.Code, item.TextEs, item.IsActive }).ToListAsync(Ct));
+            .Where(item => item.CatalogId == catalog.Id).OrderBy(item => item.Position).Select(item => new { item.Id, item.Code, item.TextEs, item.IsActive, item.Position }).ToListAsync(Ct));
         Assert.Equal([("final", "Consumidor final", true), ("other", "Otro: escribir la CUIT", true)], options.Select(item => (item.Code, item.TextEs, item.IsActive)));
+        // Numbered from one, as every catalog numbers its options: the front does not read an option at position zero (O43).
+        Assert.Equal([1, 2], options.Select(item => item.Position));
         var copies = new List<Guid>();
         foreach (var created in new[] { first, second })
         {

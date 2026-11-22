@@ -102,8 +102,9 @@ internal sealed class FormLibraryService : IFormLibraryService
                     "data", position, true))];
                 var fields = entity.SetFields(defined, null);
                 if (fields.IsFailure) throw new InvalidOperationException("A library standard declares invalid catalog fields.");
-                var items = (catalog.Items ?? []).Select((item, position) => entity.AddManualItem(item.Code, item.Text.GetValueOrDefault("es"),
-                    item.Text.GetValueOrDefault("en"), item.Detail?.GetValueOrDefault("es"), item.Detail?.GetValueOrDefault("en"), position)).ToArray();
+                // The options are numbered from one, as every catalog numbers them (O43).
+                var items = (catalog.Items ?? []).Select((item, index) => entity.AddManualItem(item.Code, item.Text.GetValueOrDefault("es"),
+                    item.Text.GetValueOrDefault("en"), item.Detail?.GetValueOrDefault("es"), item.Detail?.GetValueOrDefault("en"), index + 1)).ToArray();
                 if (items.Any(item => item.IsFailure)) throw new InvalidOperationException("A library standard declares invalid catalog options.");
                 // B5: an option of the standard may bring values of the catalog's fields, by their key (the initial of «Clientes»); they
                 // are written as the values of every option are, by the catalog field policy.
