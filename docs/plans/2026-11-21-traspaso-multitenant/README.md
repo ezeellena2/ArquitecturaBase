@@ -19,6 +19,9 @@ prueba hasta hoy.
   siguen la numeración del 15, de la 69 a la 73 (07).
 - **Es parcial.** La prueba integral no terminó: faltan la mayor parte de WhatsApp, lo que se prueba a mano y el cierre. Lo
   que cambie desde hoy va al traspaso 17.
+- **El [traspaso 17](../2026-11-22-traspaso-multitenant/README.md)** (2026-11-22) trae la guía de diseño de los catálogos y
+  formularios, con las reglas de diseño del 22/11, y responde la pregunta 14 del 15 (O29 se arregló). Lo demás de la prueba
+  integral va al traspaso 18.
 - **No es código para copiar** (tu decisión 18) y tus tableros son tuyos (tu decisión 108).
 
 ## Dónde está ArquitecturaBase
