@@ -46,6 +46,17 @@ Estadísticas de Match: máximo agrupa el JSON tipado de campos de persona despu
 
 - Run único por respuesta/evento/regla/acción, documento único por run/cultura, una tarea abierta por respuesta. El run guarda además el último pedido de reintento, de reintento a una persona o de consulta, con quién y cuándo (`LastRequestKind`, F19), las consultas solas (`AutoConsultCount`, F2), la marca del aviso a quien cargó (`StallNoticedAtUtc`, F2: la migración `FormActionRunStallNotice` marcó como avisados los runs fallidos o en duda que ya había) y la traza con que se creó (`TraceParent`, F18). La cuenta «Por resolver» parte de `BusinessFormActionRuns` con un `DISTINCT` y un `INNER JOIN` a las respuestas vigentes (`FormResponseQuery.Unresolved`, F2). El workflow no lleva cuerpos, teléfonos ni claves. Reintentar aparece en un run Failed o, para una persona, en su falla confirmada de un aviso a un rol Completed. La retención de PDF consulta runs por lote, sin snapshots ni una consulta por blob.
 
+- La tarea de una aprobación guarda «Puede decidir quien cargó» y «Exigir motivo al rechazar» de su acción (`AuthorMayDecide` y
+  `ReasonOptional`, falsas en las filas de antes: la regla de siempre). `FormApprovalReader.DecidableBy` dice quién la decide en
+  la lista y la continuación, y Overview repite la condición en sus conteos.
+
+## Configuración
+
+- `BusinessFormsSettings` es una sola fila (Id fijo y `CK_BusinessFormsSettings_SingleRow`) con `Revision` como token de
+  concurrencia; sin fila, `FormSettingsReader` devuelve los valores de hoy con revisión 0. Guardarla toma `forms:settings`, sin otro lock. Los documentos recibidos conservan
+  `DeleteAfterUtc` como el descarte más 90 días: la purga y la bandeja lo corren por la diferencia con el plazo configurado
+  (`FormReceivedDocument.DeletionCutoff` y `DeleteAfter`), así ninguna versión escribe otra cosa.
+
 ## Sugerencias y pedidos faltantes
 
 - Pedidos faltantes: tema único por nombre normalizado, pedido único por recibo, sin FK al mensaje del canal; conteos en SQL y hasta 101 temas Pending y revisados (`ReviewedAtUtc`, F7) para el asistente.

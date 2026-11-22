@@ -750,6 +750,39 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
         await FormReceivedDocumentContractCapture.WriteAsync(inactive, "document-sender-inactive-es", Ct);
     }
 
+    // RC1-A: «Borrar los descartados» of Configuración › Formularios: the inbox says the days in its help and dates each deletion from the
+    // discard, and the purge deletes with them, all read on every use.
+    [Fact]
+    public async Task The_inbox_and_the_purge_follow_the_retention_of_the_settings()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var unclassified = await scenario.SendAsync(Ct, notRead: StructuredDocumentNotRead.Quota);
+        var discardedAt = factory.Clock.GetUtcNow().UtcDateTime;
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        try
+        {
+            using var before = await reviewer.PostAsJsonAsync(SearchPath, new { senderUserId = scenario.Sender }, Ct);
+            Assert.Equal(90, (await before.ReadJsonAsync()).GetProperty("discardedRetentionDays").GetInt32());
+            await factory.ExecuteDbContextAsync(db => FormSettingsTestData.SaveAsync(db, Ct, discardedRetentionDays: 10));
+            using var page = await reviewer.PostAsJsonAsync(SearchPath, new { senderUserId = scenario.Sender }, Ct);
+            var body = await page.ReadJsonAsync();
+            Assert.Equal(10, body.GetProperty("discardedRetentionDays").GetInt32());
+            var item = Assert.Single(body.GetProperty("items").EnumerateArray(), value => value.GetProperty("id").GetGuid() == unclassified.Id);
+            Assert.Equal(discardedAt.AddDays(10), item.GetProperty("deleteAfterUtc").GetDateTime());
+
+            factory.Clock.Advance(TimeSpan.FromDays(10).Subtract(TimeSpan.FromMinutes(1)));
+            Assert.True((await scenario.ScopeAsync(services => services.GetRequiredService<IFormReceivedDocumentRetentionService>().PurgeExpiredAsync(Ct))).IsSuccess);
+            Assert.True(await factory.ExecuteDbContextAsync(db => db.Set<FormReceivedDocument>().AnyAsync(document => document.Id == unclassified.Id, Ct)));
+            factory.Clock.Advance(TimeSpan.FromMinutes(1));
+            Assert.True((await scenario.ScopeAsync(services => services.GetRequiredService<IFormReceivedDocumentRetentionService>().PurgeExpiredAsync(Ct))).IsSuccess);
+            Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<FormReceivedDocument>().AnyAsync(document => document.Id == unclassified.Id, Ct)));
+        }
+        finally
+        {
+            await factory.ExecuteDbContextAsync(db => FormSettingsTestData.ResetAsync(db, Ct));
+        }
+    }
+
     [Fact]
     public async Task The_purge_deletes_what_expired_and_its_copy_is_no_longer_kept()
     {

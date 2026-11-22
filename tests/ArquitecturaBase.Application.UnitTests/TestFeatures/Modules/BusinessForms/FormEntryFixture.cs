@@ -31,6 +31,8 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
     public InMemoryUserAccounts Users { get; } = new();
     public FakeCurrentUser Current { get; } = new();
     public FakePermissionService Permissions { get; } = new();
+    /// <summary>Configuración › Formularios (RC4-A): today's values until a test changes them.</summary>
+    public FakeFormSettingsReader FormSettings { get; } = new();
     public Guid Actor { get; }
     public Guid? ActiveVersionId { get; set; }
     public bool Deactivated { get; set; }
@@ -61,6 +63,7 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
         services.AddSingleton<IPermissionService>(Permissions);
         services.AddSingleton<IUserReader>(Users);
         services.AddSingleton<IFormEntryReader>(this);
+        services.AddSingleton<IFormSettingsReader>(FormSettings);
         services.AddSingleton<IFormResponseReader>(Responses);
         services.AddSingleton<IFormRecordIssuanceReader>(new NoIssuances());
         services.AddSingleton<IFormCatalogReader>(Catalogs);

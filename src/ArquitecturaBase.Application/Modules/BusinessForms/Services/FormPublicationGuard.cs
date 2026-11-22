@@ -8,10 +8,10 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuard, IFormCatalogReader catalogReader, IPrivateFileStore files,
-    Microsoft.Extensions.Options.IOptions<Configuration.BusinessFormsOptions> options, IFormPersonDataReader people,
-    FormCatalogRecipientMaximumPolicy maximums)
+    IFormSettingsReader settings, IFormPersonDataReader people, FormCatalogRecipientMaximumPolicy maximums)
 {
-    public int MaxFileSizeMiB => options.Value.MaxFileSizeMiB;
+    /// <summary>«Tamaño máximo por archivo» of Configuración › Formularios (RC4-A), read on every check: a version seals it when accepted.</summary>
+    public async Task<int> MaxFileSizeMiBAsync(CancellationToken ct) => (await settings.FindAsync(ct)).MaxFileSizeMiB;
     public IReadOnlyList<FormPublicationIssueResponse> ValidateFiles(FormDefinitionResponse definition) =>
         FormPublicationPolicy.ValidateFiles(definition, files.IsAvailable);
 

@@ -1,9 +1,7 @@
 using ArquitecturaBase.Application.Common.Pagination;
-using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 
@@ -23,7 +21,7 @@ internal sealed class FormResponseEntryDouble : IFormEntryReader
         this.responses = responses;
         var sources = new FormCatalogPreparationFixture { CatalogMissing = true };
         catalogs = new(new FormCatalogOptionsPolicy(sources, sources, new FormCatalogPersonReader()), this, sources);
-        describer = new(this, catalogs, new(sources.Rules, sources), Options.Create(new BusinessFormsOptions()), new([], sources.Rules));
+        describer = new(this, catalogs, new(sources.Rules, sources), new FakeFormSettingsReader(), new([], sources.Rules));
     }
 
     /// <summary>The detail's form over these responses, with whether the person reading may correct them.</summary>

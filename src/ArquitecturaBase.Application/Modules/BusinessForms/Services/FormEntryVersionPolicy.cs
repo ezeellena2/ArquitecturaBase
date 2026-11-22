@@ -1,10 +1,8 @@
 using System.Globalization;
-using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
@@ -13,7 +11,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// data its filters use: the active one to load or correct, or a response's own to read it (VF1-A). Only reads.
 /// </summary>
 internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryCatalogPolicy catalogs, FormPresentationCulturePolicy presentation,
-    IOptions<BusinessFormsOptions> options, FormIssueEntryPolicy issues)
+    IFormSettingsReader settings, FormIssueEntryPolicy issues)
 {
     public async Task<Result<(FormEntryResponse Entry, FormVersionSchema Schema)>> DescribeAsync(Guid definitionId, Guid person,
         CancellationToken cancellationToken)
@@ -59,7 +57,7 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
         return (new FormEntryResponse(definitionId, version.VersionId, version.Number, definition.Prefix,
             FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(version.NameJson), culture), culture,
             FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(version.SubmitLabelJson), culture),
-            options.Value.MaxFileSizeMiB, questions) { IssuePreview = await issues.FindAsync(definitionId, cancellationToken) is not null }, schema);
+            (await settings.FindAsync(cancellationToken)).MaxFileSizeMiB, questions) { IssuePreview = await issues.FindAsync(definitionId, cancellationToken) is not null }, schema);
     }
 
     // The (i) of a question: its own help and, after it, what each toggle of a bound question means with the value the form chose

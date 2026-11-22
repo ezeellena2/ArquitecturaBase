@@ -208,7 +208,7 @@ Validación final: backend **2772/2772** con PostgreSQL/Redis, sin omitidos y bu
 
 ## Fotos y documentos — implementación local 2B, 2026-10-15
 
-Foto y Documento conservan `files` (mínimo, máximo y origen de foto); mínimo mayor a cero determina obligatoriedad. Guardar conserva traducciones pendientes y admite presupuestos mayores a diez; publicar exige el original completo, almacenamiento disponible y suma de máximos hasta diez, y envía sólo las culturas completas al canal. `BusinessForms:MaxFileSizeMiB` (1–25, predeterminado 25) se sella en el manifiesto, fuera del esquema de preguntas. `form-files` habilita estos tipos en el editor. El perfil vigente del canal y sus pantallas están en [WhatsApp](whatsapp.md#fotos-y-documentos-en-flows--2b-2026-10-15); cambiar el perfil no invalida versiones ni sesiones anteriores.
+Foto y Documento conservan `files` (mínimo, máximo y origen de foto); mínimo mayor a cero determina obligatoriedad. Guardar conserva traducciones pendientes y admite presupuestos mayores a diez; publicar exige el original completo, almacenamiento disponible y suma de máximos hasta diez, y envía sólo las culturas completas al canal. «Tamaño máximo por archivo» de Configuración › Formularios (1–25, predeterminado 25; [RC4-A](#configuración--formularios-y-las-casillas-de-pedir-aprobación--rc4-a-2026-11-22)) se sella en el manifiesto, fuera del esquema de preguntas. `form-files` habilita estos tipos en el editor. El perfil vigente del canal y sus pantallas están en [WhatsApp](whatsapp.md#fotos-y-documentos-en-flows--2b-2026-10-15); cambiar el perfil no invalida versiones ni sesiones anteriores.
 
 `StoredFiles` pertenece al núcleo: Entity/IAuditable, dueño, nombre, tipo, tamaño, SHA-256 y claves privadas de original/miniatura. `BusinessFormRecordFiles` pertenece a BusinessForms y conserva registro, pregunta, archivo y orden. Migraciones `AddPrivateFormFiles`, `AddFlowReplyFilesProgress` y `AddFlowReplyFileCount`; sin FK entre módulos. `BusinessFormFileRecorder` verifica contenido y sube fuera de la UoW con claves determinísticas; después registro, valores, archivos, referencias y recibo se confirman juntos. Un rechazo no guarda una respuesta parcial ni consume número. Reintentar sobrescribe el mismo blob; no se agrega staging ni otro protocolo durable.
 
@@ -280,7 +280,7 @@ Una acción que quedó en duda por un error local (el almacenamiento o el canal 
 
 Una respuesta se puede seguir de la captura al aviso (F18, 2026-11-16). Cada run de acción y cada operación de publicación guardan, al crearse, el contexto de traza W3C de donde se escribieron (`TraceParent`, opcional): la petición de la captura o de la publicación, o la vuelta del canal que contestó. Lo estampa el interceptor del módulo (`FormsTraceInterceptor`) y lo continúan sus workers, que lo reciben de la reserva, con el `ActivitySource` `ArquitecturaBase.BusinessForms` (actividades `forms.action` y `forms.publication`, registrado en el módulo como el de WhatsApp en H19). Las etiquetas llevan sólo el id del run o de la operación y el tipo de acción, nunca valores de la respuesta, nombres de archivos ni teléfonos; un run de antes, o creado sin traza, no tiene y su worker abre una propia. Los logs de los workers llevan el id del run o de la operación. Los workers del feed de catálogos y de la relectura de documentos todavía no continúan una traza.
 
-La aprobación es de un nivel y queda asignada a un rol. Al reservar, se vuelve a comprobar que el rol exista; si fue borrado, la acción falla con `Forms.Rule.RoleUnavailable`, sin abrir tarea ni pasar la respuesta a Por aprobar. Lo mismo si el rol no tiene personas activas que puedan decidir: falla con `Forms.Rule.RoleWithoutMembers` (B3, 2026-11-15), sin abrir una tarea que nadie puede decidir, y se reintenta cuando el rol tiene a alguien. Quien cargó la respuesta y quien la corrigió no cuentan, porque no pueden decidirla: un rol cuya única persona es una de ellas falla igual (2026-11-16). Sólo una cuenta activa con `formapprovals.decide` y pertenencia vigente al rol puede decidir, y nunca quien confirmó la respuesta. La revisión esperada evita dos decisiones: cerrar tarea, cambiar estado y crear las acciones del evento es un único commit. Rechazar exige motivo de hasta 500 caracteres. Una decisión tardía conserva la revisión de reglas de la captura.
+La aprobación es de un nivel y queda asignada a un rol. Al reservar, se vuelve a comprobar que el rol exista; si fue borrado, la acción falla con `Forms.Rule.RoleUnavailable`, sin abrir tarea ni pasar la respuesta a Por aprobar. Lo mismo si el rol no tiene personas activas que puedan decidir: falla con `Forms.Rule.RoleWithoutMembers` (B3, 2026-11-15), sin abrir una tarea que nadie puede decidir, y se reintenta cuando el rol tiene a alguien. Quien cargó la respuesta y quien la corrigió no cuentan, porque no pueden decidirla: un rol cuya única persona es una de ellas falla igual (2026-11-16), salvo con «Puede decidir quien cargó» (RC4-A). Sólo una cuenta activa con `formapprovals.decide` y pertenencia vigente al rol puede decidir, y nunca quien confirmó la respuesta, salvo esa casilla. La revisión esperada evita dos decisiones: cerrar tarea, cambiar estado y crear las acciones del evento es un único commit. Rechazar exige motivo de hasta 500 caracteres, salvo sin «Exigir motivo al rechazar». Una decisión tardía conserva la revisión de reglas de la captura.
 
 La solapa «Por aprobar (N)» de cada formulario (PL1-A, 2026-11-02; para quien sólo decide, el bloque «Por aprobar · N») ordena las tareas de más vieja a más nueva, dentro de los roles actuales y excluyendo las respuestas propias y las que la persona corrigió o pasó desde un documento recibido (quien fijó los valores no aprueba; la decisión también lo rechaza con 403). La cantidad proviene del servidor. Este permiso permite leer metadata de la tarea; los valores y PDF siguen exigiendo `formrecords.read`. La planilla muestra Estado si las reglas actuales o alguna revisión usada por sus respuestas piden aprobación. Su filtro es una selección única (Recibida, Por aprobar, Aprobada o Rechazada), compartida por lista, conteo, facetas y Excel; cada faceta ignora sólo su propia dimensión y conserva el estado elegido. La fila indica si existe una copia PDF confirmada mediante la consulta de la página, sin consultas por respuesta ni identificadores de documento en cada fila: una aprobación por sí sola no implica que el PDF ya esté listo. El historial conserva quién decidió, cuándo y el motivo bajo el permiso de lectura de respuestas.
 
@@ -626,7 +626,7 @@ entrada desde el panel y la página «Armar formulario con la IA».
   claro. Lo que expone de un documento confirmado ya está en claro en la respuesta. El cifrado de las copias de archivos se decide
   con el N15 del núcleo.
 - **El aviso de los parecidos.** La página de la bandeja (`POST api/forms/documents/search`) suma `groups`: los temas pendientes y ya revisados de
-  «Formularios que faltan» (F7-1: uno sin revisar no se ofrece) que comparten tres o más documentos sin clasificar (los que dejó «Otro»), con todos los filtros de la
+  «Formularios que faltan» (F7-1: uno sin revisar no se ofrece) que comparten al menos los documentos sin clasificar de «Sugerir armar un formulario desde» (3, RC4-A; los que dejó «Otro»), con todos los filtros de la
   página salvo el estado, los más grandes primero y hasta cinco: `{ topic: { id, name }, count, documentIds }`, con el nombre como
   se anotó y los más nuevos primero (hasta 20). No cuentan los documentos de un borrador ya armado ni el tema para el que se armó,
   mientras ese borrador exista: si se elimina, vuelven. Sale en una sola consulta con la página.
@@ -671,7 +671,7 @@ entrada desde el panel y la página «Armar formulario con la IA».
   configurar o sin calificar), un minuto; una vuelta posterior sigue, y un paso que falla a mitad deja el documento pendiente para la
   vuelta siguiente, hasta tres veces seguidas: a la tercera sale de los pendientes (anotado con su código), así no retiene para siempre
   su pedido ni los demás de esa persona. Las relecturas usan el cupo diario de quien pidió en el canal: sus pedidos releen entre todos a lo sumo unos
-  `BusinessForms:DocumentReread:DailyPerAsker` por día del negocio, en la zona horaria de Configuración (de 1 a 100, 5 por defecto: la mitad del cupo del motor; sólo cuenta lo que el
+  «Relecturas por persona y día» de Configuración › Formularios por día del negocio, en la zona horaria de Configuración (de 1 a 100, 5 por defecto: la mitad del cupo del motor; sólo cuenta lo que el
   motor tomó), de a una vuelta por persona (una versión nueva espera la vuelta que retiene los pendientes, y cada vuelta ni lista los pedidos de
   quien ya tiene otro retenido), y el resto sigue al otro día, así su bandeja conserva lo demás. La cuenta es aproximada: una vuelta que tarda más que su retención puede cruzarse con la siguiente, y
   una lectura que el motor tomó no cuenta si su paso se corta antes de anotarla o si su guardado pierde con un cambio del documento. Una versión nueva relee los que siguen sin clasificar. Cada documento es su propia
@@ -1482,8 +1482,9 @@ DOC6, en los [servicios](formularios-servicios.md).
   hasta que vence su envío y después es «para revisar acá», calculado al leer; el que no se le pudo mandar (CE4-A) o pasó el tope
   de una planilla es del equipo desde el principio. Mientras espera a su persona nadie lo descarta, le cambia el formulario ni lo
   pasa: 409 `Forms.ReceivedDocument.AwaitingSender`.
-- **La retención.** Un descartado o sin clasificar se borra a los 90 días con su lectura y su copia, y muestra la fecha. Uno
-  confirmado sigue la retención de su respuesta. Un propuesto «para revisar acá» que nadie toca en 90 días, desde que venció su
+- **La retención.** Un descartado o sin clasificar se borra con su lectura y su copia a los días de «Borrar los descartados»
+  (90, RC1-A), contados desde que se descartó, y muestra la fecha. Uno confirmado sigue la retención de su respuesta. Un
+  propuesto «para revisar acá» que nadie toca en los días de «Vencer los propuestos sin revisar» (90), desde que venció su
   envío o desde su último cambio, pasa a descartado con motivo «venció» (F9) y sigue esa retención.
 - **Los permisos.** `formdocuments.read` («Ver documentos recibidos») lee la bandeja, su número del menú, el detalle y el
   archivo; `formdocuments.review` («Revisar documentos») corrige, cambia de formulario, pasa al formulario, descarta y vuelve a
@@ -1680,3 +1681,24 @@ WhatsApp, eligió W1-A el mismo día: la ubicación se pide antes del Flow ([reg
   comparte por WhatsApp con el formulario abierto; cada dato, en una sola pregunta. Va en `receives`, se sella al publicar y
   una versión anterior no recibe nada. Con «Sólo en la app» la zona no aparece. Lo que hace el canal está en
   [WhatsApp](whatsapp.md#contacto-y-dirección-compartidos--w3-tarea-22-2026-11-12).
+
+## Configuración › Formularios y las casillas de «Pedir aprobación» — RC4-A, 2026-11-22
+
+Decididas por el usuario el 2026-11-22 en el [inventario de reglas fijas](../plans/2026-11-22-reglas-a-configuracion.md) (RC4-A y
+la retención de documentos de RC1-A), con los tableros AP1, AP2 y CF1 del lienzo «Formularios: reglas a Configuración».
+
+- **«Pedir aprobación»** suma, debajo de «Rol», «Puede decidir quien cargó» (sin marcar) y «Exigir motivo al rechazar» (marcada).
+  Viajan en la acción (`authorMayDecide` y `reasonOptional`, sólo cuando son verdaderas, así las reglas guardadas antes leen la
+  regla de siempre) y se guardan con la revisión de las reglas. El run las sella al capturar y la tarea las toma al abrirse
+  (`BusinessFormTask.AuthorMayDecide` y `ReasonOptional`): cada respuesta sigue la revisión con la que llegó y lo que ya espera
+  aprobación no cambia. Con la primera, quien cargó, corrigió o pasó la respuesta desde un documento también la decide, cuenta para
+  `RoleWithoutMembers` y la ve en «Por aprobar» y en sus conteos; sin la segunda, rechazar sin motivo vale y la tarea lo dice
+  (`reasonOptional`). Un motivo que falta cuando se exige es 400 `Forms.Approval.ReasonRequired` en `reason`.
+- **Configuración › Formularios** (`/api/forms/settings`, «Administrar la configuración», sólo con el módulo) guarda en una fila
+  (`BusinessFormsSettings`, revisión y 409 `Forms.Settings.RevisionConflict`) cinco números que cada uso lee de la base: el tamaño
+  máximo por archivo al responder (1–25 MiB, 25; la publicación lo sella en la versión), las relecturas por persona y día (1–100,
+  5), desde cuántos documentos parecidos la bandeja sugiere armar un formulario (2–20, 3) y la retención de documentos recibidos en
+  dos plazos de 1 a 3650 días, 90 cada uno: vencer los propuestos sin revisar y borrar los descartados. Sin la fila valen los de
+  hoy, con revisión 0. `DeleteAfterUtc` sigue siendo el descarte más 90 días, que escriben todas las versiones; el borrado real es
+  ese ancla movida por la diferencia con el plazo configurado, así bajarlo borra en la próxima limpieza lo que ya pasó el plazo
+  nuevo. La bandeja manda el plazo de borrado en su página (`discardedRetentionDays`) para su ayuda.

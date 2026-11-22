@@ -7,6 +7,8 @@ internal static class FormAdvisoryLockKeys
     public static readonly string Definitions = "forms:definitions";
     // CP1-A: every folder operation, after the other forms locks.
     public static readonly string Folders = "forms:folders";
+    /// <summary>RC4-A: saving Configuración › Formularios, taken alone.</summary>
+    public static readonly string Settings = "forms:settings";
     public static string Request(Guid actor, Guid requestId) => $"forms:request:{actor:N}:{requestId:N}";
     public static string Catalog(Guid catalogId) => $"forms:catalog:{catalogId:N}";
     // A catalog a module feeds, by the key of its source: it serializes creating it, before the lock of the catalog.

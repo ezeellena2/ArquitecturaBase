@@ -31,6 +31,27 @@ public sealed class FormEntryHttpTests(ApiFactory factory)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    // RC4-A: the app loads with «Tamaño máximo por archivo» of Configuración › Formularios, read again on every request.
+    [Fact]
+    public async Task The_entry_takes_the_file_size_of_the_settings_on_every_request()
+    {
+        await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
+        await scenario.PublishForPreparationAsync(factory, Ct);
+        using var first = scenario.Client("es", scenario.FirstId);
+        try
+        {
+            using var before = await first.GetAsync($"/api/forms/entries/{scenario.DefinitionId}", Ct);
+            Assert.Equal(25, (await before.ReadJsonAsync()).GetProperty("maxFileSizeMiB").GetInt32());
+            await scenario.ScopeAsync(async services => { await FormSettingsTestData.SaveAsync(services.GetRequiredService<ApplicationDbContext>(), Ct, maxFileSizeMiB: 7); return true; });
+            using var after = await first.GetAsync($"/api/forms/entries/{scenario.DefinitionId}", Ct);
+            Assert.Equal(7, (await after.ReadJsonAsync()).GetProperty("maxFileSizeMiB").GetInt32());
+        }
+        finally
+        {
+            await scenario.ScopeAsync(async services => { await FormSettingsTestData.ResetAsync(services.GetRequiredService<ApplicationDbContext>(), Ct); return true; });
+        }
+    }
+
     [Theory]
     [InlineData("es")]
     [InlineData("en")]

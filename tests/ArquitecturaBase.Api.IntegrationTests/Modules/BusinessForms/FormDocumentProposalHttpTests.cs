@@ -374,9 +374,10 @@ public sealed class FormDocumentProposalHttpTests(ApiFactory factory)
         var designer = await scenario.PersonAsync("Dora Diseña", Designer, Ct);
         var (first, firstForm) = await PublishedRequestAsync(scenario, designer);
         var (second, secondForm) = await PublishedRequestAsync(scenario, designer);
-        // Two copies of the server over the same database, each with a share of three re-reads a business day per person.
-        await using var one = scenario.Host.WithWebHostBuilder(builder => builder.UseSetting("BusinessForms:DocumentReread:DailyPerAsker", "3"));
-        await using var two = scenario.Host.WithWebHostBuilder(builder => builder.UseSetting("BusinessForms:DocumentReread:DailyPerAsker", "3"));
+        // Two copies of the server over the same database, with a share of three re-reads a business day per person in Configuración › Formularios.
+        await scenario.DbAsync(async db => { await FormSettingsTestData.SaveAsync(db, Ct, dailyRereadsPerAsker: 3); return true; });
+        await using var one = scenario.Host.WithWebHostBuilder(_ => { });
+        await using var two = scenario.Host.WithWebHostBuilder(_ => { });
         static FormDocumentRereadBackgroundService Worker(WebApplicationFactory<Program> host) =>
             host.Services.GetRequiredService<FormDocumentRereadBackgroundService>();
         int Rereads(Guid definitionId) => scenario.Engine.Submitted.Count(operation => operation.Context.FocusDefinitionId == definitionId);

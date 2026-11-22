@@ -1,11 +1,9 @@
 using ArquitecturaBase.Application.Common.Time;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Results;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
@@ -17,14 +15,14 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// (no longer unclassified, its form gone, or a failure that will not pass), it leaves the pending ones; when the engine cannot take it now
 /// (its quota or its capacity), they all wait as long as it says. A step that fails halfway leaves the document pending for a later round.
 /// The re-reads run as the asker, out of their own daily quota of the channel: a person's requests read at most
-/// <see cref="FormDocumentRereadOptions.DailyPerAsker"/> a business day between them, in the time zone of the settings (RC5; only a reading
+/// «Relecturas por persona y día» of Configuración › Formularios (RC4-A) a business day between them, in the time zone of the settings (RC5; only a reading
 /// the engine took counts), and the rest continue at its midnight. Under that person's lock their rounds go one at a time, and a newer version waits for the round that holds the pending
 /// ones, so the count stays at most about the share: a round that outlives its hold can overlap the next one, and a reading the engine took
 /// goes uncounted when its step is cut before it is recorded or its save loses to a change of the document. What the worker lists also
 /// brings the extractions that still run.
 /// </summary>
 internal sealed class FormDocumentRereadService(IFormDocumentProposalReader reader, IFormDocumentProposalRepository repository,
-    IFormReceivedDocumentReader documents, IUnitOfWork unitOfWork, TimeProvider clock, IOptions<FormDocumentRereadOptions> options,
+    IFormReceivedDocumentReader documents, IUnitOfWork unitOfWork, TimeProvider clock, IFormSettingsReader formSettings,
     ISystemSettingsReader settings) : IFormDocumentRereadService
 {
     /// <summary>How many requests to start and extractions to apply one round looks at.</summary>
@@ -63,7 +61,7 @@ internal sealed class FormDocumentRereadService(IFormDocumentProposalReader read
                 : proposal.StartReread(form.VersionId, nowUtc, nowUtc.Add(Hold));
             if (held.IsFailure) return Result.Success<FormDocumentRereadWorkResponse?>(null);
             // The asker's daily share between all their requests; with none left, the pending ones wait for the business's next midnight.
-            var left = options.Value.DailyPerAsker - await repository.CountRereadsOnDayAsync(proposal.ActorUserId, today.Day, ct);
+            var left = (await formSettings.FindAsync(ct)).DailyRereadsPerAsker - await repository.CountRereadsOnDayAsync(proposal.ActorUserId, today.Day, ct);
             if (left <= 0)
             {
                 var deferred = proposal.DeferReread(today.EndUtc);

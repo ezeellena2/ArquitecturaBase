@@ -12,7 +12,9 @@ public static class BusinessFormsApplicationRegistration
 {
     public static IServiceCollection AddBusinessFormsApplication(this IServiceCollection services)
     {
-        services.AddOptions<Configuration.BusinessFormsOptions>().BindConfiguration("BusinessForms").ValidateDataAnnotations().ValidateOnStart();
+        // RC4-A: Configuración › Formularios, read from the database on every use (the file size, the re-reads, the suggestion and the retention).
+        services.TryAddScoped<IFormSettingsService, FormSettingsService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<UpdateFormSettingsRequest>, UpdateFormSettingsRequestValidator>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredFormSource, BusinessFormSource>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredFormRetirementSource, BusinessFormRetirementSource>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSink, BusinessFormRecordCaptureSink>());
@@ -143,8 +145,6 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordOriginSource, BusinessFormDocumentOriginSource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, FormReceivedDocumentRetentionSource>());
         // Task 14 (DOC6): «Armar formulario con la IA» from the inbox, «Crear borrador» and the re-reading after publishing.
-        services.AddOptions<Configuration.FormDocumentRereadOptions>().BindConfiguration(Configuration.FormDocumentRereadOptions.Section)
-            .ValidateDataAnnotations().ValidateOnStart();
         services.TryAddScoped<IFormDocumentAuthoringService, FormDocumentAuthoringService>();
         services.TryAddScoped<IFormDocumentDraftService, FormDocumentDraftService>();
         services.TryAddScoped<IFormDocumentRereadService, FormDocumentRereadService>();

@@ -3,7 +3,6 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -15,7 +14,6 @@ using ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 using ArquitecturaBase.Domain.Results;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 
@@ -38,8 +36,12 @@ internal sealed class FormDocumentProposalFixture : IFormDocumentProposalReposit
     public Dictionary<Guid, string> TopicNames { get; } = [];
     /// <summary>The locks taken, in order: a person's re-reads (<c>asker</c>, their daily share) or a request (<c>request</c>).</summary>
     public List<(string Kind, Guid Id)> Locks { get; } = [];
-    /// <summary>The re-reads a day of each person who asked (<c>BusinessForms:DocumentReread:DailyPerAsker</c>).</summary>
-    public int RereadsPerDay { get; init; } = new FormDocumentRereadOptions().DailyPerAsker;
+    /// <summary>The re-reads a day of each person who asked («Relecturas por persona y día» of Configuración › Formularios).</summary>
+    public int RereadsPerDay { get; init; } = BusinessFormsSettings.DailyRereadsPerAskerRange.Default;
+    private FakeFormSettingsReader? formSettings;
+    /// <summary>Configuración › Formularios (RC4-A): today's values with <see cref="RereadsPerDay"/>, until a test changes them.</summary>
+    public FakeFormSettingsReader FormSettings => formSettings ??=
+        new() { Settings = FormSettingsResponse.From(BusinessFormsSettings.Create()) with { DailyRereadsPerAsker = RereadsPerDay } };
     /// <summary>When set, the next save of a request fails with it before keeping anything: the database went away, or the call was cancelled.</summary>
     public Exception? LockFailure { get; set; }
     public Guid Reviewer { get; }
@@ -54,10 +56,9 @@ internal sealed class FormDocumentProposalFixture : IFormDocumentProposalReposit
     public FormReceivedDocumentAccessGuard Guard() => new(Current, Users, Permissions, Inbox);
     public FormReceivedDocumentContentPolicy Contents() => new(Inbox);
     public FormDocumentAuthoringPolicy Policy() => new(Guard(), this, Inbox, Contents());
-    public FormDocumentRereadService Rereads() => new(this, this, Inbox, UnitOfWork, Inbox.Clock,
-        Options.Create(new FormDocumentRereadOptions { DailyPerAsker = RereadsPerDay }), new FakeSystemSettingsReader());
+    public FormDocumentRereadService Rereads() => new(this, this, Inbox, UnitOfWork, Inbox.Clock, FormSettings, new FakeSystemSettingsReader());
     // The list as the inbox shows it: the documents' items need only their reads and readings.
-    public FormReceivedDocumentPresentationPolicy Presentation() => new(Inbox, Contents(), null!, null!, null!);
+    public FormReceivedDocumentPresentationPolicy Presentation() => new(Inbox, Contents(), null!, null!, null!, FormSettings);
     public FormDocumentAuthoringService Authoring() => new(Policy(), this, this, Engine, Presentation(), UnitOfWork, Inbox.Clock);
     public FormReceivedDocumentExtractionService Extractions() => new(Guard(), Inbox, Inbox, Engine,
         new FormReceivedDocumentExtractionPolicy(Contents(), new FormDocumentProposalPolicy(Inbox, Inbox, []), Inbox,

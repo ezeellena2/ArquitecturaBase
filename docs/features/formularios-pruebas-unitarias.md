@@ -190,3 +190,17 @@ FormLocationIdentityTests (Domain) prueba la identidad propia de `Location`, que
 Ubicación y contacto por WhatsApp (W3, UC1-A): FormQuestionReceivesTests prueba `receives` en el borrador: los tres datos en preguntas de texto, guardados en la pregunta y conservados con «Sólo en la app»; los bytes de una pregunta sin él; cada rechazo en `draft.fields[i].receives` con su texto (un dato desconocido, una pregunta que no es de texto, es del bloque o tiene condición o validación fija, un dato repetido y la ubicación con una pregunta «Ubicación», que no frena el contacto); que se va con la pregunta (quitarla o cambiarle el tipo no lo hereda) y queda al renombrarla; que el chequeo lo compara, lo sella en la huella y lo manda al canal, y que una pregunta atada puede tenerlo. WhatsAppFlowReceivesCompilerTests prueba que el Flow no cambia (los mismos bytes, hash y componentes, también con un bloque) y que el mapeo y la proyección sellada en cada idioma lo llevan. FormResponseHistoryPolicyTests prueba la actividad que deja el canal (tarea 24): lo compartido con las preguntas que completó, por las etiquetas de la versión en su idioma, cada reenvío con su remitente, el orden, la ubicación de W1-A sin preguntas y la pregunta que la versión no tiene, que queda afuera.
 
 La reversión (NC1-A): FormIssueActionServiceTests prueba que lo nunca emitido no aplica, que lo que no tiene número se cancela y lo que sí espera, y que lo emitido encola su nota de crédito una vez y termina con su resultado; FormRecordVoidServiceTests, que anular con una emisión crea la reversión sin anular, pide el permiso del emisor y frena una segunda, y que una emisión fallida anula en el acto. FormIssueDataPolicyTests prueba que una opción de catálogo y un campo que nombra otra opción llegan por su código.
+
+## Configuración › Formularios y «Pedir aprobación» (RC4-A)
+
+BusinessFormsSettingsTests (Domain) prueba los valores de hoy con revisión 0, que guardar con la revisión leída cambia los cinco y
+avanza la revisión, que otra revisión o un número fuera de su rango no cambian nada y que los extremos de cada rango valen;
+FormReceivedDocumentTests, que un descartado se borra a los días configurados desde el descarte y que un propuesto para el equipo
+vence a los suyos. BusinessFormTaskTests prueba que la tarea abre con las dos casillas de su acción (sin ellas, la regla de
+siempre), que con «Puede decidir quien cargó» decide su autor y que sin «Exigir motivo al rechazar» rechaza sin motivo y conserva
+el que se da. FormSettingsServiceTests prueba la lectura sin fila, el primer guardado en una transacción bajo el lock, el 409 con
+otra revisión, el rango en su campo con los números del idioma y lo que falta; FormRulePolicyTests, que sólo «Pedir aprobación»
+lleva las casillas y que una regla guardada antes las lee como hoy; FormActionDispatchServiceTests, que la tarea abre aunque el
+único del rol haya cargado la respuesta cuando puede decidirla y que un run sellado antes sigue la regla de siempre;
+FormApprovalServiceTests, quién decide con y sin la casilla y el motivo opcional o exigido en `reason`;
+FormReceivedDocumentRetentionTests y BusinessFormFileRecorderTests, el plazo de borrado y el tamaño de Configuración.

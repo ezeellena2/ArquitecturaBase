@@ -1,10 +1,8 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
-using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 
@@ -25,7 +23,7 @@ internal sealed class FormPublicationMultipleCatalogFixture : IFormCatalogReader
     public FormCatalogMaximumOfferRow Maximum { get; set; } = new(0, "{}");
     public List<(string? Fixed, Guid[] Fields, Guid? GroupBy)> MaximumReads { get; } = [];
 
-    public FormPublicationGuard Guard => new(null!, this, null!, Options.Create(new BusinessFormsOptions()), People, new(this));
+    public FormPublicationGuard Guard => new(null!, this, null!, new FakeFormSettingsReader(), People, new(this));
     public CanonicalFormField Field(string type = "multiChoice")
     {
         var id = Guid.CreateVersion7();

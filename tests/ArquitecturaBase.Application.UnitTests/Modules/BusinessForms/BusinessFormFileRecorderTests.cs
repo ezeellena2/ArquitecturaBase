@@ -1,9 +1,7 @@
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
-using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
@@ -13,7 +11,7 @@ public sealed class BusinessFormFileRecorderTests
     public async Task Deterministic_keys_keep_response_field_position_and_hash_and_never_use_the_filename()
     {
         var store = new MemoryPrivateFileStore();
-        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
+        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), new FakeFormSettingsReader(), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
         var request = Request();
         var first = await preparer.PrepareAsync(request, CancellationToken.None);
         var replay = await preparer.PrepareAsync(request, CancellationToken.None);
@@ -23,11 +21,23 @@ public sealed class BusinessFormFileRecorderTests
         Assert.Contains(request.SourceReceiptId.ToString("N"), first.Value[0].File.StorageKey);
         Assert.Equal(request.ActorUserId, first.Value[0].File.OwnerUserId);
     }
+    // RC4-A: «Tamaño máximo por archivo» of Configuración › Formularios, as it is when the response arrives.
+    [Fact]
+    public async Task Each_file_is_checked_against_the_size_of_the_settings()
+    {
+        var processor = new FakeFileContentProcessor();
+        var settings = new FakeFormSettingsReader { Settings = ArquitecturaBase.Application.Modules.BusinessForms.Models.FormSettingsResponse.From(
+            ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormsSettings.Create()) with { MaxFileSizeMiB = 3 } };
+        var preparer = new BusinessFormFileRecorder(new MemoryPrivateFileStore(), processor, settings, FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
+        Assert.True((await preparer.PrepareAsync(Request(), CancellationToken.None)).IsSuccess);
+        Assert.Equal(3L * 1024 * 1024, processor.LastMaximumBytes);
+        Assert.Equal(1, settings.Reads);
+    }
     [Fact]
     public async Task A_bad_file_rejects_the_whole_preparation_before_any_upload()
     {
         var store = new MemoryPrivateFileStore();
-        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
+        var preparer = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), new FakeFormSettingsReader(), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
         var request = Request();
         request = request with { Files = [request.Files![0], request.Files[0] with { Position = 1, Sha256 = "bad" }] };
         var rejected = await preparer.PrepareAsync(request, CancellationToken.None);
@@ -43,7 +53,7 @@ public sealed class BusinessFormFileRecorderTests
     public async Task The_stored_and_returned_name_has_no_format_characters_and_uses_the_verified_extension(string name, string contentType, string expected)
     {
         var store = new MemoryPrivateFileStore();
-        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
+        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), new FakeFormSettingsReader(), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
         var request = Request();
         request = request with { Files = [request.Files![0] with { Type = "document", Name = name, ContentType = contentType }] };
         var result = await recorder.PrepareAsync(request, CancellationToken.None);
@@ -54,7 +64,7 @@ public sealed class BusinessFormFileRecorderTests
     public async Task A_name_rejected_after_assigning_the_verified_extension_keeps_its_question_identity()
     {
         var store = new MemoryPrivateFileStore();
-        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), Options.Create(new BusinessFormsOptions()), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
+        var recorder = new BusinessFormFileRecorder(store, new FakeFileContentProcessor(), new FakeFormSettingsReader(), FakeRecordRepository.Empty(), new MemoryStoredFileRepository());
         var request = Request();
         request = request with { Files = [request.Files![0] with { Name = new string('x', 253) + ".x" }] };
         var result = await recorder.PrepareAsync(request, CancellationToken.None);

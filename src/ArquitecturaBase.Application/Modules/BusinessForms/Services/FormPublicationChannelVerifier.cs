@@ -6,13 +6,15 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredFormChannel> channels, IPrivateFileStore files, Microsoft.Extensions.Options.IOptions<ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions> options, FormPublicationGuard catalogs)
+internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredFormChannel> channels, IPrivateFileStore files, FormPublicationGuard catalogs)
 {
-    public int MaxFileSizeMiB => options.Value.MaxFileSizeMiB;
+    /// <summary>The size the acceptance checks with and seals (RC4-A): read once, so the check and the manifest carry the same.</summary>
+    public Task<int> MaxFileSizeMiBAsync(CancellationToken cancellationToken) => catalogs.MaxFileSizeMiBAsync(cancellationToken);
     // SA5: without a form channel every publication is only in the app.
     public bool HasChannels => channels.Any();
     // Only in the app (SA1-A) the local rules are checked again and no channel takes part: there are no profiles.
-    public async Task<Result<IReadOnlyList<FormPublicationProfile>>> CheckAsync(FormDefinitionResponse saved, bool appOnly, CancellationToken cancellationToken)
+    public async Task<Result<IReadOnlyList<FormPublicationProfile>>> CheckAsync(FormDefinitionResponse saved, bool appOnly, int maxFileSizeMiB,
+        CancellationToken cancellationToken)
     {
         if (saved.Draft.Fields.Any(field => field.Files is not null) && !files.IsAvailable) return FormPublicationErrors.FileStorageUnavailable;
         if (saved.Draft.Fields.Sum(field => field.Files?.MaxFiles ?? 0) > 10) return FormPublicationErrors.TooManyFiles;
@@ -26,7 +28,7 @@ internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredForm
         var profiles = new List<FormPublicationProfile>();
         foreach (var channel in installed)
         {
-            var result = await channel.CheckAsync(FormPublicationSnapshotPolicy.ChannelRequest(saved, MaxFileSizeMiB), cancellationToken);
+            var result = await channel.CheckAsync(FormPublicationSnapshotPolicy.ChannelRequest(saved, maxFileSizeMiB), cancellationToken);
             if (result.IsFailure) return result.Error;
             var check = result.Value;
             if (!check.PublicationAvailable) return FormPublicationErrors.AccountUnavailable;

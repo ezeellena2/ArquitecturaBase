@@ -43,6 +43,28 @@ public sealed class FormReceivedDocumentRetentionTests
         Assert.Empty(f.Inbox.Documents);
     }
 
+    // RC1-A: «Borrar los descartados» of Configuración › Formularios, read on every batch and counted from the discard: lowering it deletes at
+    // the next purge what already passed the new term, and raising it keeps the documents longer.
+    [Fact]
+    public async Task A_discarded_document_goes_the_configured_days_after_its_discard()
+    {
+        var f = new FormDocumentProposalFixture();
+        f.Document();
+        f.FormSettings.Settings = f.FormSettings.Settings with { DiscardedRetentionDays = 10 };
+        f.Inbox.Clock.Advance(TimeSpan.FromDays(10).Subtract(TimeSpan.FromMinutes(1)));
+        Assert.True((await Service(f).PurgeExpiredAsync(Ct)).IsSuccess);
+        Assert.Single(f.Inbox.Documents);
+        f.Inbox.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.True((await Service(f).PurgeExpiredAsync(Ct)).IsSuccess);
+        Assert.Empty(f.Inbox.Documents);
+
+        f.Document();
+        f.FormSettings.Settings = f.FormSettings.Settings with { DiscardedRetentionDays = 365 };
+        f.Inbox.Clock.Advance(TimeSpan.FromDays(FormReceivedDocument.RetentionDays + 1));
+        Assert.True((await Service(f).PurgeExpiredAsync(Ct)).IsSuccess);
+        Assert.Single(f.Inbox.Documents);
+    }
+
     private static FormReceivedDocumentRetentionService Service(FormDocumentProposalFixture f, FakeUnitOfWork? unitOfWork = null) =>
-        new(f.Inbox, f.Inbox, unitOfWork ?? f.UnitOfWork, f.Inbox.Clock, NullLogger<FormReceivedDocumentRetentionService>.Instance);
+        new(f.Inbox, f.Inbox, f.FormSettings, unitOfWork ?? f.UnitOfWork, f.Inbox.Clock, NullLogger<FormReceivedDocumentRetentionService>.Instance);
 }

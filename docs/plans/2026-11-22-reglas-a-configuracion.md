@@ -1,7 +1,7 @@
 # Reglas fijas que pasan a Configuración: inventario
 
 Fecha: 2026-11-22. Estado: **decidido el mismo día (RC1-A, RC2-B, RC3-A, RC4-A, RC6-B y RC7-B); RC5 programado (`1b48cf9d`), RC7-B
-programado, la tanda del núcleo e IA (RC6-B y la retención de identidad y de la IA) programada y el resto sin programar.**
+y RC4-A programados, la tanda del núcleo e IA (RC6-B y la retención de identidad y de la IA) programada y el resto sin programar.**
 
 El 2026-11-21 el usuario pidió que ninguna regla de negocio quede fija en el código: «toda configuración o regla tenemos que
 tratar de colocarla en la zona de configuraciones del administrador». El primer caso ya está hecho: el tope de ofrecimientos de
@@ -156,7 +156,10 @@ En cuatro tandas por módulo, porque varias decisiones comparten pantalla. Son i
 por su tablero:
 
 1. **WhatsApp:** RC3-A, RC2-B y la retención de WhatsApp de RC1.
-2. **Formularios:** RC4-A y la retención de documentos de RC1.
+2. **Formularios:** RC4-A y la retención de documentos de RC1. Programado el 2026-11-22 con los tableros AP1, AP2 y CF1,
+   registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#reglas-fijas-a-configuración-pedir-aprobación-y-configuración--formularios-rc4-a--2026-11-22):
+   las dos casillas de «Pedir aprobación» y Configuración › Formularios, con los dos plazos de los documentos recibidos
+   ([formularios](../features/formularios.md#configuración--formularios-y-las-casillas-de-pedir-aprobación--rc4-a-2026-11-22)).
 3. **Núcleo e IA:** RC6-B y la retención de identidad y de la IA de RC1, con la política de privacidad leyendo los plazos.
    Programado el 2026-11-22 con el lienzo «Núcleo e IA: reglas en Configuración», registrado en el [diseño del
    front](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md), y P1-A: la política de privacidad es un sitio

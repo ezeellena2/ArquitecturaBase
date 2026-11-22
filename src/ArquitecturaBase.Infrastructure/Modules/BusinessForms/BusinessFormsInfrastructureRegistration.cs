@@ -38,6 +38,8 @@ public static class BusinessFormsInfrastructureRegistration
         services.AddSingleton<Workers.FormCatalogFeedBackgroundService>();
         services.AddHostedService(provider => provider.GetRequiredService<Workers.FormCatalogFeedBackgroundService>());
         services.TryAddScoped<IFormApprovalReader, FormApprovalReader>();
+        services.TryAddScoped<IFormSettingsReader, FormSettingsReader>();
+        services.TryAddScoped<IFormSettingsRepository, FormSettingsRepository>();
         services.TryAddScoped<IFormApprovalRepository, FormApprovalRepository>();
         services.TryAddScoped<IFormActionRunRepository, FormActionRunRepository>();
         services.TryAddScoped<IFormActionRunReader, FormActionRunReader>();

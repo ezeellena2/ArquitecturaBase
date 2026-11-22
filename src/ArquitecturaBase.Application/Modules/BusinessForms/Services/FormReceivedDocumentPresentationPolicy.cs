@@ -20,7 +20,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// back from their protection.
 /// </summary>
 internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocumentReader reader, FormReceivedDocumentContentPolicy contents,
-    FormReceivedDocumentCopyPolicy copies, FormCatalogOptionsPolicy options, FormEntryCatalogPolicy entries)
+    FormReceivedDocumentCopyPolicy copies, FormCatalogOptionsPolicy options, FormEntryCatalogPolicy entries, IFormSettingsReader settings)
 {
     public const int MaxHighlights = 3;
     /// <summary>The most options a choice lists, as a channel offers them in one list: a longer list gives none and is searched.</summary>
@@ -31,7 +31,8 @@ internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocume
     {
         var proposals = rows.ToDictionary(row => row.Id, row => contents.ReadProposal(row.Id, row.ProtectedProposal));
         var versions = await VersionsAsync(proposals.Values.SelectMany(proposal => proposal?.Candidates ?? []).Select(candidate => candidate.VersionId), ct);
-        return rows.Select(row => Item(row, proposals[row.Id], versions, culture, nowUtc)).ToArray();
+        var retentionDays = await DiscardedRetentionDaysAsync(ct);
+        return rows.Select(row => Item(row, proposals[row.Id], versions, culture, nowUtc, retentionDays)).ToArray();
     }
 
     /// <summary>The options of the «Formulario» and «Mandó» filters, the forms by their name in the reader's language, and whether each list was cut.</summary>
@@ -58,7 +59,7 @@ internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocume
         var candidates = new List<FormReceivedDocumentCandidateResponse>();
         foreach (var candidate in proposal?.Candidates.Where(candidate => versions.ContainsKey(candidate.VersionId)) ?? [])
             candidates.Add(await CandidateAsync(row, candidate, versions[candidate.VersionId], culture, canPass && candidate.DefinitionId == row.DefinitionId, ct));
-        return new(Item(row, proposal, versions, culture, nowUtc),
+        return new(Item(row, proposal, versions, culture, nowUtc, await DiscardedRetentionDaysAsync(ct)),
             reading is null ? null : new(Camel(reading.Readability.ToString()), reading.Problem is { } problem ? Camel(problem.ToString()) : null,
                 reading.Language, reading.Text, reading.Truncated),
             proposal is null ? null : new(proposal.Outcome, proposal.DocumentType, candidates, Repetition(proposal, versions, culture)),
@@ -96,8 +97,11 @@ internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocume
             page.Value.TotalCount > page.Value.Items.Count);
     }
 
+    /// <summary>«Borrar los descartados» of Configuración › Formularios (RC1-A): the inbox shows each deletion date and the days in its help.</summary>
+    public async Task<int> DiscardedRetentionDaysAsync(CancellationToken ct) => (await settings.FindAsync(ct)).DiscardedRetentionDays;
+
     private static FormReceivedDocumentListItemResponse Item(FormReceivedDocumentStoredRow row, FormDocumentPreparedProposal? proposal,
-        IReadOnlyDictionary<Guid, (FormDocumentVersionRow Row, FormVersionSchema Schema)> versions, string culture, DateTime nowUtc)
+        IReadOnlyDictionary<Guid, (FormDocumentVersionRow Row, FormVersionSchema Schema)> versions, string culture, DateTime nowUtc, int retentionDays)
     {
         var form = row.DefinitionId is { } definitionId && row.DefinitionNameJson is { } nameJson
             ? new FormReceivedDocumentFormResponse(definitionId, FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(nameJson), culture)) : null;
@@ -108,7 +112,8 @@ internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocume
         return new(row.Id, row.ReceivedAtUtc, row.ChannelId, new(row.SenderUserId, row.SenderName), form, Camel(row.State.ToString()),
             FormReceivedDocument.IsForReview(row.State, row.NotSendable, row.ReplyExpiresAtUtc, nowUtc),
             FormReceivedDocument.AwaitedUntil(row.State, row.NotSendable, row.ReplyExpiresAtUtc, nowUtc), row.ReasonCode, row.DocumentType, record,
-            new(row.FileName, row.MediaType, row.Size, row.Pages, row.StorageKey is not null), highlights, row.DeleteAfterUtc, row.Revision)
+            new(row.FileName, row.MediaType, row.Size, row.Pages, row.StorageKey is not null), highlights,
+            FormReceivedDocument.DeleteAfter(row.DeleteAfterUtc, retentionDays), row.Revision)
         {
             Row = row.RowNumber is { } rowNumber ? new(row.SheetName, rowNumber) : null,
         };

@@ -27,11 +27,16 @@ public enum FormReceivedDocumentRowKind { Load, NotSendable, OverLimit, Repeated
 /// copy, its reading and proposal (protected by Application), its state with its reason, the numbers to search it by and the response it
 /// became. The channel and its opaque source id are unique: a document is registered once. A proposed one waits for its person until its
 /// reply expires, and then it is for the team to review: computed when read (<see cref="IsForReview(DateTime)"/>), without another process. A
-/// discarded or unclassified one is deleted <see cref="RetentionDays"/> days later with its reading and copy (<see cref="DeleteAfterUtc"/>);
-/// a confirmed one follows its response. Every change made by a person advances <see cref="Revision"/>.
+/// discarded or unclassified one is deleted with its reading and copy the days of «Borrar los descartados» after its discard
+/// (<see cref="DeleteAfter(int)"/>); a confirmed one follows its response. Every change made by a person advances <see cref="Revision"/>.
 /// </summary>
 public sealed class FormReceivedDocument : Entity, IAuditable
 {
+    /// <summary>
+    /// The days <see cref="DeleteAfterUtc"/> counts from the discard: the default of «Borrar los descartados» (RC1-A), which every version
+    /// wrote. The days configured since move the deletion by their difference (<see cref="DeleteAfter(int)"/>), so the term counts from the
+    /// discard whatever it was when the document was discarded, and a version that does not know the setting writes the same anchor.
+    /// </summary>
     public const int RetentionDays = 90;
     public const int MaxChannelIdLength = 32;
     public const int MaxSourceIdLength = 200;
@@ -53,7 +58,7 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public const string DiscardedByReviewer = "reviewer";
     /// <summary>The person chose «Otro» in the channel: no form fits it.</summary>
     public const string ChoseOther = "other";
-    /// <summary>F9: nobody of the team passed or discarded it in <see cref="RetentionDays"/> days, so it was discarded for good.</summary>
+    /// <summary>F9: nobody of the team passed or discarded it in the days of «Vencer los propuestos sin revisar», so it was discarded for good.</summary>
     public const string Expired = "expired";
 
     private FormReceivedDocument() { }
@@ -96,6 +101,7 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     /// <summary>VC1-A: a row's place among the entries of its spreadsheet, in the order of its book, and what became of it there.</summary>
     public int? RowOrder { get; private set; }
     public FormReceivedDocumentRowKind? RowKind { get; private set; }
+    /// <summary>The discard plus <see cref="RetentionDays"/>: the anchor of the deletion, not the deletion itself (<see cref="DeleteAfter(int)"/>).</summary>
     public DateTime? DeleteAfterUtc { get; private set; }
     /// <summary>
     /// The extraction a reviewer asked for to change its form, while it runs: its request, its form, when it was asked and who asked, in
@@ -245,20 +251,29 @@ public sealed class FormReceivedDocument : Entity, IAuditable
         state == FormReceivedDocumentState.Proposed && !IsForReview(state, notSendable, replyExpiresAtUtc, nowUtc) ? replyExpiresAtUtc : null;
 
     /// <summary>
-    /// F9: for the team and untouched for <see cref="RetentionDays"/> days: since its reply expired, or since the last change to it (a document
-    /// reopened or sent again counts from then, as its row is saved). Nobody reviewed it, so <see cref="Expire"/> discards it.
+    /// F9: for the team and untouched for <paramref name="expiryDays"/> days («Vencer los propuestos sin revisar»): since its reply expired, or
+    /// since the last change to it (a document reopened or sent again counts from then, as its row is saved). Nobody reviewed it, so
+    /// <see cref="Expire"/> discards it.
     /// </summary>
-    public bool IsStale(DateTime nowUtc) => State == FormReceivedDocumentState.Proposed && IsForReview(nowUtc)
-        && (ReplyExpiresAtUtc is null || ReplyExpiresAtUtc <= StaleCutoff(nowUtc)) && (ModifiedAtUtc ?? CreatedAtUtc) <= StaleCutoff(nowUtc);
+    public bool IsStale(DateTime nowUtc, int expiryDays) => State == FormReceivedDocumentState.Proposed && IsForReview(nowUtc)
+        && (ReplyExpiresAtUtc is null || ReplyExpiresAtUtc <= StaleCutoff(nowUtc, expiryDays)) && (ModifiedAtUtc ?? CreatedAtUtc) <= StaleCutoff(nowUtc, expiryDays);
 
-    /// <summary>The moment before which a proposed one for the team is stale (F9).</summary>
-    public static DateTime StaleCutoff(DateTime nowUtc) => nowUtc.AddDays(-RetentionDays);
+    /// <summary>The moment before which a proposed one for the team is stale (F9), with the days of «Vencer los propuestos sin revisar».</summary>
+    public static DateTime StaleCutoff(DateTime nowUtc, int expiryDays) => nowUtc.AddDays(-expiryDays);
+
+    /// <summary>When a discarded or unclassified one is deleted with the days of «Borrar los descartados»: its discard plus those days.</summary>
+    public DateTime? DeleteAfter(int retentionDays) => DeleteAfter(DeleteAfterUtc, retentionDays);
+
+    public static DateTime? DeleteAfter(DateTime? deleteAfterUtc, int retentionDays) => deleteAfterUtc?.AddDays(retentionDays - RetentionDays);
+
+    /// <summary>The anchors (<see cref="DeleteAfterUtc"/>) at or before this moment are due with the days of «Borrar los descartados».</summary>
+    public static DateTime DeletionCutoff(DateTime nowUtc, int retentionDays) => nowUtc.AddDays(RetentionDays - retentionDays);
 
     /// <summary>F9: a stale proposed one is discarded with the reason «expired», and follows the retention of the discarded.</summary>
-    public Result Expire(DateTime nowUtc)
+    public Result Expire(DateTime nowUtc, int expiryDays)
     {
         if (nowUtc.Kind != DateTimeKind.Utc) return FormReceivedDocumentErrors.ContentInvalid;
-        if (!IsStale(nowUtc)) return FormReceivedDocumentErrors.StateConflict;
+        if (!IsStale(nowUtc, expiryDays)) return FormReceivedDocumentErrors.StateConflict;
         State = FormReceivedDocumentState.Discarded; ReasonCode = Expired; DeleteAfterUtc = nowUtc.AddDays(RetentionDays);
         ClearExtraction();
         return Advance();

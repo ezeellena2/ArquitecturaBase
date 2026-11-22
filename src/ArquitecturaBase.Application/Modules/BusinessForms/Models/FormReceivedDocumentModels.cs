@@ -185,9 +185,11 @@ public sealed record FormReceivedDocumentSenderFacetResponse(Guid UserId, string
 // The options of the «Formulario» and «Mandó» filters, each counted under the list's other filters, with whether more were left out.
 public sealed record FormReceivedDocumentFacetsResponse(IReadOnlyList<FormReceivedDocumentFormFacetResponse> Forms, bool FormsTruncated,
     IReadOnlyList<FormReceivedDocumentSenderFacetResponse> Senders, bool SendersTruncated);
-// Groups (DOC6): the notice of similar documents, the largest first.
+// Groups (DOC6): the notice of similar documents, the largest first. DiscardedRetentionDays: «Borrar los descartados» of Configuración ›
+// Formularios (RC1-A), for the help of the inbox.
 public sealed record FormReceivedDocumentsPageResponse(IReadOnlyList<FormReceivedDocumentListItemResponse> Items, int Page, int PageSize, int TotalCount,
-    FormReceivedDocumentStateCounts Counts, FormReceivedDocumentFacetsResponse Facets, IReadOnlyList<FormReceivedDocumentGroupResponse> Groups)
+    FormReceivedDocumentStateCounts Counts, FormReceivedDocumentFacetsResponse Facets, IReadOnlyList<FormReceivedDocumentGroupResponse> Groups,
+    int DiscardedRetentionDays)
 {
     public override string ToString() => "FormReceivedDocumentsPageResponse { Content = [REDACTED] }";
 }

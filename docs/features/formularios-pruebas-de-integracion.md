@@ -213,6 +213,16 @@ FormLocationHttpTests lleva la pregunta del borrador a la carga con PostgreSQL: 
 
 FormQuestionReceivesHttpTests (W3, UC1-A) guarda con PostgreSQL lo que recibe cada pregunta de texto de lo que la persona comparte por un canal: vuelve en el borrador y en el detalle, el canal de WhatsApp de la app compila el formulario sin observaciones, el snapshot de la publicación lo lleva al canal y la versión lo sella; una pregunta sin él no tiene la clave en el cuerpo, en el borrador guardado ni en la versión. Una pregunta que no puede recibirlo (también una con condición o con validación fija) da 400 en `draft.fields[i].receives` con su texto. Aporta location-contact/draft-saved y location-contact/detail-es a forms-http.
 
+## Configuración › Formularios y «Pedir aprobación» (RC4-A)
+
+FormSettingsHttpTests lee y guarda Configuración › Formularios con PostgreSQL: 401 sin sesión, 403 sin «Administrar la
+configuración» (también para quien diseña formularios), los valores de hoy con revisión 0, el guardado con su revisión, 409
+`Forms.Settings.RevisionConflict` con otra, 400 en el campo fuera de rango y con un miembro desconocido. FormEntryHttpTests toma el
+tamaño por archivo de Configuración en cada pedido y FormReceivedDocumentHttpTests, el plazo de borrado en la bandeja y en la purga
+(no borra un minuto antes). FormRuleHttpTests guarda las dos casillas en «Pedir aprobación» y las rechaza en otra acción;
+FormApprovalHttpTests, que con ellas quien cargó rechaza sin motivo y cuenta en «Por aprobar», y que sin ellas el motivo que falta
+es 400 `Forms.Approval.ReasonRequired` en `reason`, sin `reasonOptional` en la tarea.
+
 ## Arreglos de la revisión de arquitectura (2026-11-15 y 16)
 
 Las pruebas que dejaron los arreglos de la [revisión de Formularios](../reviews/2026-11-14-arquitectura-formularios.md), por hallazgo; el nombre de cada test dice lo que comprueba.

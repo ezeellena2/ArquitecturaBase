@@ -26,8 +26,7 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
     private const int MaxFormNames = 100;
     private const int MaxEvents = 200;
     private const int MaxFacets = 100;
-    // DOC6: a group of similar documents starts at three, and the notice shows the largest few.
-    private const int MinGroupDocuments = 3;
+    // DOC6: the notice shows the largest few groups of similar documents; a group starts at «Sugerir armar un formulario desde» (RC4-A).
     private const int MaxGroups = 5;
     private const string ReadingOn = """{"enabled":true}""";
 
@@ -196,11 +195,12 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         return new FormReceivedDocumentPageRow(page.Items, page.TotalCount, counts, forms, formsTruncated, senders, sendersTruncated) { Groups = groups };
     }
 
-    // DOC6: the pending, reviewed topics (F7-1) of «Formularios que faltan» that three or more unclassified documents share (none of an existing draft from
+    // DOC6: the pending, reviewed topics (F7-1) of «Formularios que faltan» that at least «Sugerir armar un formulario desde» unclassified documents share (none of an existing draft from
     // documents, and no topic one exists for), the largest first, each with how many and the newest of them, up to a request's documents. One
     // query: the largest groups, and each one's newest documents by a lateral join, never a query per group.
     private async Task<IReadOnlyList<FormReceivedDocumentGroupRow>> GroupsAsync(IQueryable<FormReceivedDocument> documents, CancellationToken ct)
     {
+        var minimum = (await FormSettingsQuery.FindAsync(dbContext, ct)).SimilarDocumentsToSuggest;
         var drafted = FormReceivedDocumentQuery.Drafted(dbContext);
         var grouped = from document in FormReceivedDocumentQuery.Groupable(dbContext, documents)
                       join request in dbContext.Set<BusinessFormMissingRequest>().AsNoTracking() on document.Id equals request.SourceReceiptId
@@ -208,7 +208,7 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
                       where topic.State == BusinessFormMissingTopicState.Pending && topic.ReviewedAtUtc != null && !drafted.Any(proposal => proposal.TopicId == topic.Id)
                       select new { document.Id, document.ReceivedAtUtc, TopicId = topic.Id, topic.Name };
         var largest = grouped.GroupBy(row => new { row.TopicId, row.Name }).Select(group => new { group.Key.TopicId, group.Key.Name, Count = group.Count() })
-            .Where(group => group.Count >= MinGroupDocuments).OrderByDescending(group => group.Count).ThenBy(group => group.TopicId).Take(MaxGroups);
+            .Where(group => group.Count >= minimum).OrderByDescending(group => group.Count).ThenBy(group => group.TopicId).Take(MaxGroups);
         var rows = await (from topic in largest
                           from document in grouped.Where(row => row.TopicId == topic.TopicId).OrderByDescending(row => row.ReceivedAtUtc)
                               .ThenByDescending(row => row.Id).Take(FormDocumentProposal.MaxDocuments)
@@ -242,16 +242,20 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
                    SheetName = document.SheetName, RowNumber = document.RowNumber, ReceivedAtUtc = document.ReceivedAtUtc,
                }).ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<Guid>> ListExpiredIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken) =>
-        await dbContext.Set<FormReceivedDocument>().AsNoTracking()
-            .Where(document => document.DeleteAfterUtc != null && document.DeleteAfterUtc <= nowUtc
+    // RC1-A: the anchor of each one (its discard plus the default ninety days) against the cutoff of «Borrar los descartados».
+    public async Task<IReadOnlyList<Guid>> ListExpiredIdsAsync(DateTime nowUtc, int retentionDays, int maximum, CancellationToken cancellationToken)
+    {
+        var cutoff = FormReceivedDocument.DeletionCutoff(nowUtc, retentionDays);
+        return await dbContext.Set<FormReceivedDocument>().AsNoTracking()
+            .Where(document => document.DeleteAfterUtc != null && document.DeleteAfterUtc <= cutoff
                 && (document.State == FormReceivedDocumentState.Discarded || document.State == FormReceivedDocumentState.Unclassified))
             .OrderBy(document => document.DeleteAfterUtc).ThenBy(document => document.Id).Select(document => document.Id).Take(maximum)
             .ToListAsync(cancellationToken);
+    }
 
-    public async Task<IReadOnlyList<Guid>> ListStaleProposedIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Guid>> ListStaleProposedIdsAsync(DateTime nowUtc, int expiryDays, int maximum, CancellationToken cancellationToken)
     {
-        var cutoff = FormReceivedDocument.StaleCutoff(nowUtc);
+        var cutoff = FormReceivedDocument.StaleCutoff(nowUtc, expiryDays);
         return await dbContext.Set<FormReceivedDocument>().AsNoTracking()
             .Where(document => document.State == FormReceivedDocumentState.Proposed
                 && (document.NotSendable || document.ReplyExpiresAtUtc == null || document.ReplyExpiresAtUtc <= nowUtc)

@@ -9,12 +9,14 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
-/// The inbox's retention (decision 9, F9): a batch of the proposed documents nobody reviewed for 90 days, discarded as «expired», and a batch of the discarded and unclassified documents whose deletion date passed, each read again
+/// The inbox's retention (decision 9, F9), with the two terms of Configuración › Formularios read every batch (RC1-A): a batch of the proposed
+/// documents nobody reviewed for «Vencer los propuestos sin revisar» days, discarded as «expired», and a batch of the discarded and unclassified
+/// documents discarded «Borrar los descartados» days ago or more, each read again
 /// under its lock (one reopened meanwhile stays), deleted with its reading, proposal and history; its copy is no longer kept by the
 /// retention source, so the cleanup of private files deletes it. A confirmed one follows its response and never expires here.
 /// </summary>
 internal sealed class FormReceivedDocumentRetentionService(IFormReceivedDocumentReader reader, IFormReceivedDocumentRepository repository,
-    IUnitOfWork unitOfWork, TimeProvider clock, ILogger<FormReceivedDocumentRetentionService> logger) : IFormReceivedDocumentRetentionService
+    IFormSettingsReader settings, IUnitOfWork unitOfWork, TimeProvider clock, ILogger<FormReceivedDocumentRetentionService> logger) : IFormReceivedDocumentRetentionService
 {
     public const int BatchSize = 100;
     /// <summary>F40: how long one purge may keep taking batches, so a backlog never holds a worker for good; the next round goes on.</summary>
@@ -37,22 +39,24 @@ internal sealed class FormReceivedDocumentRetentionService(IFormReceivedDocument
             }
         });
 
-    // One batch: the proposed ones nobody reviewed (F9) become discarded, with their own ninety days, and then the discarded and unclassified
-    // ones that expired go. True when either list came out full, so there may be more.
+    // One batch: the proposed ones nobody reviewed (F9) become discarded, with the term of the discarded from now, and then the discarded and
+    // unclassified ones whose term passed go. True when either list came out full, so there may be more.
     private async Task<bool> PurgeBatchAsync(CancellationToken ct)
     {
         var now = clock.GetUtcNow().UtcDateTime;
-        var stale = await reader.ListStaleProposedIdsAsync(now, BatchSize, ct);
+        var terms = await settings.FindAsync(ct);
+        var stale = await reader.ListStaleProposedIdsAsync(now, terms.ProposedExpiryDays, BatchSize, ct);
         foreach (var documentId in stale)
         {
             await repository.LockAsync(documentId, ct);
-            if (await repository.GetAsync(documentId, ct) is { } document && document.IsStale(now)) document.Expire(now);
+            if (await repository.GetAsync(documentId, ct) is { } document && document.IsStale(now, terms.ProposedExpiryDays))
+                document.Expire(now, terms.ProposedExpiryDays);
         }
-        var expired = await reader.ListExpiredIdsAsync(now, BatchSize, ct);
+        var expired = await reader.ListExpiredIdsAsync(now, terms.DiscardedRetentionDays, BatchSize, ct);
         foreach (var documentId in expired)
         {
             await repository.LockAsync(documentId, ct);
-            if (await repository.GetAsync(documentId, ct) is { DeleteAfterUtc: { } deleteAfter } document && deleteAfter <= now
+            if (await repository.GetAsync(documentId, ct) is { } document && document.DeleteAfter(terms.DiscardedRetentionDays) <= now
                 && document.State is FormReceivedDocumentState.Discarded or FormReceivedDocumentState.Unclassified)
                 repository.Remove(document);
         }

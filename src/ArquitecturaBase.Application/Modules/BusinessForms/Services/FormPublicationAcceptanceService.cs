@@ -50,7 +50,8 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
         if (await publicationRepository.ExistsOpenOperationAsync(id, ct)) return FormPublicationErrors.InProgress;
         // SA1-A and SA5: only in the app when the draft says so or no channel is installed.
         var appOnly = saved.Draft.AppOnly == true || !channelVerifier.HasChannels;
-        var verified = await channelVerifier.CheckAsync(saved, appOnly, ct); if (verified.IsFailure) return verified.Error;
+        var maxFileSizeMiB = await channelVerifier.MaxFileSizeMiBAsync(ct);
+        var verified = await channelVerifier.CheckAsync(saved, appOnly, maxFileSizeMiB, ct); if (verified.IsFailure) return verified.Error;
         var profiles = verified.Value;
         var publicationFingerprint = FormPublicationSnapshotPolicy.Fingerprint(saved, profiles);
         if (ticket.PublicationFingerprint != publicationFingerprint || ticket.ExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime)
@@ -79,7 +80,7 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
         var operation = BusinessFormPublicationOperation.Accept(id, version.Id, actor, input.RequestId, saved.Revision,
             number, definition.ActiveVersionId, [], nowUtc);
         operation.SealManifest(protector.ProtectManifest(Context(operation), new(1, attemptFingerprint, publicationFingerprint,
-            id, version.Id, saved.Revision, contentHash, saved.Name, saved.Prefix, saved.Draft.Culture, saved.Draft.SubmitLabel, profiles, saved.Draft.Fields.Any(field => field.Files is not null) ? channelVerifier.MaxFileSizeMiB : null)));
+            id, version.Id, saved.Revision, contentHash, saved.Name, saved.Prefix, saved.Draft.Culture, saved.Draft.SubmitLabel, profiles, saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB : null)));
         definition.LockPrefix();
         publicationRepository.AddVersion(version); publicationRepository.AddOperation(operation);
         if (appOnly)

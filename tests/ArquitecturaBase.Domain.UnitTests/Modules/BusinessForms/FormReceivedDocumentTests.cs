@@ -9,6 +9,8 @@ public sealed class FormReceivedDocumentTests
 {
     private static readonly DateTime Now = new(2026, 11, 12, 12, 0, 0, DateTimeKind.Utc);
     private static readonly string Sha = new('a', 64);
+    /// <summary>The days of «Vencer los propuestos sin revisar» until someone changes them.</summary>
+    private const int Days = 90;
 
     [Fact]
     public void A_received_document_needs_its_channel_source_sender_and_a_copy_described_exactly()
@@ -139,31 +141,63 @@ public sealed class FormReceivedDocumentTests
         Assert.Null(document.ExtractionContextJson);
     }
 
+    // RC1-A: the days of «Borrar los descartados» count from the discard (DeleteAfterUtc keeps the default ninety from it), so lowering
+    // them deletes, at the next purge, what already passed the new term, and raising them keeps the documents longer.
+    [Fact]
+    public void A_discarded_document_is_deleted_the_configured_days_after_its_discard()
+    {
+        var discarded = Received().Value;
+        Assert.True(discarded.Reject("protected", null, Now).IsSuccess);
+        Assert.Equal(Now.AddDays(30), discarded.DeleteAfter(30));
+        Assert.Equal(Now.AddDays(365), discarded.DeleteAfter(365));
+        Assert.Equal(Now.AddDays(90), discarded.DeleteAfter(FormReceivedDocument.RetentionDays));
+        Assert.Null(Proposed().DeleteAfter(30));
+        Assert.True(discarded.DeleteAfterUtc <= FormReceivedDocument.DeletionCutoff(Now.AddDays(30), 30));
+        Assert.False(discarded.DeleteAfterUtc <= FormReceivedDocument.DeletionCutoff(Now.AddDays(30).AddMinutes(-1), 30));
+        Assert.False(discarded.DeleteAfterUtc <= FormReceivedDocument.DeletionCutoff(Now.AddDays(364), 365));
+    }
+
+    // RC1-A: «Vencer los propuestos sin revisar» is a number of days of Configuración › Formularios.
+    [Fact]
+    public void A_proposed_document_for_the_team_expires_after_the_configured_days()
+    {
+        var untouched = Proposed(Now.AddHours(5));
+        Audit(untouched, Now);
+        Assert.False(untouched.IsStale(Now.AddDays(10).AddHours(4), 10));
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, untouched.Expire(Now.AddDays(10).AddHours(4), 10).Error);
+        Assert.True(untouched.IsStale(Now.AddDays(10).AddHours(6), 10));
+        Assert.False(untouched.IsStale(Now.AddDays(10).AddHours(6), 90));
+        Assert.True(untouched.Expire(Now.AddDays(11), 10).IsSuccess);
+        Assert.Equal((FormReceivedDocumentState.Discarded, FormReceivedDocument.Expired, (DateTime?)Now.AddDays(11).AddDays(90)),
+            (untouched.State, untouched.ReasonCode, untouched.DeleteAfterUtc));
+        Assert.True(FormReceivedDocument.StaleCutoff(Now, 10) == Now.AddDays(-10));
+    }
+
     [Fact]
     public void A_proposed_document_for_the_team_that_nobody_touched_for_ninety_days_is_discarded_as_expired_and_follows_the_retention()
     {
         var later = Now.AddDays(91);
         var untouched = Proposed(Now.AddHours(5));
         Audit(untouched, Now);
-        Assert.False(untouched.IsStale(Now.AddDays(90).AddHours(4)));
-        Assert.Equal(FormReceivedDocumentErrors.StateConflict, untouched.Expire(Now.AddDays(90).AddHours(4)).Error);
-        Assert.True(untouched.IsStale(Now.AddDays(90).AddHours(6)));
-        Assert.True(untouched.Expire(later).IsSuccess);
+        Assert.False(untouched.IsStale(Now.AddDays(90).AddHours(4), Days));
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, untouched.Expire(Now.AddDays(90).AddHours(4), Days).Error);
+        Assert.True(untouched.IsStale(Now.AddDays(90).AddHours(6), Days));
+        Assert.True(untouched.Expire(later, Days).IsSuccess);
         Assert.Equal((FormReceivedDocumentState.Discarded, FormReceivedDocument.Expired, (DateTime?)later.AddDays(90), 2L),
             (untouched.State, untouched.ReasonCode, untouched.DeleteAfterUtc, untouched.Revision));
 
         // A change counts from its moment: a document reopened or touched later is not stale yet, and one still awaiting its person never is.
         var touched = Proposed(Now.AddHours(5));
         Audit(touched, Now, modifiedAtUtc: Now.AddDays(30));
-        Assert.False(touched.IsStale(later));
-        Assert.True(touched.IsStale(Now.AddDays(121)));
-        Assert.False(Proposed(Now.AddDays(200)).IsStale(Now.AddDays(150)));
+        Assert.False(touched.IsStale(later, Days));
+        Assert.True(touched.IsStale(Now.AddDays(121), Days));
+        Assert.False(Proposed(Now.AddDays(200)).IsStale(Now.AddDays(150), Days));
         var unclassified = Received().Value;
-        Assert.False(unclassified.IsStale(later));
-        Assert.Equal(FormReceivedDocumentErrors.StateConflict, unclassified.Expire(later).Error);
+        Assert.False(unclassified.IsStale(later, Days));
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, unclassified.Expire(later, Days).Error);
         var withoutReply = Proposed();
         Audit(withoutReply, Now);
-        Assert.True(withoutReply.IsStale(later));
+        Assert.True(withoutReply.IsStale(later, Days));
     }
 
     private static void Audit(FormReceivedDocument document, DateTime createdAtUtc, DateTime? modifiedAtUtc = null)

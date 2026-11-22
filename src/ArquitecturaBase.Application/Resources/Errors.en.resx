@@ -413,6 +413,8 @@
   <data name="Forms.Approval.RoleChanged" xml:space="preserve"><value>You no longer belong to the assigned role.</value></data>
   <data name="Forms.Approval.ContentInvalid" xml:space="preserve"><value>Check the approval decision.</value></data>
   <data name="Forms.Approval.ReasonRequired" xml:space="preserve"><value>Enter a reason to reject the response.</value></data>
+  <data name="Forms.Settings.RevisionConflict" xml:space="preserve"><value>The forms settings changed. Review the current values before saving.</value></data>
+  <data name="Forms.Settings.ContentInvalid" xml:space="preserve"><value>A forms setting is out of its range.</value></data>
   <data name="Forms.Pdf.ContentInvalid" xml:space="preserve"><value>Check the PDF design.</value></data>
   <data name="Forms.Pdf.RevisionConflict" xml:space="preserve"><value>The PDF design changed. Reload it.</value></data>
   <data name="Forms.Pdf.NotFound" xml:space="preserve"><value>The PDF document was not found.</value></data>

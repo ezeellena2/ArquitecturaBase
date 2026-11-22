@@ -7,15 +7,13 @@ using System.Text;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Models.Files;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Results;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileContentProcessor processor, IOptions<BusinessFormsOptions> options, IFormRecordRepository records, IStoredFileRepository storedFiles)
+internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileContentProcessor processor, IFormSettingsReader settings, IFormRecordRepository records, IStoredFileRepository storedFiles)
 {
     public async Task<Result<IReadOnlyList<PreparedFormFile>>> PrepareAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {
@@ -26,12 +24,14 @@ internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileCon
         if (files.GroupBy(file => file.FieldId).Any(group => !group.Select(file => file.Position).Order().SequenceEqual(Enumerable.Range(0, group.Count()))))
             return FileErrors.InvalidMetadata;
         var verified = new List<(StructuredRecordFileInput Input, ProcessedPrivateFile Content, string Name)>();
+        // RC4-A: «Tamaño máximo por archivo» of Configuración › Formularios, as it is when the response arrives.
+        var maxBytes = (await settings.FindAsync(cancellationToken)).MaxFileSizeMiB * 1024L * 1024;
         foreach (var input in files)
         {
             if (input.FieldId == Guid.Empty || input.Type is not ("photo" or "document") || input.Content is null
                 || string.IsNullOrWhiteSpace(input.Name) || input.Name.Length > 255 || input.Name.Any(char.IsControl)
                 || input.Name.Contains('/') || input.Name.Contains('\\') || !StorableText.IsStorable(input.Name.AsSpan())) return FileErrors.AtField(FileErrors.InvalidMetadata, input.FieldId);
-            var result = processor.Process(input.Content, input.ContentType, input.Sha256, options.Value.MaxFileSizeMiB * 1024L * 1024, input.Type == "photo");
+            var result = processor.Process(input.Content, input.ContentType, input.Sha256, maxBytes, input.Type == "photo");
             if (result.IsFailure) return FileErrors.AtField(result.Error, input.FieldId);
             var name = DownloadName(input.Name, input.ContentType);
             if (name.Length is 0 or > 255) return FileErrors.AtField(FileErrors.InvalidMetadata, input.FieldId);

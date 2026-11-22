@@ -35,7 +35,8 @@ internal sealed class FormReceivedDocumentService(FormReceivedDocumentAccessGuar
         var items = await presentation.ItemsAsync(page.Items, Culture(), now, cancellationToken);
         if (!await guard.HasAsync(actor.Value.Id, BusinessFormsPermissions.DocumentsRead, cancellationToken)) return FormDefinitionErrors.Forbidden;
         return new FormReceivedDocumentsPageResponse(items, request.Page, request.PageSize, page.TotalCount, page.Counts,
-            FormReceivedDocumentPresentationPolicy.Facets(page, Culture()), FormReceivedDocumentPresentationPolicy.Groups(page));
+            FormReceivedDocumentPresentationPolicy.Facets(page, Culture()), FormReceivedDocumentPresentationPolicy.Groups(page),
+            await presentation.DiscardedRetentionDaysAsync(cancellationToken));
     }
 
     public async Task<Result<FormReceivedDocumentCountsResponse>> CountAsync(CancellationToken cancellationToken)

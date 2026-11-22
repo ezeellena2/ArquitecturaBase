@@ -134,11 +134,11 @@ Con `Azurite:Enabled=false` en el AppHost, configurar el proyecto **Api** median
     "ServiceUri": "https://<cuenta>.blob.core.windows.net",
     "TenantId": "<tenant-id>"
   },
-  "BusinessForms": { "MaxFileSizeMiB": 25 }
+  "BusinessForms": {}
 }
 ```
 
-El endpoint se copia de la cuenta, sin SAS ni query. `MaxFileSizeMiB` es el único tope por archivo de la instalación (1–25 MiB); la publicación lo sella para esa versión. No hay tamaño por pregunta.
+El endpoint se copia de la cuenta, sin SAS ni query. El tope por archivo de la instalación es «Tamaño máximo por archivo» de Configuración › Formularios (1–25 MiB, RC4-A); la publicación lo sella para esa versión. No hay tamaño por pregunta.
 
 Credenciales explícitas, sin fallback automático:
 

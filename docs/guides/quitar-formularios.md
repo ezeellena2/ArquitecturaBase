@@ -1,7 +1,7 @@
 # Quitar el módulo de formularios
 
 Para un derivado que no usa formularios (`BusinessForms`). No apagues opciones para simular la retirada: quitá
-código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 30 tablas del módulo
+código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 31 tablas del módulo
 (definiciones, borradores, carpetas, versiones, catálogos, respuestas y sus resultados, reglas, diseños de PDF, sugerencias, datos
 de personas, la bandeja «Documentos recibidos» con sus eventos y las propuestas de «Armar formulario con la IA», DOC6):
 respaldá la base antes.
@@ -83,12 +83,12 @@ Las tablas `WhatsAppFlow*` son del otro módulo y se quedan.
    `dotnet ef` lee el proyecto antes de compilarlo: en un clon sin `obj`, sin el `restore` no lo encuentra.
 
    <!-- tablas -->
-   BusinessFormActionRuns, BusinessFormCaptureReceipts, BusinessFormCatalogItems, BusinessFormCatalogs, BusinessFormDocuments, BusinessFormFields, BusinessFormMissingRequests, BusinessFormMissingTopics, BusinessFormPdfDesigns, BusinessFormPersonAttributes, BusinessFormPersonData, BusinessFormPublicationOperations, BusinessFormRecordCatalogFields, BusinessFormRecordFiles, BusinessFormRecordReferences, BusinessFormRecordResults, BusinessFormRecords, BusinessFormRecordValues, BusinessFormRetiredIdentities, BusinessFormRuleSets, BusinessFormSuggestions, BusinessFormTasks, BusinessFormVersions, FormDefinitions, FormDocumentProposals, FormDraftChanges, FormFolderMemberships, FormFolders, FormReceivedDocumentEvents, FormReceivedDocuments
+   BusinessFormActionRuns, BusinessFormCaptureReceipts, BusinessFormCatalogItems, BusinessFormCatalogs, BusinessFormDocuments, BusinessFormFields, BusinessFormMissingRequests, BusinessFormMissingTopics, BusinessFormPdfDesigns, BusinessFormPersonAttributes, BusinessFormPersonData, BusinessFormPublicationOperations, BusinessFormRecordCatalogFields, BusinessFormRecordFiles, BusinessFormRecordReferences, BusinessFormRecordResults, BusinessFormRecords, BusinessFormRecordValues, BusinessFormRetiredIdentities, BusinessFormRuleSets, BusinessFormsSettings, BusinessFormSuggestions, BusinessFormTasks, BusinessFormVersions, FormDefinitions, FormDocumentProposals, FormDraftChanges, FormFolderMemberships, FormFolders, FormReceivedDocumentEvents, FormReceivedDocuments
    <!-- /tablas -->
 
    `Up` suelta primero las claves foráneas que cierran ciclos entre tablas del módulo (EF genera tres:
    `FK_FormDefinitions_BusinessFormPdfDesigns_Id_ActivePdfDesignId`, `FK_BusinessFormSuggestions_FormDefinitions_DefinitionId` y
-   `FK_BusinessFormVersions_FormDefinitions_DefinitionId`) y después borra sólo sus 30 tablas, que son las
+   `FK_BusinessFormVersions_FormDefinitions_DefinitionId`) y después borra sólo sus 31 tablas, que son las
    de la lista de arriba (`FormReceivedDocuments` y `FormReceivedDocumentEvents` son la bandeja, `FormDocumentProposals` las
    de DOC6 y `BusinessFormRecordCatalogFields` las columnas de catálogo de las respuestas). Si aparece otra tabla, algo se
    borró de más. El test `FormRemovalGuideTests` compara esta lista con las tablas del modelo del módulo: si el módulo suma una,

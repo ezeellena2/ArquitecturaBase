@@ -45,7 +45,7 @@ internal sealed class BusinessFormCaptureFixture
         Permission.Allowed = true;
         ReceiptReader = new FakeCaptureReceiptReader(Repository);
         StoredFiles = new TestFeatures.Files.MemoryStoredFileRepository();
-        var preparer = new BusinessFormFileRecorder(FileStore, new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()), Repository, StoredFiles);
+        var preparer = new BusinessFormFileRecorder(FileStore, new TestFeatures.Files.FakeFileContentProcessor(), new FakeFormSettingsReader(), Repository, StoredFiles);
         UnitOfWork = new FakeUnitOfWork { OnCommit = onCommit };
         Actor = Users.AddUser("capture@example.invalid").Id;
         Current.UserId = Actor;

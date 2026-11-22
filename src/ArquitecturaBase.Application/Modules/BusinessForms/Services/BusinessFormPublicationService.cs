@@ -66,7 +66,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         // DOC1: documents are read for the forms a channel completes (the editor hides the reading «Sólo en la app»), so only in the
         // app no lookup is checked: an issue there would stop the publication with nothing on screen to fix it.
         if (!appOnly) issues.AddRange(await _guard.ValidateDocumentReadingAsync(saved, cancellationToken));
-        var canonical = FormPublicationSnapshotPolicy.ChannelRequest(saved, _guard.MaxFileSizeMiB);
+        var canonical = FormPublicationSnapshotPolicy.ChannelRequest(saved, await _guard.MaxFileSizeMiBAsync(cancellationToken));
         var profiles = new List<FormPublicationProfile>();
         var publicationAvailable = true;
         foreach (var channel in issues.Count == 0 && !appOnly ? _channels : [])
