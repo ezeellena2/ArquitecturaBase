@@ -31,7 +31,7 @@ internal sealed class FormReceivedDocumentService(FormReceivedDocumentAccessGuar
         var digits = FormReceivedDocumentSearchPolicy.Search(request.Search);
         if (!string.IsNullOrWhiteSpace(request.Search) && digits is null) return FieldErrors.On(FormReceivedDocumentErrors.ContentInvalid, "search");
         var now = clock.GetUtcNow().UtcDateTime;
-        var page = await reader.FindPageAsync(request, digits, now, cancellationToken);
+        var page = await reader.FindPageAsync(request, digits, Culture(), now, cancellationToken);
         var items = await presentation.ItemsAsync(page.Items, Culture(), now, cancellationToken);
         if (!await guard.HasAsync(actor.Value.Id, BusinessFormsPermissions.DocumentsRead, cancellationToken)) return FormDefinitionErrors.Forbidden;
         return new FormReceivedDocumentsPageResponse(items, request.Page, request.PageSize, page.TotalCount, page.Counts,

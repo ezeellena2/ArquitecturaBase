@@ -1308,6 +1308,82 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
         Assert.Null(missing);
     }
 
+    // OT1-C: the inbox sorts by every column with a datum in PostgreSQL, by what its row shows: the file, the name of who sent it and of its
+    // form, the state in the order of the circuit, when it is deleted and the number of its response. What is empty (a person without an
+    // account, no form, no deletion, no response) goes last in both directions, and equal values keep the usual order, the newest first.
+    [Fact]
+    public async Task The_inbox_sorts_by_its_columns_with_empty_values_last()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        // The scenario's documents arrive in a minute of their own, one second apart.
+        var arrived = now.AddDays(-400).AddSeconds(-Random.Shared.Next(1, 30_000_000));
+        async Task<Guid> PassedAsync(string fileName, int second)
+        {
+            var sent = await scenario.SendAsync(Ct, receivedAtUtc: arrived.AddSeconds(second));
+            using var passed = await reviewer.PostAsJsonAsync($"/api/forms/documents/{sent.Id}/records", new
+            {
+                requestId = Guid.NewGuid(), versionId = scenario.Form.VersionId, expectedRevision = 1,
+                answers = new object[] { new { fieldId = scenario.Form.AmountId, value = "150000" } },
+            }, Ct);
+            Assert.Equal(HttpStatusCode.OK, passed.StatusCode);
+            await scenario.DbAsync(db => db.Database.ExecuteSqlAsync($"""UPDATE "FormReceivedDocuments" SET "FileName" = {fileName} WHERE "Id" = {sent.Id}""", Ct));
+            return sent.Id;
+        }
+        FormReceivedDocument Received(string fileName, Guid sender, int second, DateTime? replyExpiresAtUtc = null)
+        {
+            var id = Guid.CreateVersion7();
+            var document = FormReceivedDocument.Receive(id, FormReceivedDocumentScenario.Channel, "seed." + id.ToString("N"), sender, arrived.AddSeconds(second),
+                "forms/documents/" + id.ToString("N") + ".pdf", fileName, "application/pdf", 1, FormReceivedDocumentScenario.Sha256(id.ToByteArray()), 1,
+                replyExpiresAtUtc).Value;
+            Assert.True(document.Describe(null, null, "").IsSuccess);
+            return document;
+        }
+        // Proposed for «Gastos» and waiting for its person, two responses of «Pagos» one after the other, unclassified from a person without an
+        // account, proposed for «Pagos» for the team, and discarded later.
+        var waiting = Received("cuota.pdf", scenario.Reader, 1, now.AddDays(30));
+        Assert.True(waiting.Propose(scenario.Other.DefinitionId, scenario.Other.VersionId, [1], notSendable: false).IsSuccess);
+        var unclassified = Received("anexo.pdf", Guid.CreateVersion7(), 3);
+        Assert.True(unclassified.LeaveUnclassified("quota", null, now).IsSuccess);
+        var forReview = Received("detalle.pdf", scenario.Reviewer, 5);
+        Assert.True(forReview.Propose(scenario.Form.DefinitionId, scenario.Form.VersionId, [1], notSendable: true).IsSuccess);
+        var discarded = Received("factura.pdf", scenario.Reader, 6);
+        Assert.True(discarded.Reject("illegible", null, now.AddHours(1)).IsSuccess);
+        await scenario.DbAsync(db =>
+        {
+            db.Set<FormReceivedDocument>().AddRange(waiting, unclassified, forReview, discarded);
+            return db.SaveChangesAsync(Ct);
+        });
+        var first = await PassedAsync("extracto.pdf", 2);
+        var second = await PassedAsync("boleta.pdf", 4);
+        var names = new Dictionary<Guid, string>
+        {
+            [waiting.Id] = "waiting", [first] = "first", [unclassified.Id] = "unclassified", [second] = "second", [forReview.Id] = "forReview",
+            [discarded.Id] = "discarded",
+        };
+        async Task<string[]> Sorted(string sort) =>
+            [.. (await IdsAsync(reviewer, new { receivedFromUtc = arrived, receivedToUtc = arrived.AddMinutes(1), sort })).Select(id => names[id])];
+        // Each form's name starts with a prefix of its own (uppercase hexadecimal), which decides which one goes first.
+        string[] pagosFirst = ["forReview", "second", "first", "waiting", "discarded", "unclassified"];
+        string[] gastosFirst = ["waiting", "forReview", "second", "first", "discarded", "unclassified"];
+        var pagosBefore = string.CompareOrdinal(scenario.Form.Name, scenario.Other.Name) < 0;
+
+        Assert.Equal(["unclassified", "second", "waiting", "forReview", "first", "discarded"], await Sorted("document"));
+        Assert.Equal(["discarded", "first", "forReview", "waiting", "second", "unclassified"], await Sorted("-document"));
+        // «Ana Revisora», «Juan Remitente» and «Luis Lector»; the person without an account last.
+        Assert.Equal(["forReview", "second", "first", "discarded", "waiting", "unclassified"], await Sorted("sender"));
+        Assert.Equal(["discarded", "waiting", "second", "first", "forReview", "unclassified"], await Sorted("-sender"));
+        Assert.Equal(pagosBefore ? pagosFirst : gastosFirst, await Sorted("form"));
+        Assert.Equal(pagosBefore ? gastosFirst : pagosFirst, await Sorted("-form"));
+        Assert.Equal(["waiting", "forReview", "unclassified", "second", "first", "discarded"], await Sorted("state"));
+        Assert.Equal(["discarded", "second", "first", "unclassified", "forReview", "waiting"], await Sorted("-state"));
+        Assert.Equal(["unclassified", "discarded", "forReview", "second", "first", "waiting"], await Sorted("deleteAfterUtc"));
+        Assert.Equal(["discarded", "unclassified", "forReview", "second", "first", "waiting"], await Sorted("-deleteAfterUtc"));
+        Assert.Equal(["first", "second", "discarded", "forReview", "unclassified", "waiting"], await Sorted("record"));
+        Assert.Equal(["second", "first", "discarded", "forReview", "unclassified", "waiting"], await Sorted("-record"));
+    }
+
     private const string SearchPath = "/api/forms/documents/search";
 
     private static async Task<IReadOnlyList<Guid>> IdsAsync(HttpClient client, object body) =>

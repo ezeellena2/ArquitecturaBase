@@ -9,7 +9,9 @@ internal sealed record FormMissingRequestArguments(Guid? ExistingTopicId, string
 { public override string ToString() => "FormMissingRequestArguments { Content = [REDACTED] }"; }
 public sealed record ListMissingFormTopicsRequest : PagedRequest
 {
-    public static IReadOnlyCollection<string> SortableFields { get; } = ["lastRequestedAtUtc"];
+    /// <summary>Every column with a datum, by the id of its column in the front (OT1-C, 2026-11-22); without one, the last request first.</summary>
+    public static IReadOnlyCollection<string> SortableFields { get; } =
+        ["name", "discardedBy", "discardedAtUtc", "requestCount", "personCount", "lastRequestedAtUtc"];
     public string? State { get; init; } = "Pending";
 }
 public sealed record DiscardMissingFormTopicRequest(long? ExpectedRevision);

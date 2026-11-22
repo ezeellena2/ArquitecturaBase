@@ -47,12 +47,23 @@ internal sealed class FormMissingRequestReader(ApplicationDbContext dbContext) :
             groups.SingleOrDefault(group => group.State == BusinessFormMissingTopicState.Discarded)?.Count ?? 0);
         if (request.State is { } state) { var parsed = Enum.Parse<BusinessFormMissingTopicState>(state); query = query.Where(topic => topic.State == parsed); }
         var totalRequests = await query.SumAsync(topic => (int?)topic.RequestCount,ct) ?? 0;
-        var sortable = new Dictionary<string,Expression<Func<TopicAggregate,object?>>>(StringComparer.OrdinalIgnoreCase)
-            { ["lastRequestedAtUtc"] = topic => topic.LastRequestedAtUtc };
-        var page = await Project(query.ApplySort(SortDescriptor.Parse(request.Sort),sortable,new("lastRequestedAtUtc",true),topic => topic.Id))
-            .ToPagedResultAsync(request,ct);
+        var page = await Sorted(query,request).ToPagedResultAsync(request,ct);
         return new(page.Items,page.Page,page.PageSize,page.TotalCount,totalRequests,counts);
     }
+    // Every column with a datum (OT1-C), by the id of its column in the front: who discarded a topic by the name of their account (one without
+    // it shows «—» and goes last) and the counts of the row.
+    private static readonly Dictionary<string,Expression<Func<TopicAggregate,object?>>> SortableFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["name"] = topic => topic.Name,
+        ["discardedBy"] = topic => topic.DiscardedByName,
+        ["discardedAtUtc"] = topic => topic.DiscardedAtUtc,
+        ["requestCount"] = topic => topic.RequestCount,
+        ["personCount"] = topic => topic.PersonCount,
+        ["lastRequestedAtUtc"] = topic => topic.LastRequestedAtUtc,
+    };
+    // The topics in the asked order, the last request first without one and to break ties, without running them.
+    private static IQueryable<MissingFormTopicResponse> Sorted(IQueryable<TopicAggregate> query,ListMissingFormTopicsRequest request) =>
+        Project(query.ApplySort(SortDescriptor.Parse(request.Sort),SortableFields,new("lastRequestedAtUtc",true),topic => topic.Id));
     public Task<MissingFormTopicResponse?> FindAsync(Guid topicId,CancellationToken ct) => Project(Aggregates().Where(topic => topic.Id == topicId)).SingleOrDefaultAsync(ct);
 
     private IQueryable<TopicAggregate> Aggregates()

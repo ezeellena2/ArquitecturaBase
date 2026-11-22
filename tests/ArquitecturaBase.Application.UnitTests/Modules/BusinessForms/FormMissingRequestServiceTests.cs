@@ -109,6 +109,31 @@ public sealed class FormMissingRequestServiceTests
         var f = new FormMissingRequestFixture(); f.OnRead = () => f.Assistant.Permissions.Permissions[f.Manager] = [];
         Assert.True((await f.Service.ListAsync(new(),Ct)).IsFailure);
     }
+    // Every column with a datum sorts (OT1-C, 2026-11-22), in both directions, by the id of its column in the front.
+    [Theory]
+    [InlineData("name")]
+    [InlineData("-name")]
+    [InlineData("discardedBy")]
+    [InlineData("-discardedBy")]
+    [InlineData("discardedAtUtc")]
+    [InlineData("-discardedAtUtc")]
+    [InlineData("requestCount")]
+    [InlineData("-requestCount")]
+    [InlineData("personCount")]
+    [InlineData("-personCount")]
+    [InlineData("lastRequestedAtUtc")]
+    public async Task Every_column_of_the_board_can_be_sorted(string sort)
+    {
+        var f = new FormMissingRequestFixture();
+        Assert.True((await f.Service.ListAsync(new() { Sort = sort },Ct)).IsSuccess);
+    }
+    // The description goes in grey under the topic's name (exception A): it is not a column and does not sort apart.
+    [Fact]
+    public async Task The_description_does_not_sort_apart_from_the_topic()
+    {
+        var f = new FormMissingRequestFixture();
+        Assert.IsType<ArquitecturaBase.Domain.Results.ValidationError>((await f.Service.ListAsync(new() { Sort = "description" },Ct)).Error);
+    }
     [Theory]
     [InlineData("subject")]
     [InlineData("channel")]

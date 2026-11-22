@@ -132,7 +132,9 @@ public sealed record FormDocumentFormNameRow(Guid DefinitionId, string NameJson,
 /// </summary>
 public sealed record ListFormReceivedDocumentsRequest : PagedRequest
 {
-    public static readonly IReadOnlyCollection<string> SortableFields = ["receivedAtUtc"];
+    /// <summary>Every column with a datum, by the id of its column in the front (OT1-C, 2026-11-22); without one, the newest first. The data
+    /// read (one column per question) live in the protected proposal and do not sort.</summary>
+    public static readonly IReadOnlyCollection<string> SortableFields = ["receivedAtUtc", "document", "sender", "form", "state", "deleteAfterUtc", "record"];
     public static readonly IReadOnlyCollection<string> States = ["proposed", "forReview", "unclassified", "confirmed", "discarded"];
     public Guid? DefinitionId { get; init; }
     public Guid? SenderUserId { get; init; }

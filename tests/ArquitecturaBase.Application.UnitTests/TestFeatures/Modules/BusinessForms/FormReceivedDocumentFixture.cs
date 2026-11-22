@@ -97,7 +97,7 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
     public Task<FormReceivedDocumentStoredRow?> FindSpreadsheetAsync(string sha256, CancellationToken cancellationToken) =>
         Task.FromResult(Documents.Where(document => document.Sha256 == sha256 && document.IsRow && document.State != FormReceivedDocumentState.Discarded)
             .OrderBy(document => document.ReceivedAtUtc).Select(Row).FirstOrDefault());
-    public Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, DateTime nowUtc,
+    public Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, string culture, DateTime nowUtc,
         CancellationToken cancellationToken) => throw new NotSupportedException("The inbox list is covered with PostgreSQL.");
     public Task<FormReceivedDocumentStateCounts> CountAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
         throw new NotSupportedException("The inbox counts are covered with PostgreSQL.");

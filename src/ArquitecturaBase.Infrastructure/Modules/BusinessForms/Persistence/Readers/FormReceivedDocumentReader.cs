@@ -30,11 +30,44 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
     private const int MinGroupDocuments = 3;
     private const int MaxGroups = 5;
     private const string ReadingOn = """{"enabled":true}""";
-    private static readonly IReadOnlyDictionary<string, Expression<Func<FormReceivedDocument, object?>>> Sortable =
-        new Dictionary<string, Expression<Func<FormReceivedDocument, object?>>>(StringComparer.OrdinalIgnoreCase)
+
+    // Every column with a datum (OT1-C), by the id of its column in the front and by what its row shows, with the same subqueries as the
+    // rows: the map is the instance's, built with the reader's language and the moment a proposed one stops waiting for its person.
+    private Dictionary<string, Expression<Func<FormReceivedDocument, object?>>> Sortable(string culture, DateTime nowUtc)
+    {
+        var nameColumn = culture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        var otherColumn = culture == "en" ? "DisplayNameEs" : "DisplayNameEn";
+        return new(StringComparer.OrdinalIgnoreCase)
         {
             ["receivedAtUtc"] = document => document.ReceivedAtUtc,
+            // The file's name; a row of a spreadsheet shows its spreadsheet's.
+            ["document"] = document => document.FileName,
+            // The name of the account that sent it; one without it shows «Persona desconocida» and goes last.
+            ["sender"] = document => dbContext.Users.Where(user => user.Id == document.SenderUserId).Select(user => user.DisplayName).FirstOrDefault(),
+            // The name of its version in the reader's language or, without it, in the other one.
+            ["form"] = document => dbContext.Set<BusinessFormVersion>().Where(version => version.Id == document.VersionId)
+                .Select(version => string.IsNullOrEmpty(EF.Property<string>(version, nameColumn))
+                    ? EF.Property<string>(version, otherColumn) : EF.Property<string>(version, nameColumn))
+                .FirstOrDefault(),
+            // In the order of the circuit, as the row reads it: proposed and waiting for its person, for the team, unclassified, confirmed and
+            // discarded.
+            ["state"] = document => new
+            {
+                document.State,
+                ForReview = document.State == FormReceivedDocumentState.Proposed
+                    && (document.NotSendable || document.ReplyExpiresAtUtc == null || document.ReplyExpiresAtUtc <= nowUtc),
+            },
+            ["deleteAfterUtc"] = document => document.DeleteAfterUtc,
+            // The number of its response reads as the form's prefix and its counter, so it sorts by both.
+            ["record"] = document => new
+            {
+                Prefix = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == document.DefinitionId)
+                    .Select(definition => definition.Prefix).FirstOrDefault(),
+                Number = dbContext.Set<BusinessFormRecord>().Where(record => record.Id == document.RecordId).Select(record => (long?)record.Number)
+                    .FirstOrDefault(),
+            },
         };
+    }
 
     public async Task<IReadOnlyList<FormDocumentFormRow>> ListReadingFormsAsync(CancellationToken cancellationToken) =>
         await Forms(FormOfferableVersionQuery.ChannelVersions(dbContext).Where(version => version.DocumentReadingJson != null))
@@ -138,8 +171,8 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
             .OrderBy(document => document.ReceivedAtUtc).ThenBy(document => document.Id).Take(1))
             .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, DateTime nowUtc,
-        CancellationToken cancellationToken)
+    public async Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, string culture,
+        DateTime nowUtc, CancellationToken cancellationToken)
     {
         var documents = dbContext.Set<FormReceivedDocument>().AsNoTracking();
         if (request.ReceivedFromUtc is { } from) documents = documents.Where(document => document.ReceivedAtUtc >= from);
@@ -156,8 +189,7 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         var (senders, sendersTruncated) = await SenderFacetsAsync(InState(OfForm(documents, request), request.State, nowUtc), request.SenderUserId,
             cancellationToken);
         var filtered = InState(OfSender(OfForm(documents, request), request), request.State, nowUtc);
-        var page = await Rows(filtered.ApplySort(SortDescriptor.Parse(request.Sort), Sortable, new("receivedAtUtc", true), document => document.Id))
-            .ToPagedResultAsync(request, cancellationToken);
+        var page = await Sorted(filtered, request, culture, nowUtc).ToPagedResultAsync(request, cancellationToken);
         // The groups of similar documents are unclassified by definition: every other filter applies, never the state's.
         var groups = await GroupsAsync(OfSender(OfForm(documents, request), request), cancellationToken);
         return new FormReceivedDocumentPageRow(page.Items, page.TotalCount, counts, forms, formsTruncated, senders, sendersTruncated) { Groups = groups };
@@ -247,6 +279,11 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         };
 
     private IQueryable<FormReceivedDocumentStoredRow> Rows(IQueryable<FormReceivedDocument> documents) => FormReceivedDocumentQuery.Rows(dbContext, documents);
+
+    // The filtered documents in the asked order, the newest first without one and to break ties, as rows and without running them.
+    private IQueryable<FormReceivedDocumentStoredRow> Sorted(IQueryable<FormReceivedDocument> documents, ListFormReceivedDocumentsRequest request,
+        string culture, DateTime nowUtc) =>
+        Rows(documents.ApplySort(SortDescriptor.Parse(request.Sort), Sortable(culture, nowUtc), new("receivedAtUtc", true), document => document.Id));
 
     private static async Task<FormReceivedDocumentStateCounts> CountAsync(IQueryable<FormReceivedDocument> documents, DateTime nowUtc, CancellationToken ct)
     {

@@ -42,7 +42,8 @@ public interface IFormReceivedDocumentReader
     /// document; its single entry (over the quota, not recognized, or repeated) or its discarded rows are not.
     /// </summary>
     Task<FormReceivedDocumentStoredRow?> FindSpreadsheetAsync(string sha256, CancellationToken cancellationToken);
-    Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, DateTime nowUtc,
+    /// <summary>The inbox's page; a form sorts by its name in the reader's language (<paramref name="culture"/>), as its row shows it.</summary>
+    Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, string culture, DateTime nowUtc,
         CancellationToken cancellationToken);
     /// <summary>The menu's numbers (F38): only the proposed and unclassified documents are counted; the confirmed and discarded counts are zero.</summary>
     Task<FormReceivedDocumentStateCounts> CountAsync(DateTime nowUtc, CancellationToken cancellationToken);

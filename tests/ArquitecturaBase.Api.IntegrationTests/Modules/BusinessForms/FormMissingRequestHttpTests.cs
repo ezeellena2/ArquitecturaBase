@@ -6,6 +6,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -108,5 +109,54 @@ public sealed class FormMissingRequestHttpTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest,unknown.StatusCode);
         using var invalidPage = await manager.GetAsync("/api/forms/missing-requests?page=0",Ct); Assert.Equal(HttpStatusCode.BadRequest,invalidPage.StatusCode);
         using var invalidState = await manager.GetAsync("/api/forms/missing-requests?state=Opened",Ct); Assert.Equal(HttpStatusCode.BadRequest,invalidState.StatusCode);
+    }
+    // OT1-C: the board sorts by every column with a datum in PostgreSQL. Equal values keep the usual order, the last request first; who discarded
+    // a topic goes by the name of their account, and an account that is gone (the table shows «—») goes last also descending.
+    [Fact]
+    public async Task The_board_sorts_by_its_columns_with_a_discard_by_an_account_that_is_gone_last()
+    {
+        await using var scenario = await FormMissingRequestScenario.CreateAsync(factory,"es",Ct);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        await scenario.ScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            BusinessFormMissingTopic Topic(string name,params (Guid Subject,TimeSpan Ago)[] requests)
+            {
+                var topic = BusinessFormMissingTopic.Create(name + " " + scenario.Suffix,"Fictitious request.","es").Value;
+                db.Set<BusinessFormMissingTopic>().Add(topic);
+                foreach (var (person,ago) in requests)
+                    db.Set<BusinessFormMissingRequest>().Add(BusinessFormMissingRequest.Create(Guid.NewGuid(),topic.Id,person,now - ago).Value);
+                return topic;
+            }
+            var (subject,other) = (scenario.SubjectId,scenario.OtherSubjectId);
+            Topic("Alfa",(subject,TimeSpan.FromHours(3)));
+            Topic("Beta",(subject,TimeSpan.FromHours(5)),(subject,TimeSpan.FromHours(4)),(other,TimeSpan.FromHours(1)));
+            Topic("Gama",(subject,TimeSpan.FromHours(2)),(subject,TimeSpan.FromMinutes(119)));
+            // Discarded by «Missing reviewer …», by «Private requester …» and by an account that is gone.
+            Assert.True(Topic("Delta",(subject,TimeSpan.FromHours(6))).Discard(1,scenario.ManagerId,now.AddMinutes(-30)).IsSuccess);
+            Assert.True(Topic("Epsilon",(subject,TimeSpan.FromHours(7))).Discard(1,subject,now.AddMinutes(-20)).IsSuccess);
+            Assert.True(Topic("Zeta",(subject,TimeSpan.FromHours(8))).Discard(1,Guid.CreateVersion7(),now.AddMinutes(-10)).IsSuccess);
+            return await db.SaveChangesAsync(Ct);
+        });
+        using var manager = scenario.Client(scenario.ManagerId);
+        async Task<string[]> Sorted(string sort,string state = "Pending")
+        {
+            using var response = await manager.GetAsync($"/api/forms/missing-requests?state={state}&search={scenario.Suffix}&sort={sort}",Ct);
+            Assert.Equal(HttpStatusCode.OK,response.StatusCode);
+            return [.. (await response.ReadJsonAsync()).GetProperty("items").EnumerateArray().Select(item => item.GetProperty("name").GetString()!.Split(' ')[0])];
+        }
+
+        Assert.Equal(["Alfa","Beta","Gama"],await Sorted("name"));
+        Assert.Equal(["Gama","Beta","Alfa"],await Sorted("-name"));
+        Assert.Equal(["Alfa","Gama","Beta"],await Sorted("requestCount"));
+        Assert.Equal(["Beta","Gama","Alfa"],await Sorted("-requestCount"));
+        // Alfa and Gama have one person each: the last request decides.
+        Assert.Equal(["Gama","Alfa","Beta"],await Sorted("personCount"));
+        Assert.Equal(["Beta","Gama","Alfa"],await Sorted("-personCount"));
+        Assert.Equal(["Alfa","Gama","Beta"],await Sorted("lastRequestedAtUtc"));
+        Assert.Equal(["Delta","Epsilon","Zeta"],await Sorted("discardedBy","Discarded"));
+        Assert.Equal(["Epsilon","Delta","Zeta"],await Sorted("-discardedBy","Discarded"));
+        Assert.Equal(["Delta","Epsilon","Zeta"],await Sorted("discardedAtUtc","Discarded"));
+        Assert.Equal(["Zeta","Epsilon","Delta"],await Sorted("-discardedAtUtc","Discarded"));
     }
 }
