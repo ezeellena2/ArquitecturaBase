@@ -139,6 +139,20 @@ Cada tarea se compara con su tablero al cerrarla.
      - la tarjeta de una respuesta en el chat (`features/whatsapp/components/FormReplyValues.tsx`, la tabla chica de TL1-A);
      - «Enviada» (`FormEntrySent.tsx`) y el PDF de una respuesta (backend), que hay que revisar.
    - Lo que cambie de forma, como la tarjeta del chat, se dibuja antes y el usuario elige.
+   - **Inventario del 2026-11-22**, sobre front `6908c39b` y backend `33faf2e2`:
+     - **R1, las propuestas del asistente** en el detalle (`ResponseAssistance` → `ResponseValue` en modo detalle,
+       `ResponseValue.tsx` renglones 13-14 y 96-125): los datos de la opción (`CapturedFields`) y su detalle van debajo
+       del valor. Se arregla con un renglón propio por dato, «Pregunta · Dato», dentro de la misma lista; no cambia la
+       forma.
+     - **R2, la celda de la planilla** (`ResponseValue.tsx` renglones 120-123): el detalle de una opción va debajo de su
+       nombre. Es la excepción A de «Un dato por columna», que la regla nueva deja sin efecto para los datos de una
+       opción. Cambia la forma de la planilla: se dibuja y el usuario elige.
+     - **R3, la tarjeta de una respuesta en el chat** (`features/whatsapp/components/FormReplyValues.tsx` renglones 37 a
+       42): debajo del valor van el nombre del catálogo, el detalle de la opción, «Ver en el mapa» y, en una de varias,
+       los catálogos y los detalles alineados. Se dibuja y el usuario elige.
+     - **R4, el PDF de una respuesta** (`SkiaFormPdfRenderer.CatalogValue`, backend): los datos de la opción van en un
+       segundo renglón debajo del valor («Rubro Herbicidas · Tipo Agroquímicos»). Se dibuja y el usuario elige.
+     - «Enviada» (`FormEntrySent.tsx`) no apila datos: queda como está.
 8. **Docs.**
    - `features/formularios.md`: el detalle, la corrección en el lugar, la actividad fila por fila y la regla.
    - Las guías de `components` y `pages` del front.
