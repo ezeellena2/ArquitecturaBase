@@ -16,6 +16,13 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
     public Task<Result<AiAssistantTurnAcceptedResponse>> AcceptAsync(Guid userId, SubmitAiAssistantTurnRequest request, CancellationToken ct) =>
         AcceptCoreAsync(userId, request, null, ct);
 
+    /// <summary>
+    /// RC1-A: until when Home content (a turn, its recording, its reading or its file) is kept: the days the administrator saved with
+    /// the connection, never beyond the installation's ceiling, read on every acceptance.
+    /// </summary>
+    public async Task<DateTime> HomeContentExpiresAtAsync(DateTime nowUtc, CancellationToken ct) =>
+        nowUtc.AddDays((await connectionReader.FindAsync(ct)).HomeRetentionDays(limits.RetentionDays));
+
     public async Task<Result<AssistantOperationAcceptedResponse>> AcceptAsync(AssistantOperationRequest request, CancellationToken ct)
     {
         var result = await AcceptCoreAsync(request.Context.ActorUserId, null, request, ct);
@@ -166,7 +173,9 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var timeZoneId = home is not null ? actor.Value.TimeZoneId : operation!.Context.TimeZoneId;
         // The turn keeps its content no longer than its sources: the channel's message, the audio or document and its own file.
         var attachment = home?.Attachment ?? homeDocument ?? operation?.Attachment;
-        var expiresAtUtc = now.AddDays(limits.RetentionDays);
+        // RC1-A: Home content, and its receipt, keep the administrator's days; another channel's, the ceiling bounded by its message.
+        var retentionDays = AiAssistantChannelPolicy.IsHome(channelId) ? connection.HomeRetentionDays(limits.RetentionDays) : limits.RetentionDays;
+        var expiresAtUtc = now.AddDays(retentionDays);
         if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
         if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
         if (operation?.Document is { } copy && copy.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = copy.ExpiresAtUtc;
@@ -217,7 +226,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         repository.AddTurn(turn);
         var hash = home is not null ? fingerprint.Create(userId, home, fingerprint.ActiveKeyId) : fingerprint.Create(operation!, fingerprint.ActiveKeyId);
         repository.AddReceipt(AiAssistantRequestReceipt.Create(userId, requestId, hash, fingerprint.ActiveKeyId, conversation.Id, turn.Id, now,
-            now.AddDays(limits.RetentionDays), channelId, snapshot.Purpose == AiAssistantPurpose.NormalizeAudio, snapshot.Purpose == AiAssistantPurpose.ReadDocument));
+            now.AddDays(retentionDays), channelId, snapshot.Purpose == AiAssistantPurpose.NormalizeAudio, snapshot.Purpose == AiAssistantPurpose.ReadDocument));
         return Accepted(turn, conversation.Revision, now);
     }
 
@@ -301,7 +310,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             reading.PayloadRevision, reading.ProtectedQuestion));
         var answer = protector.Unprotect(userId, reading.ConversationId, reading.Id, "answer", reading.PayloadRevision, reading.ProtectedAnswer);
         return descriptor is not null && answer is not null && AiAssistantDocumentPolicy.ReadStored(answer) is { } read
-            && AiAssistantHomeDocumentPolicy.Attachment(documentRequestId, descriptor, read, nowUtc.AddDays(limits.RetentionDays)) is { } attachment
+            && AiAssistantHomeDocumentPolicy.Attachment(documentRequestId, descriptor, read, await HomeContentExpiresAtAsync(nowUtc, ct)) is { } attachment
             ? attachment
             // N27: a reading a newer version wrote is left for the copy that knows it.
             : descriptor is not null && answer is not null ? AiAssistantDocumentPolicy.Unread(answer) : AiAssistantErrors.ContentUnavailable;

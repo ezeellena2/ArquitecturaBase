@@ -102,7 +102,7 @@ internal sealed class UserInvitationIssuer(
         var invitation = UserInvitation.Send(user.Id, channel, sentBy, nowUtc, adapter.RecordsConsent);
         invitations.Add(invitation);
 
-        adapter.Enqueue(user, invitation, culture);
+        await adapter.EnqueueAsync(user, invitation, culture, cancellationToken);
         return Result.Success();
     }
 

@@ -44,6 +44,11 @@ public static class ValidationMessages
     public static string SettingsRequired => Get(nameof(SettingsRequired));
     public static string SettingsPageSizeInvalid => Get(nameof(SettingsPageSizeInvalid));
     public static string SettingsColorInvalid => Get(nameof(SettingsColorInvalid));
+    public static string SettingsNameInvalid => Get(nameof(SettingsNameInvalid));
+    public static string SettingsLogoUrlInvalid => Get(nameof(SettingsLogoUrlInvalid));
+
+    /// <summary>A whole number out of its range, with the range in the request's language ({From:N0} and {To:N0}).</summary>
+    public static string NumberBetween => Get(nameof(NumberBetween));
 
     public static string PermissionUnknown => Get(nameof(PermissionUnknown));
 

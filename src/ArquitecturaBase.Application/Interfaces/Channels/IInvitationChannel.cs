@@ -28,7 +28,8 @@ public interface IInvitationChannel
     /// Encola el mensaje de <paramref name="invitation"/>, ya agregada al repositorio, en el idioma
     /// <paramref name="culture"/> de la cuenta. Si la cola no lo toma, la marca como no enviada (MarkSendFailed) y lo
     /// registra sin datos personales: el alta no se deshace por un envío que falló. Adentro del límite y del lock
-    /// user-invitation: que tomó quien llama, antes del commit.
+    /// user-invitation: que tomó quien llama, antes del commit. Es asincrónico porque el mensaje lleva el nombre de la
+    /// aplicación, que se lee de la configuración en cada uso (RC6-B).
     /// </summary>
-    void Enqueue(UserAccount user, UserInvitation invitation, string culture);
+    Task EnqueueAsync(UserAccount user, UserInvitation invitation, string culture, CancellationToken cancellationToken);
 }

@@ -19,6 +19,35 @@ public sealed class AiAssistantTurnTests
         Assert.Equal(audioRequestId, turn.AudioRequestId);
     }
 
+    // RC1-A: when the administrator shortens the Home retention, older content expires at the next cleanup, before its original date.
+    [Fact]
+    public void Expiring_content_early_purges_it_and_brings_its_expiry_forward_in_one_revision()
+    {
+        var now = new DateTime(2026, 11, 22, 12, 0, 0, DateTimeKind.Utc);
+        var turn = AiAssistantTurn.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, "cipher", "es", "UTC",
+            AiProvider.OpenAI, "model", 1, now.AddDays(-10), now.AddDays(20));
+        var revision = turn.Revision;
+
+        turn.ExpireContent(now);
+
+        Assert.Null(turn.ProtectedQuestion);
+        Assert.Equal(now, turn.ContentExpiresAtUtc);
+        Assert.Equal(revision + 1, turn.Revision);
+    }
+
+    [Fact]
+    public void Expiring_content_that_already_expired_keeps_its_original_date()
+    {
+        var now = new DateTime(2026, 11, 22, 12, 0, 0, DateTimeKind.Utc);
+        var turn = AiAssistantTurn.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, "cipher", "es", "UTC",
+            AiProvider.OpenAI, "model", 1, now.AddDays(-40), now.AddDays(-10));
+
+        turn.ExpireContent(now);
+
+        Assert.Null(turn.ProtectedQuestion);
+        Assert.Equal(now.AddDays(-10), turn.ContentExpiresAtUtc);
+    }
+
     [Fact]
     public void A_dictated_turn_needs_its_normalization_and_a_sealed_transcript()
     {

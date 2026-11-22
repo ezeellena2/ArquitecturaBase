@@ -82,6 +82,8 @@
   <data name="Settings.System.CultureInvalid" xml:space="preserve"><value>El idioma predeterminado no es válido.</value></data>
   <data name="Settings.System.PageSizeInvalid" xml:space="preserve"><value>Elegí 10, 20, 50 o 100 filas por página.</value></data>
   <data name="Settings.System.AppearanceInvalid" xml:space="preserve"><value>Revisá los colores: deben tener formato #RRGGBB.</value></data>
+  <data name="Settings.System.BrandingInvalid" xml:space="preserve"><value>Revisá el nombre de la aplicación, el del remitente y el logo de los correos.</value></data>
+  <data name="Settings.System.RetentionInvalid" xml:space="preserve"><value>Revisá los plazos de retención: hay uno fuera de su rango.</value></data>
   <data name="WhatsApp.Chat.NotFound" xml:space="preserve"><value>No se encontró la conversación.</value></data>
   <data name="WhatsApp.Chat.ManualRequired" xml:space="preserve"><value>Activá la atención manual antes de responder.</value></data>
   <data name="WhatsApp.Chat.RevisionConflict" xml:space="preserve"><value>Otra persona cambió el modo. Actualizá el chat y revisalo.</value></data>
@@ -101,6 +103,7 @@
   <data name="WhatsApp.Media.Unavailable" xml:space="preserve"><value>No pudimos bajar los archivos de WhatsApp.</value></data>
   <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Revisá el proveedor y el modelo de la conexión.</value></data>
   <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configurá una clave para usar o probar la conexión.</value></data>
+  <data name="Ai.Connection.RetentionInvalid" xml:space="preserve"><value>Elegí cuántos días guardar las conversaciones: de 1 al techo de la instalación.</value></data>
   <data name="Ai.Connection.ProviderChanged" xml:space="preserve"><value>Al cambiar de proveedor, reemplazá o quitá la clave.</value></data>
   <data name="Ai.Connection.RevisionConflict" xml:space="preserve"><value>La conexión cambió. Consultá y revisá la configuración actual.</value></data>
   <data name="Ai.Connection.RequestConflict" xml:space="preserve"><value>Este identificador ya confirmó otro pedido. Consultá el guardado.</value></data>

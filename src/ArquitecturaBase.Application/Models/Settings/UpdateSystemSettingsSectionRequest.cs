@@ -8,4 +8,6 @@ public sealed record UpdateSystemSettingsSectionRequest(
     string? DefaultTimeZoneId = null,
     int? DefaultPageSize = null,
     RegistrationMode? RegistrationMode = null,
-    SystemAppearanceRequest? Appearance = null);
+    SystemAppearanceRequest? Appearance = null,
+    SystemBrandingRequest? Branding = null,
+    IdentityRetentionRequest? Retention = null);

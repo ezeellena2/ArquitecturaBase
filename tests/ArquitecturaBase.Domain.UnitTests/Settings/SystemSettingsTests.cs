@@ -158,4 +158,102 @@ public sealed class SystemSettingsTests
 
         Assert.Equal(RegistrationMode.Open, settings.RegistrationMode);
     }
+
+    // RC6-B: the name, the sender and the logo start as the installation had them in Email:AppName, Email:Smtp:FromName and
+    // Email:LogoUrl; RC1-A: the sign-in data keep the periods decided on 2026-11-14.
+    [Fact]
+    public void New_installations_keep_the_current_name_sender_logo_and_retention_periods()
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+
+        Assert.Equal(("Acceso", "Acceso", (string?)null), (settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl));
+        Assert.Equal((12, 30, 30), (settings.LoginAuditRetentionMonths, settings.LoginCodeRetentionDays, settings.InvitationRetentionDays));
+    }
+
+    [Fact]
+    public void Branding_is_trimmed_an_empty_logo_means_none_and_one_revision_advances()
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+        Assert.True(settings.Update(null, null, null, null, branding: new SystemBranding("  Campo  ", " Campo Avisos ",
+            " https://example.com/logo.png ")).IsSuccess);
+        Assert.Equal(("Campo", "Campo Avisos", (string?)"https://example.com/logo.png"),
+            (settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl));
+        Assert.Equal(2, settings.Revision);
+
+        Assert.True(settings.Update(null, null, null, null, branding: new SystemBranding("Campo", "Campo", "  ")).IsSuccess);
+        Assert.Null(settings.EmailLogoUrl);
+        Assert.Equal("es", settings.DefaultCulture);
+        Assert.Equal(3, settings.Revision);
+    }
+
+    [Theory]
+    [InlineData("", "Acceso", null)]
+    [InlineData("   ", "Acceso", null)]
+    [InlineData("Acceso", "", null)]
+    [InlineData("Dos\nlíneas", "Acceso", null)]
+    [InlineData("Acceso", "Con\ttabulación", null)]
+    [InlineData("Acceso", "Acceso", "http://example.com/logo.png")]
+    [InlineData("Acceso", "Acceso", "/logo.png")]
+    [InlineData("Acceso", "Acceso", "https://example.com/un logo.png")]
+    [InlineData("Acceso", "Acceso", "javascript:alert(1)")]
+    public void Invalid_branding_keeps_every_value_and_the_revision(string appName, string senderName, string? logoUrl)
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+
+        var result = settings.Update("en", null, null, null, branding: new SystemBranding(appName, senderName, logoUrl));
+
+        Assert.Equal(SettingsErrors.BrandingInvalid, result.Error);
+        Assert.Equal(("Acceso", "Acceso", (string?)null), (settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl));
+        Assert.Equal("es", settings.DefaultCulture);
+        Assert.Equal(1, settings.Revision);
+    }
+
+    [Fact]
+    public void Names_and_logo_have_a_length_limit()
+    {
+        Assert.True(SystemBranding.IsValidName(new string('a', SystemBranding.MaxNameLength)));
+        Assert.False(SystemBranding.IsValidName(new string('a', SystemBranding.MaxNameLength + 1)));
+        var longest = "https://example.com/" + new string('a', SystemBranding.MaxLogoUrlLength - 20);
+        Assert.True(SystemBranding.IsValidLogoUrl(longest));
+        Assert.False(SystemBranding.IsValidLogoUrl(longest + "a"));
+    }
+
+    [Fact]
+    public void Retention_periods_change_together_with_one_revision()
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+
+        Assert.True(settings.Update(null, null, null, null, retention: new IdentityRetentionPeriods(6, 1, 7)).IsSuccess);
+
+        Assert.Equal((6, 1, 7), (settings.LoginAuditRetentionMonths, settings.LoginCodeRetentionDays, settings.InvitationRetentionDays));
+        Assert.Equal(2, settings.Revision);
+    }
+
+    [Theory]
+    [InlineData(0, 30, 30)]
+    [InlineData(121, 30, 30)]
+    [InlineData(12, 0, 30)]
+    [InlineData(12, 3651, 30)]
+    [InlineData(12, 30, 6)]
+    [InlineData(12, 30, 3651)]
+    public void A_period_out_of_range_keeps_every_value_and_the_revision(int auditMonths, int codeDays, int invitationDays)
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+        var palette = new AppearancePalette("#335F85", "#243B53", "#D9E8F5", "#EEF4FA");
+
+        var result = settings.Update(null, null, null, null, palette, retention: new IdentityRetentionPeriods(auditMonths, codeDays, invitationDays));
+
+        Assert.Equal(SettingsErrors.RetentionInvalid, result.Error);
+        Assert.Equal((12, 30, 30), (settings.LoginAuditRetentionMonths, settings.LoginCodeRetentionDays, settings.InvitationRetentionDays));
+        Assert.Equal(AppearancePalette.InitialPrimaryColor, settings.PrimaryColor);
+        Assert.Equal(1, settings.Revision);
+    }
+
+    [Fact]
+    public void The_limits_of_each_period_are_valid()
+    {
+        Assert.True(new IdentityRetentionPeriods(1, 1, 7).IsValid);
+        Assert.True(new IdentityRetentionPeriods(120, 3650, 3650).IsValid);
+        Assert.Equal(new IdentityRetentionPeriods(12, 30, 30), IdentityRetentionPeriods.Initial);
+    }
 }

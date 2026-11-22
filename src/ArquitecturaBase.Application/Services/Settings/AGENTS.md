@@ -22,3 +22,5 @@ Antes de tocar esto, leé [`docs/features/administracion.md`](../../../../docs/f
 - Apariencia guarda cuatro colores #RRGGBB como un grupo con una sola revisión.
   Validar antes de mutar; normalizar a mayúsculas. La proyección pública expone la paleta
   para todo el SPA, con la invalidación de caché existente después del commit.
+- `branding` y `retention` siguen la misma regla. Quien los usa los lee por `ISystemSettingsReader` en cada uso (correos,
+  remitente, retención del ingreso), nunca de opciones; la proyección pública no los publica.

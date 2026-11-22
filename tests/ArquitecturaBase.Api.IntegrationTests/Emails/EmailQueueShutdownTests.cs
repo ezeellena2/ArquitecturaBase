@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using System.Net;
 using System.Net.Sockets;
 using ArquitecturaBase.Api.IntegrationTests.Support;
@@ -76,13 +77,13 @@ public sealed class EmailQueueShutdownTests(ApiFactory factory) : IClassFixture<
                 Security = SecureSocketOptions.None,
                 UserName = "user",
                 Password = "password",
-                FromName = "Acceso",
                 FromAddress = "no-reply@example.test",
             };
             var copy = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IEmailSender>();
-                services.AddScoped<IEmailSender>(_ => new SmtpEmailSender(Options.Create(smtp), TimeSpan.FromSeconds(30)));
+                services.AddScoped<IEmailSender>(provider => new SmtpEmailSender(Options.Create(smtp),
+                    provider.GetRequiredService<ISystemSettingsReader>(), TimeSpan.FromSeconds(30)));
             }));
             TcpClient? silent = null;
             try

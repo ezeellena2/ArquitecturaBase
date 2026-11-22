@@ -80,6 +80,71 @@ public sealed class SettingsControllerTests(ApiFactory factory)
             problem.GetProperty("errors").GetProperty("registrationMode")[0].GetString());
     }
 
+    // RC6-B and RC1-A: the name, the sender, the logo and the sign-in periods are saved together with one revision and read back.
+    [Fact]
+    public async Task Admin_saves_and_reads_the_branding_and_the_retention_periods()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        await using var restore = await SystemSettingsScope.ChangeAsync(factory);
+
+        using var updated = await PatchSettingsAsync(client, tokens.AccessToken, new
+        {
+            branding = new { appName = " Campo ", emailSenderName = "Campo Avisos", emailLogoUrl = "https://cdn.example.com/campo.png" },
+            retention = new { loginAuditMonths = 6, loginCodeDays = 2, invitationDays = 10 },
+        });
+        using var response = await client.GetWithTokenAsync("/api/settings", tokens.AccessToken);
+        var settings = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.NoContent, updated.StatusCode);
+        var branding = settings.GetProperty("branding");
+        Assert.Equal(("Campo", "Campo Avisos", "https://cdn.example.com/campo.png"), (branding.GetProperty("appName").GetString(),
+            branding.GetProperty("emailSenderName").GetString(), branding.GetProperty("emailLogoUrl").GetString()));
+        var retention = settings.GetProperty("retention");
+        Assert.Equal((6, 2, 10), (retention.GetProperty("loginAuditMonths").GetInt32(), retention.GetProperty("loginCodeDays").GetInt32(),
+            retention.GetProperty("invitationDays").GetInt32()));
+    }
+
+    // RC6-B: the code that goes out after the change already carries the new name, without restarting anything.
+    [Fact]
+    public async Task The_code_email_carries_the_name_saved_in_appearance_without_restarting()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        await using var restore = await SystemSettingsScope.ChangeAsync(factory);
+        var email = TestEmails.Unique("branding");
+
+        using var updated = await PatchSettingsAsync(client, tokens.AccessToken, new
+        {
+            branding = new { appName = "Campo", emailSenderName = "Campo Avisos", emailLogoUrl = (string?)null },
+        });
+        var code = await client.RequestCodeAsync(factory, email);
+        var message = await factory.EmailSender.WaitForAsync(email);
+
+        Assert.Equal(HttpStatusCode.NoContent, updated.StatusCode);
+        Assert.Equal($"{code} es tu código de acceso a Campo", message.Subject);
+    }
+
+    [Fact]
+    public async Task Each_branding_and_retention_field_reports_its_own_problem()
+    {
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        await using var restore = await SystemSettingsScope.ChangeAsync(factory);
+
+        using var response = await PatchSettingsAsync(client, tokens.AccessToken, new
+        {
+            branding = new { appName = " ", emailSenderName = "Campo", emailLogoUrl = "http://cdn.example.com/campo.png" },
+            retention = new { loginAuditMonths = 12, loginCodeDays = 30, invitationDays = 6 },
+        }, "es");
+        var errors = (await response.ReadJsonAsync()).GetProperty("errors");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Este campo es obligatorio.", errors.GetProperty("branding.appName")[0].GetString());
+        Assert.Equal("Escribí una dirección que empiece con https://.", errors.GetProperty("branding.emailLogoUrl")[0].GetString());
+        Assert.Equal("Elegí un número entre 7 y 3.650.", errors.GetProperty("retention.invitationDays")[0].GetString());
+    }
+
     private static async Task<HttpResponseMessage> PatchSettingsAsync(
         HttpClient client,
         string accessToken,

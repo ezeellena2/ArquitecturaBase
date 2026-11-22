@@ -5,7 +5,8 @@ namespace ArquitecturaBase.Infrastructure.Emails;
 
 /// <summary>
 /// Cuenta que envía los emails (Email:Smtp, sección 6.8). La contraseña es una contraseña de aplicación de Gmail y
-/// va en user-secrets o en variables de entorno. Remitente: FromName y FromAddress, también para los .eml.
+/// va en user-secrets o en variables de entorno. La dirección del remitente es FromAddress, también para los .eml; su nombre
+/// lo elige el administrador en Configuración › Apariencia (RC6-B).
 /// </summary>
 internal sealed class SmtpOptions
 {
@@ -24,9 +25,6 @@ internal sealed class SmtpOptions
 
     [Required]
     public string Password { get; init; } = string.Empty;
-
-    [Required]
-    public string FromName { get; init; } = string.Empty;
 
     [Required]
     [EmailAddress]

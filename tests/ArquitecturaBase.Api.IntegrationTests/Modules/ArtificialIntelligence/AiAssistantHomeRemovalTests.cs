@@ -223,7 +223,8 @@ public sealed class AiAssistantHomeRemovalTests(ApiFactory factory)
             scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
         var now = factory.Clock.GetUtcNow().UtcDateTime;
         await new AiAssistantRepository(db, factory.Clock).ListPurgeableAsync(now,
-            new(now.AddHours(-24), "home-audio", "home-document", "ai/assistant/documents/", [".pdf", ".jpg", ".png"]), 1, Ct);
+            new(now.AddHours(-24), "home-audio", "home-document", "ai/assistant/documents/", [".pdf", ".jpg", ".png"]),
+            null, 1, Ct);
 
         var sql = string.Join(Environment.NewLine, recorder.Commands);
         Assert.Contains("\"AttachmentKey\" = ", sql, StringComparison.Ordinal);

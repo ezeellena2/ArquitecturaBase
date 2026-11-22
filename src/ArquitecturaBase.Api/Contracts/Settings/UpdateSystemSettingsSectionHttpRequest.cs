@@ -12,11 +12,25 @@ public sealed record UpdateSystemSettingsSectionHttpRequest
     private int? _size;
     private RegistrationMode? _mode;
     private SystemAppearanceHttpRequest? _appearance;
+    private SystemBrandingHttpRequest? _branding;
+    private IdentityRetentionHttpRequest? _retention;
 
     public SystemAppearanceHttpRequest? Appearance
     {
         get => _appearance;
         init => _appearance = value ?? throw new JsonException("A setting cannot be null.");
+    }
+
+    public SystemBrandingHttpRequest? Branding
+    {
+        get => _branding;
+        init => _branding = value ?? throw new JsonException("A setting cannot be null.");
+    }
+
+    public IdentityRetentionHttpRequest? Retention
+    {
+        get => _retention;
+        init => _retention = value ?? throw new JsonException("A setting cannot be null.");
     }
 
     public long ExpectedRevision { get; init; }

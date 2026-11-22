@@ -61,8 +61,9 @@ internal sealed class SignInCodeIssuer(
 
             // Se encola antes del commit para que la fila se confirme ya marcada como enviada. Encolar no espera al
             // SMTP, así que no alarga el lock del destino. Si la cola está llena, el código se guarda como no enviado.
-            if (emailQueue.TryEnqueue(
-                templateRenderer.RenderLoginCode(email.Value, issued.Value.Code, issued.Value.LifetimeMinutes, culture) with { ExpiresAtUtc = issued.Value.SendBeforeUtc }))
+            var message = await templateRenderer.RenderLoginCodeAsync(email.Value, issued.Value.Code, issued.Value.LifetimeMinutes, culture,
+                cancellationToken);
+            if (emailQueue.TryEnqueue(message with { ExpiresAtUtc = issued.Value.SendBeforeUtc }))
             {
                 issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
             }

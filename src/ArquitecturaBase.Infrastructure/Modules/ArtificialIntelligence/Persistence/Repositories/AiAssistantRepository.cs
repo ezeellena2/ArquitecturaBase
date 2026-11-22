@@ -103,8 +103,8 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     // I20: one condition with every reason read the whole history. Each reason is its own query over the turns that still have content (a
     // filtered index), with the batch's order and limit; the repository joins their Ids and the final query sorts them and cuts the limit:
     // the same turns as the one condition.
-    public async Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, AiAssistantHomeRetention? home,
+        int limit, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(unnamed);
         var naming = dbContext.Set<AiAssistantTurn>();
@@ -122,6 +122,12 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
                 named.AttachmentKey == unnamed.DocumentKeyPrefix + turn.RequestId.ToString().Replace("-", "") + extension
                 && named.OwnerUserId == turn.OwnerUserId && named.Conversation.State == AiConversationState.Active))),
         ];
+        // RC1-A: Home content saved before the administrator shortened its days, by the same filtered index.
+        if (home is not null)
+        {
+            var homeChannels = home.ChannelIds.ToArray();
+            reasons = [.. reasons, content.Where(turn => homeChannels.Contains(turn.ChannelId) && turn.SubmittedAtUtc <= home.SubmittedBeforeUtc)];
+        }
         var ids = new HashSet<Guid>();
         foreach (var reason in reasons)
             ids.UnionWith(await reason.OrderBy(turn => turn.ContentExpiresAtUtc).ThenBy(turn => turn.Id).Take(limit).Select(turn => turn.Id)
@@ -131,9 +137,25 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .OrderBy(turn => turn.ContentExpiresAtUtc).ThenBy(turn => turn.Id).Take(limit).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
-        await dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.ExpiresAtUtc <= nowUtc)
-            .OrderBy(receipt => receipt.ExpiresAtUtc).ThenBy(receipt => receipt.Id).Take(limit).ToListAsync(cancellationToken);
+    // RC1-A: with the Home days shortened, a Home receipt accepted before the cut goes with its content, so its conversation is removed too;
+    // like the purge, each reason is its own query and the final one sorts their Ids and cuts the limit. I1: a receipt of the business day
+    // in course counts in its quotas, so none accepted since it started goes, even past one day of retention on a 25-hour day.
+    public async Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, DateTime businessDayStartUtc,
+        AiAssistantHomeRetention? home, int limit, CancellationToken cancellationToken)
+    {
+        var receipts = dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.AcceptedAtUtc < businessDayStartUtc);
+        var expired = receipts.Where(receipt => receipt.ExpiresAtUtc <= nowUtc);
+        if (home is null)
+            return await expired.OrderBy(receipt => receipt.ExpiresAtUtc).ThenBy(receipt => receipt.Id).Take(limit).ToListAsync(cancellationToken);
+        var homeChannels = home.ChannelIds.ToArray();
+        var ids = new HashSet<Guid>();
+        foreach (var reason in new[] { expired, receipts.Where(receipt => homeChannels.Contains(receipt.ChannelId!) && receipt.AcceptedAtUtc <= home.SubmittedBeforeUtc) })
+            ids.UnionWith(await reason.OrderBy(receipt => receipt.ExpiresAtUtc).ThenBy(receipt => receipt.Id).Take(limit).Select(receipt => receipt.Id)
+                .ToArrayAsync(cancellationToken));
+        if (ids.Count == 0) return [];
+        return await receipts.Where(receipt => ids.Contains(receipt.Id)).OrderBy(receipt => receipt.ExpiresAtUtc).ThenBy(receipt => receipt.Id).Take(limit)
+            .ToListAsync(cancellationToken);
+    }
     // I3: IgnoreQueryFilters, which the deleted account needs, applies to the whole query, so the state leaves out the retired ones.
     public async Task<IReadOnlyList<AiConversation>> ListDeletedOwnerConversationsAsync(int limit, CancellationToken cancellationToken) =>
         await dbContext.Set<AiConversation>().Where(conversation => conversation.State == AiConversationState.Active
@@ -141,11 +163,12 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .OrderBy(conversation => conversation.Id).Take(limit).ToListAsync(cancellationToken);
     // I20: the removed ones by their filtered index, in its order, and the active ones apart; the repository joins their Ids and the final
     // query sorts them in the same order and cuts the limit.
-    public async Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, AiAssistantHomeRetention? home, int limit,
+        CancellationToken cancellationToken)
     {
         var ids = new HashSet<Guid>();
         foreach (var state in new[] { AiConversationState.Removed, AiConversationState.Active })
-            ids.UnionWith(await Removable(nowUtc).Where(conversation => conversation.State == state)
+            ids.UnionWith(await Removable(nowUtc, home).Where(conversation => conversation.State == state)
                 .OrderBy(conversation => conversation.RemovalRequestedAtUtc).ThenBy(conversation => conversation.Id).Take(limit)
                 .Select(conversation => conversation.Id).ToArrayAsync(cancellationToken));
         if (ids.Count == 0) return [];
@@ -153,14 +176,25 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .OrderBy(conversation => conversation.RemovalRequestedAtUtc).ThenBy(conversation => conversation.Id).Take(limit).ToListAsync(cancellationToken);
     }
     // I3: Home goes like the other channels, even if nobody removed it; a removed Home conversation does not wait for its receipts. I20: the
-    // live receipts by conversation have their index; content that has not expired and active work are asked apart.
-    private IQueryable<AiConversation> Removable(DateTime nowUtc) =>
-        dbContext.Set<AiConversation>().IgnoreQueryFilters().Where(conversation =>
+    // live receipts by conversation have their index; content that has not expired and active work are asked apart. RC1-A: with the Home
+    // days shortened, a Home turn accepted before the cut no longer holds its conversation, even if its content went earlier (a removed
+    // conversation) with the expiry it was saved with.
+    private IQueryable<AiConversation> Removable(DateTime nowUtc, AiAssistantHomeRetention? home)
+    {
+        var turns = dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters();
+        var holding = turns.Where(turn => turn.ContentExpiresAtUtc > nowUtc);
+        if (home is not null)
+        {
+            var homeChannels = home.ChannelIds.ToArray();
+            holding = holding.Where(turn => !homeChannels.Contains(turn.ChannelId) || turn.SubmittedAtUtc > home.SubmittedBeforeUtc);
+        }
+        return dbContext.Set<AiConversation>().IgnoreQueryFilters().Where(conversation =>
             ((conversation.ChannelId == "home" && conversation.State == AiConversationState.Removed)
                 || !dbContext.Set<AiAssistantRequestReceipt>().Any(receipt => receipt.ConversationId == conversation.Id && receipt.ExpiresAtUtc > nowUtc))
-            && !dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Any(turn => turn.ConversationId == conversation.Id && turn.ContentExpiresAtUtc > nowUtc)
-            && !dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Any(turn => turn.ConversationId == conversation.Id
+            && !holding.Any(turn => turn.ConversationId == conversation.Id)
+            && !turns.Any(turn => turn.ConversationId == conversation.Id
                 && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running)));
+    }
     public async Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turnId, CancellationToken cancellationToken) =>
         await dbContext.Set<AiAssistantToolExecution>().Where(tool => tool.TurnId == turnId)
             .OrderBy(tool => tool.Ordinal).ToListAsync(cancellationToken);

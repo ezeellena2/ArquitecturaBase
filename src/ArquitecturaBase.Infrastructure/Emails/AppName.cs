@@ -1,10 +1,14 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
-using Microsoft.Extensions.Options;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 
 namespace ArquitecturaBase.Infrastructure.Emails;
 
-/// <summary>El nombre del sistema es el de los correos (<c>Email:AppName</c>): uno solo para todo lo que ve la persona.</summary>
-internal sealed class AppName(IOptions<EmailOptions> options) : IAppName
+/// <summary>
+/// El nombre del sistema es el de Configuración › Apariencia (RC6-B), el mismo de los correos: uno solo para todo lo que ve la
+/// persona, leído en cada uso con el caché de los ajustes.
+/// </summary>
+internal sealed class AppName(ISystemSettingsReader settings) : IAppName
 {
-    public string Value => options.Value.AppName;
+    public async Task<string> GetAsync(CancellationToken cancellationToken) =>
+        (await settings.FindBrandingAsync(cancellationToken)).AppName;
 }

@@ -225,6 +225,16 @@ public sealed class AiAssistantTurn : Entity, IAuditable
                 ProviderSteps > 0 ? AiAssistantErrors.ProviderUncertain.Code : AiAssistantErrors.Expired.Code, nowUtc);
     }
 
+    /// <summary>
+    /// RC1-A: the Home retention was shortened after the turn was saved, so its content goes at this cleanup and its expiry comes
+    /// forward to it: reads see it expired and its conversation stops waiting for the original date.
+    /// </summary>
+    public void ExpireContent(DateTime nowUtc)
+    {
+        if (ContentExpiresAtUtc > nowUtc) ContentExpiresAtUtc = nowUtc;
+        PurgeContent();
+    }
+
     public void PurgeContent()
     {
         ProtectedQuestion = null;

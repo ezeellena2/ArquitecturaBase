@@ -6,15 +6,8 @@ internal sealed class EmailOptions
 {
     public const string SectionName = "Email";
 
+    // RC6-B: the application name and the email logo are not here any more; they live in Configuración › Apariencia.
     public EmailDelivery Delivery { get; init; } = EmailDelivery.Smtp;
-
-    /// <summary>Nombre del producto en los emails. Provisorio hasta definir el definitivo (sección 11 del spec).</summary>
-    [Required]
-    public string AppName { get; init; } = "Acceso";
-
-    /// <summary>PNG con URL absoluta: Gmail no muestra SVG (sección 8). Sin logo, el encabezado muestra el nombre.</summary>
-    [Url]
-    public string? LogoUrl { get; init; }
 
     /// <summary>Carpeta de los .eml con <see cref="EmailDelivery.PickupDirectory"/>, relativa a la raíz de la Api.</summary>
     [Required]

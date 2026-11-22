@@ -189,7 +189,7 @@ dotnet user-secrets set "Email:Smtp:Password" "<contraseña de aplicación>" --p
 
 La contraseña es una **contraseña de aplicación** de Gmail (https://myaccount.google.com/apppasswords), no la contraseña de la cuenta ni el ClientSecret de OAuth: son tres cosas distintas. Con `Email:Delivery` en `Smtp`, sin la cuenta o sin la contraseña la Api **no arranca**, porque `SmtpOptions` se valida al iniciar.
 
-Gmail reescribe el remitente a la cuenta que autentica, así que los correos salen desde `Email:Smtp:UserName` aunque `FromName` diga otra cosa. El límite es de unos 500 envíos por día. Para volver a los `.eml`, sin internet o para no gastar la cuota, alcanza con poner `Email:Delivery` en `PickupDirectory`.
+Gmail reescribe la dirección del remitente a la cuenta que autentica, así que los correos salen desde `Email:Smtp:UserName` aunque `FromAddress` diga otra cosa; el nombre que se ve es el del remitente de Configuración › Apariencia. El límite es de unos 500 envíos por día. Para volver a los `.eml`, sin internet o para no gastar la cuota, alcanza con poner `Email:Delivery` en `PickupDirectory`.
 
 ## Caché compartido
 

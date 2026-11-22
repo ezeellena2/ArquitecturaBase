@@ -9,4 +9,6 @@ public sealed record SystemSettingsResponse(
     string DefaultTimeZoneId,
     int DefaultPageSize,
     long Revision,
-    SystemAppearanceResponse Appearance);
+    SystemAppearanceResponse Appearance,
+    SystemBrandingResponse Branding,
+    IdentityRetentionResponse Retention);

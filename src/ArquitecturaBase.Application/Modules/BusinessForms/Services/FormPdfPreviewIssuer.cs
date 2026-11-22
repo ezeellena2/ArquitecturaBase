@@ -27,7 +27,8 @@ internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName a
         var record = new FormRecordStoredRow(Guid.NewGuid(), recordId, 1, definition.Id, "DEMO", Guid.NewGuid(), 1, definition.NameJson,
             FormDraftPolicy.Serialize(schema), FormDraftPolicy.Serialize(values), Files: photos);
         var response = new FormResponseStoredRow(record, timeProvider.GetUtcNow().UtcDateTime, new(Guid.NewGuid(), actorName));
-        var snapshot = new FormPdfActionSnapshotResponse(Guid.NewGuid(), null, 0, design, cultures, appName.Value, response.Actor, null);
+        var snapshot = new FormPdfActionSnapshotResponse(Guid.NewGuid(), null, 0, design, cultures, await appName.GetAsync(cancellationToken),
+            response.Actor, null);
         var bytes = await renderer.RenderAsync(new(snapshot, response), culture, true, cancellationToken);
         return new(new MemoryStream(bytes, false), "preview.pdf", culture);
     }

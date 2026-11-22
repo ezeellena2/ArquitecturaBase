@@ -1,4 +1,5 @@
 using System.Reflection;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Persistence.Repositories;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -17,7 +18,8 @@ public sealed class AiAssistantRetentionQueryTests
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
         var repository = new AiAssistantRepository(db, clock);
         var method = typeof(AiAssistantRepository).GetMethod("Removable", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var query = Assert.IsAssignableFrom<IQueryable<AiConversation>>(method.Invoke(repository, [clock.GetUtcNow().UtcDateTime]));
+        var now = clock.GetUtcNow().UtcDateTime;
+        var query = Assert.IsAssignableFrom<IQueryable<AiConversation>>(method.Invoke(repository, [now, null]));
         var sql = query.Take(10).ToQueryString();
         Assert.Contains("ChannelId", sql, StringComparison.Ordinal);
         Assert.Contains("home", sql, StringComparison.Ordinal);
@@ -26,5 +28,10 @@ public sealed class AiAssistantRetentionQueryTests
         Assert.Contains("ContentExpiresAtUtc", sql, StringComparison.Ordinal);
         Assert.Contains("Pending", sql, StringComparison.Ordinal);
         Assert.Contains("Running", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("SubmittedAtUtc", sql, StringComparison.Ordinal);
+        // RC1-A: with the Home days shortened, a Home turn accepted before the cut no longer holds its conversation.
+        var shortened = Assert.IsAssignableFrom<IQueryable<AiConversation>>(method.Invoke(repository,
+            [now, new AiAssistantHomeRetention(now.AddDays(-7), ["home", "home-audio", "home-document"])]));
+        Assert.Contains("SubmittedAtUtc", shortened.Take(10).ToQueryString(), StringComparison.Ordinal);
     }
 }

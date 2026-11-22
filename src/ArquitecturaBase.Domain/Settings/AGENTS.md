@@ -18,3 +18,5 @@ Define la entidad de ajustes del sistema, el modo de registro y sus errores. Es 
   Los colores iniciales Campo están en AppearancePalette; migrar defaults anteriores conserva grupos personalizados.
   Validar antes de mutar; normalizar a mayúsculas. La proyección pública expone la paleta
   para todo el SPA, con la invalidación de caché existente después del commit.
+- El nombre, el remitente y el logo de los correos (`SystemBranding`) y los plazos del ingreso (`IdentityRetentionPeriods`)
+  van como grupos completos en el mismo `Update`, con sus rangos en el valor; lo guardado antes lee los iniciales (RC6-B, RC1-A).

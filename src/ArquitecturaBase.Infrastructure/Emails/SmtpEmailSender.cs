@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
 using MailKit;
 using MailKit.Net.Smtp;
@@ -14,9 +15,9 @@ namespace ArquitecturaBase.Infrastructure.Emails;
 /// salió nada. Desde el primer comando del mensaje, sólo cuenta el plazo propio: una respuesta del servidor que lo rechaza dice
 /// que no lo tomó, también un 4xx después del punto final (RFC 5321): un 4xx se reintenta y un 5xx no. Un 5xx al remitente
 /// (MAIL FROM) es <see cref="EmailSendOutcome.SenderRejected"/>, que la salud cuenta. Cualquier otro corte deja el envío
-/// incierto, que no se repite.
+/// incierto, que no se repite. El nombre del remitente es el de Configuración › Apariencia, leído para cada correo (RC6-B).
 /// </summary>
-internal sealed class SmtpEmailSender(IOptions<SmtpOptions> options, TimeSpan deadline) : IEmailSender
+internal sealed class SmtpEmailSender(IOptions<SmtpOptions> options, ISystemSettingsReader settingsReader, TimeSpan deadline) : IEmailSender
 {
     /// <summary>
     /// N8: el plazo de todo el envío, desde que empieza a conectar. Con lo que el worker tarda en anotarlo y completarlo
@@ -28,14 +29,20 @@ internal sealed class SmtpEmailSender(IOptions<SmtpOptions> options, TimeSpan de
     internal static readonly TimeSpan DefaultDeadline = TimeSpan.FromSeconds(12);
 
     [ActivatorUtilitiesConstructor]
-    public SmtpEmailSender(IOptions<SmtpOptions> options) : this(options, DefaultDeadline)
+    public SmtpEmailSender(IOptions<SmtpOptions> options, ISystemSettingsReader settingsReader) : this(options, settingsReader, DefaultDeadline)
     {
     }
 
     public async Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        using var mime = MimeMessageFactory.Create(message, settings);
+        if (await EmailSenderName.FindAsync(settingsReader, cancellationToken) is not { } fromName)
+        {
+            // The settings could not be read: nothing went out, and it is tried again later.
+            return EmailSendResult.Failed(cancellationToken.IsCancellationRequested ? EmailSendOutcome.Stopped : EmailSendOutcome.ConnectionFailed);
+        }
+
+        using var mime = MimeMessageFactory.Create(message, fromName, settings.FromAddress);
         using var client = new SmtpClient { Timeout = (int)deadline.TotalMilliseconds };
         // El reloj del sistema, como los plazos de los clientes HTTP: no suma timers al reloj falso de los tests.
         using var ownDeadline = new CancellationTokenSource(deadline);

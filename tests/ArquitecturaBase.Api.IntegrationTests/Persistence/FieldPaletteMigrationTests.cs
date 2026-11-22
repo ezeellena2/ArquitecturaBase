@@ -54,7 +54,11 @@ public sealed class FieldPaletteMigrationTests(ApiFactory factory)
             Assert.Equal(!custom, migrated.ModifiedAtUtc.HasValue);
 
             await migrator.MigrateAsync(Before, Ct);
-            var restored = await dbContext.SystemSettings.AsNoTracking().SingleAsync(Ct);
+            // The schema before the palette lacks the columns added later (RC6-B and RC1-A): read only what this test checks.
+            var restored = await dbContext.SystemSettings.AsNoTracking().Select(settings => new
+            {
+                settings.PrimaryColor, settings.MenuColor, settings.HeaderColor, settings.AlternateRowColor, settings.Revision, settings.DefaultPageSize,
+            }).SingleAsync(Ct);
             Assert.Equal(custom ? primary : "#176B4C", restored.PrimaryColor);
             Assert.Equal("#194F3A", restored.MenuColor);
             Assert.Equal("#D0E5D5", restored.HeaderColor);

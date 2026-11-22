@@ -40,5 +40,8 @@ public sealed class SettingsController(ISystemSettingsService service) : Control
             request.ExpectedRevision, request.DefaultCulture, request.DefaultTimeZoneId,
             request.DefaultPageSize, request.RegistrationMode,
             request.Appearance is { } appearance ? new SystemAppearanceRequest(appearance.PrimaryColor,
-                appearance.MenuColor, appearance.HeaderColor, appearance.AlternateRowColor) : null), cancellationToken)).ToActionResult(this);
+                appearance.MenuColor, appearance.HeaderColor, appearance.AlternateRowColor) : null,
+            request.Branding is { } branding ? new SystemBrandingRequest(branding.AppName, branding.EmailSenderName, branding.EmailLogoUrl) : null,
+            request.Retention is { } retention ? new IdentityRetentionRequest(retention.LoginAuditMonths, retention.LoginCodeDays,
+                retention.InvitationDays) : null), cancellationToken)).ToActionResult(this);
 }

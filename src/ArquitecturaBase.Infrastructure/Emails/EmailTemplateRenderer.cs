@@ -3,17 +3,19 @@ using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
+using ArquitecturaBase.Application.Models.Settings;
 using ArquitecturaBase.Infrastructure.Emails.Resources;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Emails;
 
 /// <summary>
 /// Arma los emails con las plantillas embebidas: cada {{Marcador}} se reemplaza por un valor ya escapado.
-/// Un marcador sin valor es un error de programación y lanza.
+/// Un marcador sin valor es un error de programación y lanza. El nombre de la aplicación y el logo son los de Configuración ›
+/// Apariencia, leídos para cada correo (RC6-B).
 /// </summary>
-internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> options) : IEmailTemplateRenderer
+internal sealed partial class EmailTemplateRenderer(ISystemSettingsReader settings) : IEmailTemplateRenderer
 {
     private const string LayoutTemplate = "_Layout.html";
     private const string LoginCodeTemplate = "LoginCode.html";
@@ -21,26 +23,32 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
 
     private static readonly ConcurrentDictionary<string, string> Templates = new(StringComparer.Ordinal);
 
-    public EmailMessage RenderLoginCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
-        RenderCode("LoginCode", to, code, lifetimeMinutes, culture);
+    public async Task<EmailMessage> RenderLoginCodeAsync(string to, string code, int lifetimeMinutes, CultureInfo culture,
+        CancellationToken cancellationToken) =>
+        RenderCode(await settings.FindBrandingAsync(cancellationToken), "LoginCode", to, code, lifetimeMinutes, culture);
 
-    public EmailMessage RenderEmailVerificationCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
-        RenderCode("VerifyEmail", to, code, lifetimeMinutes, culture);
+    public async Task<EmailMessage> RenderEmailVerificationCodeAsync(string to, string code, int lifetimeMinutes, CultureInfo culture,
+        CancellationToken cancellationToken) =>
+        RenderCode(await settings.FindBrandingAsync(cancellationToken), "VerifyEmail", to, code, lifetimeMinutes, culture);
 
-    public EmailMessage RenderPhoneUnlinkCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
-        RenderCode("UnlinkPhone", to, code, lifetimeMinutes, culture);
+    public async Task<EmailMessage> RenderPhoneUnlinkCodeAsync(string to, string code, int lifetimeMinutes, CultureInfo culture,
+        CancellationToken cancellationToken) =>
+        RenderCode(await settings.FindBrandingAsync(cancellationToken), "UnlinkPhone", to, code, lifetimeMinutes, culture);
 
-    public EmailMessage RenderPhoneLinkCode(string to, string code, int lifetimeMinutes, CultureInfo culture) =>
-        RenderCode("LinkPhone", to, code, lifetimeMinutes, culture);
+    public async Task<EmailMessage> RenderPhoneLinkCodeAsync(string to, string code, int lifetimeMinutes, CultureInfo culture,
+        CancellationToken cancellationToken) =>
+        RenderCode(await settings.FindBrandingAsync(cancellationToken), "LinkPhone", to, code, lifetimeMinutes, culture);
 
     /// <summary>
     /// La invitación de un administrador (panel 3 del tablero de mensajes): el saludo con el nombre, si lo hay, un botón a
     /// /login y cómo se entra. No lleva código ni enlace para entrar: la persona entra con el código de siempre. El pie
     /// es el del tablero, que le dice qué hacer si no la esperaba, en lugar del aviso automático de los demás correos.
     /// </summary>
-    public EmailMessage RenderInvitation(string to, string? displayName, string loginUrl, CultureInfo culture)
+    public async Task<EmailMessage> RenderInvitationAsync(string to, string? displayName, string loginUrl, CultureInfo culture,
+        CancellationToken cancellationToken)
     {
-        var appName = options.Value.AppName;
+        var branding = await settings.FindBrandingAsync(cancellationToken);
+        var appName = branding.AppName;
         var title = EmailTexts.Get("Invitation.Title", culture);
         var greeting = string.IsNullOrWhiteSpace(displayName)
             ? EmailTexts.Format("Invitation.GreetingWithoutName", culture, appName)
@@ -62,7 +70,7 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
         {
             ["Lang"] = Encode(culture.TwoLetterISOLanguageName),
             ["Title"] = Encode(title),
-            ["Header"] = HeaderHtml(),
+            ["Header"] = HeaderHtml(branding),
             ["Content"] = content,
             ["Footer"] = Encode(footer),
         });
@@ -77,9 +85,10 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
     /// Los dos correos con un código comparten la plantilla y cambian los textos, que en Emails.resx llevan el prefijo
     /// <paramref name="textsPrefix"/>: Subject, Title, Intro y Expiry.
     /// </summary>
-    private EmailMessage RenderCode(string textsPrefix, string to, string code, int lifetimeMinutes, CultureInfo culture)
+    private static EmailMessage RenderCode(SystemBrandingResponse branding, string textsPrefix, string to, string code, int lifetimeMinutes,
+        CultureInfo culture)
     {
-        var appName = options.Value.AppName;
+        var appName = branding.AppName;
         var title = EmailTexts.Get(textsPrefix + ".Title", culture);
         var intro = EmailTexts.Format(textsPrefix + ".Intro", culture, appName);
         var expiry = EmailTexts.Format(textsPrefix + ".Expiry", culture, lifetimeMinutes);
@@ -97,7 +106,7 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
         {
             ["Lang"] = Encode(culture.TwoLetterISOLanguageName),
             ["Title"] = Encode(title),
-            ["Header"] = HeaderHtml(),
+            ["Header"] = HeaderHtml(branding),
             ["Content"] = content,
             ["Footer"] = Encode(footer),
         });
@@ -108,14 +117,11 @@ internal sealed partial class EmailTemplateRenderer(IOptions<EmailOptions> optio
         return new EmailMessage(to, EmailTexts.Format(textsPrefix + ".Subject", culture, code, appName), html, text);
     }
 
-    private string HeaderHtml()
-    {
-        var settings = options.Value;
-
-        return string.IsNullOrWhiteSpace(settings.LogoUrl)
-            ? Encode(settings.AppName)
-            : $"<img src=\"{Encode(settings.LogoUrl)}\" alt=\"{Encode(settings.AppName)}\" height=\"32\" style=\"display:block;border:0;height:32px;\">";
-    }
+    // Sin logo, el encabezado lleva el nombre: Gmail no muestra SVG y un logo se pide con https (SystemBranding).
+    private static string HeaderHtml(SystemBrandingResponse branding) =>
+        string.IsNullOrWhiteSpace(branding.EmailLogoUrl)
+            ? Encode(branding.AppName)
+            : $"<img src=\"{Encode(branding.EmailLogoUrl)}\" alt=\"{Encode(branding.AppName)}\" height=\"32\" style=\"display:block;border:0;height:32px;\">";
 
     private static string Fill(string templateName, Dictionary<string, string> values) =>
         PlaceholderPattern().Replace(Load(templateName), match =>

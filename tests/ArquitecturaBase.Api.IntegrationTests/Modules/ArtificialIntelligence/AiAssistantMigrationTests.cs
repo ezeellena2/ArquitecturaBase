@@ -48,7 +48,8 @@ public sealed class AiAssistantMigrationTests(ApiFactory factory)
 
         async Task AssertPreviousFactsAsync()
         {
-            var connection = await db.Set<AiConnection>().AsNoTracking().SingleAsync(Ct);
+            // Only what the connection had then: a column added later (RC1-A's days) does not exist in the previous schema.
+            var connection = await db.Set<AiConnection>().AsNoTracking().Select(row => new { row.Id, row.ProtectedApiKey, row.Revision }).SingleAsync(Ct);
             Assert.Equal(connectionId, connection.Id);
             Assert.Equal("previous-envelope", connection.ProtectedApiKey);
             Assert.Equal(7, connection.Revision);

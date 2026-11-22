@@ -75,12 +75,12 @@ public sealed class WhatsAppInvitationChannelTests
     }
 
     [Fact]
-    public void It_queues_the_template_with_the_button_to_enter_in_the_culture_of_the_account()
+    public async Task It_queues_the_template_with_the_button_to_enter_in_the_culture_of_the_account()
     {
         var user = Account();
         var invitation = Invitation(user);
 
-        Channel(whatsApp: true).Enqueue(user, invitation, "en");
+        await Channel(whatsApp: true).EnqueueAsync(user, invitation, "en", TestContext.Current.CancellationToken);
 
         var message = Assert.IsType<WhatsAppInvitationMessage>(Assert.Single(_queue.Messages));
         Assert.Equal("+5493515550101", message.To.Value);
@@ -95,13 +95,13 @@ public sealed class WhatsAppInvitationChannelTests
     }
 
     [Fact]
-    public void A_full_queue_marks_the_invitation_as_not_sent_and_logs_it_without_personal_data()
+    public async Task A_full_queue_marks_the_invitation_as_not_sent_and_logs_it_without_personal_data()
     {
         _queue.Accepts = false;
         var user = Account();
         var invitation = Invitation(user);
 
-        Channel(whatsApp: true).Enqueue(user, invitation, "es");
+        await Channel(whatsApp: true).EnqueueAsync(user, invitation, "es", TestContext.Current.CancellationToken);
 
         Assert.True(invitation.SendFailed);
         Assert.Empty(_queue.Messages);

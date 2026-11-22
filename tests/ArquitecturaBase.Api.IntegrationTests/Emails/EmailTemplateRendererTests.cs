@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Globalization;
 using System.Net;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Emails.Resources;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Emails;
 
@@ -13,9 +13,9 @@ public sealed class EmailTemplateRendererTests
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en");
 
     [Fact]
-    public void Spanish_email_starts_the_subject_with_the_code()
+    public async Task Spanish_email_starts_the_subject_with_the_code()
     {
-        var message = Renderer().RenderLoginCode("ana@example.com", "482913", 10, Spanish);
+        var message = await Renderer().RenderLoginCodeAsync("ana@example.com", "482913", 10, Spanish, Ct);
 
         Assert.Equal("ana@example.com", message.To);
         Assert.Equal("482913 es tu código de acceso a Arquitectura Base", message.Subject);
@@ -26,9 +26,9 @@ public sealed class EmailTemplateRendererTests
     }
 
     [Fact]
-    public void English_email_uses_the_english_texts()
+    public async Task English_email_uses_the_english_texts()
     {
-        var message = Renderer().RenderLoginCode("ana@example.com", "482913", 10, English);
+        var message = await Renderer().RenderLoginCodeAsync("ana@example.com", "482913", 10, English, Ct);
 
         Assert.Equal("482913 is your Arquitectura Base access code", message.Subject);
         Assert.Contains("It expires in 10 minutes.", message.HtmlBody, StringComparison.Ordinal);
@@ -36,10 +36,10 @@ public sealed class EmailTemplateRendererTests
     }
 
     [Fact]
-    public void The_email_to_add_an_address_says_what_it_is_for_and_starts_the_subject_with_the_code()
+    public async Task The_email_to_add_an_address_says_what_it_is_for_and_starts_the_subject_with_the_code()
     {
-        var spanish = Renderer().RenderEmailVerificationCode("ana@example.com", "482913", 10, Spanish);
-        var english = Renderer().RenderEmailVerificationCode("ana@example.com", "482913", 10, English);
+        var spanish = await Renderer().RenderEmailVerificationCodeAsync("ana@example.com", "482913", 10, Spanish, Ct);
+        var english = await Renderer().RenderEmailVerificationCodeAsync("ana@example.com", "482913", 10, English, Ct);
 
         Assert.Equal("ana@example.com", spanish.To);
         Assert.Equal("482913 es tu código para agregar este correo a Arquitectura Base", spanish.Subject);
@@ -56,9 +56,9 @@ public sealed class EmailTemplateRendererTests
 
     /// <summary>Los textos del panel 3 del tablero de mensajes, texto por texto. No lleva código ni enlace para entrar.</summary>
     [Fact]
-    public void The_invitation_greets_by_the_name_and_takes_to_the_login()
+    public async Task The_invitation_greets_by_the_name_and_takes_to_the_login()
     {
-        var message = Renderer().RenderInvitation("laura.rios@example.com", "Laura", "https://app.test/login", Spanish);
+        var message = await Renderer().RenderInvitationAsync("laura.rios@example.com", "Laura", "https://app.test/login", Spanish, Ct);
 
         // Los acentos van como entidades en el HTML: los textos se comparan con el HTML ya leído.
         var html = WebUtility.HtmlDecode(message.HtmlBody);
@@ -88,10 +88,10 @@ public sealed class EmailTemplateRendererTests
     }
 
     [Fact]
-    public void The_invitation_without_a_name_greets_without_one_and_goes_in_english_too()
+    public async Task The_invitation_without_a_name_greets_without_one_and_goes_in_english_too()
     {
-        var spanish = Renderer().RenderInvitation("ana@example.com", displayName: null, "https://app.test/login", Spanish);
-        var english = Renderer().RenderInvitation("ana@example.com", "Laura", "https://app.test/login", English);
+        var spanish = await Renderer().RenderInvitationAsync("ana@example.com", displayName: null, "https://app.test/login", Spanish, Ct);
+        var english = await Renderer().RenderInvitationAsync("ana@example.com", "Laura", "https://app.test/login", English, Ct);
 
         Assert.Contains("Hola. Un administrador te dio acceso a Arquitectura Base.", spanish.TextBody, StringComparison.Ordinal);
         Assert.Equal("You've been given access to Arquitectura Base", english.Subject);
@@ -106,9 +106,9 @@ public sealed class EmailTemplateRendererTests
     }
 
     [Fact]
-    public void The_name_in_the_invitation_is_html_encoded()
+    public async Task The_name_in_the_invitation_is_html_encoded()
     {
-        var message = Renderer().RenderInvitation("ana@example.com", "<b>Ana</b>", "https://app.test/login?a=1&b=2", Spanish);
+        var message = await Renderer().RenderInvitationAsync("ana@example.com", "<b>Ana</b>", "https://app.test/login?a=1&b=2", Spanish, Ct);
 
         Assert.Contains("Hola, &lt;b&gt;Ana&lt;/b&gt;.", message.HtmlBody, StringComparison.Ordinal);
         Assert.Contains("href=\"https://app.test/login?a=1&amp;b=2\"", message.HtmlBody, StringComparison.Ordinal);
@@ -116,22 +116,38 @@ public sealed class EmailTemplateRendererTests
     }
 
     [Fact]
-    public void Values_are_html_encoded()
+    public async Task Values_are_html_encoded()
     {
-        var message = Renderer(appName: "A&B <Test>").RenderLoginCode("ana@example.com", "482913", 10, English);
+        var message = await Renderer(appName: "A&B <Test>").RenderLoginCodeAsync("ana@example.com", "482913", 10, English, Ct);
 
         Assert.Contains("A&amp;B &lt;Test&gt;", message.HtmlBody, StringComparison.Ordinal);
         Assert.DoesNotContain("<Test>", message.HtmlBody, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Logo_is_shown_only_when_configured()
+    public async Task Logo_is_shown_only_when_configured()
     {
-        var withLogo = Renderer(logoUrl: "https://cdn.example.com/logo.png").RenderLoginCode("ana@example.com", "482913", 10, English);
-        var withoutLogo = Renderer().RenderLoginCode("ana@example.com", "482913", 10, English);
+        var withLogo = await Renderer(logoUrl: "https://cdn.example.com/logo.png").RenderLoginCodeAsync("ana@example.com", "482913", 10, English, Ct);
+        var withoutLogo = await Renderer().RenderLoginCodeAsync("ana@example.com", "482913", 10, English, Ct);
 
         Assert.Contains("<img src=\"https://cdn.example.com/logo.png\"", withLogo.HtmlBody, StringComparison.Ordinal);
         Assert.DoesNotContain("<img", withoutLogo.HtmlBody, StringComparison.Ordinal);
+    }
+
+    // RC6-B: the name and the logo come from Configuración › Apariencia and are read for each email, so a change counts for the next one.
+    [Fact]
+    public async Task The_name_and_the_logo_saved_in_appearance_are_read_for_each_email()
+    {
+        var settings = FixedBrandingReader.Of("Campo", "Campo Avisos", "https://cdn.example.com/campo.png");
+        var renderer = new EmailTemplateRenderer(settings);
+
+        var code = await renderer.RenderLoginCodeAsync("ana@example.com", "482913", 10, Spanish, Ct);
+        var invitation = await renderer.RenderInvitationAsync("ana@example.com", "Ana", "https://app.test/login", Spanish, Ct);
+
+        Assert.Equal("482913 es tu código de acceso a Campo", code.Subject);
+        Assert.Contains("<img src=\"https://cdn.example.com/campo.png\" alt=\"Campo\"", code.HtmlBody, StringComparison.Ordinal);
+        Assert.Equal("Te dieron acceso a Campo", invitation.Subject);
+        Assert.Equal(2, settings.Reads);
     }
 
     [Fact]
@@ -140,8 +156,10 @@ public sealed class EmailTemplateRendererTests
         Assert.Equal(Keys(CultureInfo.InvariantCulture), Keys(English));
     }
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     private static EmailTemplateRenderer Renderer(string appName = "Arquitectura Base", string? logoUrl = null) =>
-        new(Options.Create(new EmailOptions { AppName = appName, LogoUrl = logoUrl }));
+        new(FixedBrandingReader.Of(appName, logoUrl: logoUrl));
 
     private static string[] Keys(CultureInfo culture) =>
         EmailTexts.ResourceManager.GetResourceSet(culture, createIfNotExists: true, tryParents: false)!

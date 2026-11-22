@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Infrastructure.Emails;
 using MailKit.Security;
@@ -15,14 +17,16 @@ namespace ArquitecturaBase.Api.IntegrationTests.Emails;
 
 public sealed class EmailDeliveryTests
 {
-    private static readonly SmtpOptions Sender = new() { FromName = "Arquitectura Base", FromAddress = "no-reply@example.com" };
+    // RC6-B: the address stays in the installation; the sender's name comes from Configuración › Apariencia.
+    private static readonly SmtpOptions Sender = new() { FromAddress = "no-reply@example.com" };
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
     public void Message_has_the_sender_the_recipient_and_both_bodies()
     {
-        using var mime = MimeMessageFactory.Create(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Sender);
+        using var mime = MimeMessageFactory.Create(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), "Arquitectura Base",
+            Sender.FromAddress);
 
         var from = Assert.IsType<MailboxAddress>(Assert.Single(mime.From));
         Assert.Equal("no-reply@example.com", from.Address);
@@ -41,7 +45,7 @@ public sealed class EmailDeliveryTests
         using var mime = MimeMessageFactory.Create(new EmailMessage("ana@example.com", "Factura C 0004-00000012", "<p>Hola</p>", "Hola")
         {
             Attachments = [new EmailAttachment("Factura C 0004-00000012.pdf", "application/pdf", pdf)],
-        }, Sender);
+        }, "Arquitectura Base", Sender.FromAddress);
 
         var attachment = Assert.IsType<MimePart>(Assert.Single(mime.Attachments));
         Assert.Equal(("Factura C 0004-00000012.pdf", "application/pdf"), (attachment.FileName, attachment.ContentType.MimeType));
@@ -61,6 +65,7 @@ public sealed class EmailDeliveryTests
             var sender = new PickupDirectoryEmailSender(
                 Options.Create(new EmailOptions { PickupDirectory = directory }),
                 Options.Create(Sender),
+                FixedBrandingReader.Of(senderName: "Campo Avisos"),
                 new TestHostEnvironment(),
                 TimeProvider.System,
                 NullLogger<PickupDirectoryEmailSender>.Instance);
@@ -70,6 +75,8 @@ public sealed class EmailDeliveryTests
             var file = Assert.Single(Directory.GetFiles(directory, "*.eml"));
             using var saved = await MimeMessage.LoadAsync(file, Ct);
             Assert.Equal("123456 es tu código", saved.Subject);
+            var from = Assert.IsType<MailboxAddress>(Assert.Single(saved.From));
+            Assert.Equal(("Campo Avisos", "no-reply@example.com"), (from.Name, from.Address));
             Assert.Equal((EmailSendOutcome.Sent, saved.MessageId), (result.Outcome, result.MessageId));
 
             // N8: with the host stopping before it starts, nothing is written and the email goes back to the queue.
@@ -82,6 +89,24 @@ public sealed class EmailDeliveryTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    // RC6-B: without the settings there is no sender's name; nothing goes out and the queue tries again later.
+    [Fact]
+    public async Task Without_the_settings_nothing_is_sent_and_the_email_is_retried()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "arquitecturabase-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
+        var pickup = new PickupDirectoryEmailSender(Options.Create(new EmailOptions { PickupDirectory = directory }), Options.Create(Sender),
+            FixedBrandingReader.Unavailable, new TestHostEnvironment(), TimeProvider.System, NullLogger<PickupDirectoryEmailSender>.Instance);
+        var smtp = new SmtpEmailSender(Options.Create(Smtp(port: 1)), FixedBrandingReader.Unavailable, TimeSpan.FromSeconds(1));
+        var message = new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola");
+
+        var saved = await pickup.SendAsync(message, Ct);
+        var sent = await smtp.SendAsync(message, Ct);
+
+        Assert.Equal((EmailSendOutcome.ConnectionFailed, true), (saved.Outcome, saved.IsRetryable));
+        Assert.Equal((EmailSendOutcome.ConnectionFailed, true), (sent.Outcome, sent.IsRetryable));
+        Assert.False(Directory.Exists(directory));
     }
 
     [Fact]
@@ -97,10 +122,9 @@ public sealed class EmailDeliveryTests
             Security = SecureSocketOptions.None,
             UserName = "user",
             Password = "password",
-            FromName = Sender.FromName,
             FromAddress = Sender.FromAddress,
         };
-        var sender = new SmtpEmailSender(Options.Create(options), TimeSpan.FromSeconds(1));
+        var sender = new SmtpEmailSender(Options.Create(options), FixedBrandingReader.Of(), TimeSpan.FromSeconds(1));
 
         var sending = sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
         var finished = await Task.WhenAny(sending, Task.Delay(TimeSpan.FromSeconds(15), Ct));
@@ -118,7 +142,7 @@ public sealed class EmailDeliveryTests
         using var server = new TcpListener(IPAddress.Loopback, 0);
         server.Start();
         var accepted = server.AcceptTcpClientAsync(Ct).AsTask();
-        var sender = new SmtpEmailSender(Options.Create(Smtp(((IPEndPoint)server.LocalEndpoint).Port)), TimeSpan.FromSeconds(30));
+        var sender = new SmtpEmailSender(Options.Create(Smtp(((IPEndPoint)server.LocalEndpoint).Port)), FixedBrandingReader.Of(), TimeSpan.FromSeconds(30));
         using var stopping = new CancellationTokenSource();
 
         var sending = sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), stopping.Token);
@@ -139,7 +163,7 @@ public sealed class EmailDeliveryTests
         string greeting, string auth, string recipient, EmailSendOutcome expected, int? statusCode)
     {
         await using var server = new ScriptedSmtpServer(greeting, auth, recipient);
-        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), FixedBrandingReader.Of(), TimeSpan.FromSeconds(10));
 
         var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
 
@@ -158,7 +182,7 @@ public sealed class EmailDeliveryTests
         string answer, EmailSendOutcome expected, int? statusCode, bool retried)
     {
         await using var server = new ScriptedSmtpServer(sender: answer);
-        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), FixedBrandingReader.Of(), TimeSpan.FromSeconds(10));
 
         var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
 
@@ -171,7 +195,7 @@ public sealed class EmailDeliveryTests
     public async Task Smtp_sender_retries_a_4xx_after_the_body()
     {
         await using var server = new ScriptedSmtpServer(afterBody: "451 4.3.0 Try again later");
-        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), FixedBrandingReader.Of(), TimeSpan.FromSeconds(10));
 
         var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
 
@@ -183,7 +207,7 @@ public sealed class EmailDeliveryTests
     public async Task Smtp_sender_takes_a_cut_after_the_body_as_uncertain()
     {
         await using var server = new ScriptedSmtpServer(afterBody: null);
-        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), FixedBrandingReader.Of(), TimeSpan.FromSeconds(10));
 
         var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
 
@@ -196,7 +220,7 @@ public sealed class EmailDeliveryTests
     public async Task Smtp_sender_returns_the_message_id_the_server_accepted()
     {
         await using var server = new ScriptedSmtpServer();
-        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), TimeSpan.FromSeconds(10));
+        var sender = new SmtpEmailSender(Options.Create(Smtp(server.Port)), FixedBrandingReader.Of(), TimeSpan.FromSeconds(10));
 
         var result = await sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
 
@@ -211,14 +235,14 @@ public sealed class EmailDeliveryTests
         Security = SecureSocketOptions.None,
         UserName = "user",
         Password = "password",
-        FromName = Sender.FromName,
         FromAddress = Sender.FromAddress,
     };
 
     [Fact]
     public void Registration_builds_the_smtp_sender_with_its_own_timeout()
     {
-        using var provider = new ServiceCollection().AddSingleton(Options.Create(Sender)).BuildServiceProvider();
+        using var provider = new ServiceCollection().AddSingleton(Options.Create(Sender))
+            .AddSingleton<ISystemSettingsReader>(FixedBrandingReader.Of()).BuildServiceProvider();
 
         Assert.IsType<SmtpEmailSender>(ActivatorUtilities.CreateInstance<SmtpEmailSender>(provider));
     }

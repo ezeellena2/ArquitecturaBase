@@ -1,21 +1,25 @@
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Persistence.Readers;
-internal sealed class AiConnectionReader(ApplicationDbContext dbContext, TimeProvider timeProvider) : IAiConnectionReader
+internal sealed class AiConnectionReader(ApplicationDbContext dbContext, TimeProvider timeProvider, AiAssistantLimits limits) : IAiConnectionReader
 {
     // I4: a provider this version does not know reads paused, so nothing offers, accepts or runs a turn with it.
     public async Task<AiConnectionRow> FindAsync(CancellationToken cancellationToken) =>
-        await dbContext.Set<AiConnection>().AsNoTracking().Select(x => new AiConnectionRow(x.Provider, x.Model, x.ProtectedApiKey, x.Enabled, x.Revision))
+        await dbContext.Set<AiConnection>().AsNoTracking()
+            .Select(x => new AiConnectionRow(x.Provider, x.Model, x.ProtectedApiKey, x.Enabled, x.Revision, x.ConversationRetentionDays))
             .SingleOrDefaultAsync(cancellationToken) is { } row ? AiProviders.IsSupported(row.Provider) ? row : row with { Enabled = false }
             : new AiConnectionRow(AiProvider.OpenAI, "", null, false, 0);
     public Task<AiConnectionChangeResponse?> FindChangeAsync(Guid operatorId, Guid requestId, CancellationToken cancellationToken)
     {
         var cutoff = timeProvider.GetUtcNow().UtcDateTime.AddDays(-30);
+        var ceiling = limits.RetentionDays;
         return dbContext.Set<AiConnectionChange>().AsNoTracking().Where(x => x.OperatorId == operatorId && x.RequestId == requestId && x.CreatedAtUtc >= cutoff)
-            .Select(x => new AiConnectionChangeResponse(x.RequestId, AiConnectionResponse.Of(x.Provider, x.Model, x.HasCredential, x.Enabled, x.Revision)))
+            .Select(x => new AiConnectionChangeResponse(x.RequestId, AiConnectionResponse.Of(x.Provider, x.Model, x.HasCredential, x.Enabled, x.Revision,
+                x.ConversationRetentionDays, ceiling)))
             .SingleOrDefaultAsync(cancellationToken);
     }
 }

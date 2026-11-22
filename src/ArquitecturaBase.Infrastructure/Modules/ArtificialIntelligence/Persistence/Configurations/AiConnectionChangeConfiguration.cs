@@ -14,5 +14,6 @@ internal sealed class AiConnectionChangeConfiguration : IEntityTypeConfiguration
         builder.Property(x => x.Model).HasMaxLength(150);
         builder.Property(x => x.Fingerprint).HasMaxLength(44);
         builder.Property(x => x.KeyId).HasMaxLength(32);
+        builder.Property(x => x.ConversationRetentionDays).HasDefaultValue(AiConnection.InitialConversationRetentionDays);
     }
 }

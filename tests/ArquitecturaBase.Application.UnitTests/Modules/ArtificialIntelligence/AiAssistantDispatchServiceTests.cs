@@ -102,7 +102,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         var host = new Host();
         host.Store.Purgeable = true;
         var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock,
-            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts());
+            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts(), host.Store, new FakeSystemSettingsReader());
         var result = await retention.PurgeBatchAsync(Ct);
         Assert.True(result.IsSuccess);
         Assert.Equal(AiConversationState.Removed, host.Store.Conversation.State);
@@ -118,7 +118,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         var host = new Host();
         host.Store.DeletedOwners = true;
         var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock,
-            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts());
+            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts(), host.Store, new FakeSystemSettingsReader());
         var result = await retention.PurgeBatchAsync(Ct);
         Assert.True(result.IsSuccess);
         Assert.Equal(1, result.Value);
@@ -137,11 +137,29 @@ public sealed partial class AiAssistantDispatchServiceTests
         host.Store.Purgeable = true;
         host.Store.Removable = true;
         var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock,
-            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts());
+            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts(), host.Store, new FakeSystemSettingsReader());
         var result = await retention.PurgeBatchAsync(Ct);
         Assert.True(result.IsSuccess);
         Assert.True(host.Store.PhysicallyRemoved);
         Assert.Equal(1, host.Work.Commits);
+    }
+
+    // I1: a receipt of the business day in course counts in its quotas, so the cleanup keeps it until the day's midnight in the zone of
+    // the settings, even past one day of retention: the day the clocks go back lasts 25 hours.
+    [Fact]
+    public async Task The_cleanup_keeps_the_receipts_of_the_business_day_in_the_zone_of_the_settings()
+    {
+        var host = new Host();
+        // 23:30 of 25 October 2026 in Madrid, the day its clocks go back: it started at 00:00 CEST, 24.5 hours earlier.
+        host.Clock.SetUtcNow(new DateTimeOffset(2026, 10, 25, 22, 30, 0, TimeSpan.Zero));
+        var settings = new FakeSystemSettingsReader
+        {
+            Presentation = ArquitecturaBase.Application.Models.Settings.SystemPresentationResponse.Defaults with { DefaultTimeZoneId = "Europe/Madrid" },
+        };
+        var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock,
+            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts(), host.Store, settings);
+        Assert.True((await retention.PurgeBatchAsync(Ct)).IsSuccess);
+        Assert.Equal(new DateTime(2026, 10, 24, 22, 0, 0, DateTimeKind.Utc), host.Store.ReceiptsKeptFromUtc);
     }
 
     private sealed class Host
@@ -267,15 +285,22 @@ public sealed partial class AiAssistantDispatchServiceTests
         public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateTime fromUtc, DateTime toUtc, string? channelId, bool? isAudio, bool isDocument, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>([]);
-        public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, AiAssistantHomeRetention? home, int limit,
+            CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>(Purgeable ? [Turn] : []);
         public Task<IReadOnlyList<AiConversation>> ListDeletedOwnerConversationsAsync(int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiConversation>>(DeletedOwners && Conversation.State == AiConversationState.Active ? [Conversation] : []);
-        public Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, AiAssistantHomeRetention? home, int limit,
+            CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiConversation>>(Removable ? [Conversation] : []);
         public void RemoveConversation(AiConversation conversation) => PhysicallyRemoved = true;
-        public Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<AiAssistantRequestReceipt>>([]);
+        public DateTime? ReceiptsKeptFromUtc { get; private set; }
+        public Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, DateTime businessDayStartUtc,
+            AiAssistantHomeRetention? home, int limit, CancellationToken cancellationToken)
+        {
+            ReceiptsKeptFromUtc = businessDayStartUtc;
+            return Task.FromResult<IReadOnlyList<AiAssistantRequestReceipt>>([]);
+        }
         public Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turnId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantToolExecution>>(Tools);
         public void AddConversation(AiConversation conversation) => throw new NotSupportedException();

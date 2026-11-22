@@ -1,5 +1,6 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ namespace ArquitecturaBase.Infrastructure.Emails;
 internal sealed partial class PickupDirectoryEmailSender(
     IOptions<EmailOptions> emailOptions,
     IOptions<SmtpOptions> smtpOptions,
+    ISystemSettingsReader settingsReader,
     IHostEnvironment environment,
     TimeProvider timeProvider,
     ILogger<PickupDirectoryEmailSender> logger)
@@ -20,6 +22,10 @@ internal sealed partial class PickupDirectoryEmailSender(
     {
         // Como SMTP, el apagado corta sólo antes del cuerpo: un archivo empezado se termina de escribir.
         if (cancellationToken.IsCancellationRequested) return EmailSendResult.Failed(EmailSendOutcome.Stopped);
+        if (await EmailSenderName.FindAsync(settingsReader, cancellationToken) is not { } fromName)
+        {
+            return EmailSendResult.Failed(cancellationToken.IsCancellationRequested ? EmailSendOutcome.Stopped : EmailSendOutcome.ConnectionFailed);
+        }
 
         var directory = Path.Combine(environment.ContentRootPath, emailOptions.Value.PickupDirectory);
         Directory.CreateDirectory(directory);
@@ -29,7 +35,7 @@ internal sealed partial class PickupDirectoryEmailSender(
             $"{timeProvider.GetUtcNow():yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.eml");
         var path = Path.Combine(directory, fileName);
 
-        using var mime = MimeMessageFactory.Create(message, smtpOptions.Value);
+        using var mime = MimeMessageFactory.Create(message, fromName, smtpOptions.Value.FromAddress);
         await mime.WriteToAsync(path, CancellationToken.None);
 
         LogEmailSaved(logger, path);

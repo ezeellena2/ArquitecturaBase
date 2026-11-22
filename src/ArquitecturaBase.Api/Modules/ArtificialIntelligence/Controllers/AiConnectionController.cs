@@ -26,7 +26,7 @@ public sealed class AiConnectionController(IAiConnectionService service, IAiConn
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update([FromBody] UpdateAiConnectionHttpRequest request, CancellationToken cancellationToken) =>
         (await service.UpdateAsync(new(request.Provider, request.Model, request.CredentialChange, request.ApiKey,
-            request.Enabled, request.ExpectedRevision, request.RequestId), cancellationToken)).ToActionResult(this);
+            request.Enabled, request.ExpectedRevision, request.RequestId, request.ConversationRetentionDays), cancellationToken)).ToActionResult(this);
     [HttpGet("changes/{requestId:guid}")]
     [HasPermission(ArtificialIntelligencePermissions.Manage)]
     [ProducesResponseType<AiConnectionChangeResponse>(StatusCodes.Status200OK)]

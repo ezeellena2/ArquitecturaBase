@@ -52,12 +52,12 @@ public sealed class EmailInvitationChannelTests
     }
 
     [Fact]
-    public void It_queues_the_email_with_the_login_button_in_the_culture_of_the_account()
+    public async Task It_queues_the_email_with_the_login_button_in_the_culture_of_the_account()
     {
         var user = Account(culture: "en");
         var invitation = UserInvitation.ByEmail(user.Id, Guid.CreateVersion7(), Now);
 
-        Channel().Enqueue(user, invitation, "en");
+        await Channel().EnqueueAsync(user, invitation, "en", TestContext.Current.CancellationToken);
 
         var message = Assert.Single(_queue.Messages);
         Assert.Equal("ana@example.test", message.To);
@@ -70,13 +70,13 @@ public sealed class EmailInvitationChannelTests
     }
 
     [Fact]
-    public void A_full_queue_marks_the_invitation_as_not_sent_and_logs_it_without_personal_data()
+    public async Task A_full_queue_marks_the_invitation_as_not_sent_and_logs_it_without_personal_data()
     {
         _queue.Accepts = false;
         var user = Account(culture: "es");
         var invitation = UserInvitation.ByEmail(user.Id, Guid.CreateVersion7(), Now);
 
-        Channel().Enqueue(user, invitation, "es");
+        await Channel().EnqueueAsync(user, invitation, "es", TestContext.Current.CancellationToken);
 
         Assert.True(invitation.SendFailed);
         Assert.Empty(_queue.Messages);
@@ -87,13 +87,13 @@ public sealed class EmailInvitationChannelTests
     }
 
     [Fact]
-    public void Without_the_public_origin_it_cannot_build_the_login_button()
+    public async Task Without_the_public_origin_it_cannot_build_the_login_button()
     {
         var channel = new EmailInvitationChannel(_queue, _templates, new FakePublicOrigin(null), _logger);
         var user = Account(culture: "es");
 
-        Assert.Throws<InvalidOperationException>(() =>
-            channel.Enqueue(user, UserInvitation.ByEmail(user.Id, Guid.CreateVersion7(), Now), "es"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            channel.EnqueueAsync(user, UserInvitation.ByEmail(user.Id, Guid.CreateVersion7(), Now), "es", TestContext.Current.CancellationToken));
         Assert.Empty(_queue.Messages);
     }
 

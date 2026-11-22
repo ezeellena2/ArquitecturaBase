@@ -1,19 +1,22 @@
 using ArquitecturaBase.Application.Common.Logging;
+using ArquitecturaBase.Application.Common.Time;
 using Microsoft.Extensions.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantRetentionService(IAiAssistantRepository repository, IUnitOfWork unitOfWork,
     AiAssistantLimits limits, TimeProvider timeProvider, ILogger<AiAssistantRetentionService> logger,
-    IUserReader users) : IAiAssistantRetentionService
+    IUserReader users, IAiConnectionReader connections, ISystemSettingsReader settings) : IAiAssistantRetentionService
 {
     // I2: a Home recording or reading that no turn named lasts a day, like an orphan copy of the private storage.
     private const int UnnamedSourceHours = 24;
+
 
     // A poll (I10): it runs every second, so it does not go through OperationLog; the scheduler logs a failure in Warning.
     public Task<Result<int>> ReconcileExpiredBatchAsync(CancellationToken cancellationToken) =>
@@ -34,11 +37,15 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
         {
             await repository.LockBudgetAsync(ct);
             var now = timeProvider.GetUtcNow().UtcDateTime;
+            // RC1-A: the Home days, read on every run. Shortened below the ceiling, what Home saved before goes in this cleanup, with its
+            // receipts so its conversation goes too; at the ceiling, the expiry each one was saved with already says so.
+            var homeDays = (await connections.FindAsync(ct)).HomeRetentionDays(limits.RetentionDays);
+            AiAssistantHomeRetention? home = homeDays < limits.RetentionDays ? new(now.AddDays(-homeDays), AiAssistantChannelPolicy.HomeChannels) : null;
             var turns = await repository.ListPurgeableAsync(now, new(now.AddHours(-UnnamedSourceHours), AiAssistantChannelPolicy.HomeAudioChannelId,
                 AiAssistantChannelPolicy.HomeDocumentChannelId, AiAssistantHomeDocumentPolicy.Prefix, AiAssistantHomeDocumentPolicy.KeyExtensions),
-                limits.MaintenanceBatchSize, ct);
+                home, limits.MaintenanceBatchSize, ct);
             var retiring = await repository.ListDeletedOwnerConversationsAsync(limits.MaintenanceBatchSize - turns.Count, ct);
-            var conversations = await repository.ListRemovableConversationsAsync(now, limits.MaintenanceBatchSize - turns.Count - retiring.Count, ct);
+            var conversations = await repository.ListRemovableConversationsAsync(now, home, limits.MaintenanceBatchSize - turns.Count - retiring.Count, ct);
             foreach (var owner in turns.Select(t => t.OwnerUserId).Concat(retiring.Concat(conversations).Select(c => c.OwnerUserId)).Distinct().Order())
                 await repository.LockActorAsync(owner, ct);
             foreach (var conversation in turns.Select(t => t.ConversationId).Concat(retiring.Concat(conversations).Select(c => c.Id)).Distinct().Order())
@@ -57,11 +64,16 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
                     var conversation = await repository.GetConversationAsync(turn.OwnerUserId, turn.ConversationId, ct);
                     conversation?.Remove(now);
                 }
-                turn.PurgeContent();
+                // Past the Home days its expiry comes forward too, so reads see it expired and its conversation does not wait for it.
+                if (home is not null && AiAssistantChannelPolicy.IsHome(turn.ChannelId) && turn.SubmittedAtUtc <= home.SubmittedBeforeUtc) turn.ExpireContent(now);
+                else turn.PurgeContent();
                 foreach (var tool in await repository.ListToolsAsync(turn.Id, ct)) repository.RemoveTool(tool);
             }
             foreach (var conversation in conversations) repository.RemoveConversation(conversation);
-            var receipts = await repository.ListExpiredReceiptsAsync(now, limits.MaintenanceBatchSize - turns.Count - retiring.Count - conversations.Count, ct);
+            // I1: what the business day in course accepted counts in its quotas until its midnight, in the zone of the settings.
+            var today = BusinessDay.Of(now, BusinessDay.Zone((await settings.FindPresentationAsync(ct)).DefaultTimeZoneId));
+            var receipts = await repository.ListExpiredReceiptsAsync(now, today.StartUtc, home,
+                limits.MaintenanceBatchSize - turns.Count - retiring.Count - conversations.Count, ct);
             foreach (var receipt in receipts) repository.RemoveReceipt(receipt);
             return Result.Success(turns.Count + retiring.Count + conversations.Count + receipts.Count);
         }, CommitPolicy.OnSuccess, cancellationToken));

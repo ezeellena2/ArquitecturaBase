@@ -6,6 +6,8 @@ public static class AiConnectionErrors
 {
     public static readonly Error Invalid = Error.Validation("Ai.Connection.Invalid", "The connection is invalid.");
     public static readonly Error CredentialRequired = Error.Validation("Ai.Connection.CredentialRequired", "A credential is required.");
+    public static readonly Error RetentionInvalid = Error.Validation("Ai.Connection.RetentionInvalid",
+        "The days to keep Home conversations go from one to the installation's ceiling.");
     public static readonly Error ProviderChanged = Error.Validation("Ai.Connection.ProviderChanged", "Changing provider requires replacing or removing the credential.");
     public static readonly Error RevisionConflict = Error.Conflict("Ai.Connection.RevisionConflict", "The connection changed. Review its current revision.");
     public static readonly Error RequestConflict = Error.Conflict("Ai.Connection.RequestConflict", "The request identifier was used with a different payload.");

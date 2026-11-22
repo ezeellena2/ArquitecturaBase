@@ -282,6 +282,21 @@ public sealed partial class AiAssistantAttachmentTests
             request with { Attachment = request.Attachment! with { StorageKey = "fixture/attachments/otra.xlsx" } })).Error);
     }
 
+    // RC1-A: a Home turn keeps its content the days the administrator saved with the connection, never beyond the ceiling.
+    [Theory]
+    [InlineData(7, 7)]
+    [InlineData(45, 30)]
+    public async Task A_Home_turn_keeps_its_content_the_days_saved_with_the_connection(int saved, int expected)
+    {
+        var host = new Host();
+        host.Fixture.Store.Connection = host.Fixture.Store.Connection with { ConversationRetentionDays = saved };
+        var request = host.Home("¿Cuántos usuarios hay?");
+
+        Assert.True((await host.SubmitAsync(request)).IsSuccess);
+
+        Assert.Equal(host.Now.AddDays(expected), host.Turn(request.RequestId).ContentExpiresAtUtc);
+    }
+
     [Fact]
     public async Task A_Home_turn_inherits_its_conversations_copy_for_as_long_as_its_own_content_and_a_new_conversation_starts_without_one()
     {

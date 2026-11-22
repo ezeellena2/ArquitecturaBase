@@ -30,7 +30,7 @@ internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivate
             // Decision 4 (2026-11-14): the hours of the copy go in the zone of the account of whoever loaded the response, sealed here with its name.
             var zone = zones is null ? null : (await zones.FindAsync(record.Response.Actor.UserId, cancellationToken)).Id;
             return new FormPdfActionSnapshotResponse(runId, current?.Id, current?.Revision ?? 0, design,
-                cultures, appName.Value, record.Response.Actor, record.Decision, zone);
+                cultures, await appName.GetAsync(cancellationToken), record.Response.Actor, record.Decision, zone);
         });
 
     public Task<Result<FormPdfActionOutcomeResponse>> ExecuteAsync(Guid recordId, FormPdfActionSnapshotResponse snapshot,

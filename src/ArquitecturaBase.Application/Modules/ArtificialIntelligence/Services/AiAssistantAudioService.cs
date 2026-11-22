@@ -39,7 +39,7 @@ internal sealed class AiAssistantAudioService(IAssistantOperations operations, A
             if (await submissions.PrecheckAudioAsync(context, mediaType, request.Content.Length, cancellationToken) is { } refused)
                 return await RecoverAsync(context, request, mediaType, cancellationToken) ?? refused;
             var now = clock.GetUtcNow().UtcDateTime;
-            var expiresAtUtc = now.AddDays(limits.RetentionDays);
+            var expiresAtUtc = await submissions.HomeContentExpiresAtAsync(now, cancellationToken);
             var stored = await audio.StoreAsync(request.RequestId, request.Content, mediaType, expiresAtUtc, cancellationToken);
             if (stored.IsFailure) return stored.Error;
             var accepted = await operations.SubmitAsync(new AssistantOperationRequest(request.RequestId, context, "", now, expiresAtUtc)

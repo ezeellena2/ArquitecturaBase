@@ -3,32 +3,13 @@ using System.ComponentModel.DataAnnotations;
 namespace ArquitecturaBase.Application.Configuration.Auth;
 
 /// <summary>
-/// N16: cuánto se conservan los datos del ingreso, de la sección <c>IdentityRetention</c> (decisión del 2026-11-14,
-/// identidad.md). Los valores por defecto son los decididos y valen solos; se validan al arrancar.
+/// N16: cómo corre la retención de los datos del ingreso, de la sección <c>IdentityRetention</c> (identidad.md). Los plazos de
+/// los ingresos, los códigos y las invitaciones ya no están acá: los elige el administrador en Configuración general ›
+/// «Privacidad y retención» y la retención los lee de la base en cada corrida (RC1-A, 2026-11-22). Se valida al arrancar.
 /// </summary>
 public sealed class IdentityRetentionOptions
 {
     public const string SectionName = "IdentityRetention";
-
-    /// <summary>
-    /// A los cuántos días se borran los códigos y los enlaces de ingreso. Los límites que leen <c>LoginCodes</c> miran 24
-    /// horas como mucho, así que un día ya los cubre.
-    /// </summary>
-    [Range(1, 3650, ErrorMessage = "IdentityRetention:LoginCodeDays must be between {1} and {2}.")]
-    public int LoginCodeDays { get; init; } = 30;
-
-    /// <summary>A los cuántos meses un registro de ingreso queda sin la IP ni el navegador.</summary>
-    [Range(1, 120, ErrorMessage = "IdentityRetention:LoginAuditMonths must be between {1} and {2}.")]
-    public int LoginAuditMonths { get; init; } = 12;
-
-    /// <summary>
-    /// A los cuántos días se borra una invitación que ya no es la última de su cuenta. La última queda siempre: es la que
-    /// muestra «Editar usuario». Los topes de las invitaciones miran 24 horas.
-    /// </summary>
-    // Como mínimo 7: con menos, el plazo se acercaría al día que vive la entrega de una invitación
-    // (QueuedDelivery.DefaultLifetime), y se podría borrar una invitación cuya entrega todavía está en curso.
-    [Range(7, 3650, ErrorMessage = "IdentityRetention:InvitationDays must be between {1} and {2}.")]
-    public int InvitationDays { get; init; } = 30;
 
     /// <summary>Cuántos días después de vencer se podan las autorizaciones y los tokens de OpenIddict.</summary>
     [Range(1, 3650, ErrorMessage = "IdentityRetention:SessionDaysAfterExpiry must be between {1} and {2}.")]

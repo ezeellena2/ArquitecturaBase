@@ -17,4 +17,16 @@ public interface ISystemSettingsReader
     /// </summary>
     Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken);
     Task<SystemPresentationResponse> FindPresentationAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// RC6-B: el nombre de la aplicación, el del remitente y el logo de los correos, cacheados como la presentación: los lee
+    /// cada correo, cada invitación y cada PDF. Sin la fila de ajustes, los iniciales.
+    /// </summary>
+    Task<SystemBrandingResponse> FindBrandingAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// RC1-A: los plazos de los datos del ingreso, de la base y sin caché: la retención los lee en cada corrida. Sin la fila
+    /// de ajustes, los iniciales.
+    /// </summary>
+    Task<IdentityRetentionResponse> FindIdentityRetentionAsync(CancellationToken cancellationToken);
 }

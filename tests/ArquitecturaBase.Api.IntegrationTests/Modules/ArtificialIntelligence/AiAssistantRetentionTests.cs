@@ -1,5 +1,7 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -279,7 +281,8 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
                 var batch = limit;
                 var purgeable = await factory.ExecuteScopeAsync(async services => (await services.GetRequiredService<IAiAssistantRepository>()
                     .ListPurgeableAsync(nowUtc, new(nowUtc.AddDays(-1), "home-audio", "home-document", "ai/assistant/documents/",
-                        [".pdf", ".jpg", ".png"]), batch, Ct)).Select(turn => turn.Id).ToArray());
+                        [".pdf", ".jpg", ".png"]), null, batch, Ct))
+                    .Select(turn => turn.Id).ToArray());
                 Assert.Equal(expected[..limit], purgeable);
             }
         }
@@ -301,6 +304,139 @@ public sealed class AiAssistantRetentionTests(ApiFactory factory)
             null, false, null, "es", Ct)).Id);
 
     // The purge goes in batches shared with what earlier scenarios left: it runs until a batch finds nothing to do.
+    // RC1-A: the administrator shortened the Home days to 7. What Home saved before goes at the next cleanup, before its original date,
+    // with its receipt, so its conversation goes too. A recent Home conversation and a channel's content and receipt of the same age stay.
+    [Fact]
+    public async Task Shortening_the_home_days_purges_older_home_content_and_removes_its_conversation()
+    {
+        var nowUtc = factory.Clock.GetUtcNow().UtcDateTime;
+        var owner = await factory.InTransactionAsync(async services => (await services.GetRequiredService<IUserRepository>()
+            .CreateAsync(Email.Create(TestEmails.Unique("home-days")).Value, null, false, null, "es", Ct)).Id);
+        var old = AiConversation.Create(owner, nowUtc.AddDays(-10));
+        var oldTurn = AiAssistantTurn.Create(owner, old.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC", AiProvider.OpenAI,
+            "fictional-model", 1, nowUtc.AddDays(-10), nowUtc.AddDays(20));
+        var oldReceipt = AiAssistantRequestReceipt.Create(owner, oldTurn.RequestId, "fingerprint", "test", old.Id, oldTurn.Id,
+            nowUtc.AddDays(-10), nowUtc.AddDays(20), old.ChannelId, false);
+        var recent = AiConversation.Create(owner, nowUtc.AddDays(-2));
+        var recentTurn = AiAssistantTurn.Create(owner, recent.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC", AiProvider.OpenAI,
+            "fictional-model", 1, nowUtc.AddDays(-2), nowUtc.AddDays(28));
+        var channel = AiConversation.Create(owner, nowUtc.AddDays(-10), "channel-test");
+        var channelTurn = AiAssistantTurn.Create(owner, channel.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC", AiProvider.OpenAI,
+            "fictional-model", 1, nowUtc.AddDays(-10), nowUtc.AddDays(20), channel.ChannelId);
+        var channelReceipt = AiAssistantRequestReceipt.Create(owner, channelTurn.RequestId, "fingerprint", "test", channel.Id, channelTurn.Id,
+            nowUtc.AddDays(-10), nowUtc.AddDays(20), channel.ChannelId, false);
+        // Finished turns, as days-old ones are: active work would keep a conversation on its own.
+        foreach (var turn in new[] { oldTurn, recentTurn, channelTurn }) turn.RequestCancellation(turn.SubmittedAtUtc.AddMinutes(1));
+        await factory.InTransactionAsync(services =>
+        {
+            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>()
+                .AddRange(old, oldTurn, oldReceipt, recent, recentTurn, channel, channelTurn, channelReceipt);
+            return Task.CompletedTask;
+        });
+
+        for (var batch = 0; batch < 50; batch++)
+        {
+            var result = await factory.ExecuteScopeAsync(services => ActivatorUtilities.CreateInstance<AiAssistantRetentionService>(services,
+                new HomeRetentionConnection(7)).PurgeBatchAsync(Ct));
+            Assert.True(result.IsSuccess);
+            if (result.Value == 0) break;
+        }
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            Assert.False(await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == old.Id, Ct));
+            Assert.False(await db.Set<AiAssistantTurn>().IgnoreQueryFilters().AnyAsync(row => row.Id == oldTurn.Id, Ct));
+            Assert.False(await db.Set<AiAssistantRequestReceipt>().AnyAsync(row => row.Id == oldReceipt.Id, Ct));
+            Assert.True(await db.Set<AiAssistantRequestReceipt>().AnyAsync(row => row.Id == channelReceipt.Id, Ct));
+            var kept = await db.Set<AiAssistantTurn>().IgnoreQueryFilters().Where(row => row.Id == recentTurn.Id || row.Id == channelTurn.Id)
+                .ToListAsync(Ct);
+            Assert.Equal(2, kept.Count);
+            Assert.All(kept, turn => Assert.Equal("protected-question", turn.ProtectedQuestion));
+        });
+    }
+
+    // RC1-A: shortened to 7 days, a removed Home conversation whose content went before, with the 30-day expiry it was saved with, goes
+    // once its turns were accepted before the cut; one accepted after the cut still waits.
+    [Fact]
+    public async Task Shortening_the_home_days_removes_a_removed_conversation_whose_content_went_before_the_cut()
+    {
+        var nowUtc = factory.Clock.GetUtcNow().UtcDateTime;
+        var owner = await CreateUserAsync("home-days-removed");
+        (AiConversation Conversation, AiAssistantTurn Turn) Removed(int daysAgo)
+        {
+            var conversation = AiConversation.Create(owner, nowUtc.AddDays(-daysAgo));
+            var turn = AiAssistantTurn.Create(owner, conversation.Id, Guid.NewGuid(), 1, "protected-question", "es", "UTC", AiProvider.OpenAI,
+                "fictional-model", 1, nowUtc.AddDays(-daysAgo), nowUtc.AddDays(30 - daysAgo));
+            turn.RequestCancellation(turn.SubmittedAtUtc.AddMinutes(1));
+            turn.PurgeContent();
+            conversation.Remove(nowUtc.AddHours(-1));
+            return (conversation, turn);
+        }
+        var old = Removed(10);
+        var recent = Removed(2);
+        await factory.InTransactionAsync(services =>
+        {
+            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>()
+                .AddRange(old.Conversation, old.Turn, recent.Conversation, recent.Turn);
+            return Task.CompletedTask;
+        });
+
+        for (var batch = 0; batch < 50; batch++)
+        {
+            var result = await factory.ExecuteScopeAsync(services => ActivatorUtilities.CreateInstance<AiAssistantRetentionService>(services,
+                new HomeRetentionConnection(7)).PurgeBatchAsync(Ct));
+            Assert.True(result.IsSuccess);
+            if (result.Value == 0) break;
+        }
+
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            Assert.False(await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == old.Conversation.Id, Ct));
+            Assert.False(await db.Set<AiAssistantTurn>().IgnoreQueryFilters().AnyAsync(row => row.Id == old.Turn.Id, Ct));
+            Assert.True(await db.Set<AiConversation>().IgnoreQueryFilters().AnyAsync(row => row.Id == recent.Conversation.Id, Ct));
+        });
+    }
+
+    // I1: a receipt of the business day in course counts in its quotas, so it is not deleted even if it expired or was accepted before the
+    // Home cut (one day of retention on the 25-hour day the clocks go back); one accepted before the day started goes.
+    [Fact]
+    public async Task Receipts_accepted_since_the_business_day_started_are_not_listed_to_delete()
+    {
+        var nowUtc = factory.Clock.GetUtcNow().UtcDateTime;
+        var dayStartUtc = nowUtc.AddHours(-25);
+        var owner = await CreateUserAsync("receipt-day");
+        AiAssistantRequestReceipt Receipt(DateTime acceptedAtUtc, DateTime expiresAtUtc) => AiAssistantRequestReceipt.Create(owner, Guid.NewGuid(),
+            "fingerprint", "test", Guid.NewGuid(), Guid.NewGuid(), acceptedAtUtc, expiresAtUtc, "home", false);
+        var expiredBefore = Receipt(dayStartUtc.AddMinutes(-1), nowUtc.AddMinutes(-1));
+        var expiredToday = Receipt(dayStartUtc.AddMinutes(10), nowUtc.AddMinutes(-1));
+        var homeBefore = Receipt(dayStartUtc.AddMinutes(-1), nowUtc.AddDays(5));
+        var homeToday = Receipt(dayStartUtc.AddMinutes(10), nowUtc.AddDays(5));
+        await factory.InTransactionAsync(services =>
+        {
+            services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>()
+                .AddRange(expiredBefore, expiredToday, homeBefore, homeToday);
+            return Task.CompletedTask;
+        });
+        try
+        {
+            var listed = await factory.ExecuteScopeAsync(async services => (await services.GetRequiredService<IAiAssistantRepository>()
+                .ListExpiredReceiptsAsync(nowUtc, dayStartUtc, new(nowUtc.AddDays(-1), ["home", "home-audio", "home-document"]), 100_000, Ct))
+                .Select(receipt => receipt.Id).ToHashSet());
+            Assert.Contains(expiredBefore.Id, listed);
+            Assert.Contains(homeBefore.Id, listed);
+            Assert.DoesNotContain(expiredToday.Id, listed);
+            Assert.DoesNotContain(homeToday.Id, listed);
+        }
+        finally
+        {
+            await factory.ExecuteDbContextAsync(async db =>
+            {
+                db.RemoveRange(await db.Set<AiAssistantRequestReceipt>().Where(row => row.OwnerUserId == owner).ToArrayAsync(CancellationToken.None));
+                await db.SaveChangesAsync(CancellationToken.None);
+            });
+        }
+    }
+
     private async Task PurgeAllAsync()
     {
         for (var batch = 0; batch < 50; batch++)

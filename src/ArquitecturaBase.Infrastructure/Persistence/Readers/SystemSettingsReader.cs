@@ -9,7 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Infrastructure.Persistence.Readers;
 
 /// <summary>
-/// Registration mode and presentation in Redis for at most one minute. Factories read committed data in their own scope.
+/// Registration mode, presentation and branding in Redis for at most one minute; the sign-in retention periods straight from
+/// the database, because the retention reads them once per run. Factories read committed data in their own scope.
 /// If Redis does not answer, the same projection is read from the database with the request's context, without caching
 /// it (N9): the sign-in keeps working. Without the settings row both reads give the defaults, as the factory does. While
 /// Redis is down every read goes to the database, so the log gets one Warning per process and per minute, with the
@@ -53,6 +54,34 @@ internal sealed partial class SystemSettingsReader(RedisCache cache, Application
             return await ReadRegistrationModeAsync(dbContext, cancellationToken);
         }
     }
+
+    // RC6-B: every email, invitation and PDF reads it, like the presentation.
+    public async Task<SystemBrandingResponse> FindBrandingAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await cache.GetOrCreateInOwnScopeAsync<ApplicationDbContext, int, SystemBrandingResponse>(
+                SystemSettingsCache.BrandingKey, 0, static (db, _, token) => ReadBrandingAsync(db, token),
+                Expiration, cancellationToken);
+        }
+        catch (Exception exception) when (RedisCache.IsUnavailable(exception))
+        {
+            LogReadFromDatabase(exception);
+            return await ReadBrandingAsync(dbContext, cancellationToken);
+        }
+    }
+
+    // RC1-A: once per run, so without the cache; what the administrator saved counts from the next run.
+    public async Task<IdentityRetentionResponse> FindIdentityRetentionAsync(CancellationToken cancellationToken) =>
+        await dbContext.SystemSettings.AsNoTracking()
+            .Select(settings => new IdentityRetentionResponse(settings.LoginAuditRetentionMonths, settings.LoginCodeRetentionDays,
+                settings.InvitationRetentionDays))
+            .FirstOrDefaultAsync(cancellationToken) ?? IdentityRetentionResponse.Defaults;
+
+    private static async Task<SystemBrandingResponse> ReadBrandingAsync(ApplicationDbContext db, CancellationToken cancellationToken) =>
+        await db.SystemSettings.AsNoTracking()
+            .Select(settings => new SystemBrandingResponse(settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl))
+            .FirstOrDefaultAsync(cancellationToken) ?? SystemBrandingResponse.Defaults;
 
     private static async Task<SystemPresentationResponse> ReadPresentationAsync(ApplicationDbContext db, CancellationToken cancellationToken) =>
         await db.SystemSettings.AsNoTracking()

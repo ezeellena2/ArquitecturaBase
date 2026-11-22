@@ -43,7 +43,7 @@ internal sealed class AiAssistantDocumentService(IAssistantOperations operations
             var prepared = await documents.PrepareAsync(request.Content, name, cancellationToken);
             if (prepared.IsFailure) return prepared.Error;
             var now = clock.GetUtcNow().UtcDateTime;
-            var expiresAtUtc = now.AddDays(limits.RetentionDays);
+            var expiresAtUtc = await submissions.HomeContentExpiresAtAsync(now, cancellationToken);
             var descriptor = AiAssistantHomeDocumentPolicy.Describe(request.RequestId, request.Content, name, prepared.Value, expiresAtUtc);
             if (descriptor.IsFailure) return descriptor.Error;
             var stored = await documents.StoreAsync(descriptor.Value, request.Content, cancellationToken);

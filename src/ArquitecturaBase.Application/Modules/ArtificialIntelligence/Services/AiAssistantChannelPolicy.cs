@@ -22,6 +22,10 @@ internal static class AiAssistantChannelPolicy
 
     // Stage 3: a Home photo or PDF is read the same way, in a channel of its own, before the turn names the reading.
     public const string HomeDocumentChannelId = "home-document";
+
+    // RC1-A: the channels of the Home assistant (its conversations, recordings and readings), whose content keeps the administrator's days.
+    public static IReadOnlyList<string> HomeChannels { get; } = ["home", HomeAudioChannelId, HomeDocumentChannelId];
+    public static bool IsHome(string? channelId) => channelId is "home" or HomeAudioChannelId or HomeDocumentChannelId;
     public static AssistantChannelContext HomeDocument(Guid actorUserId, string culture, string timeZoneId) =>
         new(HomeDocumentChannelId, actorUserId, null, culture, timeZoneId, new([ArtificialIntelligencePermissions.AssistantUse], []), [], []);
 

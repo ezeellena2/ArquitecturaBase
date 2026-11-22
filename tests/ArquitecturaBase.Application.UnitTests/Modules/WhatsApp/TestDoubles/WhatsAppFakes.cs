@@ -195,7 +195,10 @@ internal sealed class InMemoryWhatsAppMessageRepository(LockLog locks) : IWhatsA
             && message.Kind == WhatsAppMessageKind.FlowReply && message.ProcessedAtUtc is null);
 }
 
-internal sealed record FakeAppName(string Value) : IAppName;
+internal sealed record FakeAppName(string Value) : IAppName
+{
+    public Task<string> GetAsync(CancellationToken cancellationToken) => Task.FromResult(Value);
+}
 
 /// <summary>Los estados de los salientes guardados, por id de Meta; guarda qué ids le pidieron.</summary>
 internal sealed class FakeWhatsAppMessageReader : IWhatsAppMessageReader

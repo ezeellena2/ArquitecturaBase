@@ -563,7 +563,7 @@ public sealed class AiAssistantHomeAttachmentTests
             Reads = new(Fixture.Store, RequestValidators.For(new ListAiAssistantTurnsRequestValidator()), Fixture.Permissions, guard,
                 Responses, limits, Bootstrap);
             Service = new(Fixture.Work, RequestValidators.For(new SubmitAiAssistantTurnRequestValidator(limits)), guard, submissions,
-                attachments, limits, Fixture.Clock, NullLogger<AiAssistantFileTurnService>.Instance);
+                attachments, Fixture.Clock, NullLogger<AiAssistantFileTurnService>.Instance);
         }
 
         public SubmitAiAssistantFileTurnRequest Request(Guid? requestId = null, string question = "", string fileName = "clientes.csv",

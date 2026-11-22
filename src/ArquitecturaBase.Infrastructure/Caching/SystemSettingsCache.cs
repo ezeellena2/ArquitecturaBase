@@ -10,10 +10,12 @@ internal sealed class SystemSettingsCache(RedisCache cache) : ISystemSettingsCac
 {
     public static readonly RedisCacheKey CacheKey = new("settings:system");
     public static readonly RedisCacheKey PresentationKey = new("settings:presentation:v2");
+    public static readonly RedisCacheKey BrandingKey = new("settings:branding:v1");
 
     public async Task InvalidateAsync(CancellationToken cancellationToken)
     {
         await cache.RemoveAsync(CacheKey, cancellationToken);
         await cache.RemoveAsync(PresentationKey, cancellationToken);
+        await cache.RemoveAsync(BrandingKey, cancellationToken);
     }
 }

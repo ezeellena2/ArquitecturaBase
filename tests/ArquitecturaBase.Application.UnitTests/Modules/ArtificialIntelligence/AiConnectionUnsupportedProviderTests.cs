@@ -16,8 +16,8 @@ public sealed class AiConnectionUnsupportedProviderTests
     [Fact]
     public void A_connection_with_a_provider_this_version_does_not_know_shows_empty_and_paused_with_its_revision()
     {
-        var shown = new AiConnectionRow(AiProviders.Unsupported, "future-model", "cipher-key", false, 7).ToResponse();
-        var known = new AiConnectionRow(AiProvider.Anthropic, "model", "cipher-key", true, 7).ToResponse();
+        var shown = new AiConnectionRow(AiProviders.Unsupported, "future-model", "cipher-key", false, 7).ToResponse(30);
+        var known = new AiConnectionRow(AiProvider.Anthropic, "model", "cipher-key", true, 7).ToResponse(30);
 
         Assert.Equal((AiProvider.OpenAI, "", false, false, 7L, true), (shown.Provider, shown.Model, shown.HasCredential, shown.Enabled, shown.Revision, shown.UnsupportedProvider));
         Assert.Equal((AiProvider.Anthropic, "model", true, true, false), (known.Provider, known.Model, known.HasCredential, known.Enabled, known.UnsupportedProvider));

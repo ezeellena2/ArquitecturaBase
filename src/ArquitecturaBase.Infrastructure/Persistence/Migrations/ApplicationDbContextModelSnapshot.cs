@@ -1273,6 +1273,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("ConversationRetentionDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1325,6 +1330,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("ConversationRetentionDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -4926,6 +4936,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(7)")
                         .HasDefaultValue("#F4F6F0");
 
+                    b.Property<string>("AppName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasDefaultValue("Acceso");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -4951,12 +4968,38 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasDefaultValue("America/Argentina/Buenos_Aires");
 
+                    b.Property<string>("EmailLogoUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("EmailSenderName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasDefaultValue("Acceso");
+
                     b.Property<string>("HeaderColor")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(7)
                         .HasColumnType("character varying(7)")
                         .HasDefaultValue("#DFE8D9");
+
+                    b.Property<int>("InvitationRetentionDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
+
+                    b.Property<int>("LoginAuditRetentionMonths")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(12);
+
+                    b.Property<int>("LoginCodeRetentionDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
 
                     b.Property<string>("MenuColor")
                         .IsRequired()

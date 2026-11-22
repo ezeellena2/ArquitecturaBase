@@ -143,3 +143,28 @@ un borrador local con Guardar/Descartar y Restaurar colores iniciales (Campo). R
 Un conflicto o resultado incierto conserva los cuatro colores del borrador y exige releer
 y comparar con los actuales antes de repetir. Elegir Conservar mis cambios acepta la
 revisión actual y mantiene la paleta completa del borrador.
+
+### Nombre y correos (RC6-B, 2026-11-22)
+
+Apariencia suma la zona «Nombre y correos»: el nombre de la aplicación (`AppName`, «Acceso», hasta 60 caracteres), el nombre
+del remitente (`EmailSenderName`, «Acceso», hasta 60) y el logo de los correos (`EmailLogoUrl`, vacío, una dirección `https://`
+absoluta de hasta 2048). Reemplazan a `Email:AppName`, `Email:Smtp:FromName` y `Email:LogoUrl`, que salen de `appsettings`; la
+cuenta, la dirección del remitente y los cupos de invitaciones siguen ahí. PATCH /api/settings acepta `branding` como objeto
+completo, junto a `appearance` y con la misma revisión (`SystemBranding` valida y recorta antes de mutar; inválido,
+`Settings.System.BrandingInvalid`). La pantalla guarda colores y nombres con un solo Guardar y muestra «Así llega», el correo
+de un código con el borrador.
+
+Se leen en cada uso, de la base y por `settings:branding:v1` (caché propio, descartado después del commit): el texto de los
+correos al armarlos (`EmailTemplateRenderer`, `IAppName` para invitaciones y PDF) y el remitente al mandarlos (los dos
+`IEmailSender`). Un correo encolado antes de un cambio sale con el remitente nuevo. Una instalación nueva arranca «sólo por
+invitación»: `appsettings.json` pone `Registration:Mode` en `InviteOnly`, que sólo lee el seeder; las existentes conservan el suyo.
+
+### Privacidad y retención (RC1-A, 2026-11-22)
+
+Configuración general suma la zona «Privacidad y retención» con los plazos de los datos del ingreso: quitar la IP y el
+navegador de un ingreso (12 meses, de 1 a 120), borrar los códigos y enlaces (30 días, de 1 a 3650) y borrar las invitaciones
+viejas (30 días, de 7 a 3650). PATCH /api/settings acepta `retention` como objeto completo, con la revisión de los demás
+ajustes generales (fuera de rango, `Settings.System.RetentionInvalid`). Los aplica la [retención del
+ingreso](identidad.md#retención-de-los-datos-del-ingreso-n16-2026-11-16), que los lee de la base al empezar cada corrida. La
+política de privacidad es un sitio aparte (P1-A): la (i) de la zona avisa que tiene que prometer los mismos plazos, como
+repite la [guía de despliegue](../guides/despliegue.md#retención-de-los-datos-del-ingreso).

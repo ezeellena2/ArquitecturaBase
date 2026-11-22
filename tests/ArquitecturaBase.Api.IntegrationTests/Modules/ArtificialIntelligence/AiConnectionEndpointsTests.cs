@@ -219,6 +219,32 @@ public sealed class AiConnectionEndpointsTests(ApiFactory factory) : IClassFixtu
         Assert.DoesNotContain("secret", problem.GetRawText(), StringComparison.Ordinal);
     }
 
+    // RC1-A: the days to keep Home conversations go with the connection, from 1 to the installation's ceiling; a save without them keeps
+    // the saved ones.
+    [Fact]
+    public async Task The_home_conversation_days_are_saved_with_the_connection_up_to_the_ceiling()
+    {
+        using var client = await AdminAsync();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var before = await ReadAsync(client);
+        Assert.Equal(30, before.GetProperty("conversationRetentionCeilingDays").GetInt32());
+        var revision = before.GetProperty("revision").GetInt64();
+
+        using var tooMany = await client.PutAsJsonAsync("/api/ai/connection", Payload(revision, Guid.NewGuid(), "fictional-key", 31), Ct);
+        using var saved = await client.PutAsJsonAsync("/api/ai/connection", Payload(revision, Guid.NewGuid(), "fictional-key", 7), Ct);
+        var afterSave = (await saved.ReadJsonAsync()).GetProperty("connection");
+        using var kept = await client.PutAsJsonAsync("/api/ai/connection", Payload(revision + 1, Guid.NewGuid(), "fictional-key"), Ct);
+        var afterKeep = await ReadAsync(client);
+
+        Assert.Equal(HttpStatusCode.BadRequest, tooMany.StatusCode);
+        Assert.Equal("Elegí un número entre 1 y 30.",
+            (await tooMany.ReadJsonAsync()).GetProperty("errors").GetProperty("conversationRetentionDays")[0].GetString());
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Equal((7, 30), (afterSave.GetProperty("conversationRetentionDays").GetInt32(), afterSave.GetProperty("conversationRetentionCeilingDays").GetInt32()));
+        Assert.Equal(HttpStatusCode.OK, kept.StatusCode);
+        Assert.Equal(7, afterKeep.GetProperty("conversationRetentionDays").GetInt32());
+    }
+
     private async Task<HttpClient> AdminAsync()
     {
         var client = factory.CreateClient();
@@ -238,4 +264,9 @@ public sealed class AiConnectionEndpointsTests(ApiFactory factory) : IClassFixtu
     }
     private static object Payload(long revision, Guid id, string key) => new
         { provider = "OpenAI", model = "fictional-model", credentialChange = "Replace", apiKey = key, enabled = true, expectedRevision = revision, requestId = id };
+    private static object Payload(long revision, Guid id, string key, int conversationRetentionDays) => new
+    {
+        provider = "OpenAI", model = "fictional-model", credentialChange = "Replace", apiKey = key, enabled = true, expectedRevision = revision,
+        requestId = id, conversationRetentionDays,
+    };
 }

@@ -421,8 +421,9 @@ archivo que exige cada clave, está en la [guía de despliegue](../guides/despli
    la base se borra.
 5. **`Seed:AdminEmail`**, correo del administrador inicial. No impide arrancar; sin él, el registro abierto permite
    cuentas User pero no asigna Admin. El seed no crea cuentas: el dueño crea la suya en su primer ingreso y el seed
-   le asegura Admin en cada arranque. `appsettings.json` configura `Registration:Mode=Open`; si elegís `InviteOnly`
-   en una base sin cuentas previas, ese correo es la única excepción que puede crear una cuenta.
+   le asegura Admin en cada arranque. `appsettings.json` configura `Registration:Mode=InviteOnly` (RC6-B): en una
+   base sin cuentas previas, ese correo es la única excepción que puede crear una cuenta; para arrancar con el
+   registro abierto, cargá `Registration__Mode=Open` antes del primer arranque.
 6. **Redis**, provisionado aparte, con `ConnectionStrings__cache` como secreto y `Caching__KeyPrefix`.
    Los comandos anteriores no lo crean ni cargan su conexión: sin ella la Api no arranca.
 

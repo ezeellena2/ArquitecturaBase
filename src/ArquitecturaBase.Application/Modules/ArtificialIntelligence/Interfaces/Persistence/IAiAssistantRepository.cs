@@ -34,17 +34,26 @@ public interface IAiAssistantRepository
     Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken);
     /// <summary>
     /// Turns whose content goes: expired, of a removed conversation or of a deleted account, and a Home recording or reading submitted
-    /// before <see cref="AiAssistantUnnamedSources.SubmittedBeforeUtc"/> that no turn of an active conversation named (I2).
+    /// before <see cref="AiAssistantUnnamedSources.SubmittedBeforeUtc"/> that no turn of an active conversation named (I2). RC1-A: with
+    /// the Home days shortened below the ceiling (a home retention, not null), also Home content submitted before its cut.
     /// </summary>
-    Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, int limit, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, AiAssistantUnnamedSources unnamed, AiAssistantHomeRetention? home, int limit,
+        CancellationToken cancellationToken);
     /// <summary>The conversations a deleted account has not retired yet, with or without content left (I3).</summary>
     Task<IReadOnlyList<AiConversation>> ListDeletedOwnerConversationsAsync(int limit, CancellationToken cancellationToken);
     /// <summary>
     /// The conversations, of Home or another channel, without active turns, with all their content expired and no receipt still valid, even
-    /// if nobody removed them (I3); a removed Home one does not wait for its receipts.
+    /// if nobody removed them (I3); a removed Home one does not wait for its receipts. RC1-A: with the Home days shortened, a Home turn
+    /// accepted before the cut no longer holds its conversation, even if its content went earlier with the expiry it was saved with.
     /// </summary>
-    Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
-    Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, AiAssistantHomeRetention? home, int limit,
+        CancellationToken cancellationToken);
+    /// <summary>
+    /// Expired receipts. RC1-A: with the Home days shortened below the ceiling, also the Home receipts accepted before its cut. I1: never
+    /// one accepted since <paramref name="businessDayStartUtc"/>, which counts in the quotas of the day in course.
+    /// </summary>
+    Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, DateTime businessDayStartUtc, AiAssistantHomeRetention? home,
+        int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantToolExecution>> ListToolsAsync(Guid turnId, CancellationToken cancellationToken);
     void AddConversation(AiConversation conversation);
     void AddTurn(AiAssistantTurn turn);

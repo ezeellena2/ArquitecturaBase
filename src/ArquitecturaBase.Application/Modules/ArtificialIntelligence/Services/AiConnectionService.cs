@@ -15,7 +15,7 @@ internal sealed class AiConnectionService(IAiConnectionRepository repository, IA
 {
     public Task<Result<AiConnectionResponse>> GetAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AiConnectionResponse>>(logger, "GetAiConnection", async () =>
-            (await reader.FindAsync(cancellationToken)).ToResponse());
+            (await reader.FindAsync(cancellationToken)).ToResponse(recorder.RetentionCeilingDays));
     public Task<Result<AiConnectionChangeResponse>> GetChangeAsync(Guid requestId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AiConnectionChangeResponse>>(logger, "GetAiConnectionChange", async () =>
         {
@@ -38,7 +38,7 @@ internal sealed class AiConnectionService(IAiConnectionRepository repository, IA
         await repository.LockAsync(ct);
         var previous = await repository.GetChangeAsync(operatorId, request.RequestId, ct);
         if (previous is not null)
-            return recorder.Matches(request, previous) ? Result.Success(AiConnectionChangeRecorder.Response(previous)) : AiConnectionErrors.RequestConflict;
+            return recorder.Matches(request, previous) ? Result.Success(recorder.Response(previous)) : AiConnectionErrors.RequestConflict;
         var connection = await repository.GetAsync(ct);
         var current = connection is null ? new AiConnectionRow(AiProvider.OpenAI, "", null, false, 0)
             : new AiConnectionRow(connection.Provider, connection.Model, connection.ProtectedApiKey, connection.Enabled, connection.Revision);
@@ -47,13 +47,15 @@ internal sealed class AiConnectionService(IAiConnectionRepository repository, IA
         if (credential.IsFailure) return credential.Error;
         var created = connection is null;
         connection ??= AiConnection.Create();
+        // RC1-A: without the days in the request, the saved ones stay, never beyond the installation's ceiling.
+        var retentionDays = request.ConversationRetentionDays ?? Math.Min(connection.ConversationRetentionDays, recorder.RetentionCeilingDays);
         var result = connection.Update(request.Provider, request.Model, credential.Value,
-            request.CredentialChange != AiCredentialChange.Remove && request.Enabled);
+            request.CredentialChange != AiCredentialChange.Remove && request.Enabled, retentionDays, recorder.RetentionCeilingDays);
         if (result.IsFailure) return result.Error;
         if (created) repository.Add(connection);
         await repository.DeleteExpiredChangesAsync(ct);
         var receipt = recorder.Create(request, operatorId, connection);
         repository.AddChange(receipt);
-        return AiConnectionChangeRecorder.Response(receipt);
+        return recorder.Response(receipt);
     }
 }

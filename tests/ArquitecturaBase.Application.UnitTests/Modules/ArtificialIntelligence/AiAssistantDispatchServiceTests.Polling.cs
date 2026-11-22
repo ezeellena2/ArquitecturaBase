@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -28,7 +29,8 @@ public sealed partial class AiAssistantDispatchServiceTests
     {
         var host = new Host();
         var logger = new FakeLogger<AiAssistantRetentionService>();
-        var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock, logger, new InMemoryUserAccounts());
+        var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock, logger, new InMemoryUserAccounts(), host.Store,
+            new FakeSystemSettingsReader());
 
         var result = await retention.ReconcileExpiredBatchAsync(Ct);
 

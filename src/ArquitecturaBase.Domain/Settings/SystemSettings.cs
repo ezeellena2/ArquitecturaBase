@@ -46,6 +46,14 @@ public sealed class SystemSettings : Entity, IAuditable
     public string HeaderColor { get; private set; } = AppearancePalette.InitialHeaderColor;
     public string AlternateRowColor { get; private set; } = AppearancePalette.InitialAlternateRowColor;
 
+    public string AppName { get; private set; } = SystemBranding.InitialAppName;
+    public string EmailSenderName { get; private set; } = SystemBranding.InitialEmailSenderName;
+    public string? EmailLogoUrl { get; private set; }
+
+    public int LoginAuditRetentionMonths { get; private set; } = IdentityRetentionPeriods.InitialLoginAuditMonths;
+    public int LoginCodeRetentionDays { get; private set; } = IdentityRetentionPeriods.InitialLoginCodeDays;
+    public int InvitationRetentionDays { get; private set; } = IdentityRetentionPeriods.InitialInvitationDays;
+
     public DateTime CreatedAtUtc { get; private set; }
 
     public Guid? CreatedBy { get; private set; }
@@ -97,7 +105,7 @@ public sealed class SystemSettings : Entity, IAuditable
     /// <summary>Validates the pure rules before applying a group of settings with one revision.
     /// The application validates the IANA identifier and registration enum before calling this method.</summary>
     public Result Update(string? culture, string? timeZoneId, int? pageSize, RegistrationMode? registrationMode,
-        AppearancePalette? appearance = null)
+        AppearancePalette? appearance = null, SystemBranding? branding = null, IdentityRetentionPeriods? retention = null)
     {
         if (culture is not null && !IsSupportedCulture(culture))
         {
@@ -114,12 +122,36 @@ public sealed class SystemSettings : Entity, IAuditable
             return SettingsErrors.AppearanceInvalid;
         }
 
+        if (branding is { IsValid: false })
+        {
+            return SettingsErrors.BrandingInvalid;
+        }
+
+        if (retention is { IsValid: false })
+        {
+            return SettingsErrors.RetentionInvalid;
+        }
+
         if (appearance is not null)
         {
             PrimaryColor = appearance.PrimaryColor.ToUpperInvariant();
             MenuColor = appearance.MenuColor.ToUpperInvariant();
             HeaderColor = appearance.HeaderColor.ToUpperInvariant();
             AlternateRowColor = appearance.AlternateRowColor.ToUpperInvariant();
+        }
+
+        if (branding?.Normalized() is { } presented)
+        {
+            AppName = presented.AppName;
+            EmailSenderName = presented.EmailSenderName;
+            EmailLogoUrl = presented.EmailLogoUrl;
+        }
+
+        if (retention is not null)
+        {
+            LoginAuditRetentionMonths = retention.LoginAuditMonths;
+            LoginCodeRetentionDays = retention.LoginCodeDays;
+            InvitationRetentionDays = retention.InvitationDays;
         }
 
         if (culture is not null) DefaultCulture = culture;

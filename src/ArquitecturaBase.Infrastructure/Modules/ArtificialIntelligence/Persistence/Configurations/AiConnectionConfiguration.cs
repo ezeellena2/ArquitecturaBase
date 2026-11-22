@@ -13,5 +13,7 @@ internal sealed class AiConnectionConfiguration : IEntityTypeConfiguration<AiCon
         builder.Property(x => x.Model).HasMaxLength(150);
         builder.Property(x => x.ProtectedApiKey).HasMaxLength(6000);
         builder.Property(x => x.Revision).IsConcurrencyToken();
+        // RC1-A: a connection saved before keeps Home conversations the 30 days it always did.
+        builder.Property(x => x.ConversationRetentionDays).HasDefaultValue(AiConnection.InitialConversationRetentionDays);
     }
 }

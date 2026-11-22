@@ -199,44 +199,48 @@ internal sealed class FakeEmailTemplateRenderer : IEmailTemplateRenderer
     /// <summary>El botón de la última invitación por correo.</summary>
     public string? LastLoginUrl { get; private set; }
 
-    public EmailMessage RenderLoginCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
+    public Task<EmailMessage> RenderLoginCodeAsync(string to, string code, int lifetimeMinutes, CultureInfo culture, CancellationToken cancellationToken)
     {
         LastCode = code;
         LastCulture = culture;
 
-        return new EmailMessage(to, "subject", "<p>html</p>", "text");
+        return Task.FromResult(new EmailMessage(to, "subject", "<p>html</p>", "text"));
     }
 
-    public EmailMessage RenderEmailVerificationCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
+    public Task<EmailMessage> RenderEmailVerificationCodeAsync(string to, string code, int lifetimeMinutes, CultureInfo culture,
+        CancellationToken cancellationToken)
     {
         LastCode = code;
         LastCulture = culture;
 
-        return new EmailMessage(to, "verification subject", "<p>html</p>", "text");
+        return Task.FromResult(new EmailMessage(to, "verification subject", "<p>html</p>", "text"));
     }
 
-    public EmailMessage RenderPhoneUnlinkCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
+    public Task<EmailMessage> RenderPhoneUnlinkCodeAsync(string to, string code, int lifetimeMinutes, CultureInfo culture,
+        CancellationToken cancellationToken)
     {
         LastCode = code;
         LastCulture = culture;
 
-        return new EmailMessage(to, "unlink subject", "<p>html</p>", "text");
+        return Task.FromResult(new EmailMessage(to, "unlink subject", "<p>html</p>", "text"));
     }
 
-    public EmailMessage RenderPhoneLinkCode(string to, string code, int lifetimeMinutes, CultureInfo culture)
+    public Task<EmailMessage> RenderPhoneLinkCodeAsync(string to, string code, int lifetimeMinutes, CultureInfo culture,
+        CancellationToken cancellationToken)
     {
         LastCode = code;
         LastCulture = culture;
 
-        return new EmailMessage(to, "link subject", "<p>html</p>", "text");
+        return Task.FromResult(new EmailMessage(to, "link subject", "<p>html</p>", "text"));
     }
 
-    public EmailMessage RenderInvitation(string to, string? displayName, string loginUrl, CultureInfo culture)
+    public Task<EmailMessage> RenderInvitationAsync(string to, string? displayName, string loginUrl, CultureInfo culture,
+        CancellationToken cancellationToken)
     {
         LastCulture = culture;
         LastLoginUrl = loginUrl;
 
-        return new EmailMessage(to, "invitation subject", "<p>html</p>", "text");
+        return Task.FromResult(new EmailMessage(to, "invitation subject", "<p>html</p>", "text"));
     }
 }
 
@@ -319,6 +323,18 @@ internal sealed class FakeSystemSettingsReader : ISystemSettingsReader
 
     public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) =>
         Task.FromResult(Mode);
+
+    public ArquitecturaBase.Application.Models.Settings.SystemBrandingResponse Branding { get; set; } =
+        ArquitecturaBase.Application.Models.Settings.SystemBrandingResponse.Defaults;
+
+    public Task<ArquitecturaBase.Application.Models.Settings.SystemBrandingResponse> FindBrandingAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Branding);
+
+    public ArquitecturaBase.Application.Models.Settings.IdentityRetentionResponse Retention { get; set; } =
+        ArquitecturaBase.Application.Models.Settings.IdentityRetentionResponse.Defaults;
+
+    public Task<ArquitecturaBase.Application.Models.Settings.IdentityRetentionResponse> FindIdentityRetentionAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Retention);
 }
 
 /// <summary>

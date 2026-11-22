@@ -261,6 +261,70 @@ public sealed class SystemSettingsServiceTests
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
+    // RC6-B and RC1-A: the panel reads the name, the sender, the logo and the sign-in periods with the rest of the row.
+    [Fact]
+    public async Task Get_returns_the_branding_and_the_sign_in_retention_periods()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+        fixture.Settings.Update(null, null, null, null, branding: new SystemBranding("Campo", "Campo Avisos", "https://example.com/logo.png"),
+            retention: new IdentityRetentionPeriods(6, 2, 10));
+
+        var result = await fixture.Service.GetAsync(Ct);
+
+        Assert.Equal(new SystemBrandingResponse("Campo", "Campo Avisos", "https://example.com/logo.png"), result.Value.Branding);
+        Assert.Equal(new IdentityRetentionResponse(6, 2, 10), result.Value.Retention);
+    }
+
+    [Fact]
+    public async Task Branding_and_retention_are_saved_with_one_revision_before_invalidating_the_cache()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+
+        var result = await fixture.Service.UpdateSectionAsync(new(1, Branding: new(" Campo ", "Campo", ""),
+            Retention: new(24, 7, 14)), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(("Campo", "Campo", (string?)null), (fixture.Settings.AppName, fixture.Settings.EmailSenderName, fixture.Settings.EmailLogoUrl));
+        Assert.Equal((24, 7, 14), (fixture.Settings.LoginAuditRetentionMonths, fixture.Settings.LoginCodeRetentionDays, fixture.Settings.InvitationRetentionDays));
+        Assert.Equal(2, fixture.Settings.Revision);
+        Assert.Equal(["commit", "invalidate"], fixture.Events);
+        Assert.Empty(fixture.Changes.Changes);
+    }
+
+    [Theory]
+    [InlineData("es", "Este campo es obligatorio.", "Escribilo en una sola línea, sin caracteres de control.", "Escribí una dirección que empiece con https://.")]
+    [InlineData("en", "This field is required.", "Write it on a single line, without control characters.", "Enter an address that starts with https://.")]
+    public async Task Each_branding_field_reports_its_own_problem_before_the_transaction(string culture, string required, string singleLine, string https)
+    {
+        using var cultureScope = new CultureScope(culture);
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+
+        var result = await fixture.Service.UpdateSectionAsync(new(1, Branding: new("  ", "Dos\nlíneas", "http://example.com/logo.png")), Ct);
+
+        var error = Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal([required], error.Errors["branding.appName"]);
+        Assert.Equal([singleLine], error.Errors["branding.emailSenderName"]);
+        Assert.Equal([https], error.Errors["branding.emailLogoUrl"]);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
+
+    [Theory]
+    [InlineData("es", "Elegí un número entre 1 y 120.", "Elegí un número entre 1 y 3.650.", "Elegí un número entre 7 y 3.650.")]
+    [InlineData("en", "Choose a number between 1 and 120.", "Choose a number between 1 and 3,650.", "Choose a number between 7 and 3,650.")]
+    public async Task A_period_out_of_range_names_its_range_in_the_request_language(string culture, string months, string codes, string invitations)
+    {
+        using var cultureScope = new CultureScope(culture);
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+
+        var result = await fixture.Service.UpdateSectionAsync(new(1, Retention: new(121, 0, 6)), Ct);
+
+        var error = Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal([months], error.Errors["retention.loginAuditMonths"]);
+        Assert.Equal([codes], error.Errors["retention.loginCodeDays"]);
+        Assert.Equal([invitations], error.Errors["retention.invitationDays"]);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
+    }
+
     private sealed class Fixture
     {
         private readonly FakeRepository _repository;
@@ -324,6 +388,9 @@ public sealed class SystemSettingsServiceTests
         {
             public Task<RegistrationMode> FindRegistrationModeAsync(CancellationToken cancellationToken) => Task.FromResult(RegistrationMode.InviteOnly);
             public Task<SystemPresentationResponse> FindPresentationAsync(CancellationToken cancellationToken) => Task.FromResult(SystemPresentationResponse.Defaults);
+            public Task<SystemBrandingResponse> FindBrandingAsync(CancellationToken cancellationToken) => Task.FromResult(SystemBrandingResponse.Defaults);
+            public Task<IdentityRetentionResponse> FindIdentityRetentionAsync(CancellationToken cancellationToken) =>
+                Task.FromResult(IdentityRetentionResponse.Defaults);
         }
 
         private sealed class FakeCache(Fixture fixture) : ISystemSettingsCache

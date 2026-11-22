@@ -65,7 +65,7 @@ internal sealed partial class WhatsAppInvitationChannel(
     /// cuenta, que también lleva el botón «Quiero entrar» para que el enlace salga en ese idioma. Si la cola no toma el mensaje, la invitación queda marcada como no enviada: el alta no se deshace por un
     /// envío que falló, y el admin lo ve y la reenvía.
     /// </summary>
-    public void Enqueue(UserAccount user, UserInvitation invitation, string culture)
+    public async Task EnqueueAsync(UserAccount user, UserInvitation invitation, string culture, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(invitation);
@@ -76,7 +76,7 @@ internal sealed partial class WhatsAppInvitationChannel(
             invitation.Id,
             culture,
             user.DisplayName!,
-            appName.Value,
+            await appName.GetAsync(cancellationToken),
             WhatsAppAccessActions.WantToEnterIn(culture));
 
         if (!sendQueue.TryEnqueue(message))

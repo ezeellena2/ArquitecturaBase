@@ -50,10 +50,11 @@ internal static class EmailRegistration
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<SmtpOptions>, SmtpOptionsValidator>();
 
-        services.AddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>();
+        // RC6-B: el nombre, el remitente y el logo se leen de la configuración en cada uso, con el lector scoped de los ajustes.
+        services.AddScoped<IEmailTemplateRenderer, EmailTemplateRenderer>();
 
-        // El nombre de los correos es el del sistema: lo usan también los mensajes del bot de WhatsApp.
-        services.AddSingleton<IAppName, AppName>();
+        // El nombre de los correos es el del sistema: lo usan también la invitación por WhatsApp y los PDF.
+        services.AddScoped<IAppName, AppName>();
         // N7: los avisos del tope diario del correo, uno por día en cada copia.
         services.AddSingleton<IEmailQuotaWarnings, EmailQuotaWarnings>();
 

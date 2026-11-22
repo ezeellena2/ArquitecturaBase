@@ -103,11 +103,12 @@ public sealed class AiAssistantRetentionPlanTests(ApiFactory factory)
         await using var db = new TestDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(
             scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
         var repository = new AiAssistantRepository(db, factory.Clock);
+        // RC1-A: the Home reason with a cut inside the seeded history, so it has rows to find.
         await repository.ListPurgeableAsync(nowUtc, new(nowUtc.AddHours(-24), "home-audio", "home-document", "ai/assistant/documents/",
-            [".pdf", ".jpg", ".png"]), 128, Ct);
+            [".pdf", ".jpg", ".png"]), new(nowUtc.AddDays(-30), ["home", "home-audio", "home-document"]), 128, Ct);
         await repository.ListDeletedOwnerConversationsAsync(128, Ct);
-        await repository.ListRemovableConversationsAsync(nowUtc, 128, Ct);
-        await repository.ListExpiredReceiptsAsync(nowUtc, 128, Ct);
+        await repository.ListRemovableConversationsAsync(nowUtc, new(nowUtc.AddDays(-30), ["home", "home-audio", "home-document"]), 128, Ct);
+        await repository.ListExpiredReceiptsAsync(nowUtc, nowUtc.Date, new(nowUtc.AddDays(-30), ["home", "home-audio", "home-document"]), 128, Ct);
         await new AiAssistantReader(db, factory.Clock).FindWorkloadAsync(nowUtc, 15, Ct);
         return recorder.Statements;
     }

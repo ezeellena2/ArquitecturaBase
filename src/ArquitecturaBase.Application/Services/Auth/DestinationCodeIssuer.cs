@@ -37,7 +37,7 @@ internal sealed class DestinationCodeIssuer(
         }
 
         return await SendAsync(
-            user, emailResult.Value, LoginCodePurpose.VerifyDestination, templateRenderer.RenderEmailVerificationCode, cancellationToken);
+            user, emailResult.Value, LoginCodePurpose.VerifyDestination, templateRenderer.RenderEmailVerificationCodeAsync, cancellationToken);
     }
 
     /// <summary>
@@ -52,10 +52,10 @@ internal sealed class DestinationCodeIssuer(
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(email);
 
-        Func<string, string, int, CultureInfo, EmailMessage> render = change switch
+        Func<string, string, int, CultureInfo, CancellationToken, Task<EmailMessage>> render = change switch
         {
-            ProfileChange.LinkPhone => templateRenderer.RenderPhoneLinkCode,
-            ProfileChange.UnlinkPhone => templateRenderer.RenderPhoneUnlinkCode,
+            ProfileChange.LinkPhone => templateRenderer.RenderPhoneLinkCodeAsync,
+            ProfileChange.UnlinkPhone => templateRenderer.RenderPhoneUnlinkCodeAsync,
             _ => throw new ArgumentOutOfRangeException(nameof(change), change, "Unknown profile change."),
         };
 
@@ -66,7 +66,7 @@ internal sealed class DestinationCodeIssuer(
         UserAccount user,
         Email email,
         LoginCodePurpose purpose,
-        Func<string, string, int, CultureInfo, EmailMessage> render,
+        Func<string, string, int, CultureInfo, CancellationToken, Task<EmailMessage>> render,
         CancellationToken cancellationToken)
     {
         if (await emailQuota.CheckCodeAsync(user.Id, cancellationToken) is { } quotaError)
@@ -85,9 +85,9 @@ internal sealed class DestinationCodeIssuer(
 
         // Se encola antes del commit para que el código se confirme ya marcado como enviado. Si la cola está llena, el
         // código se guarda como no enviado.
-        if (emailQueue.TryEnqueue(
-            render(email.Value, issued.Value.Code, issued.Value.LifetimeMinutes, CultureInfo.GetCultureInfo(UserCultures.Of(user)))
-                with { ExpiresAtUtc = issued.Value.SendBeforeUtc }))
+        var message = await render(email.Value, issued.Value.Code, issued.Value.LifetimeMinutes,
+            CultureInfo.GetCultureInfo(UserCultures.Of(user)), cancellationToken);
+        if (emailQueue.TryEnqueue(message with { ExpiresAtUtc = issued.Value.SendBeforeUtc }))
         {
             issued.Value.LoginCode.MarkSent(issued.Value.IssuedAtUtc);
         }

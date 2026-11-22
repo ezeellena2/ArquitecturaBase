@@ -10,8 +10,11 @@ internal sealed class HmacAiChangeFingerprint(AiKeyRing ring) : IAiChangeFingerp
     {
         ArgumentNullException.ThrowIfNull(request);
         var key = ring.FingerprintKey(keyId);
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new object?[] { request.Provider.ToString(), request.Model.Trim(), request.CredentialChange.ToString(),
-            request.ApiKey, request.Enabled, request.ExpectedRevision, request.RequestId });
+        List<object?> values = [request.Provider.ToString(), request.Model.Trim(), request.CredentialChange.ToString(),
+            request.ApiKey, request.Enabled, request.ExpectedRevision, request.RequestId];
+        // RC1-A: without the Home days the payload is the deployed one, so a retry across the deployment still finds its receipt.
+        if (request.ConversationRetentionDays is { } days) { values.Add("home-days:v1"); values.Add(days); }
+        var payload = JsonSerializer.SerializeToUtf8Bytes(values);
         try { return Convert.ToBase64String(HMACSHA256.HashData(key, payload)); }
         finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(payload); }
     }

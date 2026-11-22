@@ -1,10 +1,11 @@
 namespace ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 
 /// <summary>
-/// El nombre del sistema que ven las personas ("Arquitectura Base"): el mismo de los correos, <c>Email:AppName</c>.
-/// Lo usan los mensajes que arma Application, como los del bot de WhatsApp, para no repetir el nombre en otro lado.
+/// El nombre del sistema que ven las personas: el de Configuración › Apariencia (RC6-B), el mismo de los correos. Lo usan los
+/// mensajes y documentos que arma Application, como la invitación por WhatsApp y los PDF de las respuestas, y se lee en cada
+/// uso: un cambio vale para lo próximo que salga, sin reiniciar nada.
 /// </summary>
 public interface IAppName
 {
-    string Value { get; }
+    Task<string> GetAsync(CancellationToken cancellationToken);
 }

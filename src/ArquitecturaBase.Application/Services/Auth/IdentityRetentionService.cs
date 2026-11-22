@@ -21,11 +21,12 @@ internal sealed partial class IdentityRetentionService(
     IUnitOfWork unitOfWork,
     IOptions<IdentityRetentionOptions> options,
     TimeProvider timeProvider,
-    ILogger<IdentityRetentionService> logger) : IIdentityRetentionService
+    ILogger<IdentityRetentionService> logger,
+    ISystemSettingsReader settings) : IIdentityRetentionService
 {
     public async Task<Result<bool>> PurgeBatchAsync(CancellationToken cancellationToken)
     {
-        var settings = options.Value;
+        var run = options.Value;
         var (codes, links, invitations, audits) = (0, 0, 0, 0);
 
         var result = await unitOfWork.ExecuteInTransactionAsync(async ct =>
@@ -36,18 +37,20 @@ internal sealed partial class IdentityRetentionService(
                 return Result.Success(false);
             }
 
-            var cutoffs = IdentityRetentionPolicy.CutoffsAt(timeProvider.GetUtcNow().UtcDateTime, settings);
+            // RC1-A: the periods the administrator saved, read on every run; a shortened one removes the oldest rows now.
+            var periods = (await settings.FindIdentityRetentionAsync(ct)).ToPeriods();
+            var cutoffs = IdentityRetentionPolicy.CutoffsAt(timeProvider.GetUtcNow().UtcDateTime, periods, run);
 
-            codes = await retention.RemoveLoginCodesAsync(cutoffs.LoginCodesBeforeUtc, settings.BatchSize, ct);
-            links = await retention.RemoveLoginLinksAsync(cutoffs.LoginCodesBeforeUtc, settings.BatchSize, ct);
-            invitations = await retention.RemoveUserInvitationsAsync(cutoffs.InvitationsBeforeUtc, settings.BatchSize, ct);
+            codes = await retention.RemoveLoginCodesAsync(cutoffs.LoginCodesBeforeUtc, run.BatchSize, ct);
+            links = await retention.RemoveLoginLinksAsync(cutoffs.LoginCodesBeforeUtc, run.BatchSize, ct);
+            invitations = await retention.RemoveUserInvitationsAsync(cutoffs.InvitationsBeforeUtc, run.BatchSize, ct);
 
             var withRequestInfo = await retention.ListLoginAuditsWithRequestInfoAsync(
-                cutoffs.LoginAuditsBeforeUtc, settings.BatchSize, ct);
+                cutoffs.LoginAuditsBeforeUtc, run.BatchSize, ct);
             foreach (var audit in withRequestInfo) audit.ForgetRequestInfo();
             audits = withRequestInfo.Count;
 
-            return Result.Success(Math.Max(Math.Max(codes, links), Math.Max(invitations, audits)) >= settings.BatchSize);
+            return Result.Success(Math.Max(Math.Max(codes, links), Math.Max(invitations, audits)) >= run.BatchSize);
         }, CommitPolicy.OnSuccess, cancellationToken);
 
         // Después del commit: el log dice lo que quedó guardado. Cuántas filas, nunca cuáles.
@@ -68,8 +71,9 @@ internal sealed partial class IdentityRetentionService(
                 return Result.Success<DateTime?>(null);
             }
 
-            var cutoffs = IdentityRetentionPolicy.CutoffsAt(timeProvider.GetUtcNow().UtcDateTime, options.Value);
-            pruned = await sessions.PruneTrancheAsync(cutoffs.SessionsExpiredBeforeUtc, fromUtc, ct);
+            // The sessions' period stays in the installation: it does not need the settings row.
+            var sessionsBeforeUtc = IdentityRetentionPolicy.SessionsExpiredBeforeUtc(timeProvider.GetUtcNow().UtcDateTime, options.Value);
+            pruned = await sessions.PruneTrancheAsync(sessionsBeforeUtc, fromUtc, ct);
 
             return Result.Success(pruned.NextFromUtc);
         }, CommitPolicy.OnSuccess, cancellationToken);

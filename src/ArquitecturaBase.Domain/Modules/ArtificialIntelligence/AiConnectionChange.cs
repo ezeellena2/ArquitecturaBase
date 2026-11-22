@@ -14,6 +14,7 @@ public sealed class AiConnectionChange : Entity
     public string Model { get; private set; } = string.Empty;
     public bool HasCredential { get; private set; }
     public bool Enabled { get; private set; }
+    public int ConversationRetentionDays { get; private set; } = AiConnection.InitialConversationRetentionDays;
     public DateTime CreatedAtUtc { get; private set; }
 
     public static AiConnectionChange Create(Guid requestId, Guid operatorId, string fingerprint, string keyId,
@@ -26,7 +27,8 @@ public sealed class AiConnectionChange : Entity
         {
             RequestId = requestId, OperatorId = operatorId, Fingerprint = fingerprint, KeyId = keyId,
             Revision = connection.Revision, Provider = connection.Provider, Model = connection.Model,
-            HasCredential = connection.ProtectedApiKey is not null, Enabled = connection.Enabled, CreatedAtUtc = createdAtUtc,
+            HasCredential = connection.ProtectedApiKey is not null, Enabled = connection.Enabled,
+            ConversationRetentionDays = connection.ConversationRetentionDays, CreatedAtUtc = createdAtUtc,
         };
     }
 

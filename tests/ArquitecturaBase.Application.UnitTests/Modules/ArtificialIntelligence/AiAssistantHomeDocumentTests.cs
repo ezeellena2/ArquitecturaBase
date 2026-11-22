@@ -768,7 +768,7 @@ public sealed class AiAssistantHomeDocumentTests
             var attachments = new AiAssistantHomeAttachmentPolicy(Files, Reader, Fixture.Store, Fixture.Protector);
             Bootstrap = new(Fixture.Store, Fixture.Store, Fixture.Permissions, guard, catalog, limits, attachments);
             Reads = new(Fixture.Store, RequestValidators.For(new ListAiAssistantTurnsRequestValidator()), Fixture.Permissions, guard, Responses, limits, Bootstrap);
-            FileTurns = new(Fixture.Work, RequestValidators.For(new SubmitAiAssistantTurnRequestValidator(limits)), guard, submissions, attachments, limits,
+            FileTurns = new(Fixture.Work, RequestValidators.For(new SubmitAiAssistantTurnRequestValidator(limits)), guard, submissions, attachments,
                 Fixture.Clock, NullLogger<AiAssistantFileTurnService>.Instance);
         }
 

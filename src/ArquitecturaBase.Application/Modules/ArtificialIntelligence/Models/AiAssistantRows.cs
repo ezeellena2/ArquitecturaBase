@@ -48,6 +48,9 @@ public sealed record AiAssistantNamedSourceRow(Guid? AudioRequestId, string? Att
 /// of a reading, whose key is the prefix, the reading's request and one of the extensions, so it is compared whole.</summary>
 public sealed record AiAssistantUnnamedSources(DateTime SubmittedBeforeUtc, string AudioChannelId, string DocumentChannelId, string DocumentKeyPrefix,
     IReadOnlyList<string> DocumentKeyExtensions);
+/// <summary>RC1-A: how the purge finds Home content older than the administrator's days, saved before they were shortened: the channels of
+/// the Home assistant (its conversations, recordings and readings) and the cut on the submission instant.</summary>
+public sealed record AiAssistantHomeRetention(DateTime SubmittedBeforeUtc, IReadOnlyList<string> ChannelIds);
 public sealed record AiAssistantBudgetCounts(int ActorAccepted, int InstallationAccepted, int Pending, int Running);
 public sealed record AiAssistantWorkloadRow(int Pending, int Running, int ExpiredRunning,
     DateTime? OldestPendingAtUtc, DateTime? OldestOverdueContentAtUtc, int AcceptedToday = 0);

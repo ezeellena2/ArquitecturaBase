@@ -25,7 +25,7 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
     public string ThumbnailKey { get; } = "renderer/private-thumb.jpg";
     public byte[] PhotoContent => photo.ToArray();
     public bool IsAvailable => true;
-    public string Value => "Technical preview";
+    public Task<string> GetAsync(CancellationToken cancellationToken) => Task.FromResult("Technical preview");
 
     public FormPdfRendererFixture()
     {

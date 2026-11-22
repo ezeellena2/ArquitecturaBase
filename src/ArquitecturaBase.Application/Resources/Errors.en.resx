@@ -82,6 +82,8 @@
   <data name="Settings.System.CultureInvalid" xml:space="preserve"><value>The default language is not valid.</value></data>
   <data name="Settings.System.PageSizeInvalid" xml:space="preserve"><value>Choose 10, 20, 50 or 100 rows per page.</value></data>
   <data name="Settings.System.AppearanceInvalid" xml:space="preserve"><value>Review the colors: they must use #RRGGBB format.</value></data>
+  <data name="Settings.System.BrandingInvalid" xml:space="preserve"><value>Review the application name, the sender name and the email logo.</value></data>
+  <data name="Settings.System.RetentionInvalid" xml:space="preserve"><value>Review the retention periods: one is out of its range.</value></data>
   <data name="WhatsApp.Chat.NotFound" xml:space="preserve"><value>The conversation was not found.</value></data>
   <data name="WhatsApp.Chat.ManualRequired" xml:space="preserve"><value>Switch to manual attention before replying.</value></data>
   <data name="WhatsApp.Chat.RevisionConflict" xml:space="preserve"><value>Someone changed the mode. Refresh the chat and review it.</value></data>
@@ -101,6 +103,7 @@
   <data name="WhatsApp.Chat.ReadPositionInvalid" xml:space="preserve"><value>The read position is outside the stored history.</value></data>
   <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Review the connection provider and model.</value></data>
   <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configure a key to use or test the connection.</value></data>
+  <data name="Ai.Connection.RetentionInvalid" xml:space="preserve"><value>Choose how many days to keep the conversations: from 1 to the installation ceiling.</value></data>
   <data name="Ai.Connection.ProviderChanged" xml:space="preserve"><value>Replace or remove the key when changing providers.</value></data>
   <data name="Ai.Connection.RevisionConflict" xml:space="preserve"><value>The connection changed. Read and review the current configuration.</value></data>
   <data name="Ai.Connection.RequestConflict" xml:space="preserve"><value>This identifier already confirmed another request. Check the saved change.</value></data>

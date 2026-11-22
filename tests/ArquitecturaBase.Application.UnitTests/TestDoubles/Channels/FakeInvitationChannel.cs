@@ -29,6 +29,9 @@ internal sealed class FakeInvitationChannel(UserInvitationChannel channel, bool 
         return Rejection is { } error ? error : Result.Success();
     }
 
-    public void Enqueue(UserAccount user, UserInvitation invitation, string culture) =>
+    public Task EnqueueAsync(UserAccount user, UserInvitation invitation, string culture, CancellationToken cancellationToken)
+    {
         Enqueued.Add((user, invitation, culture));
+        return Task.CompletedTask;
+    }
 }

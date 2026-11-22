@@ -28,6 +28,26 @@ public sealed class AiSecretProtectionTests
         Assert.False(fingerprint.Matches(selected with { Details = selected.Details! with { Location = selected.Details!.Location with { PlaceId = "ChIJ_two" } } }, "one", fingerprint.Create(selected, "one")));
     }
 
+    // RC1-A: without the Home days a connection change keeps the receipt it had before they existed, so a retry across the deployment
+    // replays the saved change instead of answering a conflict; with them, the days are part of what it compares.
+    [Fact]
+    public void Existing_connection_receipts_keep_their_original_fingerprint_without_the_home_days()
+    {
+        var ring = new AiKeyRing(Options.Create(Ring()));
+        var request = new UpdateAiConnectionRequest(AiProvider.OpenAI, " model ", AiCredentialChange.Replace, "fictional-key", true, 7,
+            Guid.Parse("01912345-1234-7000-8000-123456789012"));
+        // The deployed payload, before the Home days existed.
+        object?[] oldValues = ["OpenAI", "model", "Replace", "fictional-key", true, 7L, request.RequestId];
+        var expected = Convert.ToBase64String(System.Security.Cryptography.HMACSHA256.HashData(ring.FingerprintKey("one"),
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(oldValues)));
+        var fingerprint = new HmacAiChangeFingerprint(ring);
+        Assert.Equal(expected, fingerprint.Create(request, "one"));
+        var withDays = request with { ConversationRetentionDays = 7 };
+        Assert.False(fingerprint.Matches(withDays, "one", expected));
+        Assert.True(fingerprint.Matches(withDays, "one", fingerprint.Create(withDays, "one")));
+        Assert.False(fingerprint.Matches(withDays with { ConversationRetentionDays = 8 }, "one", fingerprint.Create(withDays, "one")));
+    }
+
     private static AiSecretProtectionOptions Ring(string active = "one", string installation = "test-installation") => new()
     {
         InstallationId = installation, ActiveKeyId = active,

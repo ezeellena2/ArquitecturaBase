@@ -41,14 +41,15 @@ internal sealed partial class EmailInvitationChannel(
             : FieldErrors.Validation(check.ChannelField, ValidationMessages.InvitationEmailRequired);
     }
 
-    public void Enqueue(UserAccount user, UserInvitation invitation, string culture)
+    public async Task EnqueueAsync(UserAccount user, UserInvitation invitation, string culture, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(invitation);
 
         // N5: the email carries its invitation, so the worker records whether it went out, did not or may have arrived.
-        var email = emailTemplates.RenderInvitation(user.Email!, user.DisplayName, LoginUrl(), CultureInfo.GetCultureInfo(culture))
-            with { Invitation = new EmailInvitationReference(user.Id, invitation.Id) };
+        var rendered = await emailTemplates.RenderInvitationAsync(user.Email!, user.DisplayName, LoginUrl(), CultureInfo.GetCultureInfo(culture),
+            cancellationToken);
+        var email = rendered with { Invitation = new EmailInvitationReference(user.Id, invitation.Id) };
 
         if (!emailQueue.TryEnqueue(email))
         {

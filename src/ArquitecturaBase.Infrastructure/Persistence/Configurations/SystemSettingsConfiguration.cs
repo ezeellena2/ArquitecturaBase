@@ -28,6 +28,13 @@ internal sealed class SystemSettingsConfiguration : IEntityTypeConfiguration<Sys
         builder.Property(settings => settings.MenuColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialMenuColor);
         builder.Property(settings => settings.HeaderColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialHeaderColor);
         builder.Property(settings => settings.AlternateRowColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialAlternateRowColor);
+        // RC6-B and RC1-A: the row saved before reads the values the installation had in its configuration.
+        builder.Property(settings => settings.AppName).HasMaxLength(SystemBranding.MaxNameLength).HasDefaultValue(SystemBranding.InitialAppName);
+        builder.Property(settings => settings.EmailSenderName).HasMaxLength(SystemBranding.MaxNameLength).HasDefaultValue(SystemBranding.InitialEmailSenderName);
+        builder.Property(settings => settings.EmailLogoUrl).HasMaxLength(SystemBranding.MaxLogoUrlLength);
+        builder.Property(settings => settings.LoginAuditRetentionMonths).HasDefaultValue(IdentityRetentionPeriods.InitialLoginAuditMonths);
+        builder.Property(settings => settings.LoginCodeRetentionDays).HasDefaultValue(IdentityRetentionPeriods.InitialLoginCodeDays);
+        builder.Property(settings => settings.InvitationRetentionDays).HasDefaultValue(IdentityRetentionPeriods.InitialInvitationDays);
 
         builder.ToTable(table => table.HasCheckConstraint(
             SingleRowConstraintName,

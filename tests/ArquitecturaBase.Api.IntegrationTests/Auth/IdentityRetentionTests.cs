@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Authentication;
+using ArquitecturaBase.Domain.Settings;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Identity;
@@ -55,6 +56,31 @@ public sealed class IdentityRetentionTests(ApiFactory factory)
             await db.LoginLinks.AsNoTracking().Where(link => link.UserId == userId).Select(link => link.Id).ToListAsync(Ct)));
         Assert.Equal([young.Id], codes);
         Assert.Equal([youngLink.Id], links);
+    }
+
+    // RC1-A: the periods are the ones saved in Configuración general › «Privacidad y retención», read on every run.
+    [Fact]
+    public async Task A_period_shortened_in_the_settings_counts_from_the_next_run()
+    {
+        var old = Code(Now.AddDays(-3));
+        var young = Code(Now.AddHours(-30));
+        await factory.ExecuteDbContextAsync(db =>
+        {
+            db.LoginCodes.AddRange(old, young);
+            return db.SaveChangesAsync(Ct);
+        });
+
+        await RunAsync();
+        Assert.Equal(2, await CountAsync([old.Id, young.Id]));
+
+        await using (await SystemSettingsScope.ChangeAsync(factory, retention: IdentityRetentionPeriods.Initial with { LoginCodeDays = 2 }))
+        {
+            await RunAsync();
+        }
+
+        var kept = await factory.ExecuteDbContextAsync(db => db.LoginCodes.AsNoTracking()
+            .Where(code => code.Id == old.Id || code.Id == young.Id).Select(code => code.Id).ToListAsync(Ct));
+        Assert.Equal([young.Id], kept);
     }
 
     [Fact]
