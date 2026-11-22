@@ -146,19 +146,20 @@ public sealed class RoleReaderTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Roles_created_at_the_same_instant_keep_a_stable_order_by_id_across_pages()
+    public async Task Roles_created_at_the_same_instant_follow_the_name_and_keep_a_stable_order_across_pages()
     {
         var prefix = UniqueName();
 
-        // Las dos altas, sin mover el reloj: la misma fecha. El desempate por Id decide y no cambia entre páginas.
-        var ids = await CreateRolesAsync((prefix + "-b", null), (prefix + "-a", null));
+        // Las dos altas, sin mover el reloj: la misma fecha. El empate sigue el orden de siempre de la lista, el nombre (OT1-C),
+        // aunque «-b» se creó primero, y no cambia entre páginas; el Id cierra el orden.
+        await CreateRolesAsync((prefix + "-b", null), (prefix + "-a", null));
 
         var first = await ListAsync(new ListRolesRequest { Search = prefix, Sort = "createdAtUtc", PageSize = 1 });
         var second = await ListAsync(new ListRolesRequest { Search = prefix, Sort = "createdAtUtc", PageSize = 1, Page = 2 });
 
         Assert.Equal(2, first.TotalCount);
-        Guid[] actualIds = [Assert.Single(first.Items).Id, Assert.Single(second.Items).Id];
-        Assert.Equal(ids.Order(), actualIds);
+        string[] names = [Assert.Single(first.Items).Name, Assert.Single(second.Items).Name];
+        Assert.Equal([prefix + "-a", prefix + "-b"], names);
     }
 
     [Fact]
