@@ -1,7 +1,16 @@
 # La respuesta como el formulario (VF1-A) y la actividad fila por fila (VF2-A)
 
-Estado: **decidido el 2026-11-22, sin programar.** Se programa cuando el usuario lo pida, después de la prueba integral
-(la lista está congelada hasta entonces). Tableros: lienzo aparte
+Estado: **en programación desde el 2026-11-22**, a pedido del usuario («Sí, arrancá»).
+- Hechas:
+  - la tarea 1: la regla y el diseño en el front (front `6908c39b`);
+  - la tarea 2: el detalle con la forma de su versión (`b857e1d6`);
+  - la tarea 3: la lectura, `ResponseForm` (front `559759a6`).
+- En una copia del front, para entrar con la exportación de ejemplos y un reinicio de la app: la tarea 4 (las dos
+  pantallas con la forma) y la tarea 5 (corregir en el lugar, en curso).
+- En curso: la tarea 6 (la actividad).
+- Faltan: la exportación de ejemplos HTTP, el barrido (tarea 7), las docs (tarea 8) y la verificación (tarea 9).
+
+Tableros: lienzo aparte
 [Respuesta como formulario](https://claude.ai/artifact/2vnLgSq6xxdoz9LjAdNmaN), versión 13. Este plan congela lo elegido;
 el lienzo es privado y puede cambiar fuera de Git.
 

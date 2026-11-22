@@ -89,6 +89,8 @@ La navegación anclada prueba permiso propio, validación antes de leer, snapsho
 
 Acciones por resolver (F2): `FormResponseServiceTests` da la cuenta de la hoja sólo a quien tiene `formrules.manage` y lee todas las respuestas (`null` a quien sólo lee y a quien sólo ve lo propio) y la marca de cada fila a todos.
 
+La forma de su versión (VF1-A): los tests que arman `FormResponseService` le pasan `FormResponseEntryPolicy` con `FormResponseEntryDouble`, un `IFormEntryReader` sobre las filas de `FakeFormResponseReader`, para que el detalle arme `entry` sin base.
+
 La presencia tiene expectativas explícitas para pregunta ausente, opcional vacía y respondida, tanto escalar como archivo: answered false/false/true, unanswered true/true/false y notAsked true/false/false; cero y false son respuestas presentes.
 
 FormExportServiceTests verifica el presupuesto de 30 segundos en lectura/escritura, su renovación por pedido y la precedencia de cancelación del caller, incluso si vence el presupuesto al mismo tiempo. Un resultado tardío se descarta; no se afirma que ClosedXML síncrono pueda interrumpirse a los 30 segundos. También fija la recepción en la zona de la cuenta que exporta, las palabras de la planilla («N°», «Recibida», «WhatsApp») y los formatos de fecha de cada idioma.
