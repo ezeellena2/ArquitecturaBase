@@ -24,6 +24,8 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.Artificial
 internal sealed class AssistantOperationsFixture
 {
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero));
+    /// <summary>The business's time zone, Buenos Aires by default: the day of the quotas (RC5).</summary>
+    public FakeSystemSettingsReader Settings { get; } = new();
     public InMemoryUserAccounts Users { get; } = new();
     public FakePermissionService Permissions { get; } = new();
     public FakeUnitOfWork Work { get; } = new();
@@ -69,7 +71,8 @@ internal sealed class AssistantOperationsFixture
         var guard = Guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
             new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), new AiConnectionCandidatePolicy(Secrets, KeyRing));
         var responses = Responses = new AiAssistantResponsePolicy(Protector, Clock, catalog, ResponseLog);
-        var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, responses);
+        var submissions = new AiAssistantSubmissionPolicy(Store, new AiAssistantAdmissionPolicy(Store, Store, limits, Settings), Store, guard, Protector,
+            new OperationsFingerprint(), limits, responses);
         Service = new(Store, guard, submissions, Work, Store, responses, NullLogger<AiAssistantOperations>.Instance);
     }
 
@@ -218,10 +221,11 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     }
     // Like the repository: readings count apart, the actor's in every channel; the others by channel and kind. What expired without
     // reserving a step gives its quota back (I1).
-    public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateOnly day, string? channelId, bool? isAudio, bool isDocument, CancellationToken ct)
+    public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateTime fromUtc, DateTime toUtc, string? channelId, bool? isAudio, bool isDocument,
+        CancellationToken ct)
     {
         BudgetReads++;
-        var receipts = Receipts.Where(item => item.AcceptedDayUtc == day && item.IsDocument == isDocument
+        var receipts = Receipts.Where(item => item.AcceptedAtUtc >= fromUtc && item.AcceptedAtUtc < toUtc && item.IsDocument == isDocument
             && !Turns.Any(turn => turn.Id == item.TurnId && turn.State == AiAssistantTurnState.Expired)).ToArray();
         return Task.FromResult(new AiAssistantBudgetCounts(receipts.Count(item => item.OwnerUserId == actor
                 && (isDocument || channelId is null || isAudio is null || (item.ChannelId is null || item.ChannelId == channelId)

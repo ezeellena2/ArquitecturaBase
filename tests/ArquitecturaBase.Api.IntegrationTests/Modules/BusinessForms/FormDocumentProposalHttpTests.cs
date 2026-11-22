@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Common.Time;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
@@ -372,7 +374,7 @@ public sealed class FormDocumentProposalHttpTests(ApiFactory factory)
         var designer = await scenario.PersonAsync("Dora Diseña", Designer, Ct);
         var (first, firstForm) = await PublishedRequestAsync(scenario, designer);
         var (second, secondForm) = await PublishedRequestAsync(scenario, designer);
-        // Two copies of the server over the same database, each with a share of three re-reads a UTC day per person.
+        // Two copies of the server over the same database, each with a share of three re-reads a business day per person.
         await using var one = scenario.Host.WithWebHostBuilder(builder => builder.UseSetting("BusinessForms:DocumentReread:DailyPerAsker", "3"));
         await using var two = scenario.Host.WithWebHostBuilder(builder => builder.UseSetting("BusinessForms:DocumentReread:DailyPerAsker", "3"));
         static FormDocumentRereadBackgroundService Worker(WebApplicationFactory<Program> host) =>
@@ -388,20 +390,21 @@ public sealed class FormDocumentProposalHttpTests(ApiFactory factory)
         Assert.Null((await RequestAsync(second)).RereadVersionId);
 
         // Once that hold passes both copies run their rounds at once: three re-reads between them, the first request's, and the second
-        // waits for the next UTC day.
+        // waits for the business's next midnight (RC5), in the time zone of the settings.
         factory.Clock.Advance(FormDocumentRereadService.Hold);
-        var today = DateOnly.FromDateTime(factory.Clock.GetUtcNow().UtcDateTime);
+        await using var settings = factory.Services.CreateAsyncScope();
+        var zone = BusinessDay.Zone((await settings.ServiceProvider.GetRequiredService<ISystemSettingsReader>().FindPresentationAsync(Ct)).DefaultTimeZoneId);
+        var today = BusinessDay.Of(factory.Clock.GetUtcNow().UtcDateTime, zone);
         await Task.WhenAll(Worker(one).ProcessDueAsync(Ct), Worker(two).ProcessDueAsync(Ct));
 
         Assert.Equal((3, 0), (Rereads(firstForm), Rereads(secondForm)));
         var (done, waiting) = (await RequestAsync(first), await RequestAsync(second));
-        Assert.Equal((3, 0), (done.RereadsOn(today), waiting.RereadsOn(today)));
+        Assert.Equal((3, 0), (done.RereadsOn(today.Day), waiting.RereadsOn(today.Day)));
         Assert.Empty(done.PendingRereadIds);
         Assert.Equal(3, waiting.PendingRereadIds.Length);
-        var tomorrow = today.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        Assert.Equal(tomorrow, waiting.RereadAfterUtc);
+        Assert.Equal(today.EndUtc, waiting.RereadAfterUtc);
 
-        factory.Clock.Advance(tomorrow - factory.Clock.GetUtcNow().UtcDateTime);
+        factory.Clock.Advance(today.EndUtc - factory.Clock.GetUtcNow().UtcDateTime);
         await Task.WhenAll(Worker(one).ProcessDueAsync(Ct), Worker(two).ProcessDueAsync(Ct));
 
         Assert.Equal((3, 3), (Rereads(firstForm), Rereads(secondForm)));

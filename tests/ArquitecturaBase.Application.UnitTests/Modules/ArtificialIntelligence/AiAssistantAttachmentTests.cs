@@ -439,7 +439,8 @@ public sealed partial class AiAssistantAttachmentTests
             guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, this.limits,
                 new FakeCurrentUser { UserId = ActorId }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
             Responses = new(Fixture.Protector, Fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
-            submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), this.limits, Responses);
+            submissions = new(Fixture.Store, new AiAssistantAdmissionPolicy(Fixture.Store, Fixture.Store, this.limits, Fixture.Settings), Fixture.Store, guard,
+                Fixture.Protector, new OperationsFingerprint(), this.limits, Responses);
         }
 
         public SubmitAiAssistantTurnRequest Home(string question = "Armame un catálogo con esta planilla", AiConversation? conversation = null) =>

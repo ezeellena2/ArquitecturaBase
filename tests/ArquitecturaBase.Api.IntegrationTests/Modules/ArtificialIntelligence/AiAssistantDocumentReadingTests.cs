@@ -160,7 +160,7 @@ public sealed class AiAssistantDocumentReadingTests(ApiFactory factory)
         await using var scenario = await ScenarioAsync(files, provider, limits => limits with { DocumentInstallationDailyQuota = 12, InstallationDailyQuota = 12 });
         var actor = Actor(scenario);
         var now = factory.Clock.GetUtcNow().UtcDateTime;
-        var day = DateOnly.FromDateTime(now);
+        var day = now.Date;
         await scenario.ScopeAsync(async services =>
         {
             var db = services.GetRequiredService<ApplicationDbContext>();
@@ -171,12 +171,12 @@ public sealed class AiAssistantDocumentReadingTests(ApiFactory factory)
                     now, now.AddDays(1), channel, audio, document));
             await db.SaveChangesAsync(Ct);
             var repository = services.GetRequiredService<IAiAssistantRepository>();
-            var readings = await repository.CountBudgetAsync(actor, day, "channel-a", false, true, Ct);
+            var readings = await repository.CountBudgetAsync(actor, day, day.AddDays(1), "channel-a", false, true, Ct);
             Assert.Equal((2, 14), (readings.ActorAccepted, readings.InstallationAccepted));
-            var interpretations = await repository.CountBudgetAsync(actor, day, "channel-a", false, false, Ct);
+            var interpretations = await repository.CountBudgetAsync(actor, day, day.AddDays(1), "channel-a", false, false, Ct);
             Assert.Equal((1, 2), (interpretations.ActorAccepted, interpretations.InstallationAccepted));
-            Assert.Equal(1, (await repository.CountBudgetAsync(actor, day, "channel-a", true, false, Ct)).ActorAccepted);
-            Assert.Equal(0, (await repository.CountBudgetAsync(actor, day, "channel-b", false, false, Ct)).ActorAccepted);
+            Assert.Equal(1, (await repository.CountBudgetAsync(actor, day, day.AddDays(1), "channel-a", true, false, Ct)).ActorAccepted);
+            Assert.Equal(0, (await repository.CountBudgetAsync(actor, day, day.AddDays(1), "channel-b", false, false, Ct)).ActorAccepted);
             return true;
         });
         var document = await DocumentAsync(files, actor, "fixture-documents");

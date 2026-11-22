@@ -12,7 +12,7 @@ public interface IFormDocumentProposalRepository
     Task LockRequestAsync(Guid actorUserId, Guid requestId, CancellationToken cancellationToken);
     Task LockAsync(Guid proposalId, CancellationToken cancellationToken);
     Task LockAskerAsync(Guid actorUserId, CancellationToken cancellationToken);
-    /// <summary>How many re-reads the engine took for the requests of that person on that UTC day.</summary>
+    /// <summary>How many re-reads the engine took for the requests of that person on that business day (RC5).</summary>
     Task<int> CountRereadsOnDayAsync(Guid actorUserId, DateOnly day, CancellationToken cancellationToken);
     /// <summary>Whether another request of that person has documents pending held at <paramref name="nowUtc"/>: by its round, or waiting for the engine.</summary>
     Task<bool> ExistsRereadHeldAsync(Guid actorUserId, Guid exceptProposalId, DateTime nowUtc, CancellationToken cancellationToken);

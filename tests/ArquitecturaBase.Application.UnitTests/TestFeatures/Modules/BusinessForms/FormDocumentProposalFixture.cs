@@ -55,7 +55,7 @@ internal sealed class FormDocumentProposalFixture : IFormDocumentProposalReposit
     public FormReceivedDocumentContentPolicy Contents() => new(Inbox);
     public FormDocumentAuthoringPolicy Policy() => new(Guard(), this, Inbox, Contents());
     public FormDocumentRereadService Rereads() => new(this, this, Inbox, UnitOfWork, Inbox.Clock,
-        Options.Create(new FormDocumentRereadOptions { DailyPerAsker = RereadsPerDay }));
+        Options.Create(new FormDocumentRereadOptions { DailyPerAsker = RereadsPerDay }), new FakeSystemSettingsReader());
     // The list as the inbox shows it: the documents' items need only their reads and readings.
     public FormReceivedDocumentPresentationPolicy Presentation() => new(Inbox, Contents(), null!, null!, null!);
     public FormDocumentAuthoringService Authoring() => new(Policy(), this, this, Engine, Presentation(), UnitOfWork, Inbox.Clock);

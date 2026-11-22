@@ -667,7 +667,7 @@ entrada desde el panel y la página «Armar formulario con la IA».
   configurar o sin calificar), un minuto; una vuelta posterior sigue, y un paso que falla a mitad deja el documento pendiente para la
   vuelta siguiente, hasta tres veces seguidas: a la tercera sale de los pendientes (anotado con su código), así no retiene para siempre
   su pedido ni los demás de esa persona. Las relecturas usan el cupo diario de quien pidió en el canal: sus pedidos releen entre todos a lo sumo unos
-  `BusinessForms:DocumentReread:DailyPerAsker` por día UTC (de 1 a 100, 5 por defecto: la mitad del cupo del motor; sólo cuenta lo que el
+  `BusinessForms:DocumentReread:DailyPerAsker` por día del negocio, en la zona horaria de Configuración (de 1 a 100, 5 por defecto: la mitad del cupo del motor; sólo cuenta lo que el
   motor tomó), de a una vuelta por persona (una versión nueva espera la vuelta que retiene los pendientes, y cada vuelta ni lista los pedidos de
   quien ya tiene otro retenido), y el resto sigue al otro día, así su bandeja conserva lo demás. La cuenta es aproximada: una vuelta que tarda más que su retención puede cruzarse con la siguiente, y
   una lectura que el motor tomó no cuenta si su paso se corta antes de anotarla o si su guardado pierde con un cambio del documento. Una versión nueva relee los que siguen sin clasificar. Cada documento es su propia

@@ -9,7 +9,7 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
-internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository repository, IAiConnectionRepository connections,
+internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository repository, AiAssistantAdmissionPolicy admission,
     IAiConnectionReader connectionReader, AiAssistantAccessGuard guard, IAiConversationProtector protector,
     IAiAssistantRequestFingerprint fingerprint, AiAssistantLimits limits, AiAssistantResponsePolicy responsePolicy)
 {
@@ -89,28 +89,17 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
     // I14: before a Home file is read or kept, the acceptance's refusals that need neither the file nor a lock (the person's and the
     // installation's quotas and the capacity), with the same error and retryAfter. It only saves work: the acceptance still decides.
     public Task<Error?> PrecheckAsync(Guid userId, string channelId, AiAssistantPurpose purpose, CancellationToken ct) =>
-        BudgetRefusalAsync(userId, channelId, purpose == AiAssistantPurpose.NormalizeAudio, purpose == AiAssistantPurpose.ReadDocument,
+        admission.RefusalAsync(userId, channelId, purpose == AiAssistantPurpose.NormalizeAudio, purpose == AiAssistantPurpose.ReadDocument,
             responsePolicy.ServerNowUtc, ct);
 
     // A recording also needs the transcription profile the acceptance captures, which only looks at its type and size.
     public async Task<Error?> PrecheckAudioAsync(AssistantChannelContext context, string mediaType, long size, CancellationToken ct)
     {
         var now = responsePolicy.ServerNowUtc;
-        if (await BudgetRefusalAsync(context.ActorUserId, context.ChannelId, true, false, now, ct) is { } refused) return refused;
+        if (await admission.RefusalAsync(context.ActorUserId, context.ChannelId, true, false, now, ct) is { } refused) return refused;
         var profile = guard.CaptureAudioProfile(await connectionReader.FindAsync(ct), context,
             new AssistantAudioInput(string.Empty, string.Empty, mediaType, size, string.Empty, now), now);
         return profile.IsFailure ? profile.Error : null;
-    }
-
-    // Readings count per person across every channel and per installation, apart from the quotas of interpretations and audio.
-    private async Task<Error?> BudgetRefusalAsync(Guid userId, string channelId, bool normalizes, bool reads, DateTime now, CancellationToken ct)
-    {
-        var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), channelId, normalizes, reads, ct);
-        var (actorQuota, installationQuota) = reads ? (limits.DocumentActorDailyQuota, limits.DocumentInstallationDailyQuota)
-            : (limits.ActorDailyQuota, limits.InstallationDailyQuota);
-        if (budget.ActorAccepted >= actorQuota || budget.InstallationAccepted >= installationQuota)
-            return AiAssistantErrors.QuotaExceeded((int)(now.Date.AddDays(1) - now).TotalSeconds);
-        return budget.Pending >= limits.PendingCapacity ? AiAssistantErrors.CapacityLimited(limits.PollingAfterSeconds) : null;
     }
 
     private async Task<Result<AiAssistantTurnAcceptedResponse>> AcceptCoreAsync(Guid userId, SubmitAiAssistantTurnRequest? home,
@@ -122,8 +111,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         // I17, review: a copy with another key ring accepts nothing, of Home or of a channel: it would encrypt with a key the other
         // copies do not have, and its worker would not take the turn.
         if (!await guard.KeyRingMatchesAsync(ct)) return AiAssistantErrors.Unavailable;
-        await connections.LockAsync(ct);
-        await repository.LockBudgetAsync(ct);
+        await admission.LockAsync(ct);
         await repository.LockActorAsync(userId, ct);
         var actor = home is not null ? await guard.AuthorizeAsync(userId, ct) : await guard.AuthorizeAsync(operation!.Context, ct);
         if (actor.IsFailure) return actor.Error;
@@ -188,7 +176,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (channelId != "home" && !normalizes && !reads
             && await repository.GetActiveForActorChannelAsync(userId, channelId, operation?.Context.ChannelConversationId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
-        if (await BudgetRefusalAsync(userId, channelId, normalizes, reads, now, ct) is { } refused) return refused;
+        if (await admission.RefusalAsync(userId, channelId, normalizes, reads, now, ct) is { } refused) return refused;
         // Only after the cheap refusals, under the lock of its conversation, a turn without a file of its own reads the conversation's;
         // one that expires on its own bounds the turn.
         if (attachment is null && conversation is not null)

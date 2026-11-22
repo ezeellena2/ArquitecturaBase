@@ -245,8 +245,8 @@ hacer pasar una calificación.
 
 | Clave bajo `ArtificialIntelligence:Assistant` | Valor inicial, aún propuesto para piloto |
 | --- | --- |
-| `Limits:ActorDailyQuota` / `InstallationDailyQuota` | 10 por actor, canal y propósito / 100 para toda la instalación, por día UTC (se renuevan a las 00:00 UTC; en Argentina, a las 21) |
-| `Limits:DocumentActorDailyQuota` / `DocumentInstallationDailyQuota` | 10 lecturas de documentos por persona en todos los canales / 50 para toda la instalación, por día UTC y aparte de las anteriores |
+| `Limits:ActorDailyQuota` / `InstallationDailyQuota` | 10 por actor, canal y propósito / 100 para toda la instalación, por día del negocio (se renuevan a la medianoche de la zona horaria de Configuración) |
+| `Limits:DocumentActorDailyQuota` / `DocumentInstallationDailyQuota` | 10 lecturas de documentos por persona en todos los canales / 50 para toda la instalación, por día del negocio y aparte de las anteriores |
 | `Limits:DocumentOutputTokens` / `MaximumReadingCharacters` | 8192 / 20000, los techos del código: sólo se pueden bajar |
 | `Limits:PendingCapacity` / `RunningCapacity` | 4 / 4 para toda la instalación, entre réplicas. El tope cuenta cuántos esperan a la vez, no el tamaño de una tanda: cuando los carriles toman cuatro, la espera se vuelve a llenar con los reenvíos. Para que todo lo aceptado empiece antes de vencer, vale `RunningCapacity × floor(PendingSeconds / duración del turno largo)`: con turnos de 60 a 80 s, como «Armar formulario con la IA», 4 × floor(120 / 80) = 4. Con más, una tanda acepta lo que va a vencer sin intentarse: eso devuelve la cuota, pero la persona espera dos minutos para leer «venció», y es mejor un 429 inmediato con su espera. Si el piloto mide turnos de menos de 60 s, se puede subir a 8 (4 × 2); el código admite hasta 50. El tope es de toda la instalación y lo comparten Inicio, WhatsApp, Formularios, el audio y las lecturas de documentos: una tanda de un canal puede dejar a Inicio en `capacityLimited`, y conviene medirlo en el piloto |
 | `Limits:RetentionDays` | 30 desde cada turno |
@@ -274,7 +274,7 @@ calibración del piloto; las pruebas con handlers falsos no los convierten en pr
 ### Máximo diario en tokens
 
 El motor no conoce precios ni corta por monto: el gasto se limita en la cuenta del proveedor. Lo que sí está acotado es
-cuánto le puede pedir la instalación en un día UTC, por las cuotas y los techos de cada turno. Con los valores por
+cuánto le puede pedir la instalación en un día, por las cuotas y los techos de cada turno. Con los valores por
 defecto:
 
 | Qué | Cuenta | Máximo por día |

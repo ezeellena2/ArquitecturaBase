@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using ArquitecturaBase.Application.Common.Time;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
@@ -176,7 +177,7 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
         if (failure is null && replies > 0)
         {
             var zone = TimeZoneInfo.FindSystemTimeZoneById(context.TimeZoneId);
-            var dayStartUtc = WhatsAppBusinessDay.StartUtc(WhatsAppBusinessDay.LocalDay(clock.GetUtcNow(), zone), zone);
+            var dayStartUtc = BusinessDay.StartUtc(BusinessDay.LocalDay(clock.GetUtcNow(), zone), zone);
             if (await history.CountRepliesAsync(reference.ContactId, dayStartUtc, ct) + replies > agent.Limits.DailyReplyLimit) failure = "dailyReplyLimit";
         }
 
@@ -286,7 +287,7 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
         if (text is not null)
         {
             var zone = TimeZoneInfo.FindSystemTimeZoneById(WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(original)).TimeZoneId);
-            var dayStartUtc = WhatsAppBusinessDay.StartUtc(WhatsAppBusinessDay.LocalDay(clock.GetUtcNow(), zone), zone);
+            var dayStartUtc = BusinessDay.StartUtc(BusinessDay.LocalDay(clock.GetUtcNow(), zone), zone);
             if (await history.CountRepliesAsync(contact.Id, dayStartUtc, ct) + 1 > agent.Limits.DailyReplyLimit) (text, code) = (null, "dailyReplyLimit");
         }
 

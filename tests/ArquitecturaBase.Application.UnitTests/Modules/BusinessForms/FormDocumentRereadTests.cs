@@ -131,7 +131,7 @@ public sealed class FormDocumentRereadTests
     }
 
     [Fact]
-    public async Task An_asker_s_re_reads_take_at_most_their_daily_share_across_their_requests_and_the_rest_continue_the_next_utc_day()
+    public async Task An_asker_s_re_reads_take_at_most_their_daily_share_across_their_requests_and_the_rest_continue_the_next_business_day()
     {
         var f = new FormDocumentProposalFixture { RereadsPerDay = 3 };
         var question = FormReceivedDocumentFixture.Question("decimal", "Importe", required: true);
@@ -157,10 +157,10 @@ public sealed class FormDocumentRereadTests
         Assert.Equal([second.DocumentIds[0]], b.DocumentIds);
         Assert.Equal(3, f.Locks.Count(taken => taken == ("asker", f.Reviewer)));
         Assert.Equal((2, 1), (first.RereadsOn(DateOnly.FromDateTime(now)), second.RereadsOn(DateOnly.FromDateTime(now))));
-        // Once the round's hold passes, the second's other two wait for the next UTC day...
+        // Once the round's hold passes, the second's other two wait for the business's next midnight (RC5: 03:00 UTC in Buenos Aires)...
         f.Inbox.Clock.Advance(FormDocumentRereadService.Hold);
         Assert.Null((await f.Rereads().ReserveAsync(second.Id, Ct)).Value);
-        var tomorrow = DateOnly.FromDateTime(now).AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var tomorrow = DateOnly.FromDateTime(now).AddDays(1).ToDateTime(new TimeOnly(3, 0), DateTimeKind.Utc);
         Assert.Equal(tomorrow, second.RereadAfterUtc);
         Assert.Equal(second.DocumentIds.Skip(1), second.PendingRereadIds);
         // ...and then continue.

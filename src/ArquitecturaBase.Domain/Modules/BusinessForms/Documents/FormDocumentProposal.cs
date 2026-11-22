@@ -36,7 +36,7 @@ public sealed class FormDocumentProposal : Entity, IAuditable
     public Guid[] PendingRereadIds { get; private set; } = [];
     /// <summary>Until when the pending ones wait: the round that holds them, or an engine that cannot take them now.</summary>
     public DateTime? RereadAfterUtc { get; private set; }
-    /// <summary>The UTC day its re-reads were last counted on, and how many it took that day: its part of the asker's daily share.</summary>
+    /// <summary>The business day its re-reads were last counted on, and how many it took that day: its part of the asker's daily share.</summary>
     public DateOnly? RereadDay { get; private set; }
     public int RereadsOnDay { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }

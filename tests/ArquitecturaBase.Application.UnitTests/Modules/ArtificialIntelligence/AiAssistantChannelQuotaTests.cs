@@ -69,6 +69,24 @@ public sealed class AiAssistantChannelQuotaTests
         Assert.True((await f.Service.SubmitAsync(f.Request(), Ct)).IsSuccess);
     }
 
+    // RC5 (2026-11-22): the day of the quotas is the business's, in its time zone (Configuración › Zona horaria), not the UTC day: at
+    // 22:30 in Buenos Aires what was accepted at 20:00 still counts, and the quota renews at the business's midnight.
+    [Fact]
+    public async Task The_daily_quota_counts_the_business_day_and_renews_at_its_midnight()
+    {
+        var f = new AssistantOperationsFixture();
+        var accepted = new DateTime(2026, 10, 17, 23, 0, 0, DateTimeKind.Utc);
+        for (var i = 0; i < 10; i++) f.Store.Receipts.Add(AiAssistantRequestReceipt.Create(f.ActorId, Guid.NewGuid(),
+            "fictional-fingerprint", "fixture-key", Guid.NewGuid(), Guid.NewGuid(), accepted, accepted.AddDays(1), f.Context.ChannelId, false));
+        f.Clock.SetUtcNow(new DateTimeOffset(2026, 10, 18, 1, 30, 0, TimeSpan.Zero));
+
+        var blocked = await f.Service.SubmitAsync(f.Request(), Ct);
+
+        Assert.True(blocked.IsFailure);
+        Assert.Equal(AiAssistantErrors.QuotaExceeded(1).Code, blocked.Error.Code);
+        Assert.Equal(90 * 60, blocked.Error.Metadata!["retryAfter"]);
+    }
+
     private static async Task FillAsync(AssistantOperationsFixture f, int count, string channel, bool audio)
     {
         for (var i = 0; i < count; i++)

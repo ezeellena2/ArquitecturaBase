@@ -96,7 +96,8 @@ public sealed class AiAssistantHomeDocumentTests
         host.Fixture.SpendQuota(host.ActorId, AiAssistantChannelPolicy.HomeDocumentChannelId, host.Now, new AiAssistantLimits().DocumentActorDailyQuota,
             isDocument: true);
         var error = (await host.UploadAsync()).Error;
-        var expected = AiAssistantErrors.QuotaExceeded((int)(host.Now.Date.AddDays(1) - host.Now).TotalSeconds);
+        // RC5: the quota renews at the business's midnight, 03:00 UTC in Buenos Aires.
+        var expected = AiAssistantErrors.QuotaExceeded((int)(host.Now.Date.AddDays(1).AddHours(3) - host.Now).TotalSeconds);
         Assert.Equal((expected.Code, expected.Metadata?["retryAfter"]), (error.Code, error.Metadata?["retryAfter"]));
         Assert.Equal((1, 0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count,
             host.Fixture.Work.Transactions));
@@ -758,7 +759,8 @@ public sealed class AiAssistantHomeDocumentTests
             var guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, limits, Current, catalog,
                 new(Fixture.AudioProfiles, Fixture.DocumentProfiles, Files), FictionalCredentials.Policy);
             Responses = new(Fixture.Protector, Fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
-            submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, Responses);
+            submissions = new(Fixture.Store, new AiAssistantAdmissionPolicy(Fixture.Store, Fixture.Store, limits, Fixture.Settings), Fixture.Store, guard,
+                Fixture.Protector, new OperationsFingerprint(), limits, Responses);
             var operations = new AiAssistantOperations(Fixture.Store, guard, submissions, Fixture.Work, Fixture.Store, Responses,
                 NullLogger<AiAssistantOperations>.Instance);
             Documents = new(operations, new AiAssistantHomeDocumentPolicy(Files, Reader, guard, Fixture.Store), guard, submissions, limits, Fixture.Clock,

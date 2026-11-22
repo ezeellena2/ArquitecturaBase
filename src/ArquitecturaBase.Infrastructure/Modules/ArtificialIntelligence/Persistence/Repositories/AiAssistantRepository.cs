@@ -58,13 +58,16 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .Select(turn => new AiAssistantNamedSourceRow(turn.AudioRequestId, turn.AttachmentKey))
             .ToArrayAsync(cancellationToken);
 
-    public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument,
-        CancellationToken cancellationToken)
+    public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateTime fromUtc, DateTime toUtc, string? channelId, bool? isAudio,
+        bool isDocument, CancellationToken cancellationToken)
     {
+        // RC5: the business day spans at most two UTC days; their receipts, which the index by day finds, are cut by the instant accepted.
+        var (fromDay, toDay) = (DateOnly.FromDateTime(fromUtc), DateOnly.FromDateTime(toUtc));
         // Readings have their own quotas: the actor's in every channel and the installation's; the others never count them.
         // I1: what expired without reserving a step (Expired, which a turn only reaches with none) gives its quota back, and its receipt
         // still deduplicates. Only that terminal state of its turn, kept after the purge, is looked at; a turn already deleted counts.
-        var receipts = dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.AcceptedDayUtc == dayUtc && receipt.IsDocument == isDocument
+        var receipts = dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.AcceptedDayUtc >= fromDay && receipt.AcceptedDayUtc <= toDay
+            && receipt.AcceptedAtUtc >= fromUtc && receipt.AcceptedAtUtc < toUtc && receipt.IsDocument == isDocument
             && !dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters().Any(turn => turn.Id == receipt.TurnId && turn.State == AiAssistantTurnState.Expired));
         var actorReceipts = receipts.Where(receipt => receipt.OwnerUserId == ownerUserId);
         if (!isDocument && channelId is not null && isAudio is not null)

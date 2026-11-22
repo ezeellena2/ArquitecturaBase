@@ -1,6 +1,6 @@
 # Common: mecanismos compartidos de Application
 
-`Pagination` define el pedido y resultado paginado; `Validation`, el puente a FluentValidation y errores por campo; `Logging`, operaciones; `Exceptions`, fallas técnicas que cruzan puertos; `Formatting`, el único formato de números para una persona (`DisplayNumbers`); `RateLimiting`, la partición de una dirección para los límites por dirección (`AddressPartition`: una IPv6, por su /64).
+`Pagination` define el pedido y resultado paginado; `Validation`, el puente a FluentValidation y errores por campo; `Logging`, operaciones; `Exceptions`, fallas técnicas que cruzan puertos; `Formatting`, el único formato de números para una persona (`DisplayNumbers`); `RateLimiting`, la partición de una dirección para los límites por dirección (`AddressPartition`: una IPv6, por su /64); `Time`, el día del negocio en la zona horaria de Configuración (`BusinessDay`), del que cuentan los cupos diarios de WhatsApp, la IA y las relecturas.
 
 ## Al modificar
 

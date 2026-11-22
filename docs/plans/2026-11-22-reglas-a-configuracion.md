@@ -77,7 +77,7 @@ Con un solo aprobador en el rol, la primera regla traba la aprobación de lo que
 
 | Regla | Hoy | Dónde está | Dónde iría |
 | --- | --- | --- | --- |
-| El día de los cupos se corta a medianoche UTC (las 21 h de Argentina) | UTC | `AiAssistantSubmissionPolicy.cs:108-112`, `FormDocumentRereadService.cs:62-65` | sin pantalla: usar la zona horaria de Configuración general, como ya hace WhatsApp |
+| El día de los cupos se cortaba a medianoche UTC (las 21 h de Argentina) | **hecho el 2026-11-22**: el día del negocio | `BusinessDay` en `Application/Common/Time` | sin pantalla: la zona horaria de Configuración general, como WhatsApp |
 | Consultas y lecturas de documentos por persona y día | 10 y 10 (por instalación, 100 y 50) | `AiAssistantLimits.cs:31-34` | a decidir: Configuración › IA con el valor de `appsettings` como techo, porque el negocio paga su propia clave |
 
 ### 6. Núcleo
@@ -133,11 +133,12 @@ Como TO1-A, por grupo y con su tablero antes de tocar una pantalla:
 - **RC3.** WhatsApp en general: ¿una Configuración › WhatsApp con la vida del formulario y los países?
 - **RC4.** Formularios: ¿una Configuración › Formularios con el tamaño de archivo, las relecturas y los grupos, y las dos
   reglas de aprobación en cada formulario?
-- **RC5.** IA: ¿el día de los cupos con la zona horaria del negocio? ¿Los cupos por persona en pantalla, con techo?
+- **RC5.** IA: el día de los cupos ya usa la zona horaria del negocio (decidido y programado el 2026-11-22). Queda: ¿los cupos
+  por persona en pantalla, con techo?
 - **RC6.** Núcleo: ¿invitaciones, nombre, logo y remitente en Configuración general? ¿Con qué modo de registro arranca una
   instalación nueva?
 - **RC7.** ARCA: ¿el aviso de certificado por vencer y la moneda, como funciones nuevas?
 
-Orden sugerido: RC5 (el corte a las 21 h es un error de comportamiento), RC1 (la política de privacidad promete esos plazos),
+Orden sugerido: RC1 (la política de privacidad promete esos plazos),
 RC2 (mismo patrón que TO1-A), RC6, RC3, RC4 y RC7. Desde el 2026-11-15 la lista está congelada hasta la prueba integral: lo
 que el usuario no pida antes va después.

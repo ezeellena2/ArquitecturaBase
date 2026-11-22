@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Time;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -14,9 +15,9 @@ internal sealed class WhatsAppAssistantOfferCapacityPolicy(IWhatsAppAssistantRea
     {
         var limit = (await agents.FindMainAsync(ct))?.Limits.DailyOfferLimit ?? WhatsAppAssistantAgentLimits.DefaultDailyOffers;
         var zone = TimeZoneInfo.FindSystemTimeZoneById(channel.TimeZoneId);
-        var localDay = WhatsAppBusinessDay.LocalDay(clock.GetUtcNow(), zone);
-        var fromUtc = WhatsAppBusinessDay.StartUtc(localDay, zone);
-        var toUtc = WhatsAppBusinessDay.StartUtc(localDay.AddDays(1), zone);
+        var localDay = BusinessDay.LocalDay(clock.GetUtcNow(), zone);
+        var fromUtc = BusinessDay.StartUtc(localDay, zone);
+        var toUtc = BusinessDay.StartUtc(localDay.AddDays(1), zone);
         return await reader.CountOffersAsync(contactId, fromUtc, toUtc, ct, excludingRequestId) < limit;
     }
 }

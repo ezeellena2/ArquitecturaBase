@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ArquitecturaBase.Application.Common.Time;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -132,7 +133,7 @@ internal sealed class WhatsAppAssistantAgentCapabilitySource(IWhatsAppAssistantA
         var sinceUtc = nowUtc.AddHours(-24);
         var messages = await history.ListMessagesAsync(contactId, sinceUtc, HistoryMessages, ct);
         var actions = await history.ListActionsAsync(contactId, sinceUtc, HistoryMessages, ct);
-        var replies = await history.CountRepliesAsync(contactId, WhatsAppBusinessDay.StartUtc(WhatsAppBusinessDay.LocalDay(now, zone), zone), ct);
+        var replies = await history.CountRepliesAsync(contactId, BusinessDay.StartUtc(BusinessDay.LocalDay(now, zone), zone), ct);
         DateTimeOffset Local(DateTime utc) => TimeZoneInfo.ConvertTime(new DateTimeOffset(DateTime.SpecifyKind(utc, DateTimeKind.Utc)), zone);
         return Bounded(empty with { RepliesToday = replies },
             [.. messages.Select(message => new WhatsAppAssistantHistoryMessageView(Local(message.OccurredAtUtc), From(message), Clip(message.Body ?? "")))],

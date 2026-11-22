@@ -179,7 +179,8 @@ public sealed class AiAssistantHomeAudioTests
         var error = (await host.Service.SubmitAsync(new(Guid.NewGuid(), "es", Webm), TestContext.Current.CancellationToken)).Error;
         var expected = refusal switch
         {
-            "quota" => AiAssistantErrors.QuotaExceeded((int)(host.Now.Date.AddDays(1) - host.Now).TotalSeconds),
+            // RC5: the quota renews at the business's midnight, 03:00 UTC in Buenos Aires.
+            "quota" => AiAssistantErrors.QuotaExceeded((int)(host.Now.Date.AddDays(1).AddHours(3) - host.Now).TotalSeconds),
             "capacity" => AiAssistantErrors.CapacityLimited(new AiAssistantLimits().PollingAfterSeconds),
             _ => AiAssistantErrors.Unavailable,
         };
@@ -400,8 +401,8 @@ public sealed class AiAssistantHomeAudioTests
             AiAssistantAudioModelProfile[] hears = transcribes ? [new(AiProvider.OpenAI, "audio-model", "fixture-audio", 1, ["audio/webm", "audio/mp4"], 25000000)] : [];
             var guard = new AiAssistantAccessGuard(Users, Permissions, [], limits, current, catalog, new(hears, [], Files), FictionalCredentials.Policy);
             var responses = new AiAssistantResponsePolicy(Fixture.Protector, clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
-            var submissions = new AiAssistantSubmissionPolicy(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector,
-                new OperationsFingerprint(), limits, responses);
+            var submissions = new AiAssistantSubmissionPolicy(Fixture.Store, new AiAssistantAdmissionPolicy(Fixture.Store, Fixture.Store, limits, Fixture.Settings),
+                Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, responses);
             Service = new(Operations, new AiAssistantHomeAudioPolicy(Files, null!, null!, clock), guard, submissions, current, limits, clock,
                 NullLogger<AiAssistantAudioService>.Instance);
         }
@@ -429,8 +430,8 @@ public sealed class AiAssistantHomeAudioTests
             var guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, limits, Current, catalog,
                 new(hears, [], Files), FictionalCredentials.Policy);
             var responses = new AiAssistantResponsePolicy(Fixture.Protector, Fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
-            var submissions = new AiAssistantSubmissionPolicy(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector,
-                new OperationsFingerprint(), limits, responses);
+            var submissions = new AiAssistantSubmissionPolicy(Fixture.Store, new AiAssistantAdmissionPolicy(Fixture.Store, Fixture.Store, limits, Fixture.Settings),
+                Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, responses);
             var operations = new AiAssistantOperations(Fixture.Store, guard, submissions, Fixture.Work, Fixture.Store, responses,
                 NullLogger<AiAssistantOperations>.Instance);
             Service = new(operations, new AiAssistantHomeAudioPolicy(Files, Fixture.Store, Fixture.Protector, Fixture.Clock), guard, submissions,

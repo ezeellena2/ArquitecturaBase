@@ -92,8 +92,8 @@ public sealed class AiAssistantChannelQuotaIntegrationTests(ApiFactory factory)
             var repository = services.GetRequiredService<IAiAssistantRepository>();
             foreach (var audio in new[] { false, true })
             {
-                Assert.Equal(1, (await repository.CountBudgetAsync(actor, DateOnly.FromDateTime(now), "other-channel", audio, false, Ct)).ActorAccepted);
-                Assert.Equal(2, (await repository.CountBudgetAsync(actor, DateOnly.FromDateTime(now), "known-channel", audio, false, Ct)).ActorAccepted);
+                Assert.Equal(1, (await repository.CountBudgetAsync(actor, now.Date, now.Date.AddDays(1), "other-channel", audio, false, Ct)).ActorAccepted);
+                Assert.Equal(2, (await repository.CountBudgetAsync(actor, now.Date, now.Date.AddDays(1), "known-channel", audio, false, Ct)).ActorAccepted);
             }
         });
         }
@@ -144,9 +144,9 @@ public sealed class AiAssistantChannelQuotaIntegrationTests(ApiFactory factory)
         var expired = states.Where(turn => turn.State == AiAssistantTurnState.Expired).ToArray();
         Assert.Equal(batch[^4..].Order(), expired.Select(turn => turn.RequestId).Order());
         Assert.All(expired, turn => Assert.Equal(0, turn.ProviderSteps));
-        var day = DateOnly.FromDateTime(factory.Clock.GetUtcNow().UtcDateTime);
+        var day = factory.Clock.GetUtcNow().UtcDateTime.Date;
         Task<AiAssistantBudgetCounts> CountAsync() => scenario.ScopeAsync(services =>
-            services.GetRequiredService<IAiAssistantRepository>().CountBudgetAsync(actor, day, "home", false, false, Ct));
+            services.GetRequiredService<IAiAssistantRepository>().CountBudgetAsync(actor, day, day.AddDays(1), "home", false, false, Ct));
         Assert.Equal((8, 8), ((await CountAsync()).ActorAccepted, (await CountAsync()).InstallationAccepted));
         // The id of an expired turn still answers with that turn, without taking the quota again.
         var replayed = await scenario.SubmitAsync(batch[^1], "Fictitious long question");

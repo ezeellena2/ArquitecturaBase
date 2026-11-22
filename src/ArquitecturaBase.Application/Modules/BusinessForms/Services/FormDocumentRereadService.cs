@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Time;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Configuration;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -16,18 +17,21 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// (no longer unclassified, its form gone, or a failure that will not pass), it leaves the pending ones; when the engine cannot take it now
 /// (its quota or its capacity), they all wait as long as it says. A step that fails halfway leaves the document pending for a later round.
 /// The re-reads run as the asker, out of their own daily quota of the channel: a person's requests read at most
-/// <see cref="FormDocumentRereadOptions.DailyPerAsker"/> a UTC day between them (only a reading the engine took counts) and the rest continue
-/// the next day. Under that person's lock their rounds go one at a time, and a newer version waits for the round that holds the pending
+/// <see cref="FormDocumentRereadOptions.DailyPerAsker"/> a business day between them, in the time zone of the settings (RC5; only a reading
+/// the engine took counts), and the rest continue at its midnight. Under that person's lock their rounds go one at a time, and a newer version waits for the round that holds the pending
 /// ones, so the count stays at most about the share: a round that outlives its hold can overlap the next one, and a reading the engine took
 /// goes uncounted when its step is cut before it is recorded or its save loses to a change of the document. What the worker lists also
 /// brings the extractions that still run.
 /// </summary>
 internal sealed class FormDocumentRereadService(IFormDocumentProposalReader reader, IFormDocumentProposalRepository repository,
-    IFormReceivedDocumentReader documents, IUnitOfWork unitOfWork, TimeProvider clock, IOptions<FormDocumentRereadOptions> options)
-    : IFormDocumentRereadService
+    IFormReceivedDocumentReader documents, IUnitOfWork unitOfWork, TimeProvider clock, IOptions<FormDocumentRereadOptions> options,
+    ISystemSettingsReader settings) : IFormDocumentRereadService
 {
     /// <summary>How many requests to start and extractions to apply one round looks at.</summary>
     public const int BatchSize = 20;
+
+    private async Task<(DateOnly Day, DateTime StartUtc, DateTime EndUtc)> BusinessDayAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
+        BusinessDay.Of(nowUtc, BusinessDay.Zone((await settings.FindPresentationAsync(cancellationToken)).DefaultTimeZoneId));
     /// <summary>How long a round holds the pending documents it took.</summary>
     public static readonly TimeSpan Hold = TimeSpan.FromMinutes(2);
     /// <summary>How long the pending ones wait when the engine cannot take them now and says nothing about when.</summary>
@@ -44,7 +48,7 @@ internal sealed class FormDocumentRereadService(IFormDocumentProposalReader read
             || FormDocumentFormPolicy.Reading(form) is not { Enabled: true })
             return Result.Success<FormDocumentRereadWorkResponse?>(null);
         var nowUtc = clock.GetUtcNow().UtcDateTime;
-        var today = DateOnly.FromDateTime(nowUtc);
+        var today = await BusinessDayAsync(nowUtc, cancellationToken);
         return await unitOfWork.ExecuteInTransactionAsync<Result<FormDocumentRereadWorkResponse?>>(async ct =>
         {
             await repository.LockAskerAsync(row.ActorUserId, ct);
@@ -58,11 +62,11 @@ internal sealed class FormDocumentRereadService(IFormDocumentProposalReader read
             var held = proposal.RereadsFor(form.VersionId) ? proposal.ClaimReread(nowUtc, nowUtc.Add(Hold))
                 : proposal.StartReread(form.VersionId, nowUtc, nowUtc.Add(Hold));
             if (held.IsFailure) return Result.Success<FormDocumentRereadWorkResponse?>(null);
-            // The asker's daily share between all their requests; with none left, the pending ones wait for the next UTC day.
-            var left = options.Value.DailyPerAsker - await repository.CountRereadsOnDayAsync(proposal.ActorUserId, today, ct);
+            // The asker's daily share between all their requests; with none left, the pending ones wait for the business's next midnight.
+            var left = options.Value.DailyPerAsker - await repository.CountRereadsOnDayAsync(proposal.ActorUserId, today.Day, ct);
             if (left <= 0)
             {
-                var deferred = proposal.DeferReread(today.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+                var deferred = proposal.DeferReread(today.EndUtc);
                 return deferred.IsFailure ? deferred.Error : Result.Success<FormDocumentRereadWorkResponse?>(null);
             }
             return new FormDocumentRereadWorkResponse(proposal.Id, definitionId, form.VersionId, proposal.ActorUserId, proposal.Culture, proposal.TimeZoneId,
@@ -73,6 +77,7 @@ internal sealed class FormDocumentRereadService(IFormDocumentProposalReader read
     public async Task<Result<bool>> RecordAsync(FormDocumentRereadOutcomeRequest request, CancellationToken cancellationToken)
     {
         var nowUtc = clock.GetUtcNow().UtcDateTime;
+        var today = await BusinessDayAsync(nowUtc, cancellationToken);
         var wait = request.Failure is { } failure && IsTransient(failure) ? RetryAfter(failure) : (TimeSpan?)null;
         return await unitOfWork.ExecuteInTransactionAsync<Result<bool>>(async ct =>
         {
@@ -81,7 +86,7 @@ internal sealed class FormDocumentRereadService(IFormDocumentProposalReader read
             // Only a reading the engine took uses the asker's daily share, also one of a round that a newer version started over meanwhile.
             if (request.Failure is null)
             {
-                var counted = proposal.CountRereads(DateOnly.FromDateTime(nowUtc), 1);
+                var counted = proposal.CountRereads(today.Day, 1);
                 if (counted.IsFailure) return counted.Error;
             }
             // A newer version started over (this round outlived its hold): the pending ones are that version's, and this round stops.

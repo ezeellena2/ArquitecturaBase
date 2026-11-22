@@ -67,7 +67,8 @@ public sealed class AiAssistantHomeAudioSubmissionTests
             var catalog = new AiAssistantCapabilityCatalogPolicy([new HomeQuerySource()], Fixture.Permissions);
             var guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, limits,
                 new FakeCurrentUser { UserId = ActorId }, catalog, new(Fixture.AudioProfiles, [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
-            submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits,
+            submissions = new(Fixture.Store, new AiAssistantAdmissionPolicy(Fixture.Store, Fixture.Store, limits, Fixture.Settings), Fixture.Store, guard,
+                Fixture.Protector, new OperationsFingerprint(), limits,
                 new AiAssistantResponsePolicy(Fixture.Protector, Fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance));
         }
 
