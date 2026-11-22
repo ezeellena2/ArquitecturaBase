@@ -63,6 +63,14 @@ public sealed class BankAccountKey : ValueObject
             : null;
     }
 
+    /// <summary>
+    /// Si el texto tiene la forma de una cuenta, den o no sus verificadores: los 22 dígitos de una CBU o una CVU (con cualquier
+    /// separador) o un alias. El número propio de una cuenta en su banco («CA $ 123-456789/0»), una CUIT o una frase no la tienen, y
+    /// nadie podría corregirlos como cuenta copiándolos de un comprobante (O44).
+    /// </summary>
+    public static bool HasShape(string? value) =>
+        value is not null && (Parse(value) is not null || KeySeparators.Strip(value) is { Length: Digits } digits && digits.All(char.IsAsciiDigit));
+
     /// <summary>La cuenta para un log o un texto: el principio y el final de los dígitos, o el principio del alias.</summary>
     public override string ToString() => Kind == BankAccountKind.Alias ? $"{Value[..2]}***" : $"{Value[..3]}***{Value[^4..]}";
 

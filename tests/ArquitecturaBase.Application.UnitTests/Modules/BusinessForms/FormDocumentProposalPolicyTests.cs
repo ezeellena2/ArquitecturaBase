@@ -32,6 +32,19 @@ public sealed class FormDocumentProposalPolicyTests
     }
 
     [Fact]
+    public async Task A_read_text_without_the_shape_of_its_fixed_validation_stays_unread_instead_of_marked()
+    {
+        // O44: a receipt names the debit account by the bank's own number, which is no CBU, CVU or alias, and a CUIT question may get a
+        // DNI. Nobody could correct them by copying from the document, so they stay out as not read; a CBU or a CUIT whose check digit
+        // fails keeps its mark (the first test).
+        var f = new Fixture();
+        var prepared = await f.Policy.PrepareAsync(f.Proposal(("account", "CTA $ 123-456789/0", false), ("taxId", "DNI 12.345.678", false)), Sha, null, Ct);
+        var values = Assert.Single(prepared.Candidates).Values.ToDictionary(value => value.FieldId);
+        Assert.All(new[] { "account", "taxId" }, key => Assert.Equal(((string?)null, FormDocumentMarks.NotRead, (string?)null),
+            (values[f.Ids[key]].Value, values[f.Ids[key]].Mark, values[f.Ids[key]].ErrorCode)));
+    }
+
+    [Fact]
     public async Task The_bank_or_wallet_comes_from_the_account_by_its_entity_code_with_the_option_texts()
     {
         var f = new Fixture();

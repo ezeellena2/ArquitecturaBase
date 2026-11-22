@@ -1403,7 +1403,10 @@ bandeja, en [su sección](#la-bandeja-documentos-recibidos--doc5-a-2026-11-12).
   sólo el recibo rechazado; lo escrito que pasa se guarda tal cual, y la respuesta de la captura dice `fixedValidation` (desde la revisión de la
   tarea 9c también su replay: el recibo guarda `FixedValidation`), para que un canal pueda volver a mandar el formulario: WhatsApp lo hace desde la tarea 9c, con el motivo y
   lo que la persona mandó en un envío nuevo, y a un repetido (`repetition`) sólo le avisa
-  ([WhatsApp](whatsapp.md#rechazos-y-reintentos-de-formularios--2026-10-13)). Desde la tarea 9b de documentos, una respuesta
+  ([WhatsApp](whatsapp.md#rechazos-y-reintentos-de-formularios--2026-10-13)). En la propuesta de un documento o una fila, lo que
+  no pasa queda en su pregunta, marcado con ese código, para corregirlo copiándolo del comprobante. Lo que ni siquiera tiene la
+  forma de lo que se valida (`HasShape`: 22 dígitos o un alias para una cuenta, once dígitos para una CUIT) queda sin leer, porque
+  así no se corrige: el número propio de una cuenta en su banco («CA $ 123-456789/0») o un DNI (O44, 2026-11-22). Desde la tarea 9b de documentos, una respuesta
   que su persona confirma en un canal desde un documento recibido o una fila (`origin.document` sin `documentRevision`) se vuelve a revisar
   al capturar con lo corregido: si los datos que marcan un repetido del estándar (`DuplicateKeys`, todos respondidos) coinciden con una
   respuesta guardada del formulario, da `Forms.Record.Repeated` y la captura dice `repetition` (su número y cuándo llegó; el recibo lo guarda en

@@ -25,6 +25,25 @@ public sealed class CuitNumberTests
     public void Anything_else_is_rejected(string? input) => Assert.Null(CuitNumber.Normalize(input));
 
     [Theory]
+    // O44: eleven digits, whether the check digit adds up or not.
+    [InlineData("20-12345678-6")]
+    [InlineData("20-12345678-7")]
+    [InlineData("20 12345678 7")]
+    public void A_text_with_eleven_digits_has_the_shape_of_a_cuit_even_if_its_check_digit_fails(string input) =>
+        Assert.True(CuitNumber.HasShape(input));
+
+    [Theory]
+    // O44: a DNI, dots, ten or twelve digits and nothing are no CUIT to correct.
+    [InlineData("DNI 12.345.678")]
+    [InlineData("12345678")]
+    [InlineData("20.12345678.6")]
+    [InlineData("2012345678")]
+    [InlineData("201234567861")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void A_text_without_eleven_digits_lacks_the_shape_of_a_cuit(string? input) => Assert.False(CuitNumber.HasShape(input));
+
+    [Theory]
     // A no-break space, a narrow no-break space, a tab, an en dash and a minus sign, as a receipt or a copy and paste leaves them.
     [InlineData("20 12345678 6")]
     [InlineData("20 12345678 6")]

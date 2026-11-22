@@ -24,6 +24,13 @@ public static class CuitNumber
         return check != 10 && digits[10] - '0' == check ? digits : null;
     }
 
+    /// <summary>
+    /// Si el texto tiene la forma de una CUIT o un CUIL, dé o no su verificador: once dígitos con cualquier separador. Un DNI o un
+    /// texto no la tienen, y nadie podría corregirlos como CUIT copiándolos de un comprobante (O44).
+    /// </summary>
+    public static bool HasShape(string? value) =>
+        value is not null && KeySeparators.Strip(value) is { Length: 11 } digits && digits.All(char.IsAsciiDigit);
+
     /// <summary>La CUIT para un log o un texto: el prefijo y los últimos dígitos, como los teléfonos.</summary>
     public static string Mask(string cuit) => cuit.Length == 11 ? $"{cuit[..2]}-*****{cuit[7..10]}-{cuit[10]}" : "***";
 }

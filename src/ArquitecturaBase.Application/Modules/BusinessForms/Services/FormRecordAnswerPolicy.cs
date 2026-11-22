@@ -114,6 +114,17 @@ internal static class FormRecordAnswerPolicy
         _ => null,
     };
 
+    /// <summary>
+    /// Whether a text has the shape of what a fixed validation checks, whether it passes or not (O44): a document's proposal leaves out
+    /// as not read a text without it, which nobody could correct by copying it from the document.
+    /// </summary>
+    public static bool HasShape(string validation, string text) => validation switch
+    {
+        FormQuestionValidation.BankAccount => BankAccountKey.HasShape(text),
+        FormQuestionValidation.TaxId => CuitNumber.HasShape(text),
+        _ => true,
+    };
+
     private static List<IReadOnlyList<FormRecordAnswer>>? Rows(CanonicalFormField group, IReadOnlyList<CanonicalFormField> block,
         string raw, IReadOnlyList<StructuredFormCatalogOffer> offers)
     {

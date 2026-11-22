@@ -69,6 +69,26 @@ public sealed class BankAccountKeyTests
     public void Anything_else_is_rejected(string? input) => Assert.Null(BankAccountKey.Parse(input));
 
     [Theory]
+    // O44: a CBU or a CVU, whether its check digits add up or not, and an alias: what a receipt names as an account.
+    [InlineData("2850590940090418135201")]
+    [InlineData("2850590940090418135202")]
+    [InlineData("2850 5909 4009 0418 1352 02")]
+    [InlineData("juan.perez.mp")]
+    public void A_text_with_the_shape_of_an_account_has_it_even_if_its_digits_do_not_add_up(string input) =>
+        Assert.True(BankAccountKey.HasShape(input));
+
+    [Theory]
+    // O44: the bank's own number of an account, a CUIT, one digit less, a sentence and nothing are no account to correct.
+    [InlineData("CTA $ 123-456789/0")]
+    [InlineData("CA $ 4123-45678-9")]
+    [InlineData("20123456786")]
+    [InlineData("285059094009041813520")]
+    [InlineData("juan perez")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void A_text_without_the_shape_of_an_account_lacks_it(string? input) => Assert.False(BankAccountKey.HasShape(input));
+
+    [Theory]
     // A no-break space, a narrow no-break space, a tab, an en dash and a minus sign, as a receipt or a copy and paste leaves them.
     [InlineData("2850 5909 4009 0418 1352 01")]
     [InlineData("2850 5909 4009 0418 1352 01")]

@@ -9,7 +9,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// The validation of a document's proposal without AI (decision 8), on the current active version of each candidate: every read question
-/// with its value and mark (read with doubts or not read), the fixed validations of the bound questions (what fails stays, marked), the
+/// with its value and mark (read with doubts or not read), the fixed validations of the bound questions (what fails stays, marked, and
+/// what lacks the shape of the validation is not read, O44), the
 /// form's lookups in catalogs, the bank or wallet from the account by its entity code when the account passes (the standard's
 /// <c>banks</c>), and the repetition of the same file or of the standard's duplicate keys in that form. A candidate whose form changed
 /// version or stopped being active is left out; «sure» without its candidate is «unknown», and «doubt» with one left is «sure».
@@ -67,6 +68,9 @@ internal sealed class FormDocumentProposalPolicy(IFormReceivedDocumentReader rea
             given.TryGetValue(question.FieldId, out var read);
             var value = read?.Value is { } text && FormScalarPrefillPolicy.Normalize(Project(question), text, []) is { IsSuccess: true } canonical
                 ? canonical.Value : null;
+            // O44: a text without the shape of its fixed validation (the bank's own number of an account where a CBU goes) stays out as
+            // not read, since nobody could correct it by copying from the document; one with the shape that does not pass stays, marked.
+            if (value is not null && question.Validation is { } shaped && !FormRecordAnswerPolicy.HasShape(shaped, value)) value = null;
             var mark = value is null ? FormDocumentMarks.NotRead : read!.Doubtful ? FormDocumentMarks.Doubtful : null;
             string? error = null;
             if (value is not null && question.Validation is { } validation && FormRecordAnswerPolicy.ValidationFailure(validation, value) is { } failure)
