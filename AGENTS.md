@@ -45,7 +45,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests` ([detalle](docs/architec
 - Las reglas de negocio devuelven `Result`/`Result<T>` y no lanzan; las excepciones son bugs o fallas de infraestructura (500 con `traceId`). Los errores se declaran en `<Entidad>Errors` dentro de Domain, con códigos estables `Area.Entidad.Motivo` traducidos en `Errors.resx`; nadie fuera de Domain arma un `Error` (`ErrorDeclarationTests`). Respuestas de error: ProblemDetails con `title`, `detail`, `code`, `traceId` y `errors` en validaciones ([detalle](docs/architecture/backend.md#validación-guardado-y-errores)).
 - Repositorios y lectores: contratos en `Interfaces/Persistence`, EF en `Infrastructure/.../Persistence/{Repositories,Readers}`. Nombres por lo que devuelven: `Get` (entidad seguida, solo repositorios), `Find` (proyección), `List`, `Exists`, `Count`, `Lock`. Solo los lectores usan `AsNoTracking` ([ADR 0008](docs/decisions/0008-nombres-de-repositorios-y-lectores.md)).
 - Entidades: heredan de `Entity` (Guid v7), sin eventos de dominio, con su `IEntityTypeConfiguration<T>`. `IAuditable` e `ISoftDeletable` los completan los interceptores; no usar `ExecuteUpdate`/`ExecuteDelete` con ellas.
-- Paginado: `PagedRequest` con `SortableFields` (toda columna con un dato), `PagedRequestValidator<T>`, `ApplySort` (lo vacío al final, los empates en el orden de siempre y el desempate único) y `ToPagedResultAsync`.
+- Paginado: `PagedRequest` con `SortableFields`, `PagedRequestValidator<T>`, `ApplySort` con desempate único y `ToPagedResultAsync`.
 
 ## Otras reglas fijas
 
