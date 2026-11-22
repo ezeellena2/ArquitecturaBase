@@ -10,13 +10,8 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal sealed class WhatsAppAudioAccessPolicy(IUserReader users, IPermissionService permissions, ICurrentUser current,
-    IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings, WhatsAppAssistantOfferCapacityPolicy capacity, IWhatsAppAssistantReader assistant)
+    IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings)
 {
-    // After «Cambiar algo» the change may come as an audio, and a change is not an offer (IA3-A).
-    public async Task<bool> HasOfferCapacityAsync(Guid contactId, AssistantChannelContext context, CancellationToken ct) =>
-        context.InteractionMode != AssistantInteractionMode.Assistant || await assistant.FindChangeRequestAsync(contactId, ct) is not null
-            || await capacity.HasCapacityAsync(contactId, context, ct);
-
     public async Task<Result<Guid>> RequireOperatorAsync(CancellationToken ct)
     {
         if (current.UserId is not {} actor) return WhatsAppChatErrors.SessionRequired;

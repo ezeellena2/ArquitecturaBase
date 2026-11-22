@@ -39,6 +39,7 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         replies.ApplyAsync(contact,row,plan,ct);
     public Task<bool> ApplyCaseTapAsync(WhatsAppContact contact,WhatsAppAssistantChoiceRow tap,CancellationToken ct)=>replies.ApplyTapAsync(contact,tap,ct);
     public Task HandOffFailureAsync(WhatsAppContact contact,WhatsAppAssistantRequest row,CancellationToken ct)=>replies.HandOffFailureAsync(contact,row,ct);
+    public Task HandOffOfferLimitAsync(WhatsAppContact contact,WhatsAppAssistantRequest row,CancellationToken ct)=>replies.HandOffOfferLimitAsync(contact,row,ct);
     public Task<bool> WaitsForBurstAsync(Guid contactId,DateTime latestUtc,CancellationToken ct)=>replies.WaitsForBurstAsync(contactId,latestUtc,ct);
 
     public bool AcceptTerminal(WhatsAppContact contact,WhatsAppAssistantRequest row,WhatsAppAssistantTerminalResponse terminal)
@@ -104,7 +105,8 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         foreach(var definition in definitions)
             if(await reader.ExistsDeclinedAsync(contact.Id,definition,ct)) return WhatsAppAssistantErrors.StateConflict;
         var channel = WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row));
-        if (!await HasOfferCapacityAsync(contact.Id, channel, ct, row.RequestId)) return WhatsAppAssistantErrors.StateConflict;
+        // O36: the caller hands the person's message off with the reason; a suggestion after a capture just stops.
+        if (!await HasOfferCapacityAsync(contact.Id, channel, ct, row.RequestId)) return WhatsAppAssistantErrors.OfferLimitReached;
         if(view.Prefill is null && view.Clarification is {} question)
         {
             if(await conversations.ExistsUnresolvedOutgoingAsync(contact.Id,ct)) return WhatsAppChatErrors.SendPending;

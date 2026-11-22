@@ -25,7 +25,8 @@ public sealed partial class WhatsAppAssistantAgent
 
             var allowed = Allowed(limits.AllowedActions);
             var normalizedLimits = new WhatsAppAssistantLimits(Topics(limits.BlockedTopics), Text(limits.CannotPromise, CannotPromiseLength, false),
-                Range(limits.MaxReplyLength, MinReplyLength, MaxReplyLength), Range(limits.DailyReplyLimit, MinDailyReplies, MaxDailyReplies), allowed);
+                Range(limits.MaxReplyLength, MinReplyLength, MaxReplyLength), Range(limits.DailyReplyLimit, MinDailyReplies, MaxDailyReplies), allowed,
+                Range(limits.DailyOfferLimit, MinDailyOffers, MaxDailyOffers));
             var normalizedProfile = new WhatsAppAssistantProfile(Text(profile.Name, NameLength, true), Text(profile.Introduction, IntroductionLength, false),
                 Text(profile.Tone, ToneLength, false), Text(profile.Does, DoesLength, false), Text(profile.DoesNot, DoesLength, false),
                 Fixed(profile.HandoffMessage, HandoffMessageLength) ?? new(null, null));

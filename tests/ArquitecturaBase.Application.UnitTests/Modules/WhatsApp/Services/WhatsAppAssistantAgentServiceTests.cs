@@ -119,6 +119,20 @@ public sealed class WhatsAppAssistantAgentServiceTests
         Assert.Equal(0, host.UnitOfWork.Transactions);
     }
 
+    [Theory]
+    [InlineData(WhatsAppAssistantAgentLimits.MinDailyOffers - 1)]
+    [InlineData(WhatsAppAssistantAgentLimits.MaxDailyOffers + 1)]
+    public async Task The_daily_offer_limit_answers_at_its_path_out_of_its_range(int limit)
+    {
+        var host = new Host();
+
+        var invalid = await host.Service.UpdateAsync(Request(0, "es") with { Limits = Limits() with { DailyOfferLimit = limit } }, Ct);
+
+        var validation = Assert.IsType<ValidationError>(invalid.Error);
+        Assert.Contains("limits.dailyOfferLimit", validation.Errors.Keys);
+        Assert.Equal(0, host.UnitOfWork.Transactions);
+    }
+
     // A text over its length names its limit with the thousands of its language (2026-11-12): AddFailure does not fill the
     // placeholder of the message by itself, so the validator gives it the limit.
     [Fact]

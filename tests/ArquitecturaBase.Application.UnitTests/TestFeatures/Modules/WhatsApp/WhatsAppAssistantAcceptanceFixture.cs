@@ -14,8 +14,8 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 internal static class WhatsAppAssistantAcceptanceFixture
 {
     public static WhatsAppAssistantAutomaticPolicy CreateAutomatic(WhatsAppAssistantSuggestionFixture host)=>
-        new(Create(host),host.Reader,host.Context.Clock,host.Conversation,host.Messages,new WhatsAppAssistantTerminalFixture().Policy,new(host.Reader,host.Context.Clock),
-            CreateReply(host));
+        new(Create(host),host.Reader,host.Context.Clock,host.Conversation,host.Messages,new WhatsAppAssistantTerminalFixture().Policy,
+            new(host.Reader,host.Agents,host.Context.Clock),CreateReply(host));
     /// <summary>
     /// Task 9 of the documents: the circuit's policy, with the inbox's port the test gives (none answers Unavailable). The send it resolves
     /// is revalidated by the acceptance: give both the same sending policy, whose bindings keep their ids like the database's.
@@ -42,7 +42,7 @@ internal static class WhatsAppAssistantAcceptanceFixture
     /// <summary>Casos del asistente: the replies of the agent, with no agent saved unless the test gives one.</summary>
     public static WhatsAppAssistantReplyPolicy CreateReply(WhatsAppAssistantSuggestionFixture host, IWhatsAppAssistantAgentReader? agents = null,
         IWhatsAppAssistantHistoryReader? history = null) =>
-        new(agents ?? new FakeWhatsAppAssistantAgentReader(), history ?? new FakeWhatsAppAssistantHistoryReader(),
+        new(agents ?? host.Agents, history ?? new FakeWhatsAppAssistantHistoryReader(),
             new(host.Conversation, new WhatsAppFormActionPolicy(host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true),
                 host.Context.Clock), host.Context.Clock), host.Conversation, host.Requests, host.Messages, host.Context.Clock);
     public static WhatsAppAssistantAcceptancePolicy Create(WhatsAppAssistantSuggestionFixture host, WhatsAppFormSendPolicy? shared = null)

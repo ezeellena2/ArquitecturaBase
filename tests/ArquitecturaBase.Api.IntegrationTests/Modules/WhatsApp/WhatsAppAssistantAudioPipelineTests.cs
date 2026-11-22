@@ -48,7 +48,9 @@ public sealed class WhatsAppAssistantAudioPipelineTests
     [InlineData(null)]
     [InlineData("pending")]
     [InlineData("completed")]
-    public async Task Exhausted_audio_quota_recovers_only_an_existing_acceptance_and_never_submits(string? state)
+    // O39: the audio no longer asks for it (the day's offers do not stop a transcription), but the processor keeps the contract of a
+    // recover-only work, which a pending suggestion after a capture still uses.
+    public async Task A_recover_only_audio_work_recovers_only_an_existing_acceptance_and_never_submits(string? state)
     {
         await using var host = new WhatsAppAssistantInboundFixture {
             HasAudioWork = true, HasWork = false, AudioRecoverOnly = true, ExistingAudioState = state };

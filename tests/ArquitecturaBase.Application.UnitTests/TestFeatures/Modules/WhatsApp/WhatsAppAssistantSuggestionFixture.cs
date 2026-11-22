@@ -23,6 +23,8 @@ internal sealed class WhatsAppAssistantSuggestionFixture
     public WhatsAppAssistantPresentationPolicy Presentation {get;}
     public SessionProtector Protector {get;}=new();
     public FakeWhatsAppAssistantReader Reader {get;}=new();
+    /// <summary>The saved agent, none unless the test gives one: its limits set the offers of a day (TO1-A) and its handoff message.</summary>
+    public FakeWhatsAppAssistantAgentReader Agents {get;}=new();
     public Repository Requests {get;}=new();
     public Conversations Conversation {get;}
     public FakeUnitOfWork UnitOfWork {get;}

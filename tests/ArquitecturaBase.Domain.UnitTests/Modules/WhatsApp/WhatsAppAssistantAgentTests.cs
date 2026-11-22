@@ -149,6 +149,10 @@ public sealed class WhatsAppAssistantAgentTests
         Assert.False(Saves(Limits() with { MaxReplyLength = WhatsAppAssistantAgentLimits.MinReplyLength - 1 }));
         Assert.False(Saves(Limits() with { MaxReplyLength = WhatsAppAssistantAgentLimits.MaxReplyLength + 1 }));
         Assert.False(Saves(Limits() with { DailyReplyLimit = 0 }));
+        Assert.True(Saves(Limits() with { DailyOfferLimit = WhatsAppAssistantAgentLimits.MinDailyOffers }));
+        Assert.True(Saves(Limits() with { DailyOfferLimit = WhatsAppAssistantAgentLimits.MaxDailyOffers }));
+        Assert.False(Saves(Limits() with { DailyOfferLimit = WhatsAppAssistantAgentLimits.MinDailyOffers - 1 }));
+        Assert.False(Saves(Limits() with { DailyOfferLimit = WhatsAppAssistantAgentLimits.MaxDailyOffers + 1 }));
         Assert.False(Saves(Limits() with { BlockedTopics = ["Precios", "precios"] }));
         Assert.False(Saves(Limits() with { BlockedTopics = [" "] }));
         Assert.False(Saves(Limits() with { BlockedTopics = [.. Enumerable.Range(0, WhatsAppAssistantAgentLimits.BlockedTopics + 1).Select(index => $"Tema {index}")] }));
@@ -171,7 +175,20 @@ public sealed class WhatsAppAssistantAgentTests
         Assert.Equal(WhatsAppAssistantActionKind.NoReply, WhatsAppAssistantAgent.Create("es").Fallback.Kind);
         Assert.Equal(400, defaults.MaxReplyLength);
         Assert.Equal(10, defaults.DailyReplyLimit);
+        Assert.Equal(2, defaults.DailyOfferLimit);
         Assert.Equal(Enum.GetValues<WhatsAppAssistantActionKind>(), defaults.AllowedActions);
+    }
+
+    [Fact]
+    public void Limits_saved_before_the_offer_limit_existed_offer_two_forms_a_day()
+    {
+        // The limits live in JSONB: an agent saved before TO1-A, or by the previous version while both run, has no dailyOfferLimit.
+        const string saved = """{"blockedTopics":["Precios"],"cannotPromise":"","maxReplyLength":400,"dailyReplyLimit":10,"allowedActions":[1,5]}""";
+
+        var limits = System.Text.Json.JsonSerializer.Deserialize<WhatsAppAssistantLimits>(saved, System.Text.Json.JsonSerializerOptions.Web)!;
+
+        Assert.Equal(2, limits.DailyOfferLimit);
+        Assert.Equal(10, limits.DailyReplyLimit);
     }
 
     private static bool Saves(WhatsAppAssistantCase @case) => WhatsAppAssistantAgent.Create("es").Update(Profile(), [@case], NoReply(), Limits()).IsSuccess;

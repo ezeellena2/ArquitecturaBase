@@ -365,10 +365,12 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             {
                 if (row.Kind == WhatsAppAssistantRequestKind.Automatic)
                 {
-                    if (prepared is not { IsSuccess: true } context || (await automatic.AcceptAsync(contact, row, view, context.Value, token)).IsFailure)
-                    {
-                        row.FinishWithoutReply(true, proposals.NowUtc);
-                    }
+                    var accepted = prepared is { IsSuccess: true } context ? await automatic.AcceptAsync(contact, row, view, context.Value, token) : null;
+                    // O36: over the day's offers a person answers the person's message, with the reason; a suggestion after a capture,
+                    // which nobody asked for, just stops.
+                    if (accepted is { IsFailure: true } && accepted.Error == WhatsAppAssistantErrors.OfferLimitReached && row.SourceRecordId is null)
+                        await automatic.HandOffOfferLimitAsync(contact, row, token);
+                    else if (accepted is not { IsSuccess: true }) row.FinishWithoutReply(true, proposals.NowUtc);
                     return Result.Success();
                 }
                 return row.Ready(proposal.Id, view.Prefill?.Form.DefinitionId, proposals.NowUtc) ? Result.Success() : WhatsAppAssistantErrors.StateConflict;

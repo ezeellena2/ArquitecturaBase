@@ -85,6 +85,8 @@ internal sealed class UpdateWhatsAppAssistantAgentRequestValidator : AbstractVal
             context.AddFailure("Limits.MaxReplyLength", Messages.OutOfRange(MinReplyLength, MaxReplyLength));
         if (limits.DailyReplyLimit is < MinDailyReplies or > MaxDailyReplies)
             context.AddFailure("Limits.DailyReplyLimit", Messages.OutOfRange(MinDailyReplies, MaxDailyReplies));
+        if (limits.DailyOfferLimit is < MinDailyOffers or > MaxDailyOffers)
+            context.AddFailure("Limits.DailyOfferLimit", Messages.OutOfRange(MinDailyOffers, MaxDailyOffers));
         if (limits.AllowedActions is not { Count: > 0 } actions) context.AddFailure("Limits.AllowedActions", Messages.ActionsRequired);
         else if (!actions.All(Enum.IsDefined) || actions.Distinct().Count() != actions.Count) context.AddFailure("Limits.AllowedActions", Messages.Invalid);
     }

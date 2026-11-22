@@ -57,6 +57,17 @@ public sealed class WhatsAppAssistantAutomaticIntegrationTests(ApiFactory factor
             .Where(row => row.SourceMessageId == contact.SourceMessageId && row.ContactId == contact.ContactId).Select(row => row.RequestId).SingleAsync(Ct));
         Assert.Equal(WhatsAppAssistantRequestState.Blocked, await StateAsync(host, thirdId));
         Assert.Equal(2, host.Cloud.Messages.Count);
+        // O36: over the day's offers a person answers, with the reason (without an agent there is no handoff message to send).
+        var handedOff = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().AsNoTracking()
+            .SingleAsync(row => row.Id == contact.ContactId, Ct));
+        Assert.Equal((WhatsAppConversationMode.Manual, true, "dailyOfferLimit"), (handedOff.Mode, handedOff.NeedsPerson, handedOff.HandoffReasonCode));
+        // A person puts the conversation back in Asistente, as after any handoff.
+        await host.InTransactionAsync(async services =>
+        {
+            var row = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().SingleAsync(item => item.Id == contact.ContactId, Ct);
+            row.ChangeMode(WhatsAppConversationMode.Assistant, null, host.Clock.GetUtcNow().UtcDateTime);
+            return true;
+        }, Ct);
 
         host.Clock.SetUtcNow(new DateTimeOffset(boundaryUtc.AddMinutes(1)));
         contact = contact with { SourceMessageId = await host.AddNewerSourceAsync(contact, Ct) };

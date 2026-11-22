@@ -580,7 +580,7 @@ public sealed class WhatsAppAssistantReplyTests
         var agents = new FakeWhatsAppAssistantAgentReader { Agent = agent ?? Agent() };
         var history = new FakeWhatsAppAssistantHistoryReader();
         var automatic = new WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptanceFixture.Create(host), host.Reader, host.Context.Clock, host.Conversation,
-            host.Messages, new WhatsAppAssistantTerminalFixture().Policy, new(host.Reader, host.Context.Clock),
+            host.Messages, new WhatsAppAssistantTerminalFixture().Policy, new(host.Reader, agents, host.Context.Clock),
             WhatsAppAssistantAcceptanceFixture.CreateReply(host, agents, history));
         var dispatch = new WhatsAppAssistantDispatchService(host.Context.Policy, new(host.Reader, host.Assistant, host.Forms, host.Context.Clock, host.Presentation),
             host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic, NullLogger<WhatsAppAssistantDispatchService>.Instance);

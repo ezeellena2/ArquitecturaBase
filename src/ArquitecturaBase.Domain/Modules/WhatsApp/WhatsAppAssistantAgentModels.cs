@@ -33,8 +33,13 @@ public sealed record WhatsAppAssistantCase(Guid Id, string When, WhatsAppAssista
 public sealed record WhatsAppAssistantProfile(string Name, string Introduction, string Tone, string Does, string DoesNot,
     WhatsAppAssistantText HandoffMessage);
 
+/// <summary>
+/// The agent's limits. <see cref="DailyOfferLimit"/> (TO1-A, 2026-11-21) is how many forms the assistant offers on its own per
+/// conversation and business day; it goes last with its default so that limits saved before it, or by the previous version while
+/// both run, read two, as before.
+/// </summary>
 public sealed record WhatsAppAssistantLimits(IReadOnlyList<string> BlockedTopics, string CannotPromise, int MaxReplyLength, int DailyReplyLimit,
-    IReadOnlyList<WhatsAppAssistantActionKind> AllowedActions);
+    IReadOnlyList<WhatsAppAssistantActionKind> AllowedActions, int DailyOfferLimit = WhatsAppAssistantAgentLimits.DefaultDailyOffers);
 
 /// <summary>The limits of the agent's configuration: every layer uses these, from the validator to the screen.</summary>
 public static class WhatsAppAssistantAgentLimits
@@ -62,7 +67,13 @@ public static class WhatsAppAssistantAgentLimits
     public const int MaxReplyLength = 1000;
     public const int MinDailyReplies = 1;
     public const int MaxDailyReplies = 50;
+    public const int MinDailyOffers = 1;
+    public const int MaxDailyOffers = 50;
+    public const int DefaultDailyOffers = 2;
 
-    /// <summary>Until the profile is saved: every action allowed, 400 characters and 10 replies per conversation and day (AS5).</summary>
-    public static WhatsAppAssistantLimits DefaultLimits { get; } = new([], "", 400, 10, Enum.GetValues<WhatsAppAssistantActionKind>());
+    /// <summary>
+    /// Until the profile is saved: every action allowed, 400 characters, 10 replies and 2 form offers per conversation and day (AS5,
+    /// TO1-A).
+    /// </summary>
+    public static WhatsAppAssistantLimits DefaultLimits { get; } = new([], "", 400, 10, Enum.GetValues<WhatsAppAssistantActionKind>(), DefaultDailyOffers);
 }

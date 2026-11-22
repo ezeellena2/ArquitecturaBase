@@ -8,10 +8,11 @@ public sealed class WhatsAppAudioQuotaTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    // O39 (2026-11-21): the offers of a day only stop offering forms, so an automatic audio is transcribed whatever the quota.
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Exhausted_automatic_quota_keeps_a_playable_copy_and_finishes_without_a_new_request(bool copied)
+    public async Task A_full_offer_quota_still_transcribes_an_automatic_audio(bool copied)
     {
         var f = new WhatsAppAudioFixture();
         f.Offers.OfferCount = 2;
@@ -21,39 +22,19 @@ public sealed class WhatsAppAudioQuotaTests
         var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Null(result.Value);
-        Assert.Equal(WhatsAppAudioState.Unavailable, f.Message.AudioState);
-        Assert.Equal(WhatsAppAssistantErrors.Unavailable.Code, f.Message.AudioFailureCode);
-        Assert.Null(f.Message.AudioRequestId);
-        Assert.Null(f.Message.AudioActorUserId);
-        Assert.Null(f.Message.AudioContextJson);
-        Assert.Null(f.Message.Body);
-        Assert.True(f.Presentation.View(f.Row()).CanPlay);
+        Assert.NotNull(result.Value);
+        Assert.False(result.Value.RecoverOnly);
+        Assert.Equal(WhatsAppAudioState.Transcribing, f.Message.AudioState);
+        Assert.Equal(result.Value.RequestId, f.Message.AudioRequestId);
+        Assert.Equal("whatsapp-assistant", result.Value.Operation!.Context.ChannelId);
+        Assert.Null(f.Offers.LastCount);
         Assert.Equal(1, f.Downloads);
-        Assert.Equal(1, f.Files.WriteCount);
-        var reads = f.Files.ReadCount;
-        Assert.Null((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).Value);
-        Assert.Equal(1, f.Downloads);
-        Assert.Equal(reads, f.Files.ReadCount);
-    }
-
-    [Fact]
-    public async Task After_change_something_the_audio_with_the_change_is_not_an_offer_and_goes_on_without_quota()
-    {
-        var f = new WhatsAppAudioFixture();
-        f.Offers.OfferCount = 2;
-        f.Offers.ChangeRequest = Guid.NewGuid();
-        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
-        var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
-        Assert.True(result.IsSuccess);
-        Assert.NotEqual(WhatsAppAudioState.Unavailable, f.Message.AudioState);
-        Assert.NotNull(f.Message.AudioRequestId);
     }
 
     [Theory]
-    [InlineData(1, false)]
-    [InlineData(2, true)]
-    public async Task A_pinned_automatic_request_is_recovery_only_when_the_offer_quota_is_exhausted(int offers, bool recoverOnly)
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task A_pinned_automatic_request_goes_on_whatever_the_offer_quota(int offers)
     {
         var f = new WhatsAppAudioFixture();
         f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
@@ -67,7 +48,7 @@ public sealed class WhatsAppAudioQuotaTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
         Assert.Equal(requestId, result.Value.RequestId);
-        Assert.Equal(recoverOnly, result.Value.RecoverOnly);
+        Assert.False(result.Value.RecoverOnly);
         Assert.Equal(WhatsAppAudioState.Transcribing, f.Message.AudioState);
         Assert.Null(f.Message.Body);
         Assert.Equal(0, f.Downloads);

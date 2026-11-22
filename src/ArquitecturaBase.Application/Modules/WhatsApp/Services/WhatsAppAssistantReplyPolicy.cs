@@ -104,6 +104,9 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
     /// <summary>The code of a handoff because the engine did not answer (H5): «El asistente no pudo responder».</summary>
     public const string AssistantFailedCode = "assistantFailed";
 
+    /// <summary>The code of a handoff because a form went over the day's offers (O36): «Llegó al tope de ofrecimientos del día».</summary>
+    public const string OfferLimitCode = "dailyOfferLimit";
+
     /// <summary>
     /// H5: whether a person answers because the engine did not: it failed, could not tell or expired, or it refused the request for
     /// good. What is pending or can be retried does not, nor a suggestion after a capture, which nobody asked. A NotFound hands off
@@ -130,15 +133,25 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
     /// and under its locks of the contact and the reference. The reference stays Blocked; the message carries why, or the reference
     /// keeps it for the chat when nothing goes out (without an agent, its message or the 24-hour window).
     /// </summary>
-    public async Task HandOffFailureAsync(WhatsAppContact contact, WhatsAppAssistantRequest row, CancellationToken ct)
+    public Task HandOffFailureAsync(WhatsAppContact contact, WhatsAppAssistantRequest row, CancellationToken ct) =>
+        HandOffAsync(contact, row, AssistantFailedCode, ct);
+
+    /// <summary>
+    /// O36 (2026-11-21): the form the person's message asked for is over the day's offers (the agent's limit, TO1-A), so it does not go
+    /// out and a person answers, as with the daily replies: the same handoff as <see cref="HandOffFailureAsync"/> with its own code.
+    /// </summary>
+    public Task HandOffOfferLimitAsync(WhatsAppContact contact, WhatsAppAssistantRequest row, CancellationToken ct) =>
+        HandOffAsync(contact, row, OfferLimitCode, ct);
+
+    private async Task HandOffAsync(WhatsAppContact contact, WhatsAppAssistantRequest row, string code, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(contact);
         ArgumentNullException.ThrowIfNull(row);
         var agent = await agents.FindMainAsync(ct);
         var culture = WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)).Culture;
         var why = WhatsAppAssistantReplyRecordCodec.Serialize(new(WhatsAppAssistantActionKind.Handoff, WhatsAppAssistantCaseSource.Fallback, null, null,
-            "", [], 1, 1, AssistantFailedCode));
-        var outgoing = await handoffs.HandOffAsync(contact, row.SubjectUserId, row.RequestId, AssistantFailedCode, null,
+            "", [], 1, 1, code));
+        var outgoing = await handoffs.HandOffAsync(contact, row.SubjectUserId, row.RequestId, code, null,
             agent is null ? null : agent.Profile.HandoffMessage.For(culture, agent.OriginalCulture), ct);
         if (outgoing is not null) outgoing.ExplainAssistantReply(why);
         else if (!row.RecordOutcome(why)) throw new InvalidOperationException("A failed request could not record why it handed off.");

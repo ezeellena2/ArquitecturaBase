@@ -99,7 +99,7 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests
                 buttons = new object[] { new { title = Es("Sí"), destination = "Handoff" } } } },
         },
         fallback = new { kind = "NoReply" },
-        limits = new { blockedTopics = Array.Empty<string>(), cannotPromise = "", maxReplyLength = 400, dailyReplyLimit = 10,
+        limits = new { blockedTopics = Array.Empty<string>(), cannotPromise = "", maxReplyLength = 400, dailyReplyLimit = 10, dailyOfferLimit = 2,
             allowedActions = new[] { "SendForm", "ExactText", "DraftedReply", "AskButtons", "Handoff", "NoReply" } },
     };
 

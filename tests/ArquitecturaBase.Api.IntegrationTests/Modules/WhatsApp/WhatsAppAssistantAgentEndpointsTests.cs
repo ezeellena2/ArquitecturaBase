@@ -64,8 +64,8 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory fact
         using var defaults = await host.SendAsync("GET", Route, manager);
         Assert.Equal(HttpStatusCode.OK, defaults.StatusCode);
         var read = await defaults.ReadJsonAsync();
-        Assert.Equal((0, "NoReply", 400), (read.GetProperty("revision").GetInt64(), read.GetProperty("fallback").GetProperty("kind").GetString(),
-            read.GetProperty("limits").GetProperty("maxReplyLength").GetInt32()));
+        Assert.Equal((0, "NoReply", 400, 2), (read.GetProperty("revision").GetInt64(), read.GetProperty("fallback").GetProperty("kind").GetString(),
+            read.GetProperty("limits").GetProperty("maxReplyLength").GetInt32(), read.GetProperty("limits").GetProperty("dailyOfferLimit").GetInt32()));
         Assert.Empty(read.GetProperty("cases").EnumerateArray());
         // The front reads a closed contract: the knowledge carries its zones and nothing derived from them.
         Assert.Equal(["availability", "revision", "sections", "unansweredQuestions"],
@@ -76,6 +76,8 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory fact
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var agent = await saved.ReadJsonAsync();
         Assert.Equal(1, agent.GetProperty("revision").GetInt64());
+        // TO1-A: the offers of a day are saved with the rest of the limits.
+        Assert.Equal(3, agent.GetProperty("limits").GetProperty("dailyOfferLimit").GetInt32());
         var item = Assert.Single(agent.GetProperty("cases").EnumerateArray());
         Assert.Equal(("Pregunta por el horario", "ExactText", "Abrimos de 9 a 18."), (item.GetProperty("when").GetString(),
             item.GetProperty("action").GetProperty("kind").GetString(), item.GetProperty("action").GetProperty("text").GetProperty("es").GetString()));
@@ -234,7 +236,7 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory fact
                     action = new { kind = "AskButtons", question = new { es = "¿Te paso con alguien?", en = (string?)null },
                         buttons = new[] { new { title = new { es = buttonTitle, en = (string?)null }, destination = "Handoff" } } } }],
         fallback = new { kind = "NoReply" },
-        limits = new { blockedTopics = Array.Empty<string>(), cannotPromise = "", maxReplyLength = 400, dailyReplyLimit = 10,
+        limits = new { blockedTopics = Array.Empty<string>(), cannotPromise = "", maxReplyLength = 400, dailyReplyLimit = 10, dailyOfferLimit = 3,
             allowedActions = new[] { "SendForm", "ExactText", "DraftedReply", "AskButtons", "Handoff", "NoReply" } },
     };
 
