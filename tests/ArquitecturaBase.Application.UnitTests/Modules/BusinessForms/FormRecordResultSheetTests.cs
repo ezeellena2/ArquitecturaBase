@@ -41,9 +41,10 @@ public sealed class FormRecordResultSheetTests
     public async Task The_sheet_has_a_column_per_datum_and_each_response_its_values()
     {
         var (reader, results, user, permissions) = Arrange();
+        var entry = new FormResponseEntryDouble(reader);
         var service = new FormResponseService(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
-            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()), results);
+            entry.Policy(new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts())), results);
 
         var sheet = (await service.ListAsync(reader.Definition!.Id, new(), CancellationToken.None)).Value;
 
@@ -62,9 +63,10 @@ public sealed class FormRecordResultSheetTests
     {
         var (reader, results, user, permissions) = Arrange();
         reader.ExportRows = [reader.ExportRows[0], reader.ExportRows[1] with { HasIssuance = true }];
+        var entry = new FormResponseEntryDouble(reader);
         var service = new FormResponseService(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
-            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()), results);
+            entry.Policy(new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts())), results);
         var withResult = reader.ExportRows[0].Record.RecordId;
         var running = reader.ExportRows[1].Record.RecordId;
 
@@ -80,9 +82,10 @@ public sealed class FormRecordResultSheetTests
     public async Task Without_results_the_sheet_keeps_its_body()
     {
         var (reader, _, user, permissions) = Arrange();
+        var entry = new FormResponseEntryDouble(reader);
         var service = new FormResponseService(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
-            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()), new FormRecordResultReaderDouble());
+            entry.Policy(new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts())), new FormRecordResultReaderDouble());
 
         var sheet = (await service.ListAsync(reader.Definition!.Id, new(), CancellationToken.None)).Value;
 

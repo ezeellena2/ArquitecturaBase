@@ -100,9 +100,10 @@ public sealed class FormResponseChainTests
         public Fixture()
         {
             Reader.ArrangeExport(2); Permissions.Permissions[User.UserId!.Value] = [BusinessFormsPermissions.RecordsRead];
+            var entry = new FormResponseEntryDouble(Reader);
             Service = new(Reader, new(User, Permissions, Reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
                 NullLogger<FormResponseService>.Instance, new([]), Suggestions,
-                new(User, Permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()),
+                entry.Policy(new(User, Permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts())),
             new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         }
     }

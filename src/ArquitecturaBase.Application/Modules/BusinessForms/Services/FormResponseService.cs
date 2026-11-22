@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormResponseService(IFormResponseReader reader, FormRecordAccessGuard access,
     IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginPolicy origins, IFormSuggestionReader suggestions,
-    FormRecordAmendmentGuard amendments, IFormRecordResultReader resultReader) : IFormResponseService
+    FormResponseEntryPolicy entries, IFormRecordResultReader resultReader) : IFormResponseService
 {
     public Task<Result<FormRecordNavigationResponse>> FindRecordNavigationAsync(Guid definitionId, Guid recordId,
         ListFormRecordsRequest request, CancellationToken cancellationToken) =>
@@ -91,11 +91,12 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var chain = await reader.ListChainAsync(id, cancellationToken);
             var amendment = await reader.FindAmendmentAsync(id, cancellationToken);
             var channels = await origins.ListAsync(read.Value.Actor, [row.OriginReceiptId], cancellationToken);
-            var amend = await amendments.FindAsync(cancellationToken);
+            var canAmend = await entries.CanAmendAsync(row, cancellationToken);
             var results = await resultReader.ListAsync([id], cancellationToken);
+            var schema = FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson);
+            var entry = await entries.DescribeAsync(row, schema, cancellationToken);
             if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var contentCulture = (row.Version ?? throw new InvalidOperationException("The response version presentation is missing.")).DisplayCulture(Culture());
-            var schema = FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson);
             var reply = FormRecordPresentationPolicy.Project(row.Record, contentCulture, schema);
             var origin = channels.GetValueOrDefault(row.OriginReceiptId);
             var history = new List<FormResponseHistoryResponse>();
@@ -115,8 +116,8 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                 Void = amendment.Void is { } voided && amendment.VoidReasonCode is { } reasonCode ? voided with { Reason = ErrorMessages.Get(reasonCode) } : amendment.Void,
                 Results = results.Count == 0 ? null : results.Select(result => FormRecordResultPresentationPolicy.Project(result, contentCulture)).ToArray(),
                 HasIssuance = row.HasIssuance || results.Count > 0,
-                CanAmend = amend is not null && FormRecordAmendmentGuard.Allows(amend, row.Actor.UserId, Enum.Parse<FormRecordState>(row.State),
-                    row.ReplacedByRecordId is not null).IsSuccess,
+                CanAmend = canAmend,
+                Entry = entry,
             };
         });
     private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";

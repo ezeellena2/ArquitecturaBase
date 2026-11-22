@@ -122,9 +122,10 @@ public sealed class FormRecordNavigationServiceTests
         var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
         var permissions = new FakePermissionService();
         permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
+        var entry = new FormResponseEntryDouble(reader);
         var service = new FormResponseService(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
-            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()),
+            entry.Policy(new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts())),
             new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         return (reader, user, permissions, service);
     }

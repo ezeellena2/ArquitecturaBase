@@ -1,7 +1,6 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
-using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -38,13 +37,9 @@ internal sealed class FormEntryService(FormEntryLoaderGuard loaders, FormEntryVe
             // What was there before, mapped to the active version: the questions that remain keep their answers and files.
             var recorded = FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson);
             var reply = FormRecordPresentationPolicy.Project(row.Record, entry.Culture, recorded);
-            var answers = reply.Values.Select(value => schema.Questions.SingleOrDefault(question => question.FieldId == value.FieldId) is { } question
-                ? Answer(question, value.Value) : null).OfType<FormEntryCorrectionAnswer>().ToList();
-            if (BlockAnswer(schema, recorded, row.Record, entry.Culture) is { } block) answers.Add(block);
-            var grouped = await catalogs.WithGroupsAsync(schema, answers, entry.Culture, cancellationToken);
-            var files = (row.Record.Files ?? []).Where(file => schema.Questions.Any(question => question.FieldId == file.FieldId && question.Files is not null))
-                .OrderBy(file => file.FieldId).ThenBy(file => file.Position)
-                .Select(file => new FormEntryCorrectionFile(file.FileId, file.FieldId, file.Name, file.ContentType, file.Size, file.HasThumbnail)).ToArray();
+            var grouped = await catalogs.WithGroupsAsync(schema, FormEntryAnswerPolicy.Answers(schema, recorded, row.Record, reply.Values, entry.Culture),
+                entry.Culture, cancellationToken);
+            var files = FormEntryAnswerPolicy.Files(schema, row.Record);
             if (!await loaders.StillAllowedAsync(loader, cancellationToken)) return FormDefinitionErrors.Forbidden;
             return new FormEntryCorrectionResponse(entry, recordId, reply.Number, grouped, files);
         });
@@ -155,46 +150,4 @@ internal sealed class FormEntryService(FormEntryLoaderGuard loaders, FormEntryVe
             }, correction, cancellationToken);
             return await recorder.OutcomeAsync(definition.Prefix, captured, group, cancellationToken);
         });
-
-    // The items of the block as the form sends them, when the active version keeps that block: each item with its answers to the
-    // questions that remain in it. A block the active version no longer has does not come back.
-    private static FormEntryCorrectionAnswer? BlockAnswer(FormVersionSchema active, FormVersionSchema recorded, FormRecordStoredRow record, string culture)
-    {
-        var group = active.Questions.FirstOrDefault(question => question.Type == "group");
-        if (group is null || !recorded.Questions.Any(question => question.FieldId == group.FieldId && question.Type == "group")) return null;
-        var block = active.Questions.SkipWhile(question => question.FieldId != group.FieldId).Skip(1).TakeWhile(question => question.Repeated == true).ToArray();
-        return new(group.FieldId, null, null, null)
-        {
-            Rows = FormRecordPresentationPolicy.Rows(record, culture, recorded).Select(item => (IReadOnlyList<FormEntryCorrectionAnswer>)item.Values
-                .Select(value => block.SingleOrDefault(question => question.FieldId == value.FieldId) is { } question ? Answer(question, value.Value) : null)
-                .OfType<FormEntryCorrectionAnswer>().ToArray()).ToArray(),
-        };
-    }
-
-    // An answer as the form sends it: canonical text, or the options chosen; a choice the active version no longer has is dropped.
-    private static FormEntryCorrectionAnswer? Answer(CanonicalFormField question, object? value)
-    {
-        IReadOnlyList<StructuredRecordChoiceValue>? choices = value switch
-        {
-            StructuredRecordChoiceValue choice => [choice],
-            StructuredRecordChoiceValue[] many => many,
-            _ => null,
-        };
-        if (choices is not null)
-        {
-            var catalog = question.Source?.Catalog is not null;
-            var kept = choices.Where(choice => catalog || question.Options?.Any(option => option.ChoiceId.ToString("D") == choice.ChoiceId) == true).ToArray();
-            var ids = kept.Select(choice => Guid.Parse(choice.ChoiceId)).ToArray();
-            var texts = catalog ? kept.Select(choice => new FormEntryOptionResponse(Guid.Parse(choice.ChoiceId), choice.Label, choice.Detail)).ToArray() : null;
-            if (question.Type == "multiChoice") return new(question.FieldId, null, ids, texts);
-            return ids.Length == 1 ? new(question.FieldId, ids[0].ToString("D"), null, texts) : null;
-        }
-        return value switch
-        {
-            string text => new(question.FieldId, text, null, null),
-            bool boolean => new(question.FieldId, boolean ? "true" : "false", null, null),
-            StructuredRecordLocationValue location => new(question.FieldId, FormLocationPolicy.Canonical(location), null, null),
-            _ => null,
-        };
-    }
 }

@@ -12,6 +12,7 @@ using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -42,11 +43,15 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
     public Guid DefinitionId => Saved.GetProperty("definition").GetProperty("id").GetGuid();
     public Guid QuestionId => Saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
 
-    public static async Task<FormRecipientScenario> CreateAsync(ApiFactory factory, CancellationToken ct)
+    // services: replacements for the host, such as an in-memory private store for the photos of a response.
+    public static async Task<FormRecipientScenario> CreateAsync(ApiFactory factory, CancellationToken ct, Action<IServiceCollection>? services = null)
     {
         var connectionString = factory.NewDatabaseConnectionString("form_recipient");
         var scenario = new FormRecipientScenario(factory.WithWebHostBuilder(builder =>
-            builder.UseSetting("ConnectionStrings:appdb", connectionString)));
+        {
+            builder.UseSetting("ConnectionStrings:appdb", connectionString);
+            if (services is not null) builder.ConfigureTestServices(services);
+        }));
         await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database.EnsureCreatedAsync(ct));
         await scenario.Host.Services.SeedDatabaseAsync(ct);
         await scenario.InTransactionAsync(async services =>

@@ -161,6 +161,17 @@ public sealed record FormResponseDetailResponse(Guid Id, Guid DefinitionId, Guid
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool HasIssuance { get; init; }
+    /// <summary>VF1-A: the response in the shape of its own version, as the app loads it, to read it with the same form.</summary>
+    public required FormResponseEntryResponse Entry { get; init; }
+}
+/// <summary>
+/// A response's version as the app loads it, described for whoever answered, with the answers and files in its shape: what a
+/// correction opens, on the response's own version instead of the active one.
+/// </summary>
+public sealed record FormResponseEntryResponse(FormEntryResponse Entry, IReadOnlyList<FormEntryCorrectionAnswer> Answers,
+    IReadOnlyList<FormEntryCorrectionFile> Files)
+{
+    public override string ToString() => "FormResponseEntryResponse { Content = [REDACTED] }";
 }
 public sealed record FormResponseHistoryResponse(string Kind, DateTime AtUtc, FormAuthorResponse? Actor)
 {

@@ -9,8 +9,8 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
-/// The active version as the app loads it, in its content language, with each catalog question described for the person whose
-/// data its filters use. Only reads.
+/// A published version as the app loads it, in its content language, with each catalog question described for the person whose
+/// data its filters use: the active one to load or correct, or a response's own to read it (VF1-A). Only reads.
 /// </summary>
 internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryCatalogPolicy catalogs, FormPresentationCulturePolicy presentation,
     IOptions<BusinessFormsOptions> options, FormIssueEntryPolicy issues)
@@ -21,7 +21,20 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
         var definition = await reader.FindDefinitionAsync(definitionId, null, cancellationToken);
         if (definition is null) return FormDefinitionErrors.NotFound;
         if (definition.Deactivated) return FormEntryErrors.Unavailable;
+        return await DescribeAsync(definition, person, cancellationToken);
+    }
+
+    /// <summary>The published version a response was answered with, also once the form is deactivated: an old response is still read.</summary>
+    public async Task<Result<(FormEntryResponse Entry, FormVersionSchema Schema)>> DescribeVersionAsync(Guid definitionId, Guid versionId,
+        Guid person, CancellationToken cancellationToken) =>
+        await reader.FindDefinitionAsync(definitionId, versionId, cancellationToken) is { } definition
+            ? await DescribeAsync(definition, person, cancellationToken) : FormDefinitionErrors.NotFound;
+
+    private async Task<Result<(FormEntryResponse Entry, FormVersionSchema Schema)>> DescribeAsync(FormEntryDefinitionRow definition, Guid person,
+        CancellationToken cancellationToken)
+    {
         if (definition.Version is not { } version) return FormDefinitionErrors.NotFound;
+        var definitionId = definition.DefinitionId;
         var schema = FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson);
         var culture = await CultureAsync(definitionId, version, schema, cancellationToken);
         FormPersonRecipientDataRow? personData = null;

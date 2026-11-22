@@ -229,8 +229,11 @@ public sealed class FormResponseServiceTests
         Assert.Equal(FormRecordErrors.FilterInvalid, onTheBlock.Error);
     }
 
-    private static FormResponseService Create(FakeFormResponseReader reader, FakeCurrentUser user, FakePermissionService permissions) =>
-        new(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
-            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()),
+    private static FormResponseService Create(FakeFormResponseReader reader, FakeCurrentUser user, FakePermissionService permissions)
+    {
+        var entry = new FormResponseEntryDouble(reader);
+        return new(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
+            entry.Policy(new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts())),
             new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
+    }
 }

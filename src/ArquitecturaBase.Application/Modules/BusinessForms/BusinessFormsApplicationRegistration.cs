@@ -101,6 +101,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormEntryVersionPolicy>();
         services.TryAddScoped<IFormRecordVoidService, FormRecordVoidService>();
         services.TryAddScoped<FormEntryCatalogPolicy>();
+        services.TryAddScoped<FormResponseEntryPolicy>();
         services.TryAddScoped<FormEntryRecorder>();
         services.TryAddScoped<IFormEntryService, FormEntryService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormEntryOptionsRequest>, ListFormEntryOptionsRequestValidator>());
