@@ -66,9 +66,10 @@ public sealed partial class FormDraftEndpointsTests
             Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
             await ResponseContractCapture.WriteAsync(sheet, "sheet-" + culture, Ct);
         }
+        // The 25 share their date: a tie keeps the usual order of the sheet, the newest number first (OT1-C).
         using var tied = await reader.GetAsync(path + "?sort=-submittedAtUtc&page=2&pageSize=3", Ct);
         Assert.Equal(HttpStatusCode.OK, tied.StatusCode);
-        Assert.Equal(seeded.Prefix + "-000004", (await tied.ReadJsonAsync()).GetProperty("records").GetProperty("items")[0].GetProperty("number").GetString());
+        Assert.Equal(seeded.Prefix + "-000022", (await tied.ReadJsonAsync()).GetProperty("records").GetProperty("items")[0].GetProperty("number").GetString());
         using var excluded = await reader.PostAsJsonAsync(path + "/search", new { receivedToUtc = "2026-10-16T12:00:00Z" }, Ct);
         Assert.Equal(0, (await excluded.ReadJsonAsync()).GetProperty("records").GetProperty("totalCount").GetInt32());
         using var invalid = await reader.PostAsJsonAsync(path + "/search", new { conditions = new[] { new { fieldId = seeded.Fields[0].FieldId, @operator = "contains", values = new[] { "1" } } } }, Ct);

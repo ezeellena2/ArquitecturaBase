@@ -28,7 +28,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
         using var privateFilter = await reader.GetAsync("/api/forms/overview?pendingOnly=true", Ct);
         Assert.Equal(HttpStatusCode.Forbidden, privateFilter.StatusCode);
-        foreach (var query in new[] { "?state=All", "?page=0", "?pageSize=101", "?sort=responseCount" })
+        foreach (var query in new[] { "?state=All", "?page=0", "?pageSize=101", "?sort=prefix" })
         {
             using var invalid = await approver.GetAsync("/api/forms/overview" + query, Ct);
             Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
@@ -178,6 +178,34 @@ public sealed partial class FormDraftEndpointsTests
             Assert.DoesNotContain(recorder.Commands, command => command.Sql.Contains("SchemaJson", StringComparison.Ordinal)
                 || command.Sql.Contains("ProtectedManifest", StringComparison.Ordinal));
         });
+    }
+
+    // OT1-C: every column sorts in PostgreSQL. A form without responses goes last in both directions, and equal values keep the
+    // usual order of the list (the two forms with responses share their date, so the name decides).
+    [Fact]
+    public async Task Overview_sorts_by_its_columns_with_forms_without_responses_last()
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var token = Guid.NewGuid().ToString("N")[..7];
+        Guid Identity(char suffix) => Guid.Parse(token + suffix + new string('0', 24));
+        var two = await SeedSheetCoreAsync(reader, 2, Identity('1'), []);
+        var one = await SeedSheetCoreAsync(reader, 1, Identity('2'), []);
+        var none = await SeedSheetCoreAsync(reader, 0, Identity('3'), []);
+        async Task<Guid[]> Ids(string sort)
+        {
+            using var response = await reader.GetAsync("/api/forms/overview?search=T" + token.ToUpperInvariant() + "&sort=" + sort, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return [.. (await response.ReadJsonAsync()).GetProperty("forms").GetProperty("items").EnumerateArray().Select(row => row.GetProperty("id").GetGuid())];
+        }
+
+        Assert.Equal([none.Id, one.Id, two.Id], await Ids("responseCount"));
+        Assert.Equal([two.Id, one.Id, none.Id], await Ids("-responseCount"));
+        Assert.Equal([two.Id, one.Id, none.Id], await Ids("lastResponseNumber"));
+        Assert.Equal([one.Id, two.Id, none.Id], await Ids("-lastResponseNumber"));
+        Assert.Equal([two.Id, one.Id, none.Id], await Ids("-lastSubmittedAtUtc"));
+        Assert.Equal([two.Id, one.Id, none.Id], await Ids("lastSubmittedAtUtc"));
+        Assert.Equal([none.Id, one.Id, two.Id], await Ids("-name"));
     }
 
     private Task<string> OverviewPrefixAsync(Guid id) => factory.ExecuteDbContextAsync(db =>

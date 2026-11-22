@@ -5,7 +5,7 @@ Reúne paginado y orden, patrones de búsqueda, filtros de modelo y locks transa
 ## Al modificar
 
 - Una extensión se queda en Infrastructure; ningún `IQueryable` sale por un contrato de Application.
-- El orden paginado tiene desempate único. Reutilizá patrones de búsqueda para escapar comodines en vez de concatenar entrada.
+- El orden paginado tiene desempate único, deja lo vacío al final, ordena un enum por su declaración y desempata por el orden de siempre de la lista ([regla](../../../../docs/architecture/backend.md#presentación-general-y-precedencia-2026-09-30)). Reutilizá patrones de búsqueda para escapar comodines en vez de concatenar entrada.
 - Las claves de advisory lock usan prefijos propios y orden determinista. Un prefijo nuevo se incorpora a sus pruebas y al inventario de límites.
 - Los locks requieren el límite abierto y van antes de lecturas dependientes; no convertirlos en locks de proceso.
 

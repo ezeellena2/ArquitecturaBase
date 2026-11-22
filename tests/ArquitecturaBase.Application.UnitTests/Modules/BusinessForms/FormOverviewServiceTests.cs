@@ -91,10 +91,27 @@ public sealed class FormOverviewServiceTests
         {
             "state" => new ListFormOverviewRequest { State = "All" },
             "page" => new ListFormOverviewRequest { Page = 0 },
-            _ => new ListFormOverviewRequest { Sort = "responseCount" }
+            _ => new ListFormOverviewRequest { Sort = "prefix" }
         };
         var result = await fixture.Service.ListAsync(request, TestContext.Current.CancellationToken);
         Assert.IsType<ValidationError>(result.Error);
         Assert.Equal(0, fixture.Reads);
+    }
+
+    // Every column with a datum sorts (OT1-C), in both directions; the reader receives the asked field.
+    [Theory]
+    [InlineData("name")]
+    [InlineData("formState")]
+    [InlineData("pendingApprovalCount")]
+    [InlineData("responseCount")]
+    [InlineData("lastResponseNumber")]
+    [InlineData("-lastSubmittedAtUtc")]
+    [InlineData("-lastResponseState")]
+    public async Task Every_column_of_the_list_can_be_sorted(string sort)
+    {
+        using var fixture = new FormOverviewFixture();
+        var result = await fixture.Service.ListAsync(new ListFormOverviewRequest { Sort = sort }, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(sort, fixture.Request?.Sort);
     }
 }

@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Linq.Expressions;
+using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -28,7 +30,7 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
         return new(new(page.Items.Select(row => new FormOverviewFormResponse(row.Id, row.Name, row.Prefix,
             row.DeactivatedAtUtc, row.PendingApprovalCount, row.ResponseCount,
             row.LastRecordId is { } id ? new(id, row.Prefix + "-" + row.LastNumber!.Value.ToString("D6", CultureInfo.InvariantCulture),
-                row.LastSubmittedAtUtc!.Value, row.LastState!) : null)).ToArray(), page.Page, page.PageSize, page.TotalCount), counts);
+                row.LastSubmittedAtUtc!.Value, row.LastState!.Value.ToString()) : null)).ToArray(), page.Page, page.PageSize, page.TotalCount), counts);
     }
 
     private IQueryable<OverviewRow> Query(Guid actorUserId, ListFormOverviewRequest request, string culture,
@@ -66,8 +68,8 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
                             : own ? mine.Where(record => record.DefinitionId == definition.Id).Select(record => (long?)record.Number).FirstOrDefault() : null,
                         LastSubmittedAtUtc = canReadRecords ? counted.Where(record => record.DefinitionId == definition.Id).Select(record => (DateTime?)record.SubmittedAtUtc).FirstOrDefault()
                             : own ? mine.Where(record => record.DefinitionId == definition.Id).Select(record => (DateTime?)record.SubmittedAtUtc).FirstOrDefault() : null,
-                        LastState = canReadRecords ? counted.Where(record => record.DefinitionId == definition.Id).Select(record => record.State.ToString()).FirstOrDefault()
-                            : own ? mine.Where(record => record.DefinitionId == definition.Id).Select(record => record.State.ToString()).FirstOrDefault() : null,
+                        LastState = canReadRecords ? counted.Where(record => record.DefinitionId == definition.Id).Select(record => (FormRecordState?)record.State).FirstOrDefault()
+                            : own ? mine.Where(record => record.DefinitionId == definition.Id).Select(record => (FormRecordState?)record.State).FirstOrDefault() : null,
                     };
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
@@ -76,10 +78,26 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
                 || EF.Functions.ILike(row.Prefix, pattern, LikePatterns.EscapeCharacter));
         }
         if (!canReadRecords && !canCreate || request.PendingOnly) query = query.Where(row => row.PendingApprovalCount > 0);
-        return query.OrderByDescending(row => row.PendingApprovalCount > 0)
-            .ThenByDescending(row => row.LastSubmittedAtUtc != null).ThenByDescending(row => row.LastSubmittedAtUtc)
-            .ThenBy(row => row.Name).ThenBy(row => row.Id);
+        // Every column sorts (OT1-C); the usual order also breaks ties: what awaits approval first, then the last response
+        // received (a form without one goes last) and the name.
+        return query.ApplySortWithDefaultOrder(SortDescriptor.Parse(request.Sort), SortableFields, UsualOrder, row => row.Id);
     }
+
+    private static readonly Dictionary<string, Expression<Func<OverviewRow, object?>>> SortableFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["name"] = row => row.Name,
+        // Active before deactivated, the order of the segment.
+        ["formState"] = row => row.DeactivatedAtUtc != null,
+        ["pendingApprovalCount"] = row => row.PendingApprovalCount,
+        ["responseCount"] = row => row.ResponseCount,
+        // The number reads as prefix and counter, so it sorts by both; a form without responses has none.
+        ["lastResponseNumber"] = row => new { row.Prefix, row.LastNumber },
+        ["lastSubmittedAtUtc"] = row => row.LastSubmittedAtUtc,
+        ["lastResponseState"] = row => row.LastState,
+    };
+
+    private static readonly SortKey<OverviewRow>[] UsualOrder =
+        [new(row => row.PendingApprovalCount > 0, true), new(row => row.LastSubmittedAtUtc, true), new(row => row.Name, false)];
 
     private IQueryable<BusinessFormDefinition> Definitions() => FormOverviewDefinitionQuery.Published(db);
 
@@ -94,6 +112,6 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
         public Guid? LastRecordId { get; init; }
         public long? LastNumber { get; init; }
         public DateTime? LastSubmittedAtUtc { get; init; }
-        public string? LastState { get; init; }
+        public FormRecordState? LastState { get; init; }
     }
 }

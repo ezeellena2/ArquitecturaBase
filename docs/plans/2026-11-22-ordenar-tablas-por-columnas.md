@@ -1,7 +1,8 @@
 # Ordenar las tablas por sus columnas
 
-Fecha: 2026-11-22. Estado: **decidido el mismo día (OT1-C); sin programar.** Se programa después del cierre de la prueba
-integral y de que entre al front la [pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md),
+Fecha: 2026-11-22. Estado: **decidido el mismo día (OT1-C). El usuario pidió arrancar el backend durante la prueba integral:
+B1 (la regla común) y B2 (Formularios) están programados; siguen B3 a B11.** El front va después del cierre de la prueba y de
+que entre la [pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md),
 cuya lista usa «Ordenar por».
 
 El 2026-11-22, durante la prueba integral y mirando la lista «Formularios» (`/formularios/respuestas`), el usuario pidió:
@@ -108,17 +109,20 @@ rápidos del área; lo visual, las capturas y la corrida completa van al cierre.
 
 ### Corte 1: la regla común y Formularios
 
-- **B1 · `ApplySort` con la regla.** En `QueryableExtensions` (Infrastructure): lo vacío al final (cada clave que puede ser
-  nula ordena primero por «es nula», en los dos sentidos); los empates en el orden de siempre de la lista y después la clave
-  única (el orden por defecto pasa como una función que encadena sus `ThenBy`, para que un orden compuesto como el de
-  Formularios también sirva); un campo puede tener varias claves (`lastResponseNumber` es prefijo y número); un estado o un
-  tipo ordena por su orden de declaración con un `CASE`. Las sobrecargas que usan los 17 lectores de hoy siguen andando.
-  Tests de integración con Postgres: los vacíos al final en `ASC` y en `DESC`, el empate en el orden de la lista y un estado
-  guardado como texto en el orden del circuito. `backend.md` («Paginado») y la fila de `AGENTS.md` suman la regla.
-- **B2 · Formularios.** `ListFormOverviewRequest.SortableFields` con los siete campos; `FormOverviewReader` ordena con
-  `ApplySort` sólo si hay `sort` y, si no, conserva su orden compuesto, que también desempata. Tests HTTP por campo, con
-  formularios sin respuestas (vacíos al final) y con quien sólo carga (sus propias respuestas). El OpenAPI de `sort` nombra los
-  campos de cada consulta, y los ejemplos exportados suman una lista ordenada.
+- **B1 · `ApplySort` con la regla (hecho, 22/11).** En `QueryableExtensions` (Infrastructure): lo vacío al final en los dos
+  sentidos (en un `ASC` ya lo hace PostgreSQL; en un `DESC`, o con varias claves, un término «es nulo» antes de la clave, que
+  no se agrega en un `ASC` para no repetir una subconsulta); los empates en el orden de siempre de la lista y después la clave
+  única; un campo con varias claves declarado con un tipo anónimo (`lastResponseNumber` es prefijo y número); un enum por su
+  orden de declaración con un `CASE`, aunque se guarde como texto. Un orden de siempre de varias claves usa
+  `ApplySortWithDefaultOrder` con `SortKey<T>`; los 17 lectores de hoy siguen con `ApplySort`. Tests en memoria y de SQL sin
+  conexión (`QueryableExtensionsTests`). Cambia el empate de la planilla: con la misma fecha, primero el número más nuevo
+  (`FormResponseHttpTests` ajustado). `backend.md` y la fila de `AGENTS.md` suman la regla.
+- **B2 · Formularios (hecho, 22/11).** `ListFormOverviewRequest.SortableFields` con los siete campos; `FormOverviewReader`
+  ordena con `ApplySortWithDefaultOrder` y conserva su orden de siempre sin `sort` y para desempatar; el último estado se lee
+  como enum para ordenarlo por el circuito. Tests: unitarios de los siete campos, SQL sin conexión
+  (`FormOverviewQueryTests`) y HTTP con PostgreSQL (`Overview_sorts_by_its_columns_with_forms_without_responses_last`, corre en
+  el cierre conjunto). El OpenAPI de `sort` sigue siendo un texto, como en todas las listas: no hay un mecanismo que nombre los
+  campos y el front no genera tipos desde él.
 - **F1 · La pieza.** En `shared/ui`: `Column.sortable` pasa a obligatorio (`true` o `false`), para que toda tabla nueva decida, y
   se suma `sortKind` (`text`, `number`, `date`, `yesNo`, `state`). `DataTable` dibuja la flecha, ↕, el tono, la flecha antes del
   título en una columna `numeric` y los 44 px táctiles. `SortMenu` es el botón de la barra con la lista de la pieza única

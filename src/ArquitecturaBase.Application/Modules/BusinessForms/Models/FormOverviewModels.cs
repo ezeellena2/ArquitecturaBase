@@ -4,7 +4,10 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
 public sealed record ListFormOverviewRequest : PagedRequest
 {
-    public static readonly IReadOnlyCollection<string> SortableFields = [];
+    /// <summary>Every column with a datum (OT1-C, 2026-11-22). Without one, the list keeps its usual order: what awaits
+    /// approval first, then the last response received and the name.</summary>
+    public static readonly IReadOnlyCollection<string> SortableFields =
+        ["name", "formState", "pendingApprovalCount", "responseCount", "lastResponseNumber", "lastSubmittedAtUtc", "lastResponseState"];
     public string State { get; init; } = "Active";
     public bool PendingOnly { get; init; }
 }

@@ -70,6 +70,50 @@ public sealed class FormOverviewQueryTests
         Assert.DoesNotContain("\"ValuesJson\"", sql, StringComparison.Ordinal);
     }
 
+    // OT1-C: a column sorts in SQL with the empty values last, the state in the order of its circuit and the number by its
+    // prefix; without a sort, the usual order (what awaits approval first) stays.
+    [Fact]
+    public void A_sorted_column_orders_in_sql_with_empty_values_last_and_the_state_in_its_circuit_order()
+    {
+        using var db = Context();
+        string[] OrderBy(string? sort) => OrderTerms(Query(db, new() { Sort = sort }, true, true).ToQueryString());
+
+        var byState = OrderBy("lastResponseState");
+        var byReceived = OrderBy("-lastSubmittedAtUtc");
+        var byNumber = OrderBy("lastResponseNumber");
+        var usual = OrderBy(null);
+
+        // Ascending, Postgres already leaves an empty state last (the CASE gives it the last value): no repeated subquery.
+        Assert.Contains("'Received' THEN 0", byState[0], StringComparison.Ordinal);
+        Assert.Contains("'Voided' THEN 4", byState[0], StringComparison.Ordinal);
+        Assert.EndsWith("IS NULL", byReceived[0], StringComparison.Ordinal);
+        Assert.EndsWith("DESC", byReceived[1], StringComparison.Ordinal);
+        Assert.Contains(byNumber, term => term.EndsWith("\"Prefix\"", StringComparison.Ordinal));
+        Assert.Contains("> 0", usual[0], StringComparison.Ordinal);
+        Assert.EndsWith("DESC", usual[0], StringComparison.Ordinal);
+    }
+
+    // The terms of the outer ORDER BY (the one that starts a line), split at its own commas, not at those of its subqueries.
+    private static string[] OrderTerms(string sql)
+    {
+        const string start = "\nORDER BY ";
+        var clause = sql[(sql.LastIndexOf(start, StringComparison.Ordinal) + start.Length)..];
+        var terms = new List<string>();
+        var depth = 0;
+        var from = 0;
+        for (var index = 0; index < clause.Length; index++)
+        {
+            depth += clause[index] switch { '(' => 1, ')' => -1, _ => 0 };
+            if (clause[index] == ',' && depth == 0)
+            {
+                terms.Add(clause[from..index].Trim());
+                from = index + 1;
+            }
+        }
+        terms.Add(clause[from..].Trim());
+        return [.. terms];
+    }
+
     [Fact]
     public void Open_tasks_have_a_definition_and_role_index_for_overview_and_oldest_first_navigation()
     {
