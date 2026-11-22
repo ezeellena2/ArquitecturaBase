@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -73,6 +74,25 @@ public sealed class WhatsAppAssistantClarificationTests
         Assert.Equal("forms.clarify-registration",host.Protector.Content!.Origin.Proposal!.CapabilityId);
         Assert.True((await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct)).IsSuccess);
         Assert.Equal(2,host.Conversation.Outgoing.Count);Assert.Single(host.Sessions.Rows);
+    }
+    // Review of O36 (2026-11-22): an option of a question already offered consumes no other offer (the question and the chosen form are
+    // one), so the day's limit does not stop it, also after the limit went down or the day changed. Before, it handed off with the
+    // question's request id, which the database refuses for a second assistant outgoing.
+    [Fact]
+    public async Task Choosing_an_offered_question_sends_its_flow_even_when_the_days_offers_are_full()
+    {
+        var(host,id)=await HostAsync();host.Reader.OfferCount=1;var service=Service(host);
+        host.Agents.Agent=new WhatsAppAssistantAgentRow(1,"es",new WhatsAppAssistantProfile("Asistente","","","","",new("Te paso con una persona del equipo.",null)),[],
+            new WhatsAppAssistantAction(WhatsAppAssistantActionKind.NoReply),WhatsAppAssistantAgentLimits.DefaultLimits);
+        await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
+        Assert.Single(host.Conversation.Outgoing);
+        host.Reader.OfferCount=2;host.Reader.ExcludedOfferCount=2;
+        Choose(host,id,host.Forms.Clarification.Value.Choices[0]);
+        Assert.True((await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct)).IsSuccess);
+        Assert.Single(host.Conversation.Outgoing,item=>item.Kind==WhatsAppOutgoingMessageKind.Flow);
+        Assert.Equal(2,host.Conversation.Outgoing.Count);
+        Assert.Equal((WhatsAppConversationMode.Assistant,(string?)null),(host.Context.Contact.Mode,host.Context.Contact.HandoffReasonCode));
+        Assert.Equal(WhatsAppAssistantRequestState.Sent,host.Requests.Rows[0].State);
     }
     [Fact]
     public async Task An_exhausted_quota_or_declined_option_never_enqueues_a_question()

@@ -1,8 +1,8 @@
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 /// <summary>
-/// The business's day in its time zone, as the UTC instant the daily limits of the assistant count from (the two form offers and
-/// the replies of the cases). A local midnight that does not exist (a daylight saving gap) starts at the first valid minute.
+/// The business's day in its time zone, as the UTC instant the daily limits of the assistant count from (the form offers and the
+/// replies of the cases). A local midnight that does not exist (a daylight saving gap) starts at the first valid minute.
 /// </summary>
 internal static class WhatsAppBusinessDay
 {

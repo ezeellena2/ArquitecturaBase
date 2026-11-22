@@ -105,8 +105,11 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         foreach(var definition in definitions)
             if(await reader.ExistsDeclinedAsync(contact.Id,definition,ct)) return WhatsAppAssistantErrors.StateConflict;
         var channel = WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row));
-        // O36: the caller hands the person's message off with the reason; a suggestion after a capture just stops.
-        if (!await HasOfferCapacityAsync(contact.Id, channel, ct, row.RequestId)) return WhatsAppAssistantErrors.OfferLimitReached;
+        // O36: the caller hands the person's message off with the reason; a suggestion after a capture just stops. An option of a
+        // question already offered consumes no other offer (the question and the chosen form are one), so the limit does not stop it,
+        // also after the limit went down or the day changed.
+        if (row.QuestionOutgoingId is null && !await HasOfferCapacityAsync(contact.Id, channel, ct, row.RequestId))
+            return WhatsAppAssistantErrors.OfferLimitReached;
         if(view.Prefill is null && view.Clarification is {} question)
         {
             if(await conversations.ExistsUnresolvedOutgoingAsync(contact.Id,ct)) return WhatsAppChatErrors.SendPending;
