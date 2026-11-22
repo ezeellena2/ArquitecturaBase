@@ -3,7 +3,8 @@
 Fecha: 2026-11-22. Estado: **decidido el mismo día (OT1-C; «Por aprobar» queda como cola). El usuario pidió arrancar el
 backend durante la prueba integral: B1 (la regla común) y B2 (Formularios) están en `366bedb7`, B3 y B4 (Usuarios y Roles) en
 `21ffbfdb`, B5 y B6 (Catálogos y Diseñar formularios) en `525d748f`, B9 y B10 (Documentos recibidos y Formularios que faltan)
-en `67924ec4`; siguen B7 y B11.** El front se programa en una copia y entra después del cierre de la prueba, junto con la
+en `67924ec4`, B7 y B11 (la planilla y Datos de personas) en `d6564f3b`: el backend está completo. Las pruebas con PostgreSQL
+de BusinessForms van al cierre.** El front se programa en una copia y entra después del cierre de la prueba, junto con la
 [pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md), cuya lista
 usa «Ordenar por».
 
@@ -152,6 +153,10 @@ guardado del ítem elegido; los resultados de las reglas, por su valor guardado 
 orden y se anota acá), Documentos recibidos (B9: los datos leídos, una columna por pregunta, no ordenan porque viven en la
 propuesta cifrada), Formularios que faltan (B10) y Datos de personas (B11: el valor de un
 atributo, con `sortAttributeId`). Cada una con su pantalla (F8 a F12). B8 (Por aprobar) no se hace: queda como cola.
+En la planilla, un campo del catálogo ordena con `catalogField` y `sortCatalogFieldId`, y un resultado con `result` y
+`sortResultId` (`<fuente>.<clave>`, el id de su columna); los dos comparan el valor guardado como jsonb, así que un número
+ordena como número. El canal pone la app primero y lo pasado desde un documento, que muestra «—», al final; si el front lo
+rotula algún día, cambia esa clave.
 
 ### Corte 4: las listas enteras
 
