@@ -1,8 +1,8 @@
-# La respuesta como el formulario (VF1-A)
+# La respuesta como el formulario (VF1-A) y la actividad fila por fila (VF2-A)
 
 Estado: **decidido el 2026-11-22, sin programar.** Se programa cuando el usuario lo pida, después de la prueba integral
 (la lista está congelada hasta entonces). Tableros: lienzo aparte
-[Respuesta como formulario](https://claude.ai/artifact/2vnLgSq6xxdoz9LjAdNmaN), versión 11. Este plan congela lo elegido;
+[Respuesta como formulario](https://claude.ai/artifact/2vnLgSq6xxdoz9LjAdNmaN), versión 13. Este plan congela lo elegido;
 el lienzo es privado y puede cambiar fuera de Git.
 
 ## Qué pidió el usuario
@@ -24,6 +24,14 @@ Al elegir pidió una regla para toda la app, que ya había dicho otras veces:
 > NO COLOCAR NADA ABAJO DE OTRO DATO, es decir, muchos datos juntos uno debajo del otro como tipo rubro todo junto, o se
 > agregan columnas nuevas a la tabla o no se colocan. o se agregan inputs con los desplegables correspondientes xq es
 > horrible sino.
+
+El mismo día, mirando la actividad de RVI-000003:
+
+> para indicarle también la zona de actividad, por qué complicarla de esa manera con un diseño bastante difícil de
+> entender. Una tabla con fila por fila que fue pasando con todas las columnas correspondientes y no poner todo junto una
+> cosa debajo de la otra, ¿no sería más fácil de leer y entender?
+
+Eligió el tablero VF2-A («Sí, la actividad así, sumala al plan»).
 
 ## Decisiones
 
@@ -58,8 +66,20 @@ No se vuelven a preguntar.
 
    `/corregir` deja de ser una página y lleva a la pantalla completa, leyendo. `FormEntryCorrectionPanel` se va: la vista rápida corrige en el mismo panel, con el mismo componente.
 6. **La versión.** La respuesta se lee con su versión («Versión 1» en la banda) y se corrige con la activa, como hoy. Si cambia algo, un aviso arriba lo dice al empezar, por ejemplo «Se corrige con la versión 2 del formulario, la activa: «Receta agronómica» arranca vacía.».
-7. **Lo demás no cambia**:
-   - los momentos (TL1-A) y la actividad (TL3-A), con la sección «Actividad» debajo del formulario en la pantalla completa;
+7. **La actividad, fila por fila** (tablero VF2-A). Va un renglón por cada cosa que pasó, con un dato por columna:
+   - las columnas son Fecha, Hora, Qué pasó, Quién, Canal, Detalle, Estado y Acciones;
+   - la fecha y la hora van en cada renglón, en sus columnas, sin la hora debajo de la fecha;
+   - lo que no aplica dice «—»;
+   - las bandas por momento («Al recibirla», «Aprobación», «Al aprobarla» o «Al rechazarla») quedan como renglones que separan, no como datos;
+   - cada PDF es su renglón («Se armó el PDF», «Se armó el PDF en inglés»), con el archivo en «Detalle»;
+   - cada persona de un aviso es su renglón, con su estado («Entregado», «Leído», «No se pudo»);
+   - el motivo de un rechazo, de una corrección o de una anulación va entero en «Detalle», la única celda que puede ocupar varias líneas;
+   - en «Acciones» van sólo íconos con su nombre en el tooltip: Ver PDF, Descargar, Reintentar (RT1-A), Consultar y Resolver envío;
+   - a 390 px y en la vista rápida, donde no entran ocho columnas, cada renglón es un recuadro, con «Qué pasó» arriba y los demás datos con su nombre, de a dos, como los ítems del bloque.
+
+   No cambian los textos de «Qué pasó», la revisión humana de un envío ni RT1-A. Los acuses de WhatsApp pasan a ser el estado del renglón de cada persona.
+8. **Lo demás no cambia**:
+   - los momentos (TL1-A) y la sección «Actividad» debajo del formulario en la pantalla completa, ahora con la tabla de la decisión 7;
    - el PDF y «Abrir conversación»;
    - «Comprobante», primero, y «Cómo empezó», después del formulario;
    - en el celular, un recuadro por ítem (ItemCards), y «Rechazar»/«Aprobar» o «Guardar corrección» fijos abajo.
@@ -75,6 +95,7 @@ Los estados están en el tablero «VF · A completa»: por aprobar, corregida, a
 | RG4-A en el detalle | La tabla o los recuadros de la carga, sin acciones |
 | CW10-A | Corregir deja de ser otra página u otro panel; «Antes» y el motivo siguen |
 | AC1-A en esta pantalla | «Corregir» a la vista; «Anular» en ⋮ |
+| TL3-A (la actividad) | Las cuatro columnas con quién y el detalle debajo, la fecha una vez por día y, en la vista rápida, las acciones debajo del texto se van. Queda la tabla de la decisión 7, con las bandas por momento |
 
 ## Tareas
 
@@ -83,7 +104,7 @@ Cada tarea se compara con su tablero al cerrarla.
 1. **La regla y el diseño en el front**, con el front libre: después de aplicar los commits de «Desplegables».
    - En `visual-baseline.md`: la regla «Nada debajo de otro dato» en «Principios» y en «Lecturas»; la pregunta 4 de la lista de chequeo; una sección fechada; y la fila del mapa.
    - En `premisas-de-desarrollo.md`, «Tablas» y lecturas.
-   - Un `docs/design/respuesta-como-formulario.md` que ancle VF1-A a sus tableros, con la tabla de reemplazos de arriba y la correspondencia con `shared/ui`.
+   - Un `docs/design/respuesta-como-formulario.md` que ancle VF1-A y VF2-A a sus tableros, con la tabla de reemplazos de arriba y la correspondencia con `shared/ui`.
    - Al tocar el front, se avisa a las demás sesiones.
 2. **El contrato del detalle (backend).** El detalle hoy trae pregunta y valor; tiene que traer también la forma de la versión de la respuesta:
    - las preguntas en orden, con su tipo, los títulos de sección, las condiciones y los cálculos;
@@ -97,18 +118,24 @@ Cada tarea se compara con su tablero al cerrarla.
    - las condiciones, y archivos con Ver y Descargar.
 4. **El detalle con la forma de la carga (front).** D2 y DC1 usan el modo lectura, con la banda de la decisión 4. Se van del detalle `ResponseAnswer`, `ResponseValue` y `ResponseRows`; antes se mira si tienen otros consumidores. Escenas visuales de la vista rápida y de la pantalla completa en es/en a 1440, 390 y 320.
 5. **Corregir en el lugar (front)**, con la decisión 5, el aviso de versión, los estados del tablero «A completa» y la guarda de salida. `/corregir` redirige a la pantalla completa y `FormEntryCorrectionPanel` se va. Tests de la corrección y de las rutas.
-6. **El barrido de «nada debajo de otro dato» en toda la app (RF3).**
+6. **La actividad fila por fila (front)**, en `ResponseWorkflowHistory` y con la decisión 7.
+   - La lógica que arma los renglones va con TDD: una fila por evento, por PDF y por persona de un aviso, y cada dato en su columna.
+   - La tabla en la pantalla completa; los recuadros en la vista rápida y en el celular.
+   - Las acciones de cada renglón, como íconos.
+   - Los datos ya llegan en la historia y en las acciones del workflow. Si una columna necesita un dato que hoy viene armado en un texto, se suma al contrato del workflow con su ejemplo HTTP.
+   - Escenas visuales de la actividad en es/en, a 1440, 390 y 320.
+7. **El barrido de «nada debajo de otro dato» en toda la app (RF3).**
    - El inventario va con archivo y renglón. Conocidos:
      - `ResponseValue.tsx` y `ResponseRows.tsx`, que se van con la tarea 4;
      - la tarjeta de una respuesta en el chat (`features/whatsapp/components/FormReplyValues.tsx`, la tabla chica de TL1-A);
      - «Enviada» (`FormEntrySent.tsx`) y el PDF de una respuesta (backend), que hay que revisar.
    - Lo que cambie de forma, como la tarjeta del chat, se dibuja antes y el usuario elige.
-7. **Docs.**
-   - `features/formularios.md`: el detalle, la corrección en el lugar y la regla.
+8. **Docs.**
+   - `features/formularios.md`: el detalle, la corrección en el lugar, la actividad fila por fila y la regla.
    - Las guías de `components` y `pages` del front.
    - `carga-desde-la-app.md` y `formularios-whatsapp.md`: lo que reemplaza.
    - El traspaso al multitenant, con los demás.
-8. **Verificación.** En cada corte, el build y los tests rápidos del área. Al terminar, la integración del detalle, las escenas visuales, los contratos HTTP y la corrida completa una sola vez, al cerrar.
+9. **Verificación.** En cada corte, el build y los tests rápidos del área. Al terminar, la integración del detalle, las escenas visuales, los contratos HTTP y la corrida completa una sola vez, al cerrar.
 
 ## Riesgos
 
