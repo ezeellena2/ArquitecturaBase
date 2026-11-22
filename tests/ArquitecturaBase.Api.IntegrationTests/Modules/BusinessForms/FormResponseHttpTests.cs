@@ -104,7 +104,8 @@ public sealed partial class FormDraftEndpointsTests
         {
             using var response = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/search", new { sort, sortFieldId = choice.FieldId }, Ct);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var expected = sort == "field" ? new[] { 2, 1, 3 } : new[] { 1, 3, 2 };
+            // The two «Zulu» tie: they keep the usual order of the sheet, the newest number first (OT1-C).
+            var expected = sort == "field" ? new[] { 2, 3, 1 } : new[] { 3, 1, 2 };
             Assert.Equal(expected.Select(number => seeded.Prefix + "-" + number.ToString("D6", System.Globalization.CultureInfo.InvariantCulture)),
                 (await response.ReadJsonAsync()).GetProperty("records").GetProperty("items").EnumerateArray().Select(row => row.GetProperty("number").GetString()));
         }
