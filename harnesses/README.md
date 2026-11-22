@@ -107,6 +107,12 @@ para tareas todavía no implementadas.
 
 Reglas y detalle del primer arnés: [auditor documental](documentation/README.md).
 
+## Carril para lo pesado
+
+[`carril/`](carril/README.md) no prepara tareas para un agente: turna las corridas pesadas (compilar la
+solución, suites enteras, Playwright, arneses) entre todas las sesiones, de a una por vez en la PC.
+Se llama con `pwsh -NoProfile -File harnesses/carril/carril.ps1 -- <comando>`.
+
 Los protocolos de ejecución se pueden contrastar con las guías de
 [Codex sin interacción](https://learn.chatgpt.com/docs/non-interactive-mode) y
 [Claude Code programático](https://code.claude.com/docs/en/headless).

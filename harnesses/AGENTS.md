@@ -13,6 +13,7 @@ un archivo Markdown por sí solo no ejecuta una tarea.
 - Conservar cambios existentes y detener la aplicación si cambió el inventario durante
   el análisis. No usar `git reset`, crear ramas, hacer commits ni push.
 - TDD de reglas, rutas y adaptación de resultados: `node --test harnesses/documentation/tests/*.test.mjs`.
+  El [carril](carril/README.md), que turna lo pesado entre sesiones, se prueba con `node --test harnesses/carril/tests/*.test.mjs`.
 - Los tests usan repositorios temporales y respuestas simuladas; no llaman a modelos ni
   necesitan credenciales. Una prueba simulada no acredita autenticación del motor real.
 - Registrar este ámbito en el mapa. `CLAUDE.md` importa esta misma fuente.

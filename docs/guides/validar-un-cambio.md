@@ -88,6 +88,12 @@ proyectos unitarios y `ArchitectureTests` enteros (hay controles que recorren to
 tests de integración de lo que cambió, con `--filter-class`; en front, `tsc`, `lint`, los tests del área
 y, si cambió una pantalla, sus pruebas visuales.
 
+**Con varias sesiones a la vez, lo pesado va por el [carril](../../harnesses/carril/README.md)**, de a una
+corrida por vez en toda la PC y en segundo plano: compilar la solución, `dotnet test` de un proyecto entero,
+la integración, `vitest` y Playwright completos, los arneses y las bisecciones, con
+`pwsh -NoProfile -File harnesses/carril/carril.ps1 -- <comando>`. Lo liviano va libre: una clase, un archivo,
+`tsc`, `oxlint`.
+
 La corrida completa va una sola vez, al cerrar el desarrollo
 ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): build sin advertencias y `dotnet test`
 completo para backend, con integración Docker; `npm run build`, `npm run lint` y `npm run test` para
