@@ -61,17 +61,24 @@ public sealed class FormRecordNavigationQueryTests
     [InlineData("catalog")]
     [InlineData("photo")]
     [InlineData("actor")]
+    [InlineData("corrected")]
+    [InlineData("channel")]
+    [InlineData("state")]
+    [InlineData("rules")]
+    [InlineData("result")]
+    [InlineData("catalogField")]
     public void Navigation_preserves_the_complete_sheet_order_and_typed_parameters(string type)
     {
         using var db = Database();
         var reader = Reader(db);
-        var builtIn = type is "default" or "number" or "submittedAtUtc" or "actor";
-        var field = Field(builtIn ? "shortText" : type);
+        var builtIn = type is "default" or "number" or "submittedAtUtc" or "actor" or "corrected" or "channel" or "state" or "rules" or "result";
+        var field = Field(builtIn ? "shortText" : type == "catalogField" ? "catalog" : type);
         var definition = Definition(field);
         foreach (var descending in new[] { false, true })
         {
-            var request = new ListFormRecordsRequest { Sort = type == "default" ? null : (descending ? "-" : "") + (builtIn ? type : "field"),
-                SortFieldId = builtIn ? null : field.FieldId, Search = "private ' ORDER BY FROM ) --" };
+            var request = new ListFormRecordsRequest { Sort = type == "default" ? null : (descending ? "-" : "") + (builtIn || type == "catalogField" ? type : "field"),
+                SortFieldId = builtIn ? null : field.FieldId, SortCatalogFieldId = type == "catalogField" ? Guid.NewGuid() : null,
+                SortResultId = type == "result" ? "arca.invoice.total" : null, Search = "private ' ORDER BY FROM ) --" };
             var ids = typeof(FormResponseReader).GetMethod("NavigationIds", BindingFlags.Instance | BindingFlags.NonPublic)!;
             var source = Assert.IsAssignableFrom<IQueryable<Guid>>(ids.Invoke(reader, [definition, request]));
             using var original = source.CreateDbCommand();

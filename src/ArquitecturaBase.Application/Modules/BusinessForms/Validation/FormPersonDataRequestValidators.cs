@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
@@ -36,7 +37,13 @@ internal sealed class UpdateFormPersonDataRequestValidator : AbstractValidator<U
     });
 }
 internal sealed class ListFormPersonDataRequestValidator : PagedRequestValidator<ListFormPersonDataRequest>
-{ public ListFormPersonDataRequestValidator() : base(ListFormPersonDataRequest.SortableFields) { } }
+{
+    public ListFormPersonDataRequestValidator() : base(ListFormPersonDataRequest.SortableFields) =>
+        // OT1-C: the value of an attribute orders the people only with the attribute it is.
+        RuleFor(request => request.SortAttributeId).NotNull()
+            .When(request => SortDescriptor.Parse(request.Sort)?.Field.Equals("attribute", StringComparison.OrdinalIgnoreCase) == true)
+            .WithMessage(_ => ValidationMessages.SortNotAllowed);
+}
 internal sealed class ListFormPersonAttributeOptionsRequestValidator : PagedRequestValidator<ListFormPersonAttributeOptionsRequest>
 { public ListFormPersonAttributeOptionsRequestValidator() : base(ListFormPersonAttributeOptionsRequest.SortableFields) { } }
 internal static class FormPersonDataValidation

@@ -26,7 +26,7 @@ public sealed class FormPersonDataController(IFormPersonDataService service) : C
     [ProducesResponseType<FormPersonDataPageResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> List([FromQuery] FormPersonDataQuery query, CancellationToken cancellationToken) =>
-        (await service.ListPeopleAsync(new() { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort,
+        (await service.ListPeopleAsync(new() { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, SortAttributeId = query.SortAttributeId,
             Search = query.Search, DisplayCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName }, cancellationToken)).ToActionResult(this);
 
     [HttpGet("{userId:guid}")]

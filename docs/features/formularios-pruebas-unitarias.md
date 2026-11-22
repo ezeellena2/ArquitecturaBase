@@ -30,6 +30,8 @@ E2-4 verifica nombres/valores históricos es/en, precisión, ausencia y orden; s
 
 Datos de personas: permisos OR/AND y revocación, revisión por fila/atributo, delta que conserva ausentes/inactivos y limpia null, source/opción activa, aislamiento por persona, máximo20, usados y confirmación que limpia sólo ese valor al cambiar tipo o fuente; la confirmación cuenta sólo personas no borradas y la limpieza alcanza a las borradas. La tabla pide los faltantes sólo de los datos activos, con su búsqueda, y descarta todo si el permiso cae durante esa lectura. El lector de opciones devuelve sólo id/text sin CatalogsRead. Casos PostgreSQL y locks reales van a integración.
 
+`FormPersonDataServiceTests` también fija que ordenar por un dato (`attribute`) exige `sortAttributeId` (OT1-C).
+
 E2-3 cubre canónico de Match, ausencia que nunca amplía oferta, huella exacta del esquema anterior y Source/Shown nulos omitidos. Preparación y asistente comparten cultura efectiva y límites; preview conserva exceso/títulos inválidos sólo para diagnóstico y revalida permisos también al devolver ausencia. El máximo por persona del editor da el grupo más grande con su etiqueta (o el conteo compartido sin etiqueta con sólo filtros fijos), rechaza un Match inválido, o un valor fijo que no es opción activa de su fuente (como publicar), sin leer el máximo y revalida permisos después de leerlo y antes de devolver el error del catálogo o del Match (revocar durante la lectura del catálogo da 403). Publicación separa bloqueos/avisos, máximo y unión de faltantes.
 
 ## Elegir varias
@@ -82,6 +84,7 @@ Corregir y anular (Etapa 3): FormEntryCorrectionCaptureTests prueba que la corre
 ## Planilla, Excel y navegación
 
 Planilla/Excel: FieldId/versión, ausencia/vacía/[] y cero/false; multiChoice conserva lista, orden y referencias selladas, anyOf por intersección, opciones de reglas por catálogo compartido y rechazo de sort. El export prueba permisos/tope/revocación, etiquetas y valores canónicos unidos por '; ' y headers sin filas; SQL/XLSX físicos pertenecen a integración.
+El orden por columna (OT1-C): `FormRecordFilterPolicyTests` acepta `corrected`, `channel`, `state`, `rules` y `result` sin pregunta, con el id de un resultado `<fuente>.<clave>` (sin él o mal formado, `Forms.Record.FilterInvalid`), y `catalogField` sólo para una pregunta de una opción con catálogo y un campo que su columna ofrece (no elegir varias, una sin catálogo, otro campo ni sin la pregunta o el campo).
 La navegación anclada prueba permiso propio, validación antes de leer, snapshot del filtro, cultura y descarte ante revocación sin exponer contenido ni el resultado de ausencia.
 
 Acciones por resolver (F2): `FormResponseServiceTests` da la cuenta de la hoja sólo a quien tiene `formrules.manage` y lee todas las respuestas (`null` a quien sólo lee y a quien sólo ve lo propio) y la marca de cada fila a todos.

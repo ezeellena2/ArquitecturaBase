@@ -18,6 +18,8 @@ internal static class FormRecordFilterPolicy
             || sort?.Field.Equals("field", StringComparison.OrdinalIgnoreCase) == true
                 && request.SortFieldId is { } selected && fields.TryGetValue(selected, out var sortField)
                 && (sortField.Type is "multiChoice" or "group" or "location" || sortField.Repeated == true)
+            || sort?.Field.Equals("catalogField", StringComparison.OrdinalIgnoreCase) == true && !SortsByCatalogField(request, fields, definition)
+            || sort?.Field.Equals("result", StringComparison.OrdinalIgnoreCase) == true && request.SortResultId is null
             || request.ReceivedFromUtc > request.ReceivedToUtc) return FormRecordErrors.FilterInvalid;
         foreach (var condition in request.Conditions)
         {
@@ -46,4 +48,10 @@ internal static class FormRecordFilterPolicy
         }
         return Result.Success();
     }
+
+    // OT1-C: a field of the catalog of a question of one option outside a block, among the ones its column offers.
+    private static bool SortsByCatalogField(ListFormRecordsRequest request, Dictionary<Guid, CanonicalFormField> fields, FormResponseDefinitionRow definition) =>
+        request.SortFieldId is { } questionId && fields.TryGetValue(questionId, out var question)
+        && question is { Type: "choice", Source.Catalog: { } catalogId } && question.Repeated != true
+        && request.SortCatalogFieldId is { } fieldId && definition.CatalogFields?.GetValueOrDefault(catalogId)?.Any(field => field.Id == fieldId) == true;
 }

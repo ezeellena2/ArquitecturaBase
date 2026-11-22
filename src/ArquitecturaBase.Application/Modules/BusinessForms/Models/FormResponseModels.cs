@@ -68,7 +68,12 @@ public sealed record FormResponseSheetResponse(Guid DefinitionId, string Name, s
 public sealed record FormResponseVersionResponse(Guid Id, long Number);
 public sealed record ListFormRecordsRequest : PagedRequest
 {
-    public static readonly IReadOnlyCollection<string> SortableFields = ["number", "submittedAtUtc", "actor", "field"];
+    /// <summary>
+    /// Every column with one datum, by the id of its column in the front (OT1-C): a question with <see cref="SortFieldId"/>, a field of
+    /// its catalog with <see cref="SortCatalogFieldId"/> and a result with <see cref="SortResultId"/>.
+    /// </summary>
+    public static readonly IReadOnlyCollection<string> SortableFields =
+        ["number", "corrected", "submittedAtUtc", "actor", "channel", "state", "rules", "field", "catalogField", "result"];
     public long? UpToNumber { get; init; }
     /// <summary>One state; «Voided» is the only way to list voided responses, apart from <see cref="IncludeVoided"/>.</summary>
     public string? State { get; init; }
@@ -79,6 +84,10 @@ public sealed record ListFormRecordsRequest : PagedRequest
     /// <summary>F2: only responses with actions to resolve (true) or only those without (false); see <c>BusinessFormActionRun.Unresolved</c>.</summary>
     public bool? UnresolvedActions { get; init; }
     public Guid? SortFieldId { get; init; }
+    /// <summary>With <c>catalogField</c>: the field of the catalog of <see cref="SortFieldId"/>, a question of one option (OT1-C).</summary>
+    public Guid? SortCatalogFieldId { get; init; }
+    /// <summary>With <c>result</c>: the id of a result column, <c>&lt;source&gt;.&lt;key&gt;</c> (RE1-A), as the sheet names it.</summary>
+    public string? SortResultId { get; init; }
     public IReadOnlyList<Guid> VersionIds { get; init; } = [];
     public IReadOnlyList<Guid> ActorIds { get; init; } = [];
     /// <summary>Only this person's responses, also in the options of every count: whoever only loads (CW6-C). Never from the client.</summary>

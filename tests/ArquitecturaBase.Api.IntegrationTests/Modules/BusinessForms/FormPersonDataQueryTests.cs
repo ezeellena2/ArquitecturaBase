@@ -23,6 +23,28 @@ public sealed class FormPersonDataQueryTests
         Assert.Contains("ORDER BY", sql, StringComparison.Ordinal);
     }
 
+    // OT1-C: a person sorts by the text the table shows for an active attribute (a text as saved, an option by its text in the
+    // request's language), with the people without it last also in a DESC, then by name; the attribute goes as a parameter.
+    [Fact]
+    public void People_sort_by_the_text_of_an_attribute_with_people_without_it_last()
+    {
+        using var db = Database();
+        var attribute = Guid.NewGuid();
+        var sql = Query(db, "FindPeople", new ListFormPersonDataRequest { Sort = "-attribute", SortAttributeId = attribute, DisplayCulture = "en" }).ToQueryString();
+        var statement = sql[sql.IndexOf("SELECT", StringComparison.Ordinal)..];
+        var order = statement[(statement.LastIndexOf("\nORDER BY ", StringComparison.Ordinal) + 10)..];
+
+        Assert.Contains("IS NULL, (", order, StringComparison.Ordinal);
+        Assert.Contains("\"BusinessFormPersonAttributes\"", order, StringComparison.Ordinal);
+        Assert.Contains("\"IsActive\"", order, StringComparison.Ordinal);
+        Assert.Contains("pg_input_is_valid", order, StringComparison.Ordinal);
+        Assert.Contains("\"BusinessFormCatalogItems\"", order, StringComparison.Ordinal);
+        Assert.Contains("NULLIF", order, StringComparison.Ordinal);
+        Assert.EndsWith("DESC, a.\"DisplayName\", a.\"Id\"", order.Trim(), StringComparison.Ordinal);
+        Assert.DoesNotContain(attribute.ToString("D"), statement, StringComparison.Ordinal);
+        Assert.Contains(attribute.ToString("D"), sql, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Attribute_usages_cover_drafts_and_active_versions_with_one_batch_and_keep_deactivated_forms()
     {

@@ -22,7 +22,7 @@ public sealed record UpdateFormPersonDataHttpRequest(long? ExpectedRevision, IRe
     public override string ToString() => "UpdateFormPersonDataHttpRequest { Content = [REDACTED] }";
 }
 
-public sealed record FormPersonDataQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null)
+public sealed record FormPersonDataQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null, Guid? SortAttributeId = null)
 {
     public override string ToString() => "FormPersonDataQuery { Search = [REDACTED] }";
 }

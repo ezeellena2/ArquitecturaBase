@@ -69,7 +69,32 @@ internal sealed partial class FormPersonDataReader(ApplicationDbContext dbContex
         }
         var sortable = new Dictionary<string, Expression<Func<PersonRow, object?>>>(StringComparer.OrdinalIgnoreCase)
         { ["displayName"] = value => value.DisplayName };
+        if (request.SortAttributeId is { } attributeId)
+        {
+            var texts = AttributeTexts(attributeId, request.DisplayCulture);
+            sortable["attribute"] = value => texts.Where(text => text.UserId == value.UserId).Select(text => text.Text).FirstOrDefault();
+        }
         return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("displayName", false), value => value.UserId);
+    }
+
+    // OT1-C: the text the table shows for an active attribute: a text as saved; an option of its current source by its text in the
+    // language, as FindOptionTextsAsync reads it. Without it (no value, another catalog's option, an inactive attribute) it is empty.
+    private IQueryable<AttributeTextRow> AttributeTexts(Guid attributeId, string culture) =>
+        dbContext.Database.SqlQueryRaw<AttributeTextRow>("""
+            SELECT data."UserId", CASE WHEN attribute."SourceCatalogId" IS NULL THEN NULLIF(data."ValuesJson" ->> {0}, '')
+                ELSE (SELECT CASE WHEN {1} = 'en' THEN COALESCE(NULLIF(btrim(item."TextEn"), ''), item."TextEs")
+                        ELSE COALESCE(NULLIF(btrim(item."TextEs"), ''), item."TextEn") END
+                    FROM "BusinessFormCatalogItems" AS item
+                    WHERE item."CatalogId" = attribute."SourceCatalogId" AND item."Id" = CASE WHEN pg_input_is_valid(data."ValuesJson" ->> {0}, 'uuid')
+                        THEN (data."ValuesJson" ->> {0})::uuid END) END AS "Text"
+            FROM "BusinessFormPersonData" AS data
+            JOIN "BusinessFormPersonAttributes" AS attribute ON attribute."Id" = {0}::uuid AND attribute."IsActive"
+            """.ReplaceLineEndings("\n"), attributeId.ToString("D"), culture);
+
+    private sealed class AttributeTextRow
+    {
+        public Guid UserId { get; init; }
+        public string? Text { get; init; }
     }
 
     public async Task<PagedResult<FormPersonAttributeOptionRow>> ListOptionsAsync(Guid sourceCatalogId, ListFormPersonAttributeOptionsRequest request,

@@ -1,10 +1,11 @@
+using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using FluentValidation;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
-internal sealed class ListFormRecordsRequestValidator : PagedRequestValidator<ListFormRecordsRequest>
+internal sealed partial class ListFormRecordsRequestValidator : PagedRequestValidator<ListFormRecordsRequest>
 {
     public ListFormRecordsRequestValidator() : base(ListFormRecordsRequest.SortableFields)
     {
@@ -18,7 +19,14 @@ internal sealed class ListFormRecordsRequestValidator : PagedRequestValidator<Li
             .Must(value => value is { Count: <= 100 }).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.FilterInvalid.Code));
         RuleFor(request => request.ReceivedFromUtc).Must(value => value is null || value.Value.Kind == DateTimeKind.Utc).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.FilterInvalid.Code));
         RuleFor(request => request.ReceivedToUtc).Must(value => value is null || value.Value.Kind == DateTimeKind.Utc).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.FilterInvalid.Code));
+        // OT1-C: a result column by its id, <source>.<key> (RE1-A); the source can have dots, the key cannot.
+        RuleFor(request => request.SortResultId)
+            .Must(value => value is null || value.Length <= BusinessFormRecordResult.MaxSourceLength + 41 && ResultColumnId().IsMatch(value))
+            .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.FilterInvalid.Code));
     }
+
+    [GeneratedRegex("^[a-z][a-z0-9]*([.-][a-z0-9]+)*\\.[a-z][A-Za-z0-9]{0,39}\\z", RegexOptions.CultureInvariant)]
+    private static partial Regex ResultColumnId();
 }
 
 internal sealed class FormRecordFacetRequestValidator : PagedRequestValidator<FormRecordFacetRequest>

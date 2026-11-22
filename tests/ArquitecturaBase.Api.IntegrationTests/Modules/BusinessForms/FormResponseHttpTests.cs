@@ -480,6 +480,46 @@ public sealed partial class FormDraftEndpointsTests
     private Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, Guid? prefixIdentity, params CanonicalFormField[] extra) =>
         SeedSheetCoreAsync(reader, count, prefixIdentity, extra);
 
+    // OT1-C: a result column sorts the sheet by the latest value of its datum, a number as a number (9 before 12); a response without
+    // results goes last also in a DESC, the navigation follows that order and a result sort without its column is a bad request.
+    [Fact]
+    public async Task A_result_column_sorts_the_sheet_with_responses_without_results_last()
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var seeded = await SeedSheetAsync(reader, 3);
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var definition = await db.Set<BusinessFormDefinition>().SingleAsync(item => item.Id == seeded.Id, Ct);
+            var version = await db.Set<BusinessFormVersion>().SingleAsync(item => item.Id == definition.ActiveVersionId, Ct);
+            var rules = BusinessFormRuleSet.Create(definition.Id, 1, "es", "[]", false, version.SchemaJson);
+            db.Add(rules); await db.SaveChangesAsync(Ct);
+            var now = factory.Clock.GetUtcNow().UtcDateTime;
+            foreach (var (index, total) in new[] { (0, "9"), (1, "12") })
+            {
+                var run = BusinessFormActionRun.Create(seeded.Id, seeded.RecordIds[index], rules.Id, Guid.NewGuid(), Guid.NewGuid(), "Received", "NotifyAuthor", 0, null, "{}", true, now);
+                db.Add(run);
+                db.Add(BusinessFormRecordResult.Create(seeded.Id, seeded.RecordIds[index], run.Id, "test.result", """{"en":"Result","es":"Resultado"}""",
+                    $$"""[{"key":"total","label":{"en":"Total","es":"Total"},"kind":"number","value":"{{total}}"}]""", now));
+            }
+            await db.SaveChangesAsync(Ct);
+        });
+        var path = $"/api/forms/definitions/{seeded.Id}/records";
+
+        foreach (var (sort, expected) in new[] { ("-result", new[] { 1, 0, 2 }), ("result", new[] { 0, 1, 2 }) })
+        {
+            using var sheet = await reader.PostAsJsonAsync(path + "/search", new { sort, sortResultId = "test.result.total" }, Ct);
+            Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
+            var rows = (await sheet.ReadJsonAsync()).GetProperty("records").GetProperty("items").EnumerateArray().Select(row => row.GetProperty("id").GetGuid());
+            Assert.Equal(expected.Select(index => seeded.RecordIds[index]), rows);
+        }
+        using var navigation = await reader.PostAsJsonAsync($"{path}/{seeded.RecordIds[0]}/navigation", new { sort = "-result", sortResultId = "test.result.total" }, Ct);
+        Assert.Equal(HttpStatusCode.OK, navigation.StatusCode);
+        var neighbors = await navigation.ReadJsonAsync();
+        Assert.Equal(seeded.RecordIds[1], neighbors.GetProperty("previousId").GetGuid());
+        Assert.Equal(seeded.RecordIds[2], neighbors.GetProperty("nextId").GetGuid());
+        using var missing = await reader.PostAsJsonAsync(path + "/search", new { sort = "result" }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+    }
     private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetCoreAsync(HttpClient reader, int count, Guid? prefixIdentity, CanonicalFormField[] extra, string? onlyCulture = null, bool secondaryButtonMissing = false)
     {
         var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());

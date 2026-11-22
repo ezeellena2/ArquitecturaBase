@@ -117,6 +117,101 @@ public sealed class FormResponseQueryTests
             Assert.DoesNotContain("BusinessFormCatalogItems",statement,StringComparison.Ordinal);
         }
     }
+    // OT1-C: the fixed columns of the sheet sort in SQL before its usual order, the newest number (unique, so EF does not repeat it as
+    // the tiebreaker). A response passed from a document shows «—» as its channel and goes last; the state follows its circuit;
+    // «Reglas», the actions to resolve.
+    [Fact]
+    public void The_fixed_columns_sort_in_sql_before_the_usual_order()
+    {
+        using var db = Database();
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "TEST", Guid.NewGuid(), [Version(1, new CanonicalFormField(Guid.NewGuid(), "name", "shortText", Text("Nombre", "Name"), null, false, null, null))]);
+        string[] OrderBy(string sort) => OrderTerms(Ordered(db, definition, new ListFormRecordsRequest { Sort = sort }).Select(record => record.Id).ToQueryString());
+
+        var corrected = OrderBy("-corrected");
+        var channel = OrderBy("-channel");
+        var ascendingChannel = OrderBy("channel");
+        var state = OrderBy("state");
+        var rules = OrderBy("-rules");
+
+        Assert.Contains("\"ReplacesRecordId\" IS NOT NULL", corrected[0], StringComparison.Ordinal);
+        Assert.EndsWith("DESC", corrected[0], StringComparison.Ordinal);
+        Assert.EndsWith("IS NULL", channel[0], StringComparison.Ordinal);
+        Assert.Contains("\"EnteredInApp\"", channel[1], StringComparison.Ordinal);
+        Assert.Contains("FROM \"FormReceivedDocuments\"", channel[1], StringComparison.Ordinal);
+        Assert.Contains("\"OriginalReceiptId\"", channel[1], StringComparison.Ordinal);
+        Assert.EndsWith("DESC", channel[1], StringComparison.Ordinal);
+        Assert.Contains("\"EnteredInApp\"", ascendingChannel[0], StringComparison.Ordinal);
+        Assert.Contains("'Received' THEN 0", state[0], StringComparison.Ordinal);
+        Assert.Contains("'Voided' THEN 4", state[0], StringComparison.Ordinal);
+        Assert.Contains("FROM \"BusinessFormActionRuns\"", rules[0], StringComparison.Ordinal);
+        Assert.EndsWith("DESC", rules[0], StringComparison.Ordinal);
+        foreach (var terms in new[] { corrected, channel, ascendingChannel, state, rules })
+            Assert.Equal("b.\"Number\" DESC", terms[^1]);
+    }
+
+    // A catalog field of a question of one option sorts by the value its response sealed (an option by its text in the version's
+    // language, a decimal as a number) and a result by the latest value of its datum; the ids and keys go as parameters, and in a
+    // DESC an empty value goes last.
+    [Fact]
+    public void A_catalog_field_and_a_result_sort_by_their_stored_values_with_parameters()
+    {
+        using var db = Database();
+        var catalogField = Guid.NewGuid();
+        var field = new CanonicalFormField(Guid.NewGuid(), "branch", "choice", Text("Sucursal", "Branch"), null, false, null, null, Source: new(Guid.NewGuid()));
+        var version = Version(1, field);
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "TEST", version.Id, [version]);
+        var byField = Ordered(db, definition, new ListFormRecordsRequest { Sort = "-catalogField", SortFieldId = field.FieldId, SortCatalogFieldId = catalogField, DisplayCulture = "en" })
+            .Select(record => record.Id).ToQueryString();
+        var byResult = Ordered(db, definition, new ListFormRecordsRequest { Sort = "-result", SortResultId = "arca.invoice.total" })
+            .Select(record => record.Id).ToQueryString();
+        var fieldTerms = OrderTerms(byField);
+        var resultTerms = OrderTerms(byResult);
+
+        Assert.EndsWith("IS NULL", fieldTerms[0], StringComparison.Ordinal);
+        Assert.Contains("\"FieldValuesJson\"", fieldTerms[1], StringComparison.Ordinal);
+        Assert.Contains("to_jsonb", fieldTerms[1], StringComparison.Ordinal);
+        Assert.Contains("::numeric", fieldTerms[1], StringComparison.Ordinal);
+        Assert.Contains("CASE presentation.value->>'culture' WHEN 'en' THEN 'es' ELSE 'en' END", fieldTerms[1], StringComparison.Ordinal);
+        Assert.EndsWith("DESC", fieldTerms[1], StringComparison.Ordinal);
+        Assert.DoesNotContain(catalogField.ToString("D"), Statement(byField), StringComparison.Ordinal);
+        Assert.Contains(catalogField.ToString("D"), byField, StringComparison.Ordinal);
+        Assert.EndsWith("IS NULL", resultTerms[0], StringComparison.Ordinal);
+        Assert.Contains("FROM \"BusinessFormRecordResults\"", resultTerms[1], StringComparison.Ordinal);
+        Assert.Contains("\"RecordedAtUtc\" DESC", resultTerms[1], StringComparison.Ordinal);
+        Assert.Contains("::numeric", resultTerms[1], StringComparison.Ordinal);
+        Assert.EndsWith("DESC", resultTerms[1], StringComparison.Ordinal);
+        Assert.DoesNotContain("arca.invoice", Statement(byResult), StringComparison.Ordinal);
+        Assert.Contains("arca.invoice", byResult, StringComparison.Ordinal);
+        foreach (var terms in new[] { fieldTerms, resultTerms })
+            Assert.Equal("b.\"Number\" DESC", terms[^1]);
+    }
+
+    private static ApplicationDbContext Database() => new(new DbContextOptionsBuilder<ApplicationDbContext>()
+        .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+    private static IQueryable<BusinessFormRecord> Ordered(ApplicationDbContext db, FormResponseDefinitionRow definition, ListFormRecordsRequest request) =>
+        Assert.IsAssignableFrom<IQueryable<BusinessFormRecord>>(typeof(FormResponseReader).GetMethod("Ordered", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(new FormResponseReader(db, new FormRecordReader(db)), [db.Set<BusinessFormRecord>().Where(record => record.DefinitionId == definition.Id), definition, request]));
+    private static string Statement(string sql) => sql[sql.IndexOf("SELECT", StringComparison.Ordinal)..];
+    // The terms of the outer ORDER BY (the one that starts a line), split at its own commas, not at those of its subqueries.
+    private static string[] OrderTerms(string sql)
+    {
+        const string start = "\nORDER BY ";
+        var clause = sql[(sql.LastIndexOf(start, StringComparison.Ordinal) + start.Length)..];
+        var terms = new List<string>();
+        var depth = 0;
+        var from = 0;
+        for (var index = 0; index < clause.Length; index++)
+        {
+            depth += clause[index] switch { '(' => 1, ')' => -1, _ => 0 };
+            if (clause[index] == ',' && depth == 0)
+            {
+                terms.Add(clause[from..index].Trim());
+                from = index + 1;
+            }
+        }
+        terms.Add(clause[from..].Trim());
+        return [.. terms];
+    }
     private static Dictionary<string, string> Text(string es, string en) => new() { ["es"] = es, ["en"] = en };
     private static FormResponseVersionRow Version(long number, CanonicalFormField field) => new(Guid.NewGuid(), number, "{}",
         JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web), "es", ["es", "en"]);

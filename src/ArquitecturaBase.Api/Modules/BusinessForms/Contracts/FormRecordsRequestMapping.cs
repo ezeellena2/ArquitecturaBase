@@ -7,6 +7,7 @@ internal static class FormRecordsRequestMapping
     public static ListFormRecordsRequest Map(FormRecordsSearchHttpRequest request) => new()
     {
         Page = request.Page, PageSize = request.PageSize, Sort = request.Sort, SortFieldId = request.SortFieldId,
+        SortCatalogFieldId = request.SortCatalogFieldId, SortResultId = request.SortResultId,
         VersionIds = request.VersionIds ?? [], ActorIds = request.ActorIds ?? [], ReceivedFromUtc = request.ReceivedFromUtc, ReceivedToUtc = request.ReceivedToUtc,
         State = request.State, EnteredInApp = request.EnteredInApp, UnresolvedActions = request.UnresolvedActions, Search = request.Search, Conditions = request.Conditions?.Select(condition => condition is null ? null! : new FormRecordCondition(condition.FieldId, condition.Operator, condition.Values)).ToArray() ?? [],
     };

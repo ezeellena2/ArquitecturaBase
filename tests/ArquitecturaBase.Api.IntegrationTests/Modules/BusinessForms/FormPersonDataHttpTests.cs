@@ -382,6 +382,46 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         Assert.DoesNotContain(retired.GetProperty("id").GetGuid(), missing.Keys);
     }
 
+    // OT1-C: the people table sorts by the text of an attribute, with the people without it last also in a DESC and then by name; an
+    // attribute sort without its id is a bad request.
+    [Fact]
+    public async Task The_people_table_sorts_by_an_attribute_with_people_without_it_last()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        using var manager = await OperatorAsync(BusinessFormsPermissions.PersonDataManage, Permissions.Users.Read, Permissions.Users.Manage);
+        using var created = await manager.PostAsJsonAsync("/api/forms/person-attributes", new
+        {
+            key = "sorted_zone_" + suffix, name = new { es = "Zona", en = "Zone" }, type = "Text", sourceCatalogId = (Guid?)null,
+        }, Ct);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var zone = (await created.ReadJsonAsync()).GetProperty("id").GetGuid();
+        var prefix = "Orden " + suffix;
+        var (ana, beto, carla) = await factory.InTransactionAsync(async services =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            async Task<Guid> PersonAsync(string name) =>
+                (await users.CreateAsync(Email.Create(TestEmails.Unique("person-data-sort")).Value, null, false, name, "es", Ct)).Id;
+            return (await PersonAsync(prefix + " Ana"), await PersonAsync(prefix + " Beto"), await PersonAsync(prefix + " Carla"));
+        });
+        foreach (var (person, value) in new[] { (ana, "Norte"), (carla, "Sur") })
+        {
+            using var saved = await manager.PutAsJsonAsync($"/api/forms/person-data/{person}",
+                new { expectedRevision = (long?)null, values = new Dictionary<string, string?> { [zone.ToString("D")] = value } }, Ct);
+            Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        }
+        async Task<Guid[]> PeopleAsync(string sort)
+        {
+            using var people = await manager.GetAsync($"/api/forms/person-data?sort={sort}&sortAttributeId={zone}&search={Uri.EscapeDataString(prefix)}", Ct);
+            Assert.Equal(HttpStatusCode.OK, people.StatusCode);
+            return [.. (await people.ReadJsonAsync()).GetProperty("items").EnumerateArray().Select(item => item.GetProperty("userId").GetGuid())];
+        }
+
+        Assert.Equal([carla, ana, beto], await PeopleAsync("-attribute"));
+        Assert.Equal([ana, carla, beto], await PeopleAsync("attribute"));
+        using var missing = await manager.GetAsync("/api/forms/person-data?sort=attribute", Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+    }
+
     [Fact]
     public async Task Person_data_routes_require_authentication_and_dedicated_permissions_without_granting_user_read_access()
     {

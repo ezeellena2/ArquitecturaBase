@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -45,6 +46,21 @@ public sealed class FormPersonDataServiceTests
         Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
         Assert.Equal(0, fixture.PeopleReads);
         Assert.Equal(0, fixture.Work.Transactions);
+    }
+
+    // OT1-C: the people table sorts by the value of an attribute only with the id of that attribute.
+    [Theory]
+    [InlineData("attribute", true, true)]
+    [InlineData("-attribute", true, true)]
+    [InlineData("attribute", false, false)]
+    [InlineData("-displayName", false, true)]
+    public async Task The_people_table_sorts_by_an_attribute_only_with_its_id(string sort, bool withAttribute, bool valid)
+    {
+        var request = new ListFormPersonDataRequest { Sort = sort, SortAttributeId = withAttribute ? Guid.NewGuid() : null };
+
+        var result = await new ListFormPersonDataRequestValidator().ValidateAsync(request, Ct);
+
+        Assert.Equal(valid, result.IsValid);
     }
 
     [Fact]

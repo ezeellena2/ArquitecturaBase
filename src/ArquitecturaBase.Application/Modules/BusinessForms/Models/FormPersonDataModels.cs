@@ -8,7 +8,9 @@ public sealed record UpdateFormPersonAttributeRequest(long? ExpectedRevision, IR
 public sealed record UpdateFormPersonDataRequest(long? ExpectedRevision, IReadOnlyDictionary<string, string?>? Values)
 { public override string ToString() => "UpdateFormPersonDataRequest { Content = [REDACTED] }"; }
 public sealed record ListFormPersonDataRequest : PagedRequest
-{ public static readonly IReadOnlyCollection<string> SortableFields = ["displayName"]; public string DisplayCulture { get; init; } = "es";
+{ public static readonly IReadOnlyCollection<string> SortableFields = ["displayName", "attribute"]; public string DisplayCulture { get; init; } = "es";
+    /// <summary>With <c>attribute</c>: the attribute whose value orders the people, as its cell shows it (OT1-C).</summary>
+    public Guid? SortAttributeId { get; init; }
     public override string ToString() => "ListFormPersonDataRequest { Search = [REDACTED] }"; }
 public sealed record ListFormPersonAttributeOptionsRequest : PagedRequest
 { public static readonly IReadOnlyCollection<string> SortableFields = ["text"]; public string DisplayCulture { get; init; } = "es";

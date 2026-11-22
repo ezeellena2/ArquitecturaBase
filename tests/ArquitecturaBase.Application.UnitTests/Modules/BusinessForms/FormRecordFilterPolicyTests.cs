@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormRecordFilterPolicyTests
 {
@@ -84,6 +85,53 @@ public sealed class FormRecordFilterPolicyTests
         Assert.True(result.IsFailure);
         Assert.Equal("Forms.Record.FilterInvalid", result.Error.Code);
         Assert.True(FormRecordFilterPolicy.Validate(new() { Conditions = [new(quantity.FieldId, "gte", ["200"]), new(quantity.FieldId, "answered", null)] }, definition).IsSuccess);
+    }
+    // OT1-C: the fixed columns of the sheet sort without a question, and a result by the id of its column (<source>.<key>).
+    [Theory]
+    [InlineData("corrected", null, true)]
+    [InlineData("-channel", null, true)]
+    [InlineData("state", null, true)]
+    [InlineData("-rules", null, true)]
+    [InlineData("-result", "arca.invoice.total", true)]
+    [InlineData("result", "test.number", true)]
+    [InlineData("result", null, false)]
+    [InlineData("result", "total", false)]
+    [InlineData("result", "Arca.total", false)]
+    [InlineData("result", "arca.invoice.total amount", false)]
+    public async Task The_fixed_columns_and_a_result_sort_without_a_question(string sort, string? resultId, bool valid)
+    {
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", JsonSerializer.Serialize(new FormVersionSchema(1, []), JsonSerializerOptions.Web), "es", ["es", "en"]);
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "T", version.Id, [version]);
+        var request = new ListFormRecordsRequest { Sort = sort, SortResultId = resultId };
+
+        var validated = await new ListFormRecordsRequestValidator().ValidateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(valid, validated.IsValid && FormRecordFilterPolicy.Validate(request, definition).IsSuccess);
+    }
+    // A catalog field sorts for a question of one option with a catalog, by one of the fields its column offers.
+    [Theory]
+    [InlineData("choice", true, true, true)]
+    [InlineData("multiChoice", true, true, false)]
+    [InlineData("choice", false, true, false)]
+    [InlineData("choice", true, false, false)]
+    public async Task A_catalog_field_sorts_only_for_a_question_of_one_option_by_a_field_of_its_catalog(string type, bool fromCatalog, bool knownField, bool valid)
+    {
+        var label = new Dictionary<string, string> { ["es"] = "Sucursal", ["en"] = "Branch" };
+        var catalogId = Guid.NewGuid();
+        var zone = new FormResponseCatalogFieldRow(Guid.NewGuid(), "zone", label, "text", "data");
+        var question = new CanonicalFormField(Guid.NewGuid(), "branch", type, label, null, false, null, null, Source: fromCatalog ? new(catalogId) : null);
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", JsonSerializer.Serialize(new FormVersionSchema(1, [question]), JsonSerializerOptions.Web), "es", ["es", "en"]);
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "T", version.Id, [version],
+            CatalogFields: new Dictionary<Guid, IReadOnlyList<FormResponseCatalogFieldRow>> { [catalogId] = [zone] });
+        foreach (var sort in new[] { "catalogField", "-catalogField" })
+        {
+            var request = new ListFormRecordsRequest { Sort = sort, SortFieldId = question.FieldId, SortCatalogFieldId = knownField ? zone.Id : Guid.NewGuid() };
+            var validated = await new ListFormRecordsRequestValidator().ValidateAsync(request, TestContext.Current.CancellationToken);
+            Assert.True(validated.IsValid);
+            Assert.Equal(valid, FormRecordFilterPolicy.Validate(request, definition).IsSuccess);
+        }
+        Assert.True(FormRecordFilterPolicy.Validate(new() { Sort = "catalogField", SortFieldId = question.FieldId }, definition).IsFailure);
+        Assert.True(FormRecordFilterPolicy.Validate(new() { Sort = "catalogField", SortCatalogFieldId = zone.Id }, definition).IsFailure);
     }
     [Fact]
     public void Unknown_questions_versions_and_sort_fields_are_rejected()
