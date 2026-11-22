@@ -175,6 +175,34 @@ public sealed class FormActionDispatchServiceTests
         Assert.Single(fixture.Runs.Tasks);
     }
 
+    // RC4-A: with «Puede decidir quien cargó», whoever loaded the response can decide it, so it counts; the task carries both choices.
+    [Fact]
+    public async Task Requesting_approval_that_lets_its_author_decide_opens_the_task_when_the_only_member_loaded_the_response()
+    {
+        var fixture = new FormActionFixture();
+        var rule = new FormRule(Guid.NewGuid(), "Received", [], [FormActionFixture.Action("RequestApproval") with { RoleId = fixture.Rules.RoleId, AuthorMayDecide = true, ReasonOptional = true }]);
+        var (record, snapshot) = fixture.Capture([rule]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        Assert.Equal([record.ActorUserId], fixture.Recipients.People.Keys);
+        var run = Assert.Single(fixture.Runs.Runs);
+        Assert.Null((await Dispatch(fixture).ReserveAsync(run.Id, CancellationToken.None)).Value);
+        Assert.Equal(FormActionRunState.Completed, run.State);
+        var task = Assert.Single(fixture.Runs.Tasks);
+        Assert.True(task.AuthorMayDecide);
+        Assert.True(task.ReasonOptional);
+        Assert.Equal(FormRecordState.PendingApproval, record.State);
+    }
+    [Fact]
+    public void A_run_sealed_before_the_choices_reads_today_rules_and_seals_them_only_when_they_change()
+    {
+        var stored = FormDraftPolicy.Read<FormActionSnapshot>($$"""{"approvalRoleId":"{{Guid.NewGuid()}}","pdf":null,"pdfRunId":null,"recipients":[],"preparationFailureCode":null}""");
+        Assert.False(stored.ApprovalAuthorMayDecide);
+        Assert.False(stored.ApprovalReasonOptional);
+        Assert.DoesNotContain("approvalAuthorMayDecide", FormDraftPolicy.Serialize(stored), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("approvalReasonOptional", FormDraftPolicy.Serialize(stored), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("approvalAuthorMayDecide", FormDraftPolicy.Serialize(stored with { ApprovalAuthorMayDecide = true }), StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task What_needs_a_decision_is_not_consulted_on_its_own()
     {

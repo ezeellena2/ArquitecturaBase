@@ -195,6 +195,29 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(2,latest.GetProperty("revision").GetInt64());
         Assert.Equal(0,latest.GetProperty("changes").GetProperty("updatedRules").GetInt32());
     }
+    // RC4-A: «Pedir aprobación» saves and reads back who may decide and whether a rejection needs a reason; another action cannot carry them.
+    [Fact]
+    public async Task An_approval_saves_its_choices_and_another_action_cannot_carry_them()
+    {
+        using var designer = await AdminAsync();
+        var created = await CreateAsync(designer,Payload("Elecciones de la aprobación"));
+        var id = created.GetProperty("definition").GetProperty("id").GetGuid();
+        var route = $"/api/forms/definitions/{id}/rules";
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        var actor = Guid.Parse(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var roleId = await factory.ExecuteDbContextAsync(db=>db.UserRoles.Where(link=>link.UserId == actor).Select(link=>link.RoleId).SingleAsync(Ct));
+        using var misplaced = await manager.PostAsJsonAsync(route,new { expectedRevision = 0, rules = new[] { new { id = Guid.NewGuid(), @event = "Received", conditions = Array.Empty<object>(),
+            actions = new object[] { new { id = Guid.NewGuid(), kind = "NotifyAuthor", text = new Dictionary<string,string> { ["es"] = "Recibimos" }, reasonOptional = true } } } } },Ct);
+        Assert.Equal(HttpStatusCode.BadRequest,misplaced.StatusCode);
+        Assert.True((await misplaced.ReadJsonAsync()).GetProperty("errors").TryGetProperty("rules[0].actions[0].reasonOptional",out _));
+        using var saved = await manager.PostAsJsonAsync(route,new { expectedRevision = 0, rules = new[] { new { id = Guid.NewGuid(), @event = "Received", conditions = Array.Empty<object>(),
+            actions = new object[] { new { id = Guid.NewGuid(), kind = "RequestApproval", roleId, authorMayDecide = true, reasonOptional = true } } } } },Ct);
+        Assert.Equal(HttpStatusCode.Created,saved.StatusCode);
+        using var read = await manager.GetAsync(route,Ct);
+        var action = (await read.ReadJsonAsync()).GetProperty("rules")[0].GetProperty("actions")[0];
+        Assert.True(action.GetProperty("authorMayDecide").GetBoolean());
+        Assert.True(action.GetProperty("reasonOptional").GetBoolean());
+    }
     [Fact]
     public async Task Removed_rule_permissions_and_missing_roles_cannot_change_a_revision()
     {

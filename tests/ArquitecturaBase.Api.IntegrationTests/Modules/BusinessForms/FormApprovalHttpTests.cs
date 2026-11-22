@@ -191,7 +191,48 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(FormApprovalErrors.OwnResponse.Code, (await decision.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
-    private async Task<(Guid TaskId, Guid RecordId, Guid DefinitionId, Guid RuleSetId, Guid DeciderId)> SeedApprovalAsync(HttpClient author, HttpClient decider, int hour, TimeSpan? approvalDelay = null, string? originalCulture = null, bool secondaryButtonMissing = false)
+    // RC4-A: «Puede decidir quien cargó» lets the author decide and counts the task for them, in the inbox and in the overview, and without
+    // «Exigir motivo al rechazar» a rejection goes without a reason; the task says so, for the dialog.
+    [Fact]
+    public async Task An_approval_that_lets_its_author_decide_and_leaves_the_reason_optional_is_rejected_by_its_author_without_a_reason()
+    {
+        using var decider = await OperatorAsync([BusinessFormsPermissions.ApprovalsDecide]);
+        var own = await SeedApprovalAsync(decider, decider, 9, authorMayDecide: true, reasonOptional: true);
+        using var mine = await decider.GetAsync("/api/forms/approvals", Ct);
+        var item = Assert.Single((await mine.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.Equal(own.TaskId, item.GetProperty("id").GetGuid());
+        Assert.True(item.GetProperty("canDecide").GetBoolean());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, item.GetProperty("cannotDecideReason").ValueKind);
+        Assert.True(item.GetProperty("reasonOptional").GetBoolean());
+        using var count = await decider.GetAsync("/api/forms/approvals/count?definitionId=" + own.DefinitionId, Ct);
+        Assert.Equal(1, (await count.ReadJsonAsync()).GetProperty("count").GetInt32());
+        using var overview = await decider.GetAsync("/api/forms/overview", Ct);
+        var form = Assert.Single((await overview.ReadJsonAsync()).GetProperty("forms").GetProperty("items").EnumerateArray(), row => row.GetProperty("id").GetGuid() == own.DefinitionId);
+        Assert.Equal(1, form.GetProperty("pendingApprovalCount").GetInt32());
+        using var decision = await decider.PostAsJsonAsync("/api/forms/approvals/" + own.TaskId + "/decisions", new { expectedRevision = 1, decision = "Rejected" }, Ct);
+        Assert.Equal(HttpStatusCode.OK, decision.StatusCode);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await decision.ReadJsonAsync()).GetProperty("reason").ValueKind);
+        var stored = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormTask>().AsNoTracking().SingleAsync(task => task.Id == own.TaskId, Ct));
+        Assert.Equal((FormTaskState.Rejected, (string?)null, true, true), (stored.State, stored.Reason, stored.AuthorMayDecide, stored.ReasonOptional));
+    }
+    [Fact]
+    public async Task An_approval_that_asks_for_a_reason_refuses_a_rejection_without_one_on_its_field()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        using var decider = await OperatorAsync([BusinessFormsPermissions.ApprovalsDecide]);
+        var seeded = await SeedApprovalAsync(author, decider, 8);
+        using var task = await decider.GetAsync("/api/forms/approvals/" + seeded.TaskId, Ct);
+        Assert.False((await task.ReadJsonAsync()).TryGetProperty("reasonOptional", out _));
+        using var missing = await decider.PostAsJsonAsync("/api/forms/approvals/" + seeded.TaskId + "/decisions", new { expectedRevision = 1, decision = "Rejected", reason = "   " }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        var problem = await missing.ReadJsonAsync();
+        Assert.Equal(FormApprovalErrors.ReasonRequired.Code, problem.GetProperty("code").GetString());
+        Assert.True(problem.GetProperty("errors").TryGetProperty("reason", out _));
+        Assert.Equal(FormTaskState.Open, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormTask>().Where(value => value.Id == seeded.TaskId).Select(value => value.State).SingleAsync(Ct)));
+    }
+
+    private async Task<(Guid TaskId, Guid RecordId, Guid DefinitionId, Guid RuleSetId, Guid DeciderId)> SeedApprovalAsync(HttpClient author, HttpClient decider, int hour, TimeSpan? approvalDelay = null, string? originalCulture = null, bool secondaryButtonMissing = false,
+        bool authorMayDecide = false, bool reasonOptional = false)
     {
         var sheet = await SeedSheetCoreAsync(author, 0, null, [], originalCulture, secondaryButtonMissing);
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
@@ -201,7 +242,7 @@ public sealed partial class FormDraftEndpointsTests
             var roleId = await db.UserRoles.Where(link => link.UserId == deciderId).Select(link => link.RoleId).SingleAsync(Ct);
             var definition = await db.Set<BusinessFormDefinition>().SingleAsync(value => value.Id == sheet.Id, Ct);
             var version = await db.Set<BusinessFormVersion>().SingleAsync(value => value.Id == definition.ActiveVersionId, Ct);
-            var approval = new FormRuleAction(Guid.NewGuid(), "RequestApproval", roleId, null, false);
+            var approval = new FormRuleAction(Guid.NewGuid(), "RequestApproval", roleId, null, false, AuthorMayDecide: authorMayDecide, ReasonOptional: reasonOptional);
             var received = new FormRule(Guid.NewGuid(), "Received", [], [approval]);
             var notify = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null, new Dictionary<string, string> { { version.Culture!, version.Culture == "en" ? "Response {número}: {motivo}" : "Respuesta {número}: {motivo}" } }, false);
             var rules = new[] { received, new FormRule(Guid.NewGuid(), "Approved", [], [notify]), new FormRule(Guid.NewGuid(), "Rejected", [], [notify with { Id = Guid.NewGuid() }]) };
@@ -209,9 +250,9 @@ public sealed partial class FormDraftEndpointsTests
             var at = new DateTime(2026, 10, 16, hour, 0, 0, DateTimeKind.Utc);
             var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), authorId, Guid.NewGuid(), at, "[]", ruleSet.Id); record.MarkPendingApproval(); db.Set<BusinessFormRecord>().Add(record);
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-approval", record.Id, record.Number, at));
-            var config = new FormActionSnapshot(approval.RoleId, null, null, []);
+            var config = new FormActionSnapshot(approval.RoleId, null, null, [], ApprovalAuthorMayDecide: authorMayDecide, ApprovalReasonOptional: reasonOptional);
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, received.Id, approval.Id, "Received", "RequestApproval", 0, null, FormDraftPolicy.Serialize(config), true, at); db.Set<BusinessFormActionRun>().Add(run);
-            var task = BusinessFormTask.Open(definition.Id, record.Id, ruleSet.Id, run.Id, roleId, authorId, at.Add(approvalDelay ?? TimeSpan.Zero)); db.Set<BusinessFormTask>().Add(task); await db.SaveChangesAsync(Ct);
+            var task = BusinessFormTask.Open(definition.Id, record.Id, ruleSet.Id, run.Id, roleId, authorId, at.Add(approvalDelay ?? TimeSpan.Zero), authorMayDecide, reasonOptional); db.Set<BusinessFormTask>().Add(task); await db.SaveChangesAsync(Ct);
             return (task.Id, record.Id, definition.Id, ruleSet.Id, deciderId);
         });
     }

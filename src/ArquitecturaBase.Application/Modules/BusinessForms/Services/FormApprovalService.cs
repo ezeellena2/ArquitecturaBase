@@ -63,11 +63,12 @@ internal sealed class FormApprovalService(IFormApprovalRepository repository, IF
             if (person is not { IsActive: true, IsInRole: true }) return Result.Failure<FormApprovalDecisionResponse>(FormApprovalErrors.RoleChanged);
             var record = await repository.GetRecordAsync(task.RecordId, ct);
             if (record is null || record.RuleSetId != task.RuleSetId) return Result.Failure<FormApprovalDecisionResponse>(FormApprovalErrors.RevisionConflict);
-            if (await reader.ExistsValuesSetByAsync(task.RecordId, actor.Value, ct)) return Result.Failure<FormApprovalDecisionResponse>(FormApprovalErrors.OwnResponse);
+            if (!task.AuthorMayDecide && await reader.ExistsValuesSetByAsync(task.RecordId, actor.Value, ct)) return Result.Failure<FormApprovalDecisionResponse>(FormApprovalErrors.OwnResponse);
             var now = timeProvider.GetUtcNow().UtcDateTime;
             var approved = request.Decision == "Approved";
             var decided = task.Decide(request.ExpectedRevision!.Value, actor.Value, approved, request.Reason, now);
-            if (decided.IsFailure) return Result.Failure<FormApprovalDecisionResponse>(decided.Error);
+            // RC4-A: whether a rejection needs a reason is up to the task, so a missing one is answered on its field, as the validator did.
+            if (decided.IsFailure) return Result.Failure<FormApprovalDecisionResponse>(decided.Error == FormApprovalErrors.ReasonRequired ? FieldErrors.On(decided.Error, "reason") : decided.Error);
             var completed = record.CompleteApproval(approved);
             if (completed.IsFailure) return Result.Failure<FormApprovalDecisionResponse>(completed.Error);
             var snapshot = await reader.FindActionSnapshotAsync(record.Id, ct) ?? throw new InvalidOperationException("The response snapshot for the approval is missing.");

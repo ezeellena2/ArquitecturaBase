@@ -19,23 +19,30 @@ public sealed class BusinessFormTask : Entity, IAuditable
     public Guid? DecidedByUserId { get; private set; }
     public DateTime? DecidedAtUtc { get; private set; }
     public string? Reason { get; private set; }
+    /// <summary>«Puede decidir quien cargó» of the approval that opened it: whoever loaded, corrected or passed the response may decide it too.</summary>
+    public bool AuthorMayDecide { get; private set; }
+    /// <summary>«Exigir motivo al rechazar» unchecked in the approval that opened it: a rejection may come without a reason.</summary>
+    public bool ReasonOptional { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
-    public static BusinessFormTask Open(Guid definitionId, Guid recordId, Guid ruleSetId, Guid runId, Guid roleId, Guid authorUserId, DateTime nowUtc) =>
-        new() { DefinitionId = definitionId, RecordId = recordId, RuleSetId = ruleSetId, RunId = runId, RoleId = roleId, AuthorUserId = authorUserId, RequestedAtUtc = nowUtc };
+    /// <summary>The choices of the approval travel with the task, from the rule revision the response arrived with (RC4-A).</summary>
+    public static BusinessFormTask Open(Guid definitionId, Guid recordId, Guid ruleSetId, Guid runId, Guid roleId, Guid authorUserId, DateTime nowUtc,
+        bool authorMayDecide = false, bool reasonOptional = false) =>
+        new() { DefinitionId = definitionId, RecordId = recordId, RuleSetId = ruleSetId, RunId = runId, RoleId = roleId, AuthorUserId = authorUserId, RequestedAtUtc = nowUtc,
+            AuthorMayDecide = authorMayDecide, ReasonOptional = reasonOptional };
     public Result Decide(long expectedRevision, Guid actorUserId, bool approved, string? reason, DateTime nowUtc)
     {
         if (State != FormTaskState.Open || Revision != expectedRevision || Revision >= 9007199254740991) return FormApprovalErrors.RevisionConflict;
-        if (actorUserId == AuthorUserId) return FormApprovalErrors.OwnResponse;
+        if (!AuthorMayDecide && actorUserId == AuthorUserId) return FormApprovalErrors.OwnResponse;
         var normalized = reason?.Trim();
-        if (!approved && string.IsNullOrWhiteSpace(normalized)) return FormApprovalErrors.ReasonRequired;
+        if (!approved && !ReasonOptional && string.IsNullOrWhiteSpace(normalized)) return FormApprovalErrors.ReasonRequired;
         if (nowUtc.Kind != DateTimeKind.Utc || actorUserId == Guid.Empty || normalized?.Length > 500
             || normalized is not null && !StorableText.IsStorable(normalized) || approved && normalized is not null) return FormApprovalErrors.ContentInvalid;
         State = approved ? FormTaskState.Approved : FormTaskState.Rejected;
         Revision++;
-        DecidedByUserId = actorUserId; DecidedAtUtc = nowUtc; Reason = approved ? null : normalized;
+        DecidedByUserId = actorUserId; DecidedAtUtc = nowUtc; Reason = approved || string.IsNullOrEmpty(normalized) ? null : normalized;
         return Result.Success();
     }
     /// <summary>The response it waited for was corrected or voided: nobody decides it anymore.</summary>

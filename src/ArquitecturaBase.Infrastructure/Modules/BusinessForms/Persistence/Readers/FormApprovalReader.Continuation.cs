@@ -29,9 +29,7 @@ internal sealed partial class FormApprovalReader
             "Next" => (">", "ASC"), "Previous" => ("<", "DESC"),
             _ => throw new InvalidOperationException("The approval continuation direction is invalid.")
         };
-        using var scope = Authorized(actor).Where(task => task.DefinitionId == request.DefinitionId && task.AuthorUserId != actor
-                && !(dbContext.Set<BusinessFormRecord>().Any(record => record.Id == task.RecordId && record.CorrectedByUserId == actor)
-                    || dbContext.Set<ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == actor))
+        using var scope = Authorized(actor).Where(DecidableBy(actor)).Where(task => task.DefinitionId == request.DefinitionId
                 && dbContext.Set<BusinessFormDefinition>().Any(definition => definition.Id == task.DefinitionId))
             .Select(task => new { task.Id, task.RequestedAtUtc, task.State }).CreateDbCommand();
         var batchIds = dbContext.Database.SqlQueryRaw<Guid>("SELECT \"Id\" AS \"Value\" FROM continuation_batch");
@@ -88,7 +86,9 @@ internal sealed partial class FormApprovalReader
             RoleId = row.RoleId ?? throw IncompleteContinuation(), RoleName = row.RoleName,
             RequestedAtUtc = row.RequestedAtUtc ?? throw IncompleteContinuation(), Revision = row.Revision ?? throw IncompleteContinuation(),
             State = state, DecidedAtUtc = row.DecidedAtUtc, DecidedByUserId = row.DecidedByUserId,
-            DecidedByName = row.DecidedByName, Reason = row.Reason
+            DecidedByName = row.DecidedByName, Reason = row.Reason,
+            AuthorMayDecide = row.AuthorMayDecide ?? throw IncompleteContinuation(), ReasonOptional = row.ReasonOptional ?? throw IncompleteContinuation(),
+            SetValuesByActor = row.SetValuesByActor ?? throw IncompleteContinuation()
         };
     }
     private static InvalidOperationException IncompleteContinuation() => new("The approval continuation metadata is incomplete.");
@@ -116,5 +116,8 @@ internal sealed partial class FormApprovalReader
         public Guid? DecidedByUserId { get; init; }
         public string? DecidedByName { get; init; }
         public string? Reason { get; init; }
+        public bool? AuthorMayDecide { get; init; }
+        public bool? ReasonOptional { get; init; }
+        public bool? SetValuesByActor { get; init; }
     }
 }

@@ -18,7 +18,8 @@ internal sealed class DecideFormApprovalRequestValidator : AbstractValidator<Dec
         RuleFor(request => request.ExpectedRevision).NotNull().WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code))
             .InclusiveBetween(1, 9007199254740990).WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code));
         RuleFor(request => request.Decision).Must(decision => decision is "Approved" or "Rejected").WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code));
-        RuleFor(request => request.Reason).Must((request, reason) => request.Decision == "Approved" ? reason is null : !string.IsNullOrWhiteSpace(reason))
+        // RC4-A: an approval carries no reason; whether a rejection needs one is up to its task («Exigir motivo al rechazar»).
+        RuleFor(request => request.Reason).Must((request, reason) => request.Decision != "Approved" || reason is null)
             .WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ReasonRequired.Code));
         RuleFor(request => request.Reason).Must(reason => reason is null || reason.Trim().Length <= 500 && StorableText.IsStorable(reason))
             .WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code));

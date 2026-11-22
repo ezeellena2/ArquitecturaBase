@@ -25,6 +25,39 @@ public sealed class FormRulePolicyTests
     [InlineData("Rejected")]
     public void Approval_can_only_be_requested_on_receipt(string trigger) =>
         Assert.True(FormRulePolicy.Normalize(new(0, [Rule(trigger, Action("RequestApproval", role: RoleId))]), Context()).IsFailure);
+    // RC4-A: «Puede decidir quien cargó» and «Exigir motivo al rechazar» belong to «Pedir aprobación», and stay as today when untouched.
+    [Fact]
+    public void Requesting_approval_keeps_who_may_decide_and_whether_a_rejection_needs_a_reason()
+    {
+        var plain = FormRulePolicy.Normalize(new(0, [Rule("Received", Action("RequestApproval", role: RoleId))]), Context()).Value[0].Actions[0];
+        Assert.False(plain.AuthorMayDecide);
+        Assert.False(plain.ReasonOptional);
+        var chosen = FormRulePolicy.Normalize(new(0, [Rule("Received", Action("RequestApproval", role: RoleId) with { AuthorMayDecide = true, ReasonOptional = true })]), Context()).Value[0].Actions[0];
+        Assert.True(chosen.AuthorMayDecide);
+        Assert.True(chosen.ReasonOptional);
+    }
+    [Theory]
+    [InlineData(true, false, "authorMayDecide")]
+    [InlineData(false, true, "reasonOptional")]
+    public void Only_requesting_approval_carries_its_choices(bool authorMayDecide, bool reasonOptional, string field)
+    {
+        var result = FormRulePolicy.Normalize(new(0, [Rule("Received", Action("NotifyAuthor", text: Text()) with { AuthorMayDecide = authorMayDecide, ReasonOptional = reasonOptional })]), Context());
+        Assert.Equal("Forms.Rule.ContentInvalid", result.Error.Code);
+        Assert.Equal(["rules[0].actions[0]." + field], Assert.IsType<ValidationError>(result.Error).Errors.Keys);
+    }
+    [Fact]
+    public void A_rule_stored_before_the_choices_reads_today_rules_and_writes_them_only_when_they_change()
+    {
+        var stored = FormDraftPolicy.Read<FormRuleAction>($$"""{"id":"{{Guid.NewGuid()}}","kind":"RequestApproval","roleId":"{{RoleId}}","text":null,"includePdf":false}""");
+        Assert.False(stored.AuthorMayDecide);
+        Assert.False(stored.ReasonOptional);
+        var json = FormDraftPolicy.Serialize(stored);
+        Assert.DoesNotContain("authorMayDecide", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("reasonOptional", json, StringComparison.OrdinalIgnoreCase);
+        var changed = FormDraftPolicy.Serialize(stored with { AuthorMayDecide = true, ReasonOptional = true });
+        Assert.Contains("authorMayDecide", changed, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("reasonOptional", changed, StringComparison.OrdinalIgnoreCase);
+    }
     [Fact]
     public void Approval_must_be_the_last_action_of_its_rule() =>
         Assert.True(FormRulePolicy.Normalize(new(0, [Rule("Received", Action("RequestApproval", role: RoleId), Action("NotifyAuthor", text: Text()))]), Context()).IsFailure);

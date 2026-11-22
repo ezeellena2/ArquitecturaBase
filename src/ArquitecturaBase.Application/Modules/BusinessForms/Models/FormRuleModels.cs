@@ -3,12 +3,17 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 public sealed record FormRule(Guid Id, string Event, IReadOnlyList<FormRecordCondition> Conditions, IReadOnlyList<FormRuleAction> Actions)
 { public override string ToString() => "FormRule { Content = [REDACTED] }"; }
 // IssuerId names the installed issuer of an «IssueDocument» action; absent in the other kinds, so their stored JSON does not change.
+// RC4-A: AuthorMayDecide («Puede decidir quien cargó») and ReasonOptional («Exigir motivo al rechazar» unchecked) belong to «RequestApproval»;
+// written only when true, so the rules stored before read today's rules and keep their JSON.
 public sealed record FormRuleAction(Guid Id, string Kind, Guid? RoleId, IReadOnlyDictionary<string,string>? Text, bool IncludePdf,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? IssuerId = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? IssuerId = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool AuthorMayDecide = false,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool ReasonOptional = false)
 { public override string ToString() => "FormRuleAction { Content = [REDACTED] }"; }
 public sealed record FormRuleInput(Guid Id, string? Event, IReadOnlyList<FormRecordCondition?>? Conditions, IReadOnlyList<FormRuleActionInput?>? Actions)
 { public override string ToString() => "FormRuleInput { Content = [REDACTED] }"; }
-public sealed record FormRuleActionInput(Guid Id, string? Kind, Guid? RoleId = null, IReadOnlyDictionary<string,string?>? Text = null, bool IncludePdf = false, string? IssuerId = null)
+public sealed record FormRuleActionInput(Guid Id, string? Kind, Guid? RoleId = null, IReadOnlyDictionary<string,string?>? Text = null, bool IncludePdf = false, string? IssuerId = null,
+    bool AuthorMayDecide = false, bool ReasonOptional = false)
 { public override string ToString() => "FormRuleActionInput { Content = [REDACTED] }"; }
 public sealed record SaveFormRulesRequest(long? ExpectedRevision, IReadOnlyList<FormRuleInput?>? Rules)
 { public override string ToString() => "SaveFormRulesRequest { Content = [REDACTED] }"; }

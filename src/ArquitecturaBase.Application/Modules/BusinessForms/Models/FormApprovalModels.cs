@@ -11,7 +11,9 @@ public sealed record FormApprovalFilterRequest(Guid? DefinitionId = null, bool O
 public sealed record FormApprovalCountResponse(int Count);
 public sealed record FormApprovalTaskResponse(Guid Id, Guid DefinitionId, Guid RecordId, string Number, string FormName,
     FormAuthorResponse Author, FormRuleRoleResponse Role, DateTime RequestedAtUtc, long Revision, string State, bool CanDecide, string? CannotDecideReason,
-    DateTime? DecidedAtUtc, FormAuthorResponse? DecidedBy, string? Reason)
+    DateTime? DecidedAtUtc, FormAuthorResponse? DecidedBy, string? Reason,
+    // RC4-A: «Exigir motivo al rechazar» unchecked in the approval; sent only when true, like the choices of the rule.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool ReasonOptional = false)
 { public override string ToString() => "FormApprovalTaskResponse { Content = [REDACTED] }"; }
 public sealed record DecideFormApprovalRequest(long? ExpectedRevision, string? Decision, string? Reason = null)
 { public override string ToString() => "DecideFormApprovalRequest { Content = [REDACTED] }"; }

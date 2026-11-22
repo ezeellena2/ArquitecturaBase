@@ -21,6 +21,10 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
     private Expression<Func<BusinessFormTask, bool>> SetValuesBy(Guid userId) => task =>
         dbContext.Set<BusinessFormRecord>().Any(record => record.Id == task.RecordId && record.CorrectedByUserId == userId)
         || dbContext.Set<FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == userId);
+    // F4 and RC4-A: what the actor may decide: a response whose values they did not set, or one whose approval lets whoever set them decide.
+    private Expression<Func<BusinessFormTask, bool>> DecidableBy(Guid actor) => task => task.AuthorMayDecide || task.AuthorUserId != actor
+        && !dbContext.Set<BusinessFormRecord>().Any(record => record.Id == task.RecordId && record.CorrectedByUserId == actor)
+        && !dbContext.Set<FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == actor);
     public async Task<PagedResult<FormApprovalTaskResponse>> ListAsync(Guid actor, ListFormApprovalsRequest request, string culture, CancellationToken cancellationToken)
     {
         var sortable = new Dictionary<string, Expression<Func<ApprovalRow, object?>>>(StringComparer.OrdinalIgnoreCase) { ["requestedAtUtc"] = task => task.RequestedAtUtc };
@@ -50,11 +54,9 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
     {
         var query = Authorized(actor).Where(task => task.State == FormTaskState.Open);
         if (filter.DefinitionId is { } id) query = query.Where(task => task.DefinitionId == id);
-        if (filter.OnlyMine) query = query.Where(task => task.AuthorUserId != actor).Where(Not(SetValuesBy(actor)));
+        if (filter.OnlyMine) query = query.Where(DecidableBy(actor));
         return query;
     }
-    private static Expression<Func<BusinessFormTask, bool>> Not(Expression<Func<BusinessFormTask, bool>> predicate) =>
-        Expression.Lambda<Func<BusinessFormTask, bool>>(Expression.Not(predicate.Body), predicate.Parameters);
     private IQueryable<ApprovalRow> Project(IQueryable<BusinessFormTask> tasks, Guid actor) => from task in tasks
                                                                                    join record in dbContext.Set<BusinessFormRecord>().AsNoTracking() on task.RecordId equals record.Id
                                                                                    join definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking() on task.DefinitionId equals definition.Id
@@ -78,12 +80,19 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
                                                                                        DecidedByUserId = task.DecidedByUserId,
                                                                                        DecidedByName = dbContext.Users.Where(user => user.Id == task.DecidedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
                                                                                        Reason = task.Reason,
+                                                                                       AuthorMayDecide = task.AuthorMayDecide,
+                                                                                       ReasonOptional = task.ReasonOptional,
                                                                                        SetValuesByActor = dbContext.Set<BusinessFormRecord>().Any(value => value.Id == task.RecordId && value.CorrectedByUserId == actor)
                                                                                            || dbContext.Set<FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == actor)
                                                                                    };
-    private static FormApprovalTaskResponse Map(ApprovalRow row, Guid actor, string culture, FormResponseVersionRow version) => new(row.Id, row.DefinitionId, row.RecordId, row.Prefix + "-" + row.Number.ToString("D6", CultureInfo.InvariantCulture), Name(version, culture),
-        new(row.AuthorUserId, row.AuthorName), new(row.RoleId, row.RoleName ?? ""), row.RequestedAtUtc, row.Revision, row.State.ToString(), row.State == FormTaskState.Open && row.AuthorUserId != actor && !row.SetValuesByActor,
-        row.State != FormTaskState.Open ? "AlreadyDecided" : row.AuthorUserId == actor || row.SetValuesByActor ? "OwnResponse" : null, row.DecidedAtUtc, row.DecidedByUserId is { } decider ? new(decider, row.DecidedByName) : null, row.Reason);
+    private static FormApprovalTaskResponse Map(ApprovalRow row, Guid actor, string culture, FormResponseVersionRow version)
+    {
+        var own = !row.AuthorMayDecide && (row.AuthorUserId == actor || row.SetValuesByActor);
+        return new(row.Id, row.DefinitionId, row.RecordId, row.Prefix + "-" + row.Number.ToString("D6", CultureInfo.InvariantCulture), Name(version, culture),
+            new(row.AuthorUserId, row.AuthorName), new(row.RoleId, row.RoleName ?? ""), row.RequestedAtUtc, row.Revision, row.State.ToString(), row.State == FormTaskState.Open && !own,
+            row.State != FormTaskState.Open ? "AlreadyDecided" : own ? "OwnResponse" : null, row.DecidedAtUtc, row.DecidedByUserId is { } decider ? new(decider, row.DecidedByName) : null, row.Reason,
+            row.ReasonOptional);
+    }
     private static string Name(FormResponseVersionRow version, string culture) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(version.NameJson)![version.DisplayCulture(culture)];
     private sealed class ApprovalRow
@@ -105,6 +114,8 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
         public Guid? DecidedByUserId { get; init; }
         public string? DecidedByName { get; init; }
         public string? Reason { get; init; }
+        public bool AuthorMayDecide { get; init; }
+        public bool ReasonOptional { get; init; }
         public bool SetValuesByActor { get; init; }
     }
 }

@@ -46,8 +46,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
                 return Result.Success<FormActionWorkResponse?>(null);
             }
             // B3: a task nobody can decide is not opened: the action fails with its own reason, and retries once the role has someone.
-            // Whoever loaded the response and whoever corrected it cannot decide it, so they do not count.
-            if(!(await roles.MembersAsync(snapshot.ApprovalRoleId!.Value,ct)).Any(member=>member!=target.ActorUserId&&member!=target.CorrectedByUserId))
+            // Whoever loaded the response and whoever corrected it cannot decide it, so they do not count, unless the approval lets them (RC4-A).
+            if(!(await roles.MembersAsync(snapshot.ApprovalRoleId!.Value,ct)).Any(member=>snapshot.ApprovalAuthorMayDecide||member!=target.ActorUserId&&member!=target.CorrectedByUserId))
             {
                 run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,FormRuleErrors.RoleWithoutMembers.Code,true);
                 return Result.Success<FormActionWorkResponse?>(null);
@@ -56,7 +56,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             if(pending is not null){run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,FormActionErrors.ApprovalAlreadyPending.Code,false);return Result.Success<FormActionWorkResponse?>(null);}
             var record=await runs.GetRecordAsync(run.RecordId,ct)??throw new InvalidOperationException("The action response is missing.");
             var marked=record.MarkPendingApproval();if(marked.IsFailure){run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,marked.Error.Code,false);return Result.Success<FormActionWorkResponse?>(null);}
-            runs.AddTask(BusinessFormTask.Open(run.DefinitionId,run.RecordId,run.RuleSetId,run.Id,snapshot.ApprovalRoleId!.Value,record.ActorUserId,now));
+            runs.AddTask(BusinessFormTask.Open(run.DefinitionId,run.RecordId,run.RuleSetId,run.Id,snapshot.ApprovalRoleId!.Value,record.ActorUserId,now,
+                snapshot.ApprovalAuthorMayDecide,snapshot.ApprovalReasonOptional));
             var completed=run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Completed,null,false);
             return completed.IsFailure?Result.Failure<FormActionWorkResponse?>(completed.Error):Result.Success<FormActionWorkResponse?>(null);
         }

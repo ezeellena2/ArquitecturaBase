@@ -50,6 +50,54 @@ public sealed class FormApprovalServiceTests
         Assert.Equal(FormApprovalErrors.RevisionConflict, (await fixture.Service.DecideAsync(fixture.Task.Id, new(1, "Rejected", "Otro motivo"), TestContext.Current.CancellationToken)).Error);
         Assert.Single(fixture.Actions.Runs.Runs);
     }
+    // RC4-A: «Puede decidir quien cargó» lets whoever loaded the response, corrected it or passed it from a document decide it.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task An_approval_whose_author_may_decide_lets_whoever_set_the_values_decide(bool loadedIt)
+    {
+        var fixture = new FormApprovalFixture(authorMayDecide: true);
+        if (loadedIt) { fixture.User.UserId = fixture.Task.AuthorUserId; fixture.Permissions.Permissions[fixture.User.UserId.Value] = [BusinessFormsPermissions.ApprovalsDecide]; }
+        else fixture.ValuesSetByActor = true;
+        var result = await fixture.Service.DecideAsync(fixture.Task.Id, new(1, "Approved"), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(FormTaskState.Approved, fixture.Task.State);
+        Assert.Single(fixture.Actions.Runs.Runs);
+    }
+    [Fact]
+    public async Task Whoever_corrected_the_response_cannot_decide_it_when_the_approval_keeps_the_author_out()
+    {
+        var fixture = new FormApprovalFixture { ValuesSetByActor = true };
+        Assert.Equal(FormApprovalErrors.OwnResponse, (await fixture.Service.DecideAsync(fixture.Task.Id, new(1, "Approved"), TestContext.Current.CancellationToken)).Error);
+        Assert.Equal(FormTaskState.Open, fixture.Task.State);
+        Assert.Empty(fixture.Actions.Runs.Runs);
+    }
+    // RC4-A: without «Exigir motivo al rechazar», a rejection goes without a reason; with it, the missing reason is refused on its field.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public async Task A_rejection_whose_reason_is_optional_goes_without_one(string? reason)
+    {
+        var fixture = new FormApprovalFixture(reasonOptional: true);
+        var result = await fixture.Service.DecideAsync(fixture.Task.Id, new(1, "Rejected", reason), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.Reason);
+        Assert.Equal(FormTaskState.Rejected, fixture.Task.State);
+        Assert.Equal("Rejected", Assert.Single(fixture.Actions.Runs.Runs).Event);
+    }
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public async Task A_rejection_without_a_reason_is_refused_on_the_reason_when_the_approval_asks_for_one(string? reason)
+    {
+        var fixture = new FormApprovalFixture();
+        var result = await fixture.Service.DecideAsync(fixture.Task.Id, new(1, "Rejected", reason), TestContext.Current.CancellationToken);
+        var error = Assert.IsType<ArquitecturaBase.Domain.Results.ValidationError>(result.Error);
+        Assert.Equal(FormApprovalErrors.ReasonRequired.Code, error.Code);
+        Assert.Equal(["reason"], error.Errors.Keys);
+        Assert.Equal(FormTaskState.Open, fixture.Task.State);
+        Assert.Empty(fixture.Actions.Runs.Runs);
+    }
     [Theory]
     [InlineData("list")]
     [InlineData("count")]

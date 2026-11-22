@@ -49,6 +49,9 @@ internal static class FormRulePolicy
                 if (hasRole && (action.RoleId is null || !options.Roles.Any(role => role.Id == action.RoleId))) return FieldErrors.On(FormRuleErrors.RoleUnavailable, actionPath + ".roleId");
                 if (!hasRole && action.RoleId is not null) return Invalid(actionPath + ".roleId");
                 if (action.Kind == "RequestApproval" && (rule.Event != "Received" || actionIndex != rule.Actions.Count - 1)) return Invalid(actionPath + ".kind");
+                // RC4-A: who decides and whether a rejection needs a reason are choices of «Pedir aprobación» only.
+                if (action.Kind != "RequestApproval" && action.AuthorMayDecide) return Invalid(actionPath + ".authorMayDecide");
+                if (action.Kind != "RequestApproval" && action.ReasonOptional) return Invalid(actionPath + ".reasonOptional");
                 if (action.Kind == "GeneratePdf" && rule.Event != "Approved") return Invalid(actionPath + ".kind");
                 // The notice to whoever loaded it attaches the PDF of an earlier «Armar el PDF» or the fiscal PDF of an earlier issuance.
                 if (action.IncludePdf && (action.Kind != "NotifyAuthor" || !(generatedPdf || issued))) return Invalid(actionPath + ".includePdf");
@@ -69,7 +72,7 @@ internal static class FormRulePolicy
                     }
                 }
                 else if (action.Text is not null) return Invalid(actionPath + ".text");
-                actions.Add(new(action.Id, action.Kind, action.RoleId, text, action.IncludePdf, action.IssuerId));
+                actions.Add(new(action.Id, action.Kind, action.RoleId, text, action.IncludePdf, action.IssuerId, action.AuthorMayDecide, action.ReasonOptional));
                 if (declared is not null) resultData.AddRange(declared(actions[^1]));
                 generatedPdf |= action.Kind == "GeneratePdf";
                 issued |= action.Kind == "IssueDocument";

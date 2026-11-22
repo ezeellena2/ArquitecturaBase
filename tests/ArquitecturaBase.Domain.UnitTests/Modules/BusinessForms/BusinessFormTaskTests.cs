@@ -82,5 +82,45 @@ public sealed class BusinessFormTaskTests
         Assert.Equal(FormTaskState.Approved, task.State);
         Assert.Equal(2, task.Revision);
     }
-    private static BusinessFormTask Open() => BusinessFormTask.Open(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Now);
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void An_approval_whose_author_may_decide_accepts_the_author(bool approved)
+    {
+        var task = Open(authorMayDecide: true);
+        Assert.True(task.Decide(1, task.AuthorUserId, approved, approved ? null : "Motivo", Now).IsSuccess);
+        Assert.Equal(approved ? FormTaskState.Approved : FormTaskState.Rejected, task.State);
+        Assert.Equal(task.AuthorUserId, task.DecidedByUserId);
+    }
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void A_rejection_whose_reason_is_optional_keeps_none_when_none_is_given(string? reason)
+    {
+        var task = Open(reasonOptional: true);
+        Assert.True(task.Decide(1, Guid.NewGuid(), false, reason, Now).IsSuccess);
+        Assert.Equal(FormTaskState.Rejected, task.State);
+        Assert.Null(task.Reason);
+    }
+    [Fact]
+    public void A_rejection_whose_reason_is_optional_still_keeps_the_one_given()
+    {
+        var task = Open(reasonOptional: true);
+        Assert.True(task.Decide(1, Guid.NewGuid(), false, " Revisá la firma ", Now).IsSuccess);
+        Assert.Equal("Revisá la firma", task.Reason);
+        Assert.Equal(FormApprovalErrors.ContentInvalid, Open(reasonOptional: true).Decide(1, Guid.NewGuid(), false, new string('a', 501), Now).Error);
+    }
+    [Fact]
+    public void A_task_opens_with_the_choices_of_its_approval_and_without_them_keeps_today_rules()
+    {
+        var plain = Open();
+        Assert.False(plain.AuthorMayDecide);
+        Assert.False(plain.ReasonOptional);
+        var chosen = Open(authorMayDecide: true, reasonOptional: true);
+        Assert.True(chosen.AuthorMayDecide);
+        Assert.True(chosen.ReasonOptional);
+    }
+    private static BusinessFormTask Open(bool authorMayDecide = false, bool reasonOptional = false) =>
+        BusinessFormTask.Open(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Now, authorMayDecide, reasonOptional);
 }

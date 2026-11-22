@@ -95,7 +95,7 @@ public sealed class FormApprovalContinuationServiceTests
         var fixture = new FormApprovalFixture();
         var task = new FormApprovalTaskResponse(Guid.NewGuid(), fixture.Record.DefinitionId, Guid.NewGuid(), "VIS-000004", "Visits",
             new(fixture.Record.ActorUserId, "Author"), new(fixture.Task.RoleId, "Supervisor"), fixture.Task.RequestedAtUtc,
-            1, "Open", true, null, null, null, null);
+            1, "Open", true, null, null, null, null, false);
         fixture.Continuation = new(fixture.Task.Id, fixture.Record.DefinitionId, direction, [new(task, 4)], 8, true);
         return fixture;
     }

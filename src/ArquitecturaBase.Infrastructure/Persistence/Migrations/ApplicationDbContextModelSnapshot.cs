@@ -3179,6 +3179,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AuthorMayDecide")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("AuthorUserId")
                         .HasColumnType("uuid");
 
@@ -3206,6 +3209,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("Reason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("ReasonOptional")
+                        .HasColumnType("boolean");
 
                     b.Property<Guid>("RecordId")
                         .HasColumnType("uuid");
@@ -3330,6 +3336,51 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("BusinessFormVersions", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormsSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DailyRereadsPerAsker")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DiscardedRetentionDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxFileSizeMiB")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ProposedExpiryDays")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("SimilarDocumentsToSuggest")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BusinessFormsSettings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessFormsSettings_SingleRow", "\"Id\" = '00000000-0000-0000-0000-0000000000f1'");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormDocumentProposal", b =>
