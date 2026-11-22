@@ -55,11 +55,29 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFo
     private IQueryable<FormDefinitionListStoredRow> ListQuery(ListFormDefinitionsRequest request)
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        // Every column with a datum sorts by what the row shows, with the id of its column in the front (OT1-C); the subqueries
+        // are those of the projection, in the same statement. «Deprecación» does not: it comes from the module of the channel.
         var sortable = new Dictionary<string, Expression<Func<DefinitionAuditRow, object?>>>(StringComparer.OrdinalIgnoreCase)
         {
             ["name"] = row => EF.Property<string>(row.Definition, nameColumn),
             ["questionCount"] = row => row.Definition.QuestionCount,
+            // «Estado» in the order of its circuit, as the list names it: Borrador, Publicando (every open step), Publicación sin
+            // confirmar, Publicado and No se pudo publicar. The latest publication is read once, as in DisplayState.
+            ["displayState"] = row => dbContext.Set<BusinessFormPublicationOperation>().Where(operation => operation.DefinitionId == row.Definition.Id)
+                .OrderByDescending(operation => operation.VersionNumber)
+                .Select(operation => (int?)(operation.State == FormPublicationState.Uncertain ? 2 : operation.State == FormPublicationState.Published ? 3
+                    : operation.State == FormPublicationState.Failed ? 4 : 1)).FirstOrDefault() ?? (row.Definition.ActiveVersionId == null ? 0 : 3),
+            // «Dónde se completa», in the order the editor offers it: in the app and by WhatsApp, then only in the app.
+            ["completedIn"] = row => dbContext.Set<BusinessFormVersion>().Where(version => version.Id == row.Definition.ActiveVersionId)
+                .Select(version => (bool?)version.AppOnly).SingleOrDefault() ?? row.Definition.AppOnly,
+            // A form never published has no active version («—»): it goes last in both directions.
+            ["activeVersion"] = row => dbContext.Set<BusinessFormVersion>().Where(version => version.Id == row.Definition.ActiveVersionId)
+                .Select(version => (long?)version.Number).SingleOrDefault(),
+            // The responses, as the lifecycle counts them; Application keeps the usual order for whoever cannot read them.
+            ["responseCount"] = row => row.Definition.LastRecordNumber,
             ["lastChangedAtUtc"] = row => row.LastChangedAtUtc,
+            // Who changed it last, by the name the row shows; without one («—») it goes last.
+            ["lastChangedBy"] = row => dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
         };
         var definitions = Search(request.Search, request.DisplayCulture).InFolder(dbContext, request.FolderId, request.WithoutFolder);
         if (request.PublicationFilter == "Deactivated") definitions = definitions.Where(definition => definition.DeactivatedAtUtc != null);

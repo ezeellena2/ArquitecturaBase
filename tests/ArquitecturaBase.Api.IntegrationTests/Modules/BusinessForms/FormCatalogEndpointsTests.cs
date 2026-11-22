@@ -208,6 +208,47 @@ public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
         Assert.True((await invalidState.ReadJsonAsync()).GetProperty("errors").TryGetProperty("state", out _));
     }
 
+    // OT1-C: the list sorts in PostgreSQL by every column with a datum. «Estado» puts the active catalogs first, «De dónde salen»
+    // follows the order of its kinds (written by hand before the base) and a catalog of people, which shows no number of options,
+    // goes last in both directions. Equal values keep the usual order, the name.
+    [Fact]
+    public async Task Catalog_list_sorts_by_state_origin_and_options_with_people_catalogs_last()
+    {
+        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var suffix = Guid.NewGuid().ToString("N");
+        object Texts(string letter) => new { es = "Orden " + suffix + " " + letter, en = "Order " + suffix + " " + letter };
+        async Task<Guid> CreateAsync(string path, object body)
+        {
+            using var response = await manager.PostAsJsonAsync(path, body, Ct);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            return (await response.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+        }
+        // «a» has one option; «b» has two and is deactivated; «c» lists people with filters.
+        var a = await CreateAsync("/api/forms/catalogs", new { name = Texts("a"), description = Texts("a"),
+            items = new[] { Item("one", null, "ONE", "Uno", null, true) } });
+        var b = await CreateAsync("/api/forms/catalogs", new { name = Texts("b"), description = Texts("b"),
+            items = new[] { Item("one", null, "ONE", "Uno", null, true), Item("two", null, "TWO", "Dos", null, true) } });
+        var c = await CreateAsync("/api/forms/catalogs/filters", new { name = Texts("c"), description = Texts("c"),
+            filters = new { textColumn = "name", detailColumn = (string?)null, conditions = Array.Empty<object>(),
+                excludeRecipient = true, sortColumn = "name", sortDescending = false } });
+        using var deactivated = await manager.PutAsJsonAsync($"/api/forms/catalogs/{b}",
+            new { expectedRevision = 1, name = Texts("b"), description = Texts("b"), items = Array.Empty<object>(), isActive = false }, Ct);
+        Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
+        async Task<Guid[]> Sorted(string sort)
+        {
+            using var response = await manager.GetAsync($"/api/forms/catalogs?search={suffix}&sort={sort}", Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return [.. (await response.ReadJsonAsync()).GetProperty("items").EnumerateArray().Select(row => row.GetProperty("id").GetGuid())];
+        }
+
+        Assert.Equal([a, c, b], await Sorted("state"));
+        Assert.Equal([b, a, c], await Sorted("-state"));
+        Assert.Equal([a, b, c], await Sorted("kind"));
+        Assert.Equal([c, a, b], await Sorted("-kind"));
+        Assert.Equal([a, b, c], await Sorted("optionsCount"));
+        Assert.Equal([b, a, c], await Sorted("-optionsCount"));
+    }
+
     [Fact]
     public async Task Catalog_routes_require_read_and_manage_permissions_separately()
     {

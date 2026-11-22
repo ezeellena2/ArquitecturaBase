@@ -15,14 +15,14 @@ using Npgsql;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed partial class FormDraftEndpointsTests
 {
-    private async Task<HttpClient> OperatorAsync(IReadOnlyCollection<string> codes)
+    private async Task<HttpClient> OperatorAsync(IReadOnlyCollection<string> codes, string? displayName = null)
     {
         var actor = await factory.InTransactionAsync(async services =>
         {
             var roles = services.GetRequiredService<IRoleRepository>(); var name = "forms-" + Guid.NewGuid().ToString("N");
             await roles.CreateAsync(name, null, codes, Ct);
             var users = services.GetRequiredService<IUserRepository>();
-            var user = await users.CreateAsync(Email.Create(TestEmails.Unique("forms-operator")).Value, null, false, null, "es", Ct);
+            var user = await users.CreateAsync(Email.Create(TestEmails.Unique("forms-operator")).Value, null, false, displayName, "es", Ct);
             await users.SetRolesAsync(user.Id, [name], Ct); return user.Id;
         });
         var client = factory.CreateClient(); client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.ToString()); return client;

@@ -166,7 +166,10 @@ public sealed record FormDefinitionListStoredRow(Guid Id, IReadOnlyDictionary<st
 public sealed record FormDefinitionCounts(int Active, int Published, int Drafts, int Deactivated);
 public sealed record ListFormDefinitionsRequest : PagedRequest
 {
-    public static IReadOnlyCollection<string> SortableFields { get; } = ["name", "questionCount", "lastChangedAtUtc"];
+    /// <summary>Every column with a datum, by the id of its column in the front (OT1-C, 2026-11-22). «Deprecación» does not sort: the
+    /// withdrawal from the channel comes from the module of the channel, not from SQL.</summary>
+    public static IReadOnlyCollection<string> SortableFields { get; } =
+        ["name", "questionCount", "displayState", "completedIn", "activeVersion", "responseCount", "lastChangedAtUtc", "lastChangedBy"];
     public string PublicationFilter { get; init; } = "Active";
     public string DisplayCulture { get; init; } = "es";
     // CP1-A: a folder with its subfolders, or the items without a folder (WithoutFolder).

@@ -57,6 +57,42 @@ public sealed class FormDefinitionLifecycleReadTests
             : (await fixture.Policy.ListAsync(new(), fixture.User.UserId!.Value, Ct)).Error;
         Assert.Equal(FormDefinitionErrors.Forbidden.Code, error.Code);
     }
+    // OT1-C: «Respuestas» sorts only for whoever sees the counts. For anyone else the column is empty in every row, so the list
+    // keeps its usual order and the order reveals no counts.
+    [Theory]
+    [InlineData(true, "-responseCount")]
+    [InlineData(false, null)]
+    public async Task Responses_sort_only_for_whoever_can_read_them(bool canReadRecords, string? expected)
+    {
+        var fixture = new FormDefinitionLifecycleReadFixture();
+        if (!canReadRecords) fixture.Permissions.Permissions[fixture.User.UserId!.Value] = [BusinessFormsPermissions.Read];
+        var result = await fixture.Policy.ListAsync(new() { Sort = "-responseCount" }, fixture.User.UserId!.Value, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, fixture.ListedRequest?.Sort);
+        Assert.All(result.Value.Items, row => Assert.Equal(canReadRecords, row.Lifecycle.ResponseCount is not null));
+    }
+    // Among the deactivated, «Estado» shows the withdrawal from the channel, which its module answers and SQL cannot sort: the list
+    // keeps its usual order there. In the other segments it is the state of the publication.
+    [Theory]
+    [InlineData("Active", "displayState")]
+    [InlineData("Published", "-displayState")]
+    [InlineData("Deactivated", null)]
+    public async Task The_state_does_not_sort_among_the_deactivated(string filter, string? expected)
+    {
+        var fixture = new FormDefinitionLifecycleReadFixture();
+        var result = await fixture.Policy.ListAsync(new() { PublicationFilter = filter, Sort = expected ?? "displayState" }, fixture.User.UserId!.Value, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, fixture.ListedRequest?.Sort);
+    }
+    // The order already followed the counts: losing «Ver respuestas» during the read discards the page instead of hiding them.
+    [Fact]
+    public async Task A_page_sorted_by_responses_is_discarded_when_records_permission_is_revoked_during_the_read()
+    {
+        var fixture = new FormDefinitionLifecycleReadFixture();
+        fixture.BeforeFactsReturn = () => fixture.Permissions.Permissions[fixture.User.UserId!.Value] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish];
+        var result = await fixture.Policy.ListAsync(new() { Sort = "responseCount" }, fixture.User.UserId!.Value, Ct);
+        Assert.Equal(FormDefinitionErrors.Forbidden.Code, result.Error.Code);
+    }
     [Fact]
     public async Task Lifecycle_is_a_detail_sibling_and_does_not_enter_the_editable_definition()
     {

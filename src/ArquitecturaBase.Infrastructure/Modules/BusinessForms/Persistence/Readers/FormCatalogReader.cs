@@ -40,6 +40,25 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         var descriptionColumn = request.DisplayCulture == "en" ? "DisplayDescriptionEn" : "DisplayDescriptionEs";
+        var originGroups = await FilterCatalogs(request with { Kind = null }, nameColumn, descriptionColumn)
+            .GroupBy(value => value.Kind)
+            .Select(group => new { Kind = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+        var originCounts = new FormCatalogOriginCounts(originGroups.Sum(group => group.Count),
+            originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Manual)?.Count ?? 0,
+            originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Filters)?.Count ?? 0)
+        { External = originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.External)?.Count ?? 0 };
+        var page = await ListQuery(request, canEdit, canReadForms).ToPagedResultAsync(request, cancellationToken);
+
+        return new FormCatalogsPageResponse(page.Items, page.Page, page.PageSize, page.TotalCount,
+            new FormCatalogFilterCounts(originCounts));
+    }
+
+    // The filters, the order and the projection of the list, without running them.
+    private IQueryable<FormCatalogListItemResponse> ListQuery(ListFormCatalogsRequest request, bool canEdit, bool canReadForms)
+    {
+        var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        var descriptionColumn = request.DisplayCulture == "en" ? "DisplayDescriptionEn" : "DisplayDescriptionEs";
         var catalogs = FilterCatalogs(request, nameColumn, descriptionColumn);
         IQueryable<CatalogWithUsage> query;
         if (canReadForms)
@@ -54,32 +73,26 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
         {
             query = catalogs.Select(catalog => new CatalogWithUsage { Catalog = catalog, UsageCount = 0 });
         }
+        // Every column with a datum sorts by what the row shows, with the id of its column in the front (OT1-C).
         var sortable = new Dictionary<string, Expression<Func<CatalogWithUsage, object?>>>(StringComparer.OrdinalIgnoreCase)
         {
             ["name"] = value => EF.Property<string>(value.Catalog, nameColumn),
+            // «De dónde salen», in the order its kinds were declared: written by hand, from the base and from another system.
             ["kind"] = value => value.Catalog.Kind,
             ["revision"] = value => value.Catalog.Revision,
-            ["optionsCount"] = value => dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive),
+            // The active options, as the row counts them: a catalog of people shows none («—») and goes last in both directions.
+            ["optionsCount"] = value => value.Catalog.Kind == BusinessFormCatalogKind.Manual || value.Catalog.Kind == BusinessFormCatalogKind.External
+                ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive) : (int?)null,
             ["usageCount"] = value => value.UsageCount,
+            // «Estado»: the active catalogs first, as its filter offers them.
+            ["state"] = value => !value.Catalog.IsActive,
         };
-        var originGroups = await FilterCatalogs(request with { Kind = null }, nameColumn, descriptionColumn)
-            .GroupBy(value => value.Kind)
-            .Select(group => new { Kind = group.Key, Count = group.Count() })
-            .ToListAsync(cancellationToken);
-        var originCounts = new FormCatalogOriginCounts(originGroups.Sum(group => group.Count),
-            originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Manual)?.Count ?? 0,
-            originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Filters)?.Count ?? 0)
-        { External = originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.External)?.Count ?? 0 };
-        var page = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), value => value.Catalog.Id)
+        return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), value => value.Catalog.Id)
             .Select(value => new FormCatalogListItemResponse(value.Catalog.Id, EF.Property<string>(value.Catalog, nameColumn),
                 EF.Property<string>(value.Catalog, descriptionColumn) == "" ? null : EF.Property<string>(value.Catalog, descriptionColumn),
                 value.Catalog.Kind.ToString(), value.Catalog.Kind == BusinessFormCatalogKind.Manual || value.Catalog.Kind == BusinessFormCatalogKind.External
                     ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive) : (int?)null,
-                canReadForms ? value.UsageCount : null, value.Catalog.IsActive ? "Active" : "Inactive", null, canEdit, value.Catalog.ValueType.ToString()))
-            .ToPagedResultAsync(request, cancellationToken);
-
-        return new FormCatalogsPageResponse(page.Items, page.Page, page.PageSize, page.TotalCount,
-            new FormCatalogFilterCounts(originCounts));
+                canReadForms ? value.UsageCount : null, value.Catalog.IsActive ? "Active" : "Inactive", null, canEdit, value.Catalog.ValueType.ToString()));
     }
 
     private IQueryable<BusinessFormCatalog> FilterCatalogs(ListFormCatalogsRequest request, string nameColumn, string descriptionColumn)

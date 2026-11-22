@@ -5,7 +5,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
 public sealed record ListFormCatalogsRequest : PagedRequest
 {
-    public static readonly IReadOnlyCollection<string> SortableFields = ["name", "kind", "revision", "optionsCount", "usageCount"];
+    /// <summary>Every column with a datum, by the id of its column in the front (OT1-C, 2026-11-22): «De dónde salen» is
+    /// <c>kind</c>, in the order its kinds were declared, and «Estado» is <c>state</c>, the active catalogs first.</summary>
+    public static readonly IReadOnlyCollection<string> SortableFields = ["name", "kind", "revision", "optionsCount", "usageCount", "state"];
 
     public string? Kind { get; init; }
     public string? State { get; init; }

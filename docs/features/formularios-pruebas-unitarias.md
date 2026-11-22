@@ -4,6 +4,8 @@ Es el detalle de la guía [`tests/ArquitecturaBase.Application.UnitTests/Modules
 
 Los mensajes de validación de todos los temas: `FormRequestValidationMessageTests` prueba, con un caso por validador, que las reglas que respondían con el texto de FluentValidation dicen el error de su área o uno común, en español y en inglés y con un error por campo. Que ninguna regla quede sin texto lo cuida `ValidationMessageTests`.
 
+El orden de «Diseñar formularios» y de «Catálogos» (OT1-C, 2026-11-22): `ListFormDefinitionsRequestValidatorTests` y `ListFormCatalogsRequestValidatorTests` aceptan cada columna con un dato en los dos sentidos, por el `id` de su columna en el front, y rechazan `deprecation`, `actions` y `origin` (el origen se pide como `kind`). `FormDefinitionLifecycleReadTests` comprueba que el orden por `responseCount` llega al lector sólo con «Ver respuestas» (sin él, el orden de siempre, y la página no trae conteos), que `displayState` no ordena entre los dados de baja y sí en los demás segmentos, y que perder «Ver respuestas» durante la lectura de una página ordenada por respuestas da 403 en vez de ocultar los conteos.
+
 ## Opciones, capacidad e importación de catálogos
 
 Eliminar opciones: borra la que no se usa y renumera, libera su código en el mismo guardado, rechaza una ajena, editada o movida en el pedido y responde `ItemInUse` con los usos de la primera usada sin guardar; el validador rechaza identidades repetidas o vacías.

@@ -44,10 +44,15 @@ internal sealed class FormDefinitionLifecycleReadFixture : IFormDefinitionReader
         RecoveryActor = recoveryActor;
         return Task.FromResult(new FormPublicationOverviewResponse(new(Guid.NewGuid(), 1, 1, ["es"]), null, "Published"));
     }
-    public Task<PagedResult<FormDefinitionListStoredRow>> ListAsync(ListFormDefinitionsRequest request, CancellationToken ct) =>
-        Task.FromResult(new PagedResult<FormDefinitionListStoredRow>([
+    /// <summary>The page request the policy passed to the reader, with the order it kept.</summary>
+    public ListFormDefinitionsRequest? ListedRequest { get; private set; }
+    public Task<PagedResult<FormDefinitionListStoredRow>> ListAsync(ListFormDefinitionsRequest request, CancellationToken ct)
+    {
+        ListedRequest = request;
+        return Task.FromResult(new PagedResult<FormDefinitionListStoredRow>([
             new(Id, new Dictionary<string, string> { ["es"] = "Visita" }, "VIS", 1, 1, "Published", AtUtc, null),
             new(OtherId, new Dictionary<string, string> { ["es"] = "Factura" }, "FAC", 2, 2, "Deactivated", AtUtc, null)], 3, 2, 7));
+    }
     public Task<IReadOnlyList<FormLifecycleStoredRow>> ListFactsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
     {
         FactReads++; RequestedIds = ids.ToArray();
