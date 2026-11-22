@@ -36,10 +36,14 @@ internal sealed class UserReader(
     /// </summary>
     private static readonly SearchValues<char> PhoneSearchCharacters = SearchValues.Create("0123456789 +-.()");
 
-    // Lista blanca: los mismos nombres que ListUsersRequest.SortableFields.
+    // Lista blanca: los mismos nombres que ListUsersRequest.SortableFields, el id de cada columna de la tabla (OT1-C).
     private static readonly Dictionary<string, Expression<Func<ApplicationUser, object?>>> SortMap = new()
     {
         ["email"] = user => user.Email,
+        // El número guardado (E.164), el mismo que la tabla muestra formateado.
+        ["whatsapp"] = user => user.PhoneNumber,
+        // Si ya entró con ese número, como un sí o no. Sin número no hay dato (la tabla muestra «—») y va al final.
+        ["verified"] = user => user.PhoneNumber == null ? null : (bool?)user.PhoneNumberConfirmed,
         ["displayName"] = user => user.DisplayName,
         ["createdAtUtc"] = user => user.CreatedAtUtc,
     };
@@ -209,7 +213,12 @@ internal sealed class UserReader(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return FilterUsers(request)
+        return ListQuery(request).ToPagedResultAsync(request, cancellationToken);
+    }
+
+    // El filtro, el orden y la proyección del listado, sin ejecutarlos.
+    private IQueryable<UserListRow> ListQuery(ListUsersRequest request) =>
+        FilterUsers(request)
             .ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, user => user.Id)
             // Los roles salen en la misma consulta: EF los trae con su propio JOIN y son 20 filas por página.
             // Ordenados por nombre para que dos cargas de la misma página no los muestren en distinto orden.
@@ -226,9 +235,7 @@ internal sealed class UserReader(
                         userRole.UserId == user.Id && userRole.RoleId == role.Id))
                     .OrderBy(role => role.Name)
                     .Select(role => role.Name!)
-                    .ToList()))
-            .ToPagedResultAsync(request, cancellationToken);
-    }
+                    .ToList()));
 
     public async Task<UserFilterCounts> CountByFilterOptionAsync(ListUsersRequest request, CancellationToken cancellationToken)
     {

@@ -12,7 +12,11 @@ public sealed record ListUsersRequest : PagedRequest
     /// <summary>Diez años. Es un filtro de "recién creados": más allá de eso, el filtro no filtra nada.</summary>
     public const int MaxCreatedWithinDays = 3650;
 
-    public static readonly IReadOnlyCollection<string> SortableFields = ["email", "displayName", "createdAtUtc"];
+    /// <summary>
+    /// Toda columna con un dato, con el id de su columna en el front (OT1-C, 2026-11-22): "WhatsApp" ordena por el número
+    /// guardado y "Verificado", por si ya entró con él. Los roles no ordenan: son varios valores.
+    /// </summary>
+    public static readonly IReadOnlyCollection<string> SortableFields = ["email", "whatsapp", "verified", "displayName", "createdAtUtc"];
 
     /// <summary>
     /// Los tramos que ofrece la interfaz, y por los que el endpoint de conteos devuelve un número. Viven acá

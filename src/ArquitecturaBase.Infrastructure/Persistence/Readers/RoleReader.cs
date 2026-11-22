@@ -24,10 +24,17 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
         return data is null ? null : ToRow(data);
     }
 
-    // Lista blanca: los mismos nombres que ListRolesRequest.SortableFields.
-    private static readonly Dictionary<string, Expression<Func<ApplicationRole, object?>>> SortMap = new()
+    // Lista blanca: los mismos nombres que ListRolesRequest.SortableFields, el id de cada columna de la tabla (OT1-C). Es de
+    // instancia, como Project: los conteos son subconsultas de la misma sentencia sobre dbContext y cuentan igual que Project,
+    // que es el número que muestra la fila.
+    private Dictionary<string, Expression<Func<ApplicationRole, object?>>> SortMap() => new()
     {
         ["name"] = role => role.Name,
+        ["description"] = role => role.Description,
+        ["userCount"] = role => dbContext.Users.Count(user =>
+            dbContext.UserRoles.Any(userRole => userRole.RoleId == role.Id && userRole.UserId == user.Id)),
+        // La cantidad de permisos del rol, como la muestra la tabla.
+        ["permissions"] = role => dbContext.RoleClaims.Count(claim => claim.RoleId == role.Id && claim.ClaimType == Permissions.ClaimType),
         ["createdAtUtc"] = role => role.CreatedAtUtc,
     };
 
@@ -47,6 +54,14 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var page = await ListQuery(request).ToPagedResultAsync(request, cancellationToken);
+
+        return new PagedResult<RoleRow>([.. page.Items.Select(ToRow)], page.Page, page.PageSize, page.TotalCount);
+    }
+
+    // La búsqueda, el orden y la proyección del listado, sin ejecutarlos.
+    private IQueryable<RoleData> ListQuery(ListRolesRequest request)
+    {
         var query = dbContext.Roles.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -60,12 +75,9 @@ internal sealed class RoleReader(ApplicationDbContext dbContext, RoleManager<App
                 || (role.Description != null && EF.Functions.ILike(role.Description, pattern, LikePatterns.EscapeCharacter)));
         }
 
-        // El orden y el desempate por Id van antes de la proyección, sobre las columnas de la tabla: sin desempate, dos
-        // roles con la misma fecha podrían repetirse o faltar entre una página y la siguiente.
-        var page = await Project(query.ApplySort(SortDescriptor.Parse(request.Sort), SortMap, DefaultSort, role => role.Id))
-            .ToPagedResultAsync(request, cancellationToken);
-
-        return new PagedResult<RoleRow>([.. page.Items.Select(ToRow)], page.Page, page.PageSize, page.TotalCount);
+        // El orden y el desempate por Id van antes de la proyección, sobre el rol (los conteos, con sus subconsultas): sin
+        // desempate, dos roles con el mismo valor podrían repetirse o faltar entre una página y la siguiente.
+        return Project(query.ApplySort(SortDescriptor.Parse(request.Sort), SortMap(), DefaultSort, role => role.Id));
     }
 
     public async Task<RoleRow?> FindByIdAsync(Guid roleId, CancellationToken cancellationToken) =>

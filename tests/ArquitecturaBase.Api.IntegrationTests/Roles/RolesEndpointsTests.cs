@@ -4,6 +4,7 @@ using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Roles;
@@ -65,6 +66,48 @@ public sealed class RolesEndpointsTests(ApiFactory factory)
         Assert.False(items[0].GetProperty("isSystemRole").GetBoolean());
         Assert.Equal(0, items[0].GetProperty("userCount").GetInt32());
         Assert.Empty(Strings(items[0], "permissions"));
+    }
+
+    // OT1-C: the paged list sorts by every column with a datum. A role without a description goes last in both directions,
+    // the counts are those of the row (people with the role, permissions it has) and equal values keep the usual order, the
+    // name.
+    [Fact]
+    public async Task The_paged_list_sorts_by_description_people_and_permissions_with_empty_descriptions_last()
+    {
+        var prefix = "rolord-" + Guid.NewGuid().ToString("N")[..8];
+        await factory.InTransactionAsync(async services =>
+        {
+            var roles = services.GetRequiredService<IRoleRepository>();
+            await roles.CreateAsync(prefix + "-a", "Beta", [Permissions.Users.Read], Ct);
+            await roles.CreateAsync(prefix + "-b", "Alfa", [Permissions.Users.Read, Permissions.Roles.Read], Ct);
+            await roles.CreateAsync(prefix + "-c", description: null, [], Ct);
+        });
+        // One person with «a», nobody with «b» and one with «c».
+        await factory.InTransactionAsync(async services =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            foreach (var role in new[] { prefix + "-a", prefix + "-c" })
+            {
+                var user = await users.CreateAsync(Email.Create(TestEmails.Unique("rolord")).Value, displayName: null, "es", Ct);
+                await users.SetRolesAsync(user.Id, [role], Ct);
+            }
+        });
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        async Task<string[]> Sorted(string sort)
+        {
+            using var response = await client.GetWithTokenAsync($"/api/roles/paged?search={prefix}&sort={sort}", tokens.AccessToken);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return [.. (await response.ReadJsonAsync()).GetProperty("items").EnumerateArray()
+                .Select(item => item.GetProperty("name").GetString()![(prefix.Length + 1)..])];
+        }
+
+        Assert.Equal(["b", "a", "c"], await Sorted("description"));
+        Assert.Equal(["a", "b", "c"], await Sorted("-description"));
+        Assert.Equal(["b", "a", "c"], await Sorted("userCount"));
+        Assert.Equal(["a", "c", "b"], await Sorted("-userCount"));
+        Assert.Equal(["c", "a", "b"], await Sorted("permissions"));
+        Assert.Equal(["b", "a", "c"], await Sorted("-permissions"));
     }
 
     [Fact]

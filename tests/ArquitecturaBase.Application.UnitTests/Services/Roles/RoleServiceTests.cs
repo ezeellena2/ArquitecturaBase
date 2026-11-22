@@ -139,6 +139,27 @@ public sealed class RoleServiceTests
         Assert.Equal(LogLevel.Warning, logger.Collector.GetSnapshot()[1].Level);
     }
 
+    // Every column with a datum sorts (OT1-C), in both directions, by the id of its column in the front; the reader receives
+    // the asked field.
+    [Theory]
+    [InlineData("name")]
+    [InlineData("description")]
+    [InlineData("-description")]
+    [InlineData("userCount")]
+    [InlineData("-userCount")]
+    [InlineData("permissions")]
+    [InlineData("-permissions")]
+    public async Task Every_column_of_the_list_can_be_sorted(string sort)
+    {
+        var reader = new FakeRoleReader();
+        var service = NewService(reader, new FakeLogger<RoleService>());
+
+        var result = await service.ListRolesAsync(new ListRolesRequest { Sort = sort }, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(sort, reader.PageRequest?.Sort);
+    }
+
     [Fact]
     public async Task The_page_is_translated_to_responses_keeping_its_totals()
     {

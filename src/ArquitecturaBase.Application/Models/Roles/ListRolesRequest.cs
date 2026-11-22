@@ -8,5 +8,9 @@ namespace ArquitecturaBase.Application.Models.Roles;
 /// </summary>
 public sealed record ListRolesRequest : PagedRequest
 {
-    public static readonly IReadOnlyCollection<string> SortableFields = ["name", "createdAtUtc"];
+    /// <summary>
+    /// Toda columna con un dato, con el id de su columna en el front (OT1-C, 2026-11-22): <c>permissions</c> es la cantidad
+    /// de permisos, como la muestra la tabla.
+    /// </summary>
+    public static readonly IReadOnlyCollection<string> SortableFields = ["name", "description", "userCount", "permissions", "createdAtUtc"];
 }

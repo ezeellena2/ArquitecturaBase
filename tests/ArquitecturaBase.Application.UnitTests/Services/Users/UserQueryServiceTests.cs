@@ -10,16 +10,24 @@ public sealed class UserQueryServiceTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    // Every column with a datum sorts (OT1-C), in both directions, by the id of its column in the front.
     [Theory]
     [InlineData("email")]
     [InlineData("-displayName")]
     [InlineData("createdAtUtc")]
+    [InlineData("whatsapp")]
+    [InlineData("-whatsapp")]
+    [InlineData("verified")]
+    [InlineData("-verified")]
     public void Whitelisted_fields_can_be_sorted(string sort) =>
         Assert.True(new ListUsersRequestValidator().Validate(new ListUsersRequest { Sort = sort }).IsValid);
 
-    [Fact]
-    public void Other_fields_cannot_be_sorted() =>
-        Assert.False(new ListUsersRequestValidator().Validate(new ListUsersRequest { Sort = "passwordHash" }).IsValid);
+    // The roles of a person are several values: their column does not sort.
+    [Theory]
+    [InlineData("passwordHash")]
+    [InlineData("roles")]
+    public void Other_fields_cannot_be_sorted(string sort) =>
+        Assert.False(new ListUsersRequestValidator().Validate(new ListUsersRequest { Sort = sort }).IsValid);
 
     [Theory]
     [InlineData(" ")]

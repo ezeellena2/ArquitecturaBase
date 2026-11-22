@@ -156,6 +156,36 @@ public sealed class UsersEndpointsTests(ApiFactory factory)
         Assert.Equal(ids.Order(), actualIds);
     }
 
+    // OT1-C: «WhatsApp» sorts by the saved number and «Verificado» by whether the person already signed in with it. An account
+    // without a number has neither (the table shows «—») and goes last in both directions.
+    [Fact]
+    public async Task Users_sort_by_whatsapp_and_verified_with_accounts_without_a_number_last()
+    {
+        var prefix = TestEmails.Unique("sortphone").Split('@')[0];
+        PhoneNumber[] phones = [.. new[] { TestPhones.Unique(), TestPhones.Unique() }.OrderBy(phone => phone.Value, StringComparer.Ordinal)];
+        await factory.InTransactionAsync(async services =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            // The lower number already signed in with it; the higher one was loaded by an admin and is not verified yet.
+            await users.CreateAsync(Email.Create(prefix + "-low@example.com").Value, phones[0], phoneConfirmed: true, "Bajo", "es", Ct);
+            await users.CreateAsync(Email.Create(prefix + "-high@example.com").Value, phones[1], phoneConfirmed: false, "Alto", "es", Ct);
+            await users.CreateAsync(Email.Create(prefix + "-none@example.com").Value, "Sin número", "es", Ct);
+        });
+        using var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
+        async Task<string[]> Sorted(string sort)
+        {
+            using var response = await client.GetWithTokenAsync($"/api/users?search={prefix}&sort={sort}", tokens.AccessToken);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return [.. Emails(await response.ReadJsonAsync()).Select(email => email[(prefix.Length + 1)..^"@example.com".Length])];
+        }
+
+        Assert.Equal(["low", "high", "none"], await Sorted("whatsapp"));
+        Assert.Equal(["high", "low", "none"], await Sorted("-whatsapp"));
+        Assert.Equal(["high", "low", "none"], await Sorted("verified"));
+        Assert.Equal(["low", "high", "none"], await Sorted("-verified"));
+    }
+
     [Fact]
     public async Task Sorting_by_a_field_outside_the_whitelist_is_rejected()
     {
