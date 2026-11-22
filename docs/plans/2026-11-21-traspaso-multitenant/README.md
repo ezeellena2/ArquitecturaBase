@@ -85,9 +85,10 @@ decisión de tu hoja de ruta es la 108 y no hay rastro de los traspasos 4 a 15. 
 ## Antes de empezar
 
 - **En la PC del usuario:** `C:\Users\ezequ\source\repos\ArquitecturaBase` y `C:\Users\ezequ\source\repos\ArquitecturaBaseFront`.
-- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Hoy tienen el
-  backend hasta `67d5b944` y el front hasta `91b5556d`, con el barrido del 18/11. Lo posterior, con este paquete, está sólo
-  en la PC del usuario hasta que pida subirlo.
+- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. El backend,
+  con este paquete y el 17, está en GitHub desde el 2026-11-22. El front llega hasta `91b5556d` (el barrido del 18/11): lo
+  posterior del front (roles con áreas plegables, las carpetas como menús, las filas con íconos y el plan de la pieza única)
+  está sólo en la PC del usuario.
 
 ## Prompt para el chat guía del multitenant
 
@@ -95,7 +96,7 @@ decisión de tu hoja de ruta es la 108 y no hay rastro de los traspasos 4 a 15. 
 Vas a incorporar el traspaso 16 de ArquitecturaBase: lo que cambió desde el traspaso 15, con su prueba integral hasta el
 21/11. Está en ArquitecturaBase/docs/plans/2026-11-21-traspaso-multitenant/README.md: en la PC del usuario, dentro de
 C:\Users\ezequ\source\repos\ArquitecturaBase; si no, en GitHub (ezeellena2/ArquitecturaBase y
-ezeellena2/ArquitecturaBaseFront, rama main), después de traer los cambios, si el usuario ya lo subió.
+ezeellena2/ArquitecturaBaseFront, rama main), después de traer los cambios.
 
 El usuario quiere que ajustes tu documentación (las specs de cada etapa, la hoja de ruta con sus decisiones, tus reglas y
 los tableros del lienzo) con lo que ArquitecturaBase decidió y programó del 18 al 21 de noviembre. No se programa nada.

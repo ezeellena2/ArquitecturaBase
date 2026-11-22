@@ -66,9 +66,10 @@ Es el momento de aplicar esta guía, antes de dibujarlos.
 ## Antes de empezar
 
 - **En la PC del usuario:** `C:\Users\ezequ\source\repos\ArquitecturaBase` y `C:\Users\ezequ\source\repos\ArquitecturaBaseFront`.
-- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Hoy tienen el
-  backend hasta `67d5b944` y el front hasta `91b5556d`. Los traspasos 16 y 17 están sólo en la PC del usuario hasta que pida
-  subirlos.
+- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. El backend,
+  con los traspasos 16 y 17, está en GitHub desde el 2026-11-22. El front llega hasta `91b5556d`: los planes y diseños del
+  front posteriores al 18/11 que cita este traspaso (la pieza única, Información del negocio, carpetas y roles) están sólo en
+  la PC del usuario.
 - **La interfaz real** se ve en las capturas de `ArquitecturaBaseFront/src/test/visual/screenshots/`; los planes y diseños que
   cita cada archivo están en `docs/plans/` del backend y en `docs/plans/` y `docs/design/` del front.
 
@@ -80,7 +81,7 @@ dinámicos (listados, orden, filtros, desplegables, selección múltiple, la res
 ArquitecturaBase tuvo que corregir y por qué. Está en
 ArquitecturaBase/docs/plans/2026-11-22-traspaso-multitenant/README.md: en la PC del usuario, dentro de
 C:\Users\ezequ\source\repos\ArquitecturaBase; si no, en GitHub (ezeellena2/ArquitecturaBase y
-ezeellena2/ArquitecturaBaseFront, rama main), después de traer los cambios, si el usuario ya lo subió.
+ezeellena2/ArquitecturaBaseFront, rama main), después de traer los cambios.
 
 El usuario quiere que tus formularios y catálogos se diseñen bien desde el principio y no repitan los problemas de
 ArquitecturaBase. No se programa nada: se ajustan tu documentación (las specs de cada etapa, la hoja de ruta, tus reglas de
