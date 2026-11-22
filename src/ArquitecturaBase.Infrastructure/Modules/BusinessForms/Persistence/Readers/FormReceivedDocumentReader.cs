@@ -58,11 +58,12 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
                     && (document.NotSendable || document.ReplyExpiresAtUtc == null || document.ReplyExpiresAtUtc <= nowUtc),
             },
             ["deleteAfterUtc"] = document => document.DeleteAfterUtc,
-            // The number of its response reads as the form's prefix and its counter, so it sorts by both.
+            // The number of its response reads as the form's prefix and its counter, so it sorts by both. Without a response both are
+            // empty, also for a proposed one that already names its form: the empty rows tie and keep the usual order.
             ["record"] = document => new
             {
-                Prefix = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == document.DefinitionId)
-                    .Select(definition => definition.Prefix).FirstOrDefault(),
+                Prefix = document.RecordId == null ? null : dbContext.Set<BusinessFormDefinition>()
+                    .Where(definition => definition.Id == document.DefinitionId).Select(definition => definition.Prefix).FirstOrDefault(),
                 Number = dbContext.Set<BusinessFormRecord>().Where(record => record.Id == document.RecordId).Select(record => (long?)record.Number)
                     .FirstOrDefault(),
             },

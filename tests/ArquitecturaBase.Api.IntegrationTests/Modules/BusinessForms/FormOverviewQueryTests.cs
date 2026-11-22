@@ -88,7 +88,8 @@ public sealed class FormOverviewQueryTests
         Assert.Contains("'Voided' THEN 4", byState[0], StringComparison.Ordinal);
         Assert.EndsWith("IS NULL", byReceived[0], StringComparison.Ordinal);
         Assert.EndsWith("DESC", byReceived[1], StringComparison.Ordinal);
-        Assert.Contains(byNumber, term => term.EndsWith("\"Prefix\"", StringComparison.Ordinal));
+        // Without responses the prefix is empty too: the forms without responses tie and keep the usual order.
+        Assert.Contains(byNumber, term => term.Contains("\"Prefix\"", StringComparison.Ordinal) && term.EndsWith("END", StringComparison.Ordinal));
         Assert.Contains("> 0", usual[0], StringComparison.Ordinal);
         Assert.EndsWith("DESC", usual[0], StringComparison.Ordinal);
     }

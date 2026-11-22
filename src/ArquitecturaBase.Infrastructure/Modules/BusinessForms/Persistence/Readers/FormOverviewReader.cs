@@ -90,8 +90,9 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
         ["formState"] = row => row.DeactivatedAtUtc != null,
         ["pendingApprovalCount"] = row => row.PendingApprovalCount,
         ["responseCount"] = row => row.ResponseCount,
-        // The number reads as prefix and counter, so it sorts by both; a form without responses has none.
-        ["lastResponseNumber"] = row => new { row.Prefix, row.LastNumber },
+        // The number reads as prefix and counter, so it sorts by both; a form without responses has neither, so the forms without
+        // responses tie and keep the usual order.
+        ["lastResponseNumber"] = row => new { Prefix = row.LastNumber == null ? null : row.Prefix, row.LastNumber },
         ["lastSubmittedAtUtc"] = row => row.LastSubmittedAtUtc,
         ["lastResponseState"] = row => row.LastState,
     };

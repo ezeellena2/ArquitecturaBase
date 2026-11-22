@@ -11,7 +11,8 @@ public static class QueryableExtensions
     /// Ordena por un campo de la lista blanca (sin distinguir mayúsculas) con la regla de todas las tablas (OT1-C, 2026-11-22):
     /// lo vacío va al final en los dos sentidos; un enum (un estado, un tipo) ordena por su valor, que es el orden en que se
     /// declaró, también si se guarda como texto; un campo con varias claves se declara con un tipo anónimo
-    /// (<c>row =&gt; new { row.Prefix, row.Number }</c>) y queda vacío si le falta alguna. Con el mismo valor, las filas siguen
+    /// (<c>row =&gt; new { row.Prefix, row.Number }</c>) y queda vacío si le falta alguna; en una celda vacía todas sus claves son
+    /// nulas, para que las filas vacías empaten y sigan el orden de siempre. Con el mismo valor, las filas siguen
     /// el orden de siempre de la lista (<paramref name="defaultSort"/>) y al final <paramref name="tieBreaker"/>, que debe ser
     /// una clave única: sin desempate, dos páginas consecutivas (cada una un LIMIT/OFFSET independiente) pueden repetir o
     /// saltear filas. Sin orden pedido, usa <paramref name="defaultSort"/>. Un campo fuera de la lista es un error de
