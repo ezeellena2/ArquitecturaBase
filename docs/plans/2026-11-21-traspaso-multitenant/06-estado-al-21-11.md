@@ -16,8 +16,7 @@ planeado sin programar (§5), con lo que suma el §5 de este.
   y la app levantada, el backend dio 11.672 y 11.674 de 11.678 (sólo fallas por tiempos, que pasan solas) y el front 6.030 de
   6.031, con 14 escenas visuales que ya fallaban antes del cambio. La corrida en verde con la app apagada va al cierre de la
   prueba.
-- **En GitHub** está el backend con este paquete desde el 2026-11-22, y el front hasta `91b5556d`, con el barrido del 18/11;
-  lo posterior del front está sólo en la PC del usuario.
+- **En GitHub** están, desde el 2026-11-22, el backend con este paquete y el front hasta `fbd5538a`.
 - **Lo que sigue:** terminar la prueba (WhatsApp, lo manual y el cierre), lo que está en curso (§3), la auditoría documental,
   que lleva las decisiones a las premisas y retira los planes terminados, y el traspaso 17.
 

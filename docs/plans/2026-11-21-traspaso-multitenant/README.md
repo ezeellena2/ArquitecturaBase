@@ -85,10 +85,9 @@ decisión de tu hoja de ruta es la 108 y no hay rastro de los traspasos 4 a 15. 
 ## Antes de empezar
 
 - **En la PC del usuario:** `C:\Users\ezequ\source\repos\ArquitecturaBase` y `C:\Users\ezequ\source\repos\ArquitecturaBaseFront`.
-- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. El backend,
-  con este paquete y el 17, está en GitHub desde el 2026-11-22. El front llega hasta `91b5556d` (el barrido del 18/11): lo
-  posterior del front (roles con áreas plegables, las carpetas como menús, las filas con íconos y el plan de la pieza única)
-  está sólo en la PC del usuario.
+- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Los dos están
+  en GitHub desde el 2026-11-22: el backend con este paquete y el 17, y el front hasta `fbd5538a`, con los roles con áreas
+  plegables, las carpetas como menús, las filas con íconos y el plan de la pieza única.
 
 ## Prompt para el chat guía del multitenant
 

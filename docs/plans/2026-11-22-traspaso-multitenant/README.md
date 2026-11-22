@@ -30,6 +30,12 @@ problemas, porque si no, los formularios quedan feos al verlos y la información
 | Ordenar por columnas (OT1-C) | El backend de la regla común, Formularios, Usuarios y Roles, programado; las demás listas y el front, después de la pieza única |
 | La respuesta como el formulario (VF1-A), la actividad fila por fila (VF2-A) y «nada debajo de otro dato» | Decidido el 22/11, sin programar |
 
+La tabla es del momento de escribirlo. El front que está en GitHub desde el 22/11 (`fbd5538a`) ya trae más: la pieza única
+en toda la app, con su extensión del 22/11 (faltan su corrida completa y la prueba guiada); la respuesta leída como el
+formulario (VF1-A, un primer corte) y la actividad fila por fila (VF2-A); y «nada debajo de otro dato» escrito en el
+fundamento visual (`docs/design/visual-baseline.md`). Donde este traspaso diga distinto, vale lo programado (regla 2), y el
+traspaso 18 trae el detalle.
+
 ## Cómo leerlo
 
 | Archivo | Qué cuenta | Tanda del 15 |
@@ -66,10 +72,9 @@ Es el momento de aplicar esta guía, antes de dibujarlos.
 ## Antes de empezar
 
 - **En la PC del usuario:** `C:\Users\ezequ\source\repos\ArquitecturaBase` y `C:\Users\ezequ\source\repos\ArquitecturaBaseFront`.
-- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. El backend,
-  con los traspasos 16 y 17, está en GitHub desde el 2026-11-22. El front llega hasta `91b5556d`: los planes y diseños del
-  front posteriores al 18/11 que cita este traspaso (la pieza única, Información del negocio, carpetas y roles) están sólo en
-  la PC del usuario.
+- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Los dos están
+  en GitHub desde el 2026-11-22: el backend con los traspasos 16 y 17, y el front hasta `fbd5538a`, con los planes y diseños
+  que cita este traspaso (la pieza única, Información del negocio, carpetas y roles).
 - **La interfaz real** se ve en las capturas de `ArquitecturaBaseFront/src/test/visual/screenshots/`; los planes y diseños que
   cita cada archivo están en `docs/plans/` del backend y en `docs/plans/` y `docs/design/` del front.
 
