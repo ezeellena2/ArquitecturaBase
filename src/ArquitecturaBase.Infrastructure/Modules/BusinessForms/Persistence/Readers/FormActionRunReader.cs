@@ -54,8 +54,14 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
                 run.State==FormActionRunState.Uncertain||run.State==FormActionRunState.Running&&run.LeaseExpiresAtUtc<=now,
                 run.State==FormActionRunState.Failed&&run.CanRetry,run.AcceptedAtUtc,run.UpdatedAtUtc,run.CompletedAtUtc,
                 run.Fence,Array.Empty<FormActionRecipientResponse>()),run.OutcomeJson,run.DeliveryReviewRecipientUserId,run.DeliveryReviewWasSent,
-                run.DeliveryReviewedAtUtc,run.DeliveryReviewedByUserId,run.LastRequestKind,run.LastRequestedByUserId,run.LastRequestedAtUtc }).ToArrayAsync(cancellationToken);
+                run.DeliveryReviewedAtUtc,run.DeliveryReviewedByUserId,run.LastRequestKind,run.LastRequestedByUserId,run.LastRequestedAtUtc,
+                NoticeSnapshot=run.Kind=="NotifyRole"?run.SnapshotJson:null }).ToArrayAsync(cancellationToken);
         var outcomes=rows.Select(row=>row.OutcomeJson is null?null:JsonSerializer.Deserialize<FormActionOutcomeResponse>(row.OutcomeJson,JsonSerializerOptions.Web)).ToArray();
+        // VF2-A: a notice to a role names the role its run sealed, with its current name like the task's role.
+        var noticeRoles=rows.Select(row=>row.NoticeSnapshot is null?null:JsonSerializer.Deserialize<FormActionSnapshot>(row.NoticeSnapshot,JsonSerializerOptions.Web)?.NoticeRoleId).ToArray();
+        var roleIds=noticeRoles.OfType<Guid>().Distinct().ToArray();
+        var roleNames=roleIds.Length==0?new Dictionary<Guid,string?>():await db.Roles.AsNoTracking().Where(role=>roleIds.Contains(role.Id))
+            .ToDictionaryAsync(role=>role.Id,role=>role.Name,cancellationToken);
         var reviewers=outcomes.SelectMany(outcome=>outcome?.Recipients??[]).Where(recipient=>recipient.Status.Review is not null)
             .Select(recipient=>recipient.Status.Review!.ReviewedByUserId).Concat(rows.Where(row=>row.DeliveryReviewedByUserId!=null).Select(row=>row.DeliveryReviewedByUserId!.Value))
             .Concat(rows.Where(row=>row.LastRequestedByUserId!=null).Select(row=>row.LastRequestedByUserId!.Value)).Distinct().ToArray();
@@ -72,7 +78,8 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
             // In review, the texts its issuer gave for it, so the core never names the issuer nor its reasons.
             Review=row.Response.State=="Uncertain"?outcomes[index]?.Issue?.ReviewText:null,
             LastRequest=row.LastRequestKind is null||row.LastRequestedAtUtc is null?null:new(row.LastRequestKind,row.LastRequestedByUserId is {} requester?new(requester,names.GetValueOrDefault(requester)):null,row.LastRequestedAtUtc.Value),
-            NextAttemptAtUtc=waiting[index]?.NextCheckAtUtc,Attempts=waiting[index]?.Attempts,Recipients=(outcomes[index]?.Recipients??[]).Select(recipient=>
+            NextAttemptAtUtc=waiting[index]?.NextCheckAtUtc,Attempts=waiting[index]?.Attempts,
+            RoleName=noticeRoles[index] is {} roleId?roleNames.GetValueOrDefault(roleId):null,Recipients=(outcomes[index]?.Recipients??[]).Select(recipient=>
         {
             var review=recipient.Status.Review;
             if(row.DeliveryReviewRecipientUserId==recipient.UserId&&row.DeliveryReviewWasSent is {} decision)

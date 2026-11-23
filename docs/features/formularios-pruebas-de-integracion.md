@@ -151,6 +151,8 @@ La paridad entre condiciones y SQL compara ambos resultados contra conjuntos num
 
 D2 acredita por HTTP la fecha real de solicitud, distinta de la aceptación previa del run, antes y después de una decisión. Un pedido fallido por rol ausente conserva su acción, sin tarea ni estado pendiente ficticios. El origen inexistente permanece null. Los ejemplos de Workflow se exportan sólo desde los productores al cierre.
 
+El rol de un aviso (VF2-A): FormWorkflowHttpTests comprueba que la acción `NotifyRole` trae `roleName` con el nombre vigente del rol que selló el run, en es y en, también después de renombrarlo; que no lo traen un rol borrado, un run sin rol sellado ni el aviso a quien cargó, y que el OpenAPI lo declara opcional. Exporta role-name-es y role-name-en.
+
 WorkflowEndToEndHttpTests cubre captura/foto/catálogo, aprobación ajena y PDF Skia privado; respaldo entero al original salvo ítem sin inglés. Aviso Accepted simulado no inventa entrega/lectura. ExportRateLimitTests técnico verifica liberación tras cualquier salida del pipeline.
 
 FormApprovalContinuationQueryTests verifica cursores, parámetros tipados, ventanas y lote acotado antes de metadata sin abrir conexión. FormApprovalContinuationHttpTests prepara ancla decidida, empates, posiciones, hasMore, extremos totalmente vacíos y roles/propias, más seis cuerpos es/en;

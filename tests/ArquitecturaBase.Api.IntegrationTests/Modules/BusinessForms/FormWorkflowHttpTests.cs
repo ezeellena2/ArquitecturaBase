@@ -374,8 +374,58 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Single(channel.Reviews);
     }
 
+    // VF2-A: a notice to a role names the role it sealed, with its current name, so the activity says «Rol Agrónomo»; a role that no
+    // longer exists, a notice sealed before the run kept its role and any other action come without it.
+    [Fact]
+    public async Task A_role_notice_names_its_role_with_its_current_name_and_other_actions_omit_it()
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var name = "Agrónomo " + Guid.NewGuid().ToString("N")[..8];
+        var roleId = await factory.ExecuteDbContextAsync(async db =>
+        {
+            var role = new ArquitecturaBase.Infrastructure.Identity.ApplicationRole(name) { NormalizedName = name.ToUpperInvariant() };
+            db.Roles.Add(role);
+            await db.SaveChangesAsync(Ct);
+            return role.Id;
+        });
+        var seeded = await SeedWorkflowRunAsync(reader, FormActionRunState.Completed, "NotifyRole", noticeRoleId: roleId);
+        var route = $"/api/forms/records/{seeded.RecordId}/workflow";
+        foreach (var culture in new[] { "es", "en" })
+        {
+            reader.DefaultRequestHeaders.AcceptLanguage.Clear(); reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+            using var response = await reader.GetAsync(route, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(name, (await response.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("roleName").GetString());
+            await FormWorkflowContractCapture.WriteAsync(response, "role-name-" + culture, Ct);
+        }
+        var renamed = "Ingeniero " + Guid.NewGuid().ToString("N")[..8];
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            var role = await db.Roles.SingleAsync(item => item.Id == roleId, Ct);
+            role.Name = renamed; role.NormalizedName = renamed.ToUpperInvariant();
+            await db.SaveChangesAsync(Ct);
+        });
+        using var current = await reader.GetAsync(route, Ct);
+        Assert.Equal(renamed, (await current.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("roleName").GetString());
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.Roles.Remove(await db.Roles.SingleAsync(item => item.Id == roleId, Ct));
+            await db.SaveChangesAsync(Ct);
+        });
+        var older = await SeedWorkflowRunAsync(reader, FormActionRunState.Completed, "NotifyRole");
+        var author = await SeedWorkflowRunAsync(reader, FormActionRunState.Completed);
+        foreach (var recordId in new[] { seeded.RecordId, older.RecordId, author.RecordId })
+        {
+            using var response = await reader.GetAsync($"/api/forms/records/{recordId}/workflow", Ct);
+            Assert.False((await response.ReadJsonAsync()).GetProperty("actions")[0].TryGetProperty("roleName", out _));
+        }
+        var schema = (await OpenApiTests.ReadDocumentAsync(factory)).GetProperty("components").GetProperty("schemas").GetProperty("FormActionRunResponse");
+        Assert.Contains("string", schema.GetProperty("properties").GetProperty("roleName").GetRawText(), StringComparison.Ordinal);
+        Assert.DoesNotContain("roleName", schema.TryGetProperty("required", out var required) ? required.EnumerateArray().Select(value => value.GetString()).ToArray() : []);
+    }
+
     private async Task<(Guid RecordId, Guid RunId)> SeedWorkflowRunAsync(HttpClient actorClient, FormActionRunState state,string kind="NotifyAuthor",IReadOnlyList<Guid>? recipients=null,
-        IReadOnlyDictionary<Guid,StructuredRecordActionResponse>? statuses=null)
+        IReadOnlyDictionary<Guid,StructuredRecordActionResponse>? statuses=null,Guid? noticeRoleId=null)
     {
         var sheet = await SeedSheetAsync(actorClient, 0);
         var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
@@ -383,7 +433,7 @@ public sealed partial class FormDraftEndpointsTests
         {
             var definition = await db.Set<BusinessFormDefinition>().SingleAsync(item => item.Id == sheet.Id, Ct);
             var version = await db.Set<BusinessFormVersion>().SingleAsync(item => item.Id == definition.ActiveVersionId, Ct);
-            var action = new FormRuleAction(Guid.NewGuid(), kind, kind is "NotifyRole" or "RequestApproval" ? Guid.NewGuid() : null,
+            var action = new FormRuleAction(Guid.NewGuid(), kind, kind is "NotifyRole" or "RequestApproval" ? noticeRoleId ?? Guid.NewGuid() : null,
                 kind == "RequestApproval" ? null : new Dictionary<string, string> { ["es"] = "Recibimos {número}" }, false);
             var rule = new FormRule(Guid.NewGuid(), "Received", [], [action]);
             var ruleSet = BusinessFormRuleSet.Create(definition.Id, 1, "es", FormDraftPolicy.Serialize(new[] { rule }), kind == "RequestApproval", version.SchemaJson);
@@ -395,7 +445,8 @@ public sealed partial class FormDraftEndpointsTests
             db.Set<BusinessFormRecord>().Add(record);
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-workflow", record.Id, record.Number, now));
             var config = new FormActionSnapshot(kind == "RequestApproval" ? action.RoleId : null, null, null,
-                kind == "RequestApproval" ? [] : (recipients ?? [actor]).Select(id => new FormActionRecipient(id, "es", "Recibimos la respuesta", "Employee " + id)).ToArray(), null);
+                kind == "RequestApproval" ? [] : (recipients ?? [actor]).Select(id => new FormActionRecipient(id, "es", "Recibimos la respuesta", "Employee " + id)).ToArray(), null,
+                NoticeRoleId: noticeRoleId);
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, rule.Id, action.Id, "Received", kind, 0, null,
                 FormDraftPolicy.Serialize(config), state != FormActionRunState.NotApplicable, now);
             if (state is not (FormActionRunState.Waiting or FormActionRunState.NotApplicable))

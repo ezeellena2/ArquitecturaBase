@@ -56,6 +56,10 @@ public sealed record FormActionRunResponse(Guid Id,Guid RuleId,string Kind,strin
     /// <summary>An issuance in review: its texts by language as its issuer gave them (why, what it means, how it goes on); absent otherwise.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StructuredIssueReviewText? Review { get; init; }
+    /// <summary>VF2-A: a notice to a role, the current name of the role its run sealed; absent for any other action, a run sealed before
+    /// it kept its role or a role that no longer exists.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? RoleName { get; init; }
 }
 public sealed record FormActionRecipientResponse(FormAuthorResponse User,string? ChannelId,string State,string? ReasonCode,string? Reason,
     bool CanReview,bool CanRetry,DateTime? DeliveredAtUtc,DateTime? ReadAtUtc,FormActionDeliveryReviewResponse? Review);
