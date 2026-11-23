@@ -17,8 +17,8 @@ problemas, porque si no, los formularios quedan feos al verlos y la información
 - **Para estas pantallas, manda sobre el diseño repartido en los traspasos anteriores** (T4 §2, T5 §2 a §5, T9 §2, T13/05,
   T14/06 §1 y el 03 del 16). Lo que no cubre sigue en ellos.
 - **Lo demás que pasó desde el 16** (los arreglos de la prueba, las reglas que pasan a Configuración, el aviso del
-  certificado de ARCA) va al traspaso 18, con el cierre de la prueba integral. Acá entra sólo O29, porque responde la
-  pregunta 14 del 15.
+  certificado de ARCA) va al [traspaso 18](../2026-11-23-traspaso-multitenant/README.md) (2026-11-23), con la prueba integral
+  hasta ese día y lo que se programó de esta guía. Acá entra sólo O29, porque responde la pregunta 14 del 15.
 - **No es código para copiar** (tu decisión 18) y tus tableros son tuyos (tu decisión 108).
 
 ## Qué está programado y qué no

@@ -21,7 +21,7 @@ prueba hasta hoy.
   que cambie desde hoy va al traspaso 17.
 - **El [traspaso 17](../2026-11-22-traspaso-multitenant/README.md)** (2026-11-22) trae la guía de diseño de los catálogos y
   formularios, con las reglas de diseño del 22/11, y responde la pregunta 14 del 15 (O29 se arregló). Lo demás de la prueba
-  integral va al traspaso 18.
+  integral va al [traspaso 18](../2026-11-23-traspaso-multitenant/README.md) (2026-11-23).
 - **No es código para copiar** (tu decisión 18) y tus tableros son tuyos (tu decisión 108).
 
 ## Dónde está ArquitecturaBase
