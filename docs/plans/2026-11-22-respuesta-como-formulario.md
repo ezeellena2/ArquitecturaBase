@@ -139,6 +139,7 @@ Cada tarea se compara con su tablero al cerrarla.
      - la tarjeta de una respuesta en el chat (`features/whatsapp/components/FormReplyValues.tsx`, la tabla chica de TL1-A);
      - «Enviada» (`FormEntrySent.tsx`) y el PDF de una respuesta (backend), que hay que revisar.
    - Lo que cambie de forma, como la tarjeta del chat, se dibuja antes y el usuario elige.
+   - **Elegido el 2026-11-22: el tablero VF3 con R2-A** («Sí, con R2-A»). R3 y R4, como los dibuja; R1 no cambia la forma.
    - **Inventario del 2026-11-22**, sobre front `6908c39b` y backend `33faf2e2`:
      - **R1, las propuestas del asistente** en el detalle (`ResponseAssistance` → `ResponseValue` en modo detalle,
        `ResponseValue.tsx` renglones 13-14 y 96-125): los datos de la opción (`CapturedFields`) y su detalle van debajo
