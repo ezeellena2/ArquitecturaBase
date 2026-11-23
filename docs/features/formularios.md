@@ -783,7 +783,7 @@ D2 es la vista rápida de escritorio y ofrece «Abrir en pantalla completa». DC
 
 La dirección compartible sólo conserva orden, pregunta de orden y versiones; no incluye búsqueda, personas, condiciones, selección de tarea ni pestaña. Una entrada directa limpia el contexto privado antes de consultar y usa el anclaje para ubicar el registro, incluso fuera de la primera página. La vuelta interna conserva su contexto únicamente en el dueño de memoria del mismo formulario y cuenta, sin guardarlo en la dirección, el estado del historial ni storage.
 
-DC1 muestra Respuesta y Actividad en dos secciones plegables a todo el ancho. Plegadas resumen su contenido; Respuesta conserva la versión del formulario. La cabecera muestra el número y el estado, las flechas, conversación, descargas y la decisión mientras espera; el formulario queda en las migas. En el celular, las migas conservan el formulario y el número, y el escritorio mantiene la jerarquía completa. La actividad usa la misma historia y editor de incidencias de D2: recepción y emisor capturados, acciones al recibir, tarea o decisión y efectos posteriores. El menú de descarga incluye la copia fija y los documentos de la respuesta.
+Desde el 2026-11-22 la respuesta se lee con la forma de su formulario y se corrige en el lugar, y la actividad va fila por fila ([VF1-A y VF2-A](#la-respuesta-como-el-formulario--vf1-a-y-vf2-a-2026-11-22)); lo que sigue describe DC1 como era antes. DC1 muestra Respuesta y Actividad en dos secciones plegables a todo el ancho. Plegadas resumen su contenido; Respuesta conserva la versión del formulario. La cabecera muestra el número y el estado, las flechas, conversación, descargas y la decisión mientras espera; el formulario queda en las migas. En el celular, las migas conservan el formulario y el número, y el escritorio mantiene la jerarquía completa. La actividad usa la misma historia y editor de incidencias de D2: recepción y emisor capturados, acciones al recibir, tarea o decisión y efectos posteriores. El menú de descarga incluye la copia fija y los documentos de la respuesta.
 
 La miniatura del PDF aparece en la acción de generación de «Al aprobarla». Actividad plegada al entrar no lee sus bytes. En el celular, el atajo «Ver PDF» de la planilla conserva una intención interna efímera y abre Actividad con la copia visible; una entrada ordinaria o compartida conserva el plegado y la carga diferida. La intención no viaja en URL, historial ni storage y se retira al volver o cambiar de dueño. Una miniatura ya abierta y su visor comparten el blob y la URL privados hasta salir de esa respuesta, cambiar de dueño o perder lectura. Plegar y volver a abrir conserva esa lectura; actualizar sólo la navegación no vuelve a pedir el archivo. El visor ampliado también permite descargar ese mismo blob, sin otra lectura. La pestaña PDF de D2 conserva su apertura explícita.
 
@@ -1050,6 +1050,30 @@ Una pregunta de catálogo puede pedir primero el valor de un campo del mismo cat
 - **Qué opciones ve cada persona.** `POST /api/forms/recipient-maximums` acepta `source.groupBy` aun sin filtros y con él suma `groups` (cuántos valores) y `largestGroup` (las opciones del más grande), lo más que recibe una persona; sin el ajuste se omiten. Un campo que no sirve da 400 `Forms.Publication.GroupByInvalid` en `source.groupBy`. El editor dice «Todos ven las mismas 125, en 3 valores de «Rubro». El más grande tiene 75: entra en el desplegable (200).» (el nombre del campo no se pasa a plural) y, con un solo valor, la línea de siempre. Al publicar, el aviso `OptionsPerRecipientHigh` de una pregunta con filtros compara con 200 cada valor y la lista de valores, no el total, e informa el mayor de los dos.
 - **La oferta para un canal (LD2-A).** Cada opción lleva su valor y la oferta suma los valores en orden con su texto, como en la carga («Sin rubro» al final), y el nombre del campo. El tope de 200 vale para cada valor y para la lista de valores, no para el total, también al validar la captura. El prellenado del asistente no toca una pregunta con el ajuste y una sugerencia no puede apuntarle.
 - **WhatsApp (LD2-A).** El perfil `flow-static-7.3-r11` pone antes de la pregunta un desplegable con los valores (`<clave>_group`), con el nombre del campo de etiqueta; la lista de la pregunta arranca vacía y oculta y la llena el `update_data` del valor elegido. Los valores, la etiqueta y las opciones de cada valor llegan con el mensaje, y la vista oficial manda lo mismo, así que el Flow compilado no depende del nombre del campo: cada valor viaja con un id del mensaje (`g1`, `g2`…) porque su elección no va en la respuesta, y la etiqueta y los valores se cortan con «…» en 20 y 30 caracteres, los topes del desplegable. El desplegable de valores es obligatorio si la pregunta lo es, y la pregunta lo es sólo mientras se ve (Meta no abre un desplegable obligatorio oculto). Con un solo valor también hay que elegirlo. Cada pantalla que muestra la pregunta declara su lista y el `navigate` que entra se la pasa vacía; una pantalla que no es la primera toma los valores de la primera. Suma un componente de los 50 de su pantalla, el prellenado no la toca y un diagnóstico de Meta sobre el desplegable de valores señala la pregunta. Sólo vale en una elección de catálogo; sin esa pregunta, r11 compila los mismos bytes que r10. Se probó con Meta el 2026-11-08: dos borradores compilados por la app (dos pantallas, y renglones con mínimo 0) se recorrieron en la vista oficial interactiva y se borraron.
+
+## La respuesta como el formulario — VF1-A y VF2-A, 2026-11-22
+
+El usuario pidió leer una respuesta «ordenada tipo inputs», como el formulario de carga, y editar ahí mismo: «Es básicamente un ABM el formulario». Eligió VF1-A y VF2-A y sumó la regla «nada debajo de otro dato» ([plan](../plans/2026-11-22-respuesta-como-formulario.md), [diseño](../../../ArquitecturaBaseFront/docs/design/respuesta-como-formulario.md)).
+
+- **Leer.** D2 y DC1 leen la respuesta con la forma de su versión, que trae el detalle en `entry`: las zonas, el orden y los anchos de la carga. Cada pregunta va en su control, con lo respondido y sin poder tocarlo.
+  - Lo que su condición oculta no aparece.
+  - Cada dato de una opción de catálogo es un campo propio, «Pregunta · Dato», sin el que filtra una lista (CW7) ni el que se elige primero (LD1-A).
+  - El bloque usa la tabla o los recuadros de la carga, sin acciones.
+  - La ubicación va en un renglón, con su precisión al lado.
+  - En DC1, las zonas reemplazan a la sección «Respuesta», y «Versión N» va en la banda.
+- **Corregir, a la vista y en el lugar.** «Corregir» es un botón en la banda de DC1 y el lápiz, primero entre los íconos, en D2; «Anular» sigue en ⋮.
+  - Corregir destraba los mismos controles en la misma pantalla o el mismo panel, con «Antes: …» y el motivo al final.
+  - `/corregir` lleva a DC1, leyendo.
+  - Si la versión activa no es la de la respuesta, un aviso arriba lo dice y nombra lo que arranca vacío.
+- **La actividad, fila por fila.** Va una fila por cada cosa que pasó, con Fecha, Hora, Qué pasó, Quién, Canal, Detalle, Estado y Acciones (íconos).
+  - Las bandas de cada momento separan los renglones.
+  - Cada PDF y cada persona de un aviso es su renglón.
+  - En D2 y en el celular, cada renglón es un recuadro.
+- **El barrido de la regla** (tablero VF3, elegido con R2-A):
+  - la tarjeta de una respuesta en el chat lleva cada detalle en su renglón y la ubicación como enlace al mapa;
+  - el PDF pone cada dato de la opción en su renglón;
+  - la celda de una opción en la planilla ya no lleva su detalle;
+  - lo que propuso el asistente lleva su marca, el detalle y los datos en renglones propios.
 
 ## Corregir y anular — Etapa 3, 2026-11-05
 
