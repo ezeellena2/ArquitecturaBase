@@ -9,6 +9,7 @@ Contiene `ApiFactory`, helpers de autenticación y scopes de prueba. Configura p
 - Conservá las opciones de persistencia registradas por producción; el arnés cambia conexión y tipo de contexto para sus piezas de prueba.
 - Una sustitución compartida debe ser explícita y restaurarse al terminar. No filtrar estado entre escenarios.
 - `CacheTestHost` permite scopes y procesos lógicos independientes sobre Redis real; no reemplazarlo por un diccionario.
+- Un test que mide todo el proceso (`GC.GetTotalAllocatedBytes`) va en `AloneTestGroup`, que corre solo después de las colecciones en paralelo; si lo medido es del hilo propio, alcanza con `GC.GetAllocatedBytesForCurrentThread`.
 - Los helpers no deben ocultar assertions importantes ni convertir una falla del producto en éxito del test.
 
 ## Referencias

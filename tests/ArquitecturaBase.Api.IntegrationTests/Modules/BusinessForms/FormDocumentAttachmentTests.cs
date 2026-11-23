@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
@@ -20,7 +21,9 @@ using W = DocumentFormat.OpenXml.Wordprocessing;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // The reading of documents (Parte L): a real file of each case through the port and the document reader, without a database. What
-// the file is comes from its bytes, never from the extension, and every rejection says what file it was.
+// the file is comes from its bytes, never from the extension, and every rejection says what file it was. What a reading allocates
+// is measured on the whole process, so the class runs alone: with other tests at the same time, their allocations counted as its.
+[Collection(AloneTestGroup.Name)]
 public sealed class FormDocumentAttachmentTests
 {
     [Theory]
