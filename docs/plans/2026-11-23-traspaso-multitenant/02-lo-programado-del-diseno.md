@@ -60,20 +60,23 @@ Lo que se aprendió al programarla:
 - **Falta la pasada final:** corregir las guías de componentes que todavía nombran las piezas viejas, rehacer las capturas
   comparadas con las de antes, sumar la regla del foco y la corrida completa con la máquina quieta.
 
-## 3. La respuesta como el formulario (VF1-A y VF2-A): en programación
+## 3. La respuesta como el formulario (VF1-A y VF2-A): casi entera en la app
 
 - **El contrato del detalle (`b857e1d6`).** El detalle de una respuesta trae, además de los valores, la forma de carga de la
   versión con que se cargó: las preguntas en orden con su tipo, los títulos de sección, las condiciones y los cálculos y, en
   cada pregunta de catálogo, sus datos visibles con su nombre en cada idioma y cuál filtra (CW7) o agrupa (LD1-A). Es una sola
   lectura, con los mismos permisos de antes.
-- **En el front:** la regla «nada debajo de otro dato» y el diseño en el fundamento visual (`6908c39b`); la lectura con la
-  forma de la carga (`559759a6`); la actividad en una tabla en la pantalla completa (`3b977974` y `d092a78f`); y la tarjeta de
-  una respuesta en el chat, sin datos debajo del valor (`d4a83756`).
-- **El barrido de «nada debajo de otro dato»** tiene su inventario: las propuestas del asistente en el detalle (cada dato en su
-  renglón, sin cambiar la forma), la celda de la planilla, la tarjeta del chat y el PDF de una respuesta. El usuario eligió el
-  tablero VF3 con R2-A para la celda de la planilla, y la tarjeta del chat y el PDF como los dibuja ese tablero.
-- **En una copia, para entrar con la exportación de ejemplos y un reinicio de la app:** las dos pantallas con la forma de la
-  carga y corregir en el lugar, que retira la página de corregir. Faltan el barrido, las docs y la verificación.
+- **Las dos pantallas,** la vista rápida y la pantalla completa, leen la respuesta con la forma de su formulario (front
+  `559759a6` y `d3eab5d7`), y «Corregir» destraba los mismos controles en el lugar, sin la página de corregir (`1060ce41`). La
+  regla «nada debajo de otro dato» está en el fundamento visual (`6908c39b`), y la regla funcional, en `docs/features/formularios.md`
+  (`208d1ad0`).
+- **La actividad, fila por fila,** va en una tabla en la pantalla completa (`3b977974` y `d092a78f`), y el renglón de cada
+  persona de un aviso a un rol dice el rol, con su nombre vigente (back `06df1a4b`, front `427c4250`).
+- **El barrido de «nada debajo de otro dato»** quedó hecho con el tablero VF3 y R2-A, que eligió el usuario: lo que propuso el
+  asistente, con cada dato en su renglón, y la celda de la planilla, de donde sale el detalle de una opción (`6c760450`); la
+  tarjeta de una respuesta en el chat (`d4a83756`); y el PDF, con cada dato del catálogo en su renglón y, en un bloque, en su
+  columna (`e8f503e9`). Los PDF ya emitidos no cambian.
+- **Faltan** la exportación de los ejemplos HTTP, la verificación y el cierre.
 
 ## 4. Información del negocio: decidida, sin programar
 
@@ -87,7 +90,21 @@ El 22/11 el usuario eligió IN1-C con IN2 e IN3 (el plan vive en el front, `docs
 - **IN3:** los estados: sin permiso, un error entre días al guardar, muchas fechas especiales y la carga.
 - De esta pantalla salió «todo en desplegable»: preguntado si valía sólo para el horario, el usuario contestó «En toda la app».
 
-## 5. Para el multitenant
+## 5. Formularios en una sola entrada (FU1-B y FU2-A): elegida, sin programar
+
+El 23/11 el usuario pidió unir «Formularios» y «Diseñar formularios», que listaban los mismos formularios en dos entradas:
+«Formularios y adentro sería el ABM, y un ícono más que sea cargar datos». El diseño está en el front,
+`docs/design/formularios-una-entrada.md`.
+
+- **FU1-B:** se va «Diseñar formularios». En el panel de «Gestión de formularios» quedan arriba «Formularios» y «Documentos
+  recibidos», con su número, una línea sin título y abajo «Catálogos», «Biblioteca» y «Formularios que faltan».
+- **FU2-A:** `/formularios` es la lista de diseño, con sus columnas y sus filtros, más la columna «Por aprobar», sólo para quien
+  aprueba, cuyo número abre la planilla con lo que espera, y «Cargar» como primer ícono de cada fila publicada. El nombre abre
+  el editor, y el número de respuestas, la planilla.
+- **Según quién entra:** quien no diseña ve la lista de Formularios de hoy, con su «Cargar». El filtro de estado suma «Con algo
+  por aprobar».
+
+## 6. Para el multitenant
 
 Leído en tu `main` (`c339b58d`). Tu módulo de formularios todavía no tiene código: lo que sigue va a tus specs y tus fichas.
 
@@ -110,3 +127,6 @@ Leído en tu `main` (`c339b58d`). Tu módulo de formularios todavía no tiene c�
   «elegir lo ya elegido».
 - **Información del negocio** es de esta app. Si dibujás un horario por día, la lectura en tabla con un diálogo por día es lo
   que eligió el usuario acá.
+- **Formularios en una sola entrada:** acá se llegó a lo que tu decisión 79 ya tenía, una sola lista «Formularios», sin
+  «Diseñar formularios» (`docs/plans/formularios/14-formularios.md`). De FU2-A te sirven la columna «Por aprobar» y «Cargar»
+  como primer ícono de cada fila, y de FU1-B, los dos grupos del panel. Si cambian tus tableros, mostráselos al usuario.

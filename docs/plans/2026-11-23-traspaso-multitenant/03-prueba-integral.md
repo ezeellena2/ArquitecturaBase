@@ -26,10 +26,11 @@ Decisiones del usuario que entraron, o quedaron tomadas, mientras se probaba:
 | Qué | Cuándo y cómo quedó | Dónde |
 | --- | --- | --- |
 | El tope de ofrecimientos del asistente, configurable (TO1-A, con O36 y O39) | 22/11, en la app | [01](01-reglas-en-configuracion.md) §2 |
-| Ninguna regla de negocio fija en el código: RC1-A a RC7-B | 22/11; casi todo en `main`, la tanda de WhatsApp lista sin commitear | [01](01-reglas-en-configuracion.md) |
+| Ninguna regla de negocio fija en el código: RC1-A a RC7-B | 22 y 23/11, en `main` | [01](01-reglas-en-configuracion.md) |
 | Ordenar las tablas por sus columnas (OT1-C) | 22/11; el backend completo, el front después de la prueba | [02](02-lo-programado-del-diseno.md) §1 |
 | La pieza única para elegir, con su extensión del 22/11 | 22/11, en el `main` del front | [02](02-lo-programado-del-diseno.md) §2 |
-| La respuesta como el formulario (VF1-A), la actividad fila por fila (VF2-A) y «nada debajo de otro dato» | 22/11, en programación | [02](02-lo-programado-del-diseno.md) §3 |
+| La respuesta como el formulario (VF1-A), la actividad fila por fila (VF2-A) y «nada debajo de otro dato» | 22 y 23/11, casi entera en la app | [02](02-lo-programado-del-diseno.md) §3 |
+| Formularios en una sola entrada (FU1-B y FU2-A) | 23/11, elegida, sin programar | [02](02-lo-programado-del-diseno.md) §5 |
 | La fecha de un Flow sin el calendario de WhatsApp (O48) | 22/11, para después de la prueba | §3 |
 
 Y cinco arreglos, todos con el test en rojo primero: O31 (front `bbbe9a60`), O38 (`bd6ddd2b`), O29 (`9c24b597`, contado en
@@ -123,8 +124,8 @@ Siguen la numeración del 16. «Para después» es la lista de después de la pr
 - **A mano:** el micrófono, un celular real (el 76 y la coma de O29), el lector de pantalla, algunas recargas y teclas, y la
   primera carga de los esqueletos.
 - **Con el usuario:** el pedido del certificado de ARCA con su CUIT (169) y el correo con un secreto mal puesto (180).
-- **El cierre:** la reconstrucción final de la app, con lo que falta de «Reglas a Configuración» y la pasada final de la pieza
-  única ([05](05-estado-al-23-11.md) §2); una corrida completa en verde con la máquina quieta; la auditoría documental; y el
+- **El cierre:** la reconstrucción final de la app, con lo que ya entró a `main`, y la pasada final de la pieza única
+  ([05](05-estado-al-23-11.md) §2); una corrida completa en verde con la máquina quieta; la auditoría documental; y el
   traspaso 19, con lo que se decida de O28, O35, O45, O47 y O49 y lo que se programe de O48.
 - **Después de la prueba,** en su lista: las homologaciones de ARCA y la corrida real del robot, el primer despliegue en Azure,
   quitar módulos en una copia y los cierres de Casos y Documentos.
