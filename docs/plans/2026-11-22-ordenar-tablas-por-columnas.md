@@ -3,10 +3,15 @@
 Fecha: 2026-11-22. Estado: **decidido el mismo día (OT1-C; «Por aprobar» queda como cola). El usuario pidió arrancar el
 backend durante la prueba integral: B1 (la regla común) y B2 (Formularios) están en `366bedb7`, B3 y B4 (Usuarios y Roles) en
 `21ffbfdb`, B5 y B6 (Catálogos y Diseñar formularios) en `525d748f`, B9 y B10 (Documentos recibidos y Formularios que faltan)
-en `67924ec4`, B7 y B11 (la planilla y Datos de personas) en `d6564f3b`: el backend está completo. Las pruebas con PostgreSQL
-de BusinessForms van al cierre.** El front se programa en una copia y entra después del cierre de la prueba, junto con la
-[pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md), cuya lista
-usa «Ordenar por».
+en `67924ec4`, B7 y B11 (la planilla y Datos de personas) en `d6564f3b`: el backend está completo, con los desempates
+ajustados a la regla en `79072365`, `f9c95b70` y `54fd8fd2` (lo vacío de una clave de varias partes empata). Las pruebas de orden
+con PostgreSQL ya corrieron en verde; el resto de BusinessForms va al cierre. El front (F1 a F14, sin F12, y dos arreglos:
+el primer toque parte del orden que se ve y Personas conserva su región con teclado) está programado en una copia y guardado
+como 15 parches sobre el front `2c570593` en `.artifacts/orden-front-parches` del backend, con `tsc`, `oxlint` y los 44
+archivos de tests que lo cubren en verde (1215 tests). Entra al front después del cierre de la prueba integral; faltan las
+escenas visuales, la corrida completa y la prueba manual. «Ordenar por» todavía arma su propia lista: pasarlo a la
+[pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md) pide que esa
+pieza acepte dos grupos (Columna y Orden).**
 
 El 2026-11-22, durante la prueba integral y mirando la lista «Formularios» (`/formularios/respuestas`), el usuario pidió:
 «todas las tablas sean ordenables por las columnas como se quiera ordenar tanto como por un botón que diga ordenar por y
