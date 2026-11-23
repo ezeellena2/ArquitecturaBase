@@ -25,8 +25,12 @@ pwsh -NoProfile -File harnesses/carril/carril.ps1 -Status
 
 Desde el front, con la ruta del backend: `pwsh -NoProfile -File ../ArquitecturaBase/harnesses/carril/carril.ps1 -- npm run test`.
 
-- Todo lo que va después del primer `--` es el comando tal cual, también otro `--`. Varios comandos
-  en un mismo turno: `-- pwsh -NoProfile -Command "npm run build; npm run test"`.
+- Todo lo que va después del primer `--` es el comando tal cual, también otro `--`. Tiene que ser un
+  ejecutable (`dotnet`, `npm`, `node`, `pwsh`…). Un script de PowerShell va con `-- pwsh -NoProfile -File script.ps1`,
+  y varios comandos en un mismo turno, con `-- pwsh -NoProfile -Command "npm run build; npm run test"`.
+- El comando no recibe entrada: una pregunta, como la de `npx` para instalar un paquete, falla en lugar de trabar el carril.
+- Si el comando queda quieto, sin usar el procesador, 30 minutos (`-StallMinutes`), o pasa de 4 horas
+  (`-MaxRunMinutes`), el carril lo corta con todos sus hijos y devuelve 125. Si no lo puede arrancar, devuelve 127.
 - Lo pesado va en segundo plano: la espera es parte de la corrida, y el plazo corto de una herramienta la cortaría.
 - Mientras espera, avisa quién lo tiene (proceso, desde cuándo, carpeta y comando) y lo repite cada 5 minutos.
   `-MaxWaitMinutes` (240 por defecto) corta la espera con el código 124.

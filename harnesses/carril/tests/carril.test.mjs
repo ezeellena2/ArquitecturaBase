@@ -150,6 +150,45 @@ test('status says the lane is free, or who has it', async (t) => {
   assert.match(busy.output, /work\.mjs/);
 });
 
+test('the command gets no input, so a question fails instead of hanging the lane', async (t) => {
+  const { env } = lane(t);
+  const stdin = path.join(here, 'fixtures', 'stdin.mjs');
+
+  const { code, output } = await run(env, ['--', process.execPath, stdin]).done;
+
+  assert.equal(code, 0, output);
+  assert.match(output, /stdin closed/);
+});
+
+test('a command that stays still is cut and the lane is free for the next run', async (t) => {
+  const { env, log } = lane(t);
+  const still = { ...env, AB_CARRIL_STALL_SECONDS: '3', AB_CARRIL_CHECK_SECONDS: '1' };
+
+  const started = Date.now();
+  const cut = await run(still, job(log, 'A', 30000)).done;
+
+  assert.equal(cut.code, 125, cut.output);
+  assert.match(cut.output, /stalled/i);
+  assert.ok(Date.now() - started < 20000, 'the still command was not cut in time');
+  assert.deepEqual(events(log).map((e) => `${e.kind} ${e.label}`), ['start A']);
+  const next = await run(env, job(log, 'B', 0)).done;
+  assert.equal(next.code, 0, next.output);
+  assert.doesNotMatch(next.output, /waiting/i);
+});
+
+test('a command that runs longer than the maximum is cut even while it works', async (t) => {
+  const { env } = lane(t);
+  const short = { ...env, AB_CARRIL_MAX_RUN_SECONDS: '2', AB_CARRIL_CHECK_SECONDS: '1' };
+  const busy = path.join(here, 'fixtures', 'busy.mjs');
+
+  const started = Date.now();
+  const { code, output } = await run(short, ['--', process.execPath, busy, '30000']).done;
+
+  assert.equal(code, 125, output);
+  assert.match(output, /longer than/i);
+  assert.ok(Date.now() - started < 20000, 'the long command was not cut in time');
+});
+
 test('without a command it explains how to call it', async (t) => {
   const { env } = lane(t);
 
