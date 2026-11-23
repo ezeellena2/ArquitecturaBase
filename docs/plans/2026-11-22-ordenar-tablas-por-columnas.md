@@ -5,11 +5,12 @@ backend durante la prueba integral: B1 (la regla común) y B2 (Formularios) est�
 `21ffbfdb`, B5 y B6 (Catálogos y Diseñar formularios) en `525d748f`, B9 y B10 (Documentos recibidos y Formularios que faltan)
 en `67924ec4`, B7 y B11 (la planilla y Datos de personas) en `d6564f3b`: el backend está completo, con los desempates
 ajustados a la regla en `79072365`, `f9c95b70` y `54fd8fd2` (lo vacío de una clave de varias partes empata). Las pruebas de orden
-con PostgreSQL ya corrieron en verde; el resto de BusinessForms va al cierre. El front (F1 a F14, sin F12, y dos arreglos:
-el primer toque parte del orden que se ve y Personas conserva su región con teclado) está programado en una copia y guardado
-como 15 parches sobre el front `2c570593` en `.artifacts/orden-front-parches` del backend, con `tsc`, `oxlint` y los 44
-archivos de tests que lo cubren en verde (1215 tests). Entra al front después del cierre de la prueba integral; faltan las
-escenas visuales, la corrida completa y la prueba manual. «Ordenar por» todavía arma su propia lista: pasarlo a la
+con PostgreSQL ya corrieron en verde; el resto de BusinessForms va al cierre. El front (F1 a F14, sin F12; dos arreglos:
+el primer toque parte del orden que se ve y Personas conserva su región con teclado; y el ajuste a la entrada única de
+Formularios de FU1-B) entró al main del front el 2026-11-23, a pedido del usuario («Que entre ya» y, antes de las capturas,
+«Sí, entrá antes»): 18 commits de `05da1d16` a `031877df` sobre `8db195cd`, con `tsc`, `oxlint` y los 45 archivos de tests
+que lo cubren en verde (1227 tests). Faltan las capturas de las escenas visuales, la corrida completa y la prueba manual.
+«Ordenar por» todavía arma su propia lista: pasarlo a la
 [pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md) pide que esa
 pieza acepte dos grupos (Columna y Orden).**
 
@@ -149,7 +150,8 @@ Usuarios (B3: `whatsapp` por el número guardado, `verified`), Roles (B4: `descr
 cantidad de permisos), Catálogos (B5: `state`; `kind` pasa al orden de declaración) y Diseñar formularios (B6: los seis campos
 de la tabla). Cada lista, con sus tests HTTP y su pantalla (F4 a F7). En Catálogos la columna `origin` del front pasa a `kind`;
 «Uso» en 0 muestra «—» y ordena como 0. En Diseñar formularios no ordenan «Deprecación» (la da el canal de WhatsApp y no se une
-en SQL), «Estado» en «Dados de baja» (la misma razón) ni «Respuestas» sin «Ver respuestas».
+en SQL), «Estado» en «Dados de baja» ni en «Con algo por aprobar», que los mezcla (la misma razón), ni «Respuestas» sin «Ver
+respuestas». «Por aprobar» (FU2-A) ordena sólo para quien decide, que es quien la ve.
 
 ### Corte 3: respuestas y documentos
 
