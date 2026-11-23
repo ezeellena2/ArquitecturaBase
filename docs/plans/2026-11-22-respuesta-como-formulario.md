@@ -1,17 +1,17 @@
 # La respuesta como el formulario (VF1-A) y la actividad fila por fila (VF2-A)
 
-Estado: **en programación desde el 2026-11-22**, a pedido del usuario («Sí, arrancá»).
-- Hechas:
-  - la tarea 1: la regla y el diseño en el front (front `6908c39b`);
-  - la tarea 2: el detalle con la forma de su versión (`b857e1d6`);
-  - la tarea 3: la lectura, `ResponseForm` (front `559759a6`).
-- En una copia del front, para entrar con la exportación de ejemplos y un reinicio de la app: la tarea 4 (las dos
-  pantallas con la forma) y la tarea 5 (corregir en el lugar, en curso).
-- En curso: la tarea 6 (la actividad).
-- Faltan: la exportación de ejemplos HTTP, el barrido (tarea 7), las docs (tarea 8) y la verificación (tarea 9).
+Estado: **programado entre el 2026-11-22 y el 2026-11-23**, a pedido del usuario («Sí, arrancá» y «Sí, con R2-A»).
+- Hechas las tareas 1 a 8:
+  - la regla y el diseño (front `6908c39b`), el detalle con la forma de su versión (`b857e1d6`) y la lectura (`559759a6`);
+  - las dos pantallas y corregir en el lugar (front `d3eab5d7` a `3df8d92d`);
+  - la actividad (front `3b977974`, `d092a78f` y `427c4250`; backend `06df1a4b`);
+  - el barrido VF3 con R2-A (front `6c760450` y `d4a83756`; backend `e8f503e9`) y las docs (`208d1ad0`, front `01082c5d`);
+  - las escenas visuales (front `caa7caf9` y `13467d38`), y el texto largo respondido y el visor de cada pregunta (`563f716f`).
+- Falta la tarea 9: exportar los ejemplos HTTP y pasar `entry` a obligatorio en el front, rehacer las referencias que cambia
+  `563f716f`, la corrida completa del front y la prueba a mano. Después se retira el plan.
 
 Tableros: lienzo aparte
-[Respuesta como formulario](https://claude.ai/artifact/2vnLgSq6xxdoz9LjAdNmaN), versión 13. Este plan congela lo elegido;
+[Respuesta como formulario](https://claude.ai/artifact/2vnLgSq6xxdoz9LjAdNmaN), versión 15. Este plan congela lo elegido;
 el lienzo es privado y puede cambiar fuera de Git.
 
 ## Qué pidió el usuario
