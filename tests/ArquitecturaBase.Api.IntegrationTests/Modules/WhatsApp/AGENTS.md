@@ -16,6 +16,7 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 - Un perfil nuevo de Flows se prueba con los bytes ya sellados (r3, r8) como recursos: se comparan proyecciones, bindings, hashes, payload y huella de sesión, sin recompilar ni reescribir el legado.
 - La retención de audio parte de un `Body` no nulo: un descriptor sin transcripción no prueba que se limpie.
 - Con `FakeTimeProvider`, observá el registro del timer antes de avanzar el reloj, sin demoras arbitrarias.
+- La salida durable es una sola cola para toda la colección y cada vuelta del worker toma el envío más viejo, aunque sea de otro test. Un test que espera su envío da vueltas hasta que sale y cuenta sólo los mensajes a su número.
 - Las técnicas sin Docker (SQL compilado sin conexión, HTTP o scopes simulados) no reemplazan las de PostgreSQL y Redis, que corren en el cierre; no se atribuyen verdes a tests no ejecutados.
 - Los cuerpos HTTP se exportan intactos y con texto sintético sólo con su variable (`WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT`, `WHATSAPP_AUDIO_HTTP_OUTPUT`, `WHATSAPP_ASSISTANT_HTTP_OUTPUT`); `ASSISTANT_LATENCY_OUTPUT` guarda sólo tiempos y conteos. Ninguno acredita entrega a Meta, transcripción del proveedor ni decisiones de un modelo.
 

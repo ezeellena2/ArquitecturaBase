@@ -53,6 +53,8 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(WhatsAppFlowPublicationState.Published, binding.State);
 
         var contactId = await CreateLinkedContactAsync(employeeId, clock);
+        var waId = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppContact>().Where(contact => contact.Id == contactId)
+            .Select(contact => contact.WaId).SingleAsync(Ct));
         using var choices = await author.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct);
         Assert.Equal(HttpStatusCode.OK, choices.StatusCode);
         var requestId = Guid.NewGuid();
@@ -68,9 +70,12 @@ public sealed partial class WhatsAppFormSendingTests
         // The real BusinessForms selector exposes only the active version. A later publication replaces it.
         source.Form = new(definitionId, Guid.NewGuid(), 2, "FORM",
             new Dictionary<string, string> { ["es"] = "Versión nueva", ["en"] = "New version" }, 1, snapshot.SubmitLabel);
-        await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
+        // The durable queue is shared by the whole collection and each round takes its oldest send: what another test left waiting
+        // goes first, so the rounds go on until this chat's own send goes out.
+        var worker = host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+        for (var round = 0; round < 10 && !cloud.Messages.Any(message => message.To.Value[1..] == waId); round++) await worker.ProcessNextAsync(Ct);
 
-        var sent = Assert.IsType<WhatsAppFlowMessageResponse>(Assert.Single(cloud.Messages));
+        var sent = Assert.IsType<WhatsAppFlowMessageResponse>(Assert.Single(cloud.Messages, message => message.To.Value[1..] == waId));
         Assert.Equal(binding.MetaFlowId, sent.FlowId);
         using var outcome = await author.GetAsync($"/api/whatsapp/chats/{contactId}/outgoing/{requestId}", Ct);
         var receipt = await outcome.ReadJsonAsync();
