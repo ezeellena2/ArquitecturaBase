@@ -28,8 +28,8 @@ backend `0d464ae5` y front `d4a83756`.
 
 ## 3. Dónde está cada cosa
 
-- **En GitHub** está lo que se subió el 22/11: el backend hasta `353720a0`, con los traspasos 16 y 17, y el front hasta
-  `fbd5538a`. Este traspaso y lo posterior están sólo en la PC del usuario hasta que pida subirlos.
+- **En GitHub** está el backend con este paquete desde el 2026-11-23, y el front hasta `fbd5538a`, del 22/11: los seis
+  commits del front que siguen (`fbd5538a..d4a83756`) están sólo en la PC del usuario.
 - **Los planes vivos:** en el backend, `docs/plans/2026-11-22-reglas-a-configuracion.md`,
   `docs/plans/2026-11-22-ordenar-tablas-por-columnas.md` y `docs/plans/2026-11-22-respuesta-como-formulario.md`; en el front,
   `docs/plans/2026-11-19-una-sola-pieza-para-elegir.md` y `docs/plans/2026-11-22-informacion-del-negocio-reordenar.md`.

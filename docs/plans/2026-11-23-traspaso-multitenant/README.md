@@ -78,9 +78,9 @@ decisión de tu hoja de ruta es la 108 y no hay rastro de los traspasos 4 a 17. 
 ## Antes de empezar
 
 - **En la PC del usuario:** `C:\Users\ezequ\source\repos\ArquitecturaBase` y `C:\Users\ezequ\source\repos\ArquitecturaBaseFront`.
-- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Lo que se subió el
-  22/11 llega hasta el 17 en el backend y hasta `fbd5538a` en el front: este paquete y lo posterior están sólo en la PC del
-  usuario hasta que pida subirlos.
+- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. El backend, con
+  este paquete, está en GitHub desde el 2026-11-23. El front llega hasta `fbd5538a`: los seis commits del front que cita este
+  traspaso después de ese (`fbd5538a..d4a83756`) están sólo en la PC del usuario.
 
 ## Prompt para el chat guía del multitenant
 
