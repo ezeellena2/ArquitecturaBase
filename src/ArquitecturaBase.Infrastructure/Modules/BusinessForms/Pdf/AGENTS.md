@@ -22,6 +22,6 @@
 - [Procedencia de las fuentes](Fonts/SOURCE.md).
 - Pruebas: [renderer](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfRendererTests.cs), [emoji](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfEmojiTests.cs) y [retención de copias pendientes](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfRetentionIntegrationTests.cs).
 
-E2-4: sólo campos sellados de papel data, localizados individualmente y agrupados por opción; no consulta configuración actual. Los de filter se omiten.
+E2-4: sólo campos sellados de papel data, localizados individualmente; no consulta configuración actual. Los de filter se omiten. Nada va debajo del valor (R4, 2026-11-22): cada dato es su renglón, «Pregunta · Dato» (`Fields`), con los valores de las opciones que lo tienen por coma y en su orden, y en el bloque una columna a la derecha de su pregunta (`Table`).
 
 Ubicación (UB4-A): el punto va como texto («-34.603722, -58.381592») y debajo «Ver en el mapa», con `DrawUrlAnnotation` sobre su renglón (`WriteField` con enlace); una pregunta de ubicación nunca va en el bloque.

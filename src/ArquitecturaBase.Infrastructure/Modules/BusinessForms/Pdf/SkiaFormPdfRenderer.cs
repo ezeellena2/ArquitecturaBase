@@ -86,8 +86,10 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 var location = new StructuredRecordLocationValue(point.GetProperty("latitude").GetDecimal(), point.GetProperty("longitude").GetDecimal());
                 layout.WriteField(label, location.Coordinates(), (FormPdfTexts.Get("ViewOnMap", culture), location.MapUrl()));
             }
+            else if (answers.TryGetValue(question.FieldId, out var answer))
+                foreach (var (name, value) in Fields(question, answer, culture, record)) layout.WriteField(name, value);
             else
-                layout.WriteField(label, answers.TryGetValue(question.FieldId, out var answer) ? Value(question, answer, culture, record) : FormPdfTexts.Get("NoAnswer", culture));
+                layout.WriteField(label, FormPdfTexts.Get("NoAnswer", culture));
         }
         layout.WriteApproval();
         var footer = snapshot.Design.Footer?.GetValueOrDefault(culture);
@@ -97,8 +99,9 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
     }
 
     /// <summary>
-    /// The items of the block in a table: a column per question of the block in its version, the decimals as numbers, each cell
-    /// with the catalog references of its own item and empty where the item left the question unanswered.
+    /// The items of the block in a table: a column per question of the block in its version and, right after a catalog question, one
+    /// per datum its items sealed («Pregunta · Dato», R4); the numbers to the right, each cell with the catalog references of its own
+    /// item and empty where the item left the question unanswered or its option has no such datum.
     /// </summary>
     private static FormPdfTable Table(CanonicalFormField group, FormVersionSchema schema, Dictionary<Guid, JsonElement> answers, string culture,
         FormRecordStoredRow record)
@@ -106,16 +109,49 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         var questions = schema.Questions.SkipWhile(question => question.FieldId != group.FieldId).Skip(1)
             .TakeWhile(question => question.Repeated == true).ToArray();
         var items = answers.TryGetValue(group.FieldId, out var answer) ? answer.EnumerateArray().ToArray() : [];
-        var rows = items.Select((item, position) =>
+        var cells = items.Select((item, position) =>
         {
             var values = item.EnumerateArray().ToDictionary(value => value.GetProperty("fieldId").GetGuid(), value => value.GetProperty("value"));
             var own = record with { References = (record.References ?? []).Where(reference => reference.Row == position).ToArray() };
-            return (IReadOnlyList<string>)questions.Select(question => values.TryGetValue(question.FieldId, out var value)
-                ? Value(question, value, culture, own) : "").ToArray();
+            return questions.Select(question => values.TryGetValue(question.FieldId, out var value)
+                ? (Text: Value(question, value, culture, own), Data: CatalogData(question, value, culture, own)) : (Text: "", Data: [])).ToArray();
         }).ToArray();
-        return new(group.Label[culture], questions.Select(question => question.Label[culture]).ToArray(),
-            questions.Select(question => question.Type == "decimal").ToArray(), rows);
+        var data = questions.Select((_, column) => cells.SelectMany(row => row[column].Data).DistinctBy(datum => datum.Id).ToArray()).ToArray();
+        var headers = questions.SelectMany((question, column) =>
+            data[column].Select(datum => question.Label[culture] + " · " + datum.Name).Prepend(question.Label[culture])).ToArray();
+        var numeric = questions.SelectMany((question, column) => data[column].Select(datum => datum.Numeric).Prepend(question.Type == "decimal")).ToArray();
+        var rows = cells.Select(row => (IReadOnlyList<string>)row.SelectMany((cell, column) => data[column]
+            .Select(datum => cell.Data.FirstOrDefault(match => match.Id == datum.Id)?.Value ?? "").Prepend(cell.Text)).ToArray()).ToArray();
+        return new(group.Label[culture], headers, numeric, rows);
     }
+
+    /// <summary>
+    /// The lines of an answered question: its value and, for a catalog question, one per sealed datum of the chosen options, named
+    /// «Pregunta · Dato» (R4): a datum never goes under the value.
+    /// </summary>
+    private static IReadOnlyList<(string Label, string Value)> Fields(CanonicalFormField question, JsonElement answer, string culture, FormRecordStoredRow record)
+    {
+        var label = question.Label[culture];
+        return [(label, Value(question, answer, culture, record)), .. CatalogData(question, answer, culture, record).Select(datum => (label + " · " + datum.Name, datum.Value))];
+    }
+
+    /// <summary>
+    /// The sealed data (role data) of the options a catalog question chose, localized, each once with the values of the options that
+    /// have it, by comma in the order of the options; a question without a catalog has none.
+    /// </summary>
+    private static CatalogDatum[] CatalogData(CanonicalFormField question, JsonElement answer, string culture, FormRecordStoredRow record)
+    {
+        if (question.Source?.Catalog is null || question.Type is not ("choice" or "multiChoice")) return [];
+        var locale = DisplayNumbers.Culture(culture);
+        var chosen = question.Type == "choice" ? [answer.GetGuid()] : answer.EnumerateArray().Select(value => value.GetGuid()).ToArray();
+        return chosen.SelectMany(item => Captured((record.References ?? []).Single(reference => reference.FieldId == question.FieldId && reference.ItemId == item)))
+            .Where(field => field.Role == "data").GroupBy(field => field.Id)
+            .Select(fields => new CatalogDatum(fields.Key, FieldText(fields.First().Name, locale), string.Join(", ", fields.Select(field => CapturedFieldValue(field, locale))),
+                fields.First().Type is "integer" or "decimal")).ToArray();
+    }
+
+    // A datum of the chosen options: its own line of the copy or its own column of the block (R4).
+    private sealed record CatalogDatum(Guid Id, string Name, string Value, bool Numeric);
 
     // A datum of a result (RE1-A), written like an answer of its kind.
     private static string ResultValue(FormPdfResultValue value, string culture)
@@ -154,20 +190,17 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             "Date" => FormPdfDates.Day(DateOnly.ParseExact(reference.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture), locale.TwoLetterISOLanguageName),
             _ => throw new InvalidOperationException("The captured catalog value type is invalid."),
         };
-        var text = reference.Text + (value is null ? "" : " · " + value);
-        var fields = reference.FieldValuesJson is null ? []
-            : JsonSerializer.Deserialize<FormCatalogCapturedField[]>(reference.FieldValuesJson, JsonSerializerOptions.Web)
-                ?? throw new InvalidOperationException("The captured catalog fields are invalid.");
-        var data = fields.Where(field => field.Role == "data").Select(field =>
-            FieldText(field.Name, locale) + " " + CapturedFieldValue(field, locale)).ToArray();
-        return data.Length == 0 ? text : text + "\n" + string.Join(" · ", data);
+        return reference.Text + (value is null ? "" : " · " + value);
     }
+
+    private static FormCatalogCapturedField[] Captured(FormRecordReferenceRow reference) => reference.FieldValuesJson is null ? []
+        : JsonSerializer.Deserialize<FormCatalogCapturedField[]>(reference.FieldValuesJson, JsonSerializerOptions.Web)
+            ?? throw new InvalidOperationException("The captured catalog fields are invalid.");
 
     private static string MultipleValue(CanonicalFormField question, JsonElement answer, string culture, FormRecordStoredRow record)
     {
         if (answer.GetArrayLength() == 0) return FormPdfTexts.Get("NoAnswer", culture);
-        var choices = answer.EnumerateArray().Select(value => Value(question with { Type = "choice" }, value, culture, record)).ToArray();
-        return string.Join(choices.Any(value => value.Contains('\n')) ? "\n\n" : ", ", choices);
+        return string.Join(", ", answer.EnumerateArray().Select(value => Value(question with { Type = "choice" }, value, culture, record)));
     }
 
     private static string CapturedFieldValue(FormCatalogCapturedField field, CultureInfo locale) => field.Type switch

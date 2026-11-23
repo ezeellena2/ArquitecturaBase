@@ -1,6 +1,9 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Pdf;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -219,6 +222,54 @@ public sealed class FormPdfRendererTests
         // «Artículos · Sin respuesta» is one more line of the copy.
         Assert.True(bytes.Length > plain.Length);
         await fixture.ExportAsync(bytes, "block-empty-es");
+    }
+
+    // R4 («nada debajo de otro dato»): a datum of a catalog question of the block is one more column, «Pregunta · Dato», right after
+    // its question; empty where the option of the item does not have it, and a number to the right.
+    [Fact]
+    public async Task A_catalog_question_of_the_block_puts_each_datum_in_a_column_right_after_it()
+    {
+        var fixture = new FormPdfRendererFixture(); var original = fixture.Snapshot.Response.Record;
+        var catalog = Guid.NewGuid(); var herbicide = Guid.NewGuid(); var glyphosate = Guid.NewGuid();
+        static Dictionary<string, string> Text(string es, string en) => new() { ["es"] = es, ["en"] = en };
+        var group = new CanonicalFormField(Guid.NewGuid(), "items", "group", Text("Artículos", "Items"), null, false, null, null, Rows: new(0, 99));
+        var product = new CanonicalFormField(Guid.NewGuid(), "product", "choice", Text("Artículo", "Item"), null, true, null, null, Source: new(catalog), Repeated: true);
+        var quantity = new CanonicalFormField(Guid.NewGuid(), "quantity", "decimal", Text("Cantidad", "Quantity"), null, true, null, null, Repeated: true);
+        var category = new FormCatalogCapturedField(Guid.NewGuid(), "category", Text("Rubro", "Category"), "text", "data", JsonSerializer.SerializeToElement("Herbicidas"));
+        var kind = new FormCatalogCapturedField(Guid.NewGuid(), "kind", Text("Tipo", "Kind"), "text", "data", JsonSerializer.SerializeToElement("Agroquímicos"));
+        var dose = new FormCatalogCapturedField(Guid.NewGuid(), "dose", Text("Dosis", "Dose"), "decimal", "data", JsonSerializer.SerializeToElement("1.5"));
+        var use = new FormCatalogCapturedField(Guid.NewGuid(), "use", Text("Uso", "Use"), "text", "filter", JsonSerializer.SerializeToElement("Campo"));
+        static string Captured(params FormCatalogCapturedField[] fields) => JsonSerializer.Serialize(fields, JsonSerializerOptions.Web);
+        var record = original with
+        {
+            SchemaJson = FormDraftPolicy.Serialize(new FormVersionSchema(1, [group, product, quantity])),
+            ValuesJson = JsonSerializer.Serialize(new[] { new { fieldId = group.FieldId, value = new[]
+            {
+                new object[] { new { fieldId = product.FieldId, value = herbicide }, new { fieldId = quantity.FieldId, value = 2m } },
+                new object[] { new { fieldId = product.FieldId, value = glyphosate }, new { fieldId = quantity.FieldId, value = 3m } },
+            } } }),
+            Files = [],
+            References =
+            [
+                new(original.RecordId, product.FieldId, catalog, 1, herbicide, "2 4 D 100%", null, "Artículos", FieldValuesJson: Captured(category, kind, dose, use)),
+                new(original.RecordId, product.FieldId, catalog, 1, glyphosate, "Glifosato", null, "Artículos", FieldValuesJson: Captured(category), Row: 1),
+            ],
+        };
+        var request = fixture.Snapshot with
+        {
+            Response = fixture.Snapshot.Response with { Record = record },
+            Snapshot = fixture.Snapshot.Snapshot with { Design = fixture.Snapshot.Snapshot.Design with { QuestionIds = [group.FieldId], IncludePhotos = false } },
+        };
+
+        var table = Table(request, "es");
+
+        Assert.Equal(["Artículo", "Artículo · Rubro", "Artículo · Tipo", "Artículo · Dosis", "Cantidad"], table.Headers);
+        Assert.Equal([false, false, false, true, true], table.Numeric);
+        Assert.Equal(["2 4 D 100%", "Herbicidas", "Agroquímicos", "1,50", "2"], table.Rows[0]);
+        Assert.Equal(["Glifosato", "Herbicidas", "", "", "3"], table.Rows[1]);
+        var bytes = await fixture.Renderer.RenderAsync(request, "es", false, TestContext.Current.CancellationToken);
+        Assert.Equal(1, Regex.Count(Encoding.Latin1.GetString(bytes), @"/Type\s*/Page\b"));
+        await fixture.ExportAsync(bytes, "block-catalog-es");
     }
 
     private static FormPdfTable Table(ArquitecturaBase.Application.Modules.BusinessForms.Models.FormPdfRenderRequest request, string culture)

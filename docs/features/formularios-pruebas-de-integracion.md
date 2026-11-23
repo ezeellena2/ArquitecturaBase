@@ -163,6 +163,8 @@ FormPdfRendererTests también ejecuta FormPdfPreviewIssuer con Skia real: nombre
 
 PDF técnico: EmojiTests verifica shaping/bitmap Noto Emoji y RendererTests emite el PDF mixto para Poppler. Windows no acredita el nativo Linux de HarfBuzz.
 
+Datos del catálogo (R4): FormCatalogFieldsPdfTests comprueba que cada dato de papel data es su renglón «Pregunta · Dato», es y en, sin los de filter, y que en una de varias va una vez con los valores por coma en el orden de las opciones; FormPdfRendererTests, que en el bloque cada dato es una columna a la derecha de su pregunta, vacía donde la opción no lo tiene y un número a la derecha.
+
 ## Asistente y sugerencias
 
 OfferWhen se verifica por HTTP con guardado/recuperación/replay normalizado, limpieza, conflicto de revisión sin guardado parcial y rechazo del campo en publication-checks. PostgreSQL conserva el schema y no crea versiones por guardar las instrucciones.

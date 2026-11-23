@@ -139,6 +139,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 - Preparar fija diseño, culturas, `AppName` y la zona de la cuenta de quien cargó (`TimeZoneId`: las horas van en ella, con su nombre, y en UTC si falta; decisión 4); ejecutar relee el registro por Id, arma un `FormPdfRenderRequest` efímero y usa `WriteOnceAsync` en `FormPdfStorageKey.Create` tras consultar.
 - DocumentRecorder confirma una vez bajo fence.
 - Ubicación (UB4-A): el renderer escribe el punto y, debajo, «Ver en el mapa» con un enlace del PDF (`DrawUrlAnnotation`); la vista previa usa un punto de ejemplo.
+- Datos de una opción de catálogo (R4, «nada debajo de otro dato», 2026-11-22): cada dato sellado de papel `data` es su renglón, «Pregunta · Dato» con el valor formateado como antes, y el valor de la opción queda solo; en una de varias, un renglón por dato con los valores de las opciones que lo tienen, por coma y en su orden. En el bloque, cada dato es una columna a la derecha de su pregunta, vacía en el ítem cuya opción no lo tiene. Los PDF ya emitidos no cambian.
 
 ## Asistente y sugerencias
 
