@@ -29,8 +29,8 @@ backend `208d1ad0` y front `4e6d9a5c`.
 
 ## 3. Dónde está cada cosa
 
-- **En GitHub** está el backend con este paquete desde el 2026-11-23, y el front hasta `fbd5538a`, del 22/11: los seis
-  commits del front que siguen (`fbd5538a..4e6d9a5c`) están sólo en la PC del usuario.
+- **En GitHub** están, desde el 2026-11-23, el backend con este paquete y el front con todos los commits que cita
+  (`d0cb2c9c..4e6d9a5c`).
 - **Los planes vivos:** en el backend, `docs/plans/2026-11-22-reglas-a-configuracion.md`,
   `docs/plans/2026-11-22-ordenar-tablas-por-columnas.md` y `docs/plans/2026-11-22-respuesta-como-formulario.md`; en el front,
   `docs/plans/2026-11-19-una-sola-pieza-para-elegir.md` y `docs/plans/2026-11-22-informacion-del-negocio-reordenar.md`.
