@@ -44,26 +44,28 @@ public sealed partial class FormDraftEndpointsTests
         AssertRecordNavigation(singleton, seeded.RecordIds[12], null, null, 1, 1);
     }
 
+    // The three share their date and their actor: a tie keeps the usual order of the sheet, the newest number first (OT1-C).
     [Theory]
     [InlineData("number", false)]
     [InlineData("-number", true)]
-    [InlineData("submittedAtUtc", false)]
-    [InlineData("-submittedAtUtc", false)]
-    [InlineData("actor", false)]
-    [InlineData("-actor", false)]
-    public async Task Record_navigation_preserves_the_sheets_number_tiebreaker(string sort, bool descending)
+    [InlineData("submittedAtUtc", true)]
+    [InlineData("-submittedAtUtc", true)]
+    [InlineData("actor", true)]
+    [InlineData("-actor", true)]
+    public async Task Record_navigation_preserves_the_sheets_number_tiebreaker(string sort, bool newestFirst)
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         var seeded = await SeedSheetAsync(reader, 3);
-        var expected = descending ? seeded.RecordIds.Reverse().ToArray() : seeded.RecordIds.ToArray();
+        var expected = newestFirst ? seeded.RecordIds.Reverse().ToArray() : seeded.RecordIds.ToArray();
         var middle = await ReadRecordNavigationAsync(reader, seeded.Id, expected[1], new { sort, page = 10, pageSize = 1 });
 
         AssertRecordNavigation(middle, expected[1], expected[0], expected[2], 2, 3);
     }
 
+    // An empty answer goes last in both directions, and a tie keeps the newest number first (OT1-C).
     [Theory]
-    [InlineData("field", new[] { 1, 3, 4, 0, 2 })]
-    [InlineData("-field", new[] { 0, 2, 4, 1, 3 })]
+    [InlineData("field", new[] { 3, 1, 4, 2, 0 })]
+    [InlineData("-field", new[] { 4, 3, 1, 2, 0 })]
     public async Task Record_navigation_preserves_null_placement_and_number_ties(string sort, int[] order)
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
