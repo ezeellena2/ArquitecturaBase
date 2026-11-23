@@ -55,6 +55,10 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFo
     private IQueryable<FormDefinitionListStoredRow> ListQuery(ListFormDefinitionsRequest request)
     {
         var nameColumn = request.DisplayCulture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        // FU2-A: what awaits the decision of whoever asks, with the predicate of «Formularios». Only Application sets who decides,
+        // for whoever can decide approvals; without one the count is null and the tasks are not read.
+        var decides = request.DeciderUserId is not null;
+        var awaiting = FormPendingDecisionQuery.AwaitingDecisionOf(dbContext, request.DeciderUserId ?? Guid.Empty);
         // Every column with a datum sorts by what the row shows, with the id of its column in the front (OT1-C); the subqueries
         // are those of the projection, in the same statement. «Deprecación» does not: it comes from the module of the channel.
         var sortable = new Dictionary<string, Expression<Func<DefinitionAuditRow, object?>>>(StringComparer.OrdinalIgnoreCase)
@@ -78,10 +82,17 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFo
             ["lastChangedAtUtc"] = row => row.LastChangedAtUtc,
             // Who changed it last, by the name the row shows; without one («—») it goes last.
             ["lastChangedBy"] = row => dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
+            // What awaits the decision of whoever asks; Application keeps the usual order for whoever cannot decide.
+            ["pendingDecisionCount"] = row => awaiting.Count(task => task.DefinitionId == row.Definition.Id),
         };
         var definitions = Search(request.Search, request.DisplayCulture).InFolder(dbContext, request.FolderId, request.WithoutFolder);
-        if (request.PublicationFilter == "Deactivated") definitions = definitions.Where(definition => definition.DeactivatedAtUtc != null);
-        else definitions = definitions.Where(definition => definition.DeactivatedAtUtc == null);
+        definitions = request.PublicationFilter switch
+        {
+            // Like «Por aprobar» in «Formularios»: active and deactivated forms with something awaiting the decision of whoever asks.
+            "Pending" => definitions.Where(definition => awaiting.Any(task => task.DefinitionId == definition.Id)),
+            "Deactivated" => definitions.Where(definition => definition.DeactivatedAtUtc != null),
+            _ => definitions.Where(definition => definition.DeactivatedAtUtc == null),
+        };
         if (request.PublicationFilter == "Published") definitions = definitions.Where(definition => definition.ActiveVersionId != null);
         else if (request.PublicationFilter == "Drafts") definitions = definitions.Where(definition => definition.ActiveVersionId == null);
         return WithAudit(definitions).ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), row => row.Definition.Id)
@@ -95,7 +106,8 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext) : IFo
                     dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault()),
                 // Where the active version is completed; a form never published, where its draft will be (SA3-A).
                 dbContext.Set<BusinessFormVersion>().Where(version => version.Id == row.Definition.ActiveVersionId)
-                    .Select(version => (bool?)version.AppOnly).SingleOrDefault() ?? row.Definition.AppOnly));
+                    .Select(version => (bool?)version.AppOnly).SingleOrDefault() ?? row.Definition.AppOnly,
+                decides ? (int?)awaiting.Count(task => task.DefinitionId == row.Definition.Id) : null));
     }
 
     public async Task<FormDefinitionCounts> CountFacetsAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken)

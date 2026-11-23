@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
@@ -44,5 +45,48 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal([two, one, draft, app], await Sorted(bruno, "responseCount"));
         Assert.Equal([app, draft, two, one], await Sorted(ana, "lastChangedBy"));
         Assert.Equal([draft, app, two, one], await Sorted(ana, "-lastChangedBy"));
+    }
+
+    // FU2-A: for whoever can decide approvals, each row counts the responses that await their decision, the same number as
+    // «Formularios»; for anyone else the key is not there. «Pending» lists the forms, active or deactivated, with something awaiting
+    // the decision of whoever asks, and nothing else; without the permission to decide it is forbidden.
+    [Fact]
+    public async Task Definitions_count_and_filter_what_awaits_the_decision_of_whoever_asks()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        using var decider = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.ApprovalsDecide]);
+        using var designer = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.RecordsRead]);
+        var active = await SeedApprovalAsync(author, decider, 10);
+        var inactive = await SeedApprovalAsync(author, decider, 11);
+        // Their own response awaits someone else: nothing for them to decide.
+        var own = await SeedApprovalAsync(decider, decider, 12);
+        await DeactivateOverviewAsync(inactive.DefinitionId, inactive.DeciderId);
+        async Task<JsonElement> Row(HttpClient client, Guid id, string filter = "Active")
+        {
+            using var response = await client.GetAsync($"/api/forms/definitions?publicationFilter={filter}&search={await OverviewPrefixAsync(id)}", Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return Assert.Single((await response.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        }
+
+        using var overview = await decider.GetAsync("/api/forms/overview?search=" + await OverviewPrefixAsync(active.DefinitionId), Ct);
+        var overviewCount = OverviewRow(await overview.ReadJsonAsync()).GetProperty("pendingApprovalCount").GetInt32();
+        Assert.Equal(1, overviewCount);
+        Assert.Equal(overviewCount, (await Row(decider, active.DefinitionId)).GetProperty("pendingDecisionCount").GetInt32());
+        Assert.Equal(1, (await Row(decider, inactive.DefinitionId, "Deactivated")).GetProperty("pendingDecisionCount").GetInt32());
+        Assert.Equal(0, (await Row(decider, own.DefinitionId)).GetProperty("pendingDecisionCount").GetInt32());
+        Assert.False((await Row(designer, active.DefinitionId)).TryGetProperty("pendingDecisionCount", out _));
+
+        using var pending = await decider.GetAsync("/api/forms/definitions?publicationFilter=Pending&sort=-pendingDecisionCount", Ct);
+        Assert.Equal(HttpStatusCode.OK, pending.StatusCode);
+        var pendingJson = await pending.ReadJsonAsync();
+        Assert.Equal(2, pendingJson.GetProperty("totalCount").GetInt32());
+        Assert.Equal(new[] { active.DefinitionId, inactive.DefinitionId }.Order(),
+            pendingJson.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("id").GetGuid()).Order());
+        Assert.All(pendingJson.GetProperty("items").EnumerateArray(), row => Assert.Equal(1, row.GetProperty("pendingDecisionCount").GetInt32()));
+        using var facets = await decider.GetAsync("/api/forms/definitions/facets?publicationFilter=Pending", Ct);
+        Assert.Equal(HttpStatusCode.OK, facets.StatusCode);
+
+        using var forbidden = await designer.GetAsync("/api/forms/definitions?publicationFilter=Pending", Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
     }
 }

@@ -34,26 +34,35 @@ internal sealed class FormDefinitionReadPolicy(IFormDefinitionReader reader, IFo
     {
         // OT1-C: «Respuestas» sorts only for whoever sees the counts, so the order reveals none.
         var sortsByResponses = SortsBy(request, "responseCount") && await access.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, ct);
-        var page = await reader.ListAsync(Sortable(request, sortsByResponses), ct);
+        // FU2-A: what awaits the decision of whoever asks is counted, filtered («Pending») and sorted only for whoever can decide
+        // approvals; the reader learns who decides from here, never from the client.
+        var canDecide = await access.HasPermissionAsync(actor, BusinessFormsPermissions.ApprovalsDecide, ct);
+        var filtersByDecisions = request.PublicationFilter == "Pending";
+        if (filtersByDecisions && !canDecide) return FormDefinitionErrors.Forbidden;
+        var sortsByDecisions = SortsBy(request, "pendingDecisionCount") && canDecide;
+        var page = await reader.ListAsync(Sortable(request with { DeciderUserId = canDecide ? actor : null }, sortsByResponses, canDecide), ct);
         var facts = (await lifecycle.ListFactsAsync(page.Items.Select(row => row.Id).ToArray(), ct)).ToDictionary(row => row.DefinitionId);
         var nowUtc = clock.GetUtcNow().UtcDateTime;
         var states = (await channelState.ListAsync(page.Items.Select(row => row.Id).ToArray(), nowUtc, ct)).ToDictionary(row => row.DefinitionId);
         var canSave = await access.HasPermissionAsync(actor, BusinessFormsPermissions.Manage, ct);
         var canPublish = await access.HasPermissionAsync(actor, BusinessFormsPermissions.Publish, ct);
         var canReadRecords = await access.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, ct);
+        var decides = canDecide && await access.HasPermissionAsync(actor, BusinessFormsPermissions.ApprovalsDecide, ct);
         var current = await access.CheckAsync(false, ct);
-        // The order already followed the counts: without the permission now, hiding them would not be enough.
-        if (current.IsFailure || current.Value != actor || sortsByResponses && !canReadRecords) return FormDefinitionErrors.Forbidden;
+        // The order or the filter already followed the counts: without the permission now, hiding them would not be enough.
+        if (current.IsFailure || current.Value != actor || sortsByResponses && !canReadRecords || (filtersByDecisions || sortsByDecisions) && !decides)
+            return FormDefinitionErrors.Forbidden;
         return new PagedResult<FormDefinitionListResponse>(page.Items.Where(row => facts.ContainsKey(row.Id)).Select(row => new FormDefinitionListResponse(row.Id, row.Name, row.Prefix,
             row.QuestionCount, row.ActiveVersionNumber, row.DisplayState, row.LastChangedAtUtc, row.LastChangedBy, canSave,
             FormDefinitionLifecyclePolicy.View(facts[row.Id], states.GetValueOrDefault(row.Id), nowUtc, canSave, canPublish, canReadRecords),
-            row.AppOnly ? true : null)).ToArray(), page.Page, page.PageSize, page.TotalCount);
+            row.AppOnly ? true : null, decides ? row.PendingDecisionCount : null)).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }
-    // The list sorts in SQL by what each column shows. Two columns show no datum it can sort by, and keep the usual order:
-    // «Respuestas» for whoever cannot read the counts (empty in every row) and «Estado» among the deactivated, where it is the
-    // withdrawal from the channel, which comes from the module of the channel.
-    private static ListFormDefinitionsRequest Sortable(ListFormDefinitionsRequest request, bool canSortByResponses) =>
-        SortsBy(request, "responseCount") && !canSortByResponses || SortsBy(request, "displayState") && request.PublicationFilter == "Deactivated"
+    // The list sorts in SQL by what each column shows. Three columns show no datum it can sort by, and keep the usual order:
+    // «Respuestas» for whoever cannot read the counts and «Por decidir» for whoever cannot decide (empty in every row), and «Estado»
+    // among the deactivated, where it is the withdrawal from the channel, which comes from the module of the channel.
+    private static ListFormDefinitionsRequest Sortable(ListFormDefinitionsRequest request, bool canSortByResponses, bool canSortByDecisions) =>
+        SortsBy(request, "responseCount") && !canSortByResponses || SortsBy(request, "pendingDecisionCount") && !canSortByDecisions
+            || SortsBy(request, "displayState") && request.PublicationFilter == "Deactivated"
             ? request with { Sort = null } : request;
     private static bool SortsBy(ListFormDefinitionsRequest request, string field) =>
         string.Equals(SortDescriptor.Parse(request.Sort)?.Field, field, StringComparison.OrdinalIgnoreCase);

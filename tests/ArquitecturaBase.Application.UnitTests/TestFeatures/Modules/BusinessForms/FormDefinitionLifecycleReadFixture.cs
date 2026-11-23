@@ -50,8 +50,8 @@ internal sealed class FormDefinitionLifecycleReadFixture : IFormDefinitionReader
     {
         ListedRequest = request;
         return Task.FromResult(new PagedResult<FormDefinitionListStoredRow>([
-            new(Id, new Dictionary<string, string> { ["es"] = "Visita" }, "VIS", 1, 1, "Published", AtUtc, null),
-            new(OtherId, new Dictionary<string, string> { ["es"] = "Factura" }, "FAC", 2, 2, "Deactivated", AtUtc, null)], 3, 2, 7));
+            new(Id, new Dictionary<string, string> { ["es"] = "Visita" }, "VIS", 1, 1, "Published", AtUtc, null, PendingDecisionCount: 3),
+            new(OtherId, new Dictionary<string, string> { ["es"] = "Factura" }, "FAC", 2, 2, "Deactivated", AtUtc, null, PendingDecisionCount: 0)], 3, 2, 7));
     }
     public Task<IReadOnlyList<FormLifecycleStoredRow>> ListFactsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
     {

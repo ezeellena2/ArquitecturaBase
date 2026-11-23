@@ -158,23 +158,30 @@ public sealed record FormCurrentPublicationResponse(Guid VersionId, long Version
     bool RequiresReview, bool CanRetry, Guid? RequestId);
 public sealed record FormPublicationOverviewResponse(FormActiveVersionResponse? ActiveVersion, FormCurrentPublicationResponse? CurrentOperation, string DisplayState);
 // AppOnly: the active version, or a draft never published, is completed only in the app (SA3-A). Omitted otherwise.
+// PendingDecisionCount: the responses that await the decision of whoever asks, the number of «Formularios» (FU2-A); omitted for
+// whoever cannot decide approvals.
 public sealed record FormDefinitionListResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, int QuestionCount, long? ActiveVersionNumber,
     string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool CanEdit, FormDefinitionLifecycleResponse Lifecycle,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? PendingDecisionCount = null);
 public sealed record FormDefinitionListStoredRow(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, int QuestionCount, long? ActiveVersionNumber,
-    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool AppOnly = false);
+    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool AppOnly = false, int? PendingDecisionCount = null);
 public sealed record FormDefinitionCounts(int Active, int Published, int Drafts, int Deactivated);
 public sealed record ListFormDefinitionsRequest : PagedRequest
 {
     /// <summary>Every column with a datum, by the id of its column in the front (OT1-C, 2026-11-22). «Deprecación» does not sort: the
     /// withdrawal from the channel comes from the module of the channel, not from SQL.</summary>
     public static IReadOnlyCollection<string> SortableFields { get; } =
-        ["name", "questionCount", "displayState", "completedIn", "activeVersion", "responseCount", "lastChangedAtUtc", "lastChangedBy"];
+        ["name", "questionCount", "displayState", "completedIn", "activeVersion", "responseCount", "lastChangedAtUtc", "lastChangedBy", "pendingDecisionCount"];
+    // Active (default), Published, Drafts, Deactivated or Pending (FU2-A: active or deactivated, with something awaiting the
+    // decision of whoever asks).
     public string PublicationFilter { get; init; } = "Active";
     public string DisplayCulture { get; init; } = "es";
     // CP1-A: a folder with its subfolders, or the items without a folder (WithoutFolder).
     public Guid? FolderId { get; init; }
     public bool WithoutFolder { get; init; }
+    // FU2-A: who decides, set by the policy (never by the client) only for whoever can decide approvals; null otherwise.
+    public Guid? DeciderUserId { get; init; }
 }
 public sealed record FormDefinitionStoredRow(Guid Id, string NameJson, string Prefix, bool PrefixLocked, long Revision,
     string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author, string? OfferWhen = null,

@@ -8,7 +8,7 @@ internal sealed class ListFormDefinitionsRequestValidator : PagedRequestValidato
 {
     public ListFormDefinitionsRequestValidator() : base(ListFormDefinitionsRequest.SortableFields)
     {
-        RuleFor(x => x.PublicationFilter).Must(x => x is "Active" or "Published" or "Drafts" or "Deactivated").WithMessage(_ => ErrorMessages.Get(FormDefinitionErrors.ContentInvalid.Code));
+        RuleFor(x => x.PublicationFilter).Must(x => x is "Active" or "Published" or "Drafts" or "Deactivated" or "Pending").WithMessage(_ => ErrorMessages.Get(FormDefinitionErrors.ContentInvalid.Code));
         RuleFor(request => request.FolderId).Must((request, folderId) => folderId != Guid.Empty && !(folderId is not null && request.WithoutFolder))
             .WithMessage(_ => ErrorMessages.Get(FormFolderErrors.RequestInvalid.Code));
     }

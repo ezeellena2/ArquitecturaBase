@@ -20,8 +20,22 @@ public sealed class ListFormDefinitionsRequestValidatorTests
     [InlineData("-lastChangedAtUtc")]
     [InlineData("lastChangedBy")]
     [InlineData("-lastChangedBy")]
+    [InlineData("pendingDecisionCount")]
+    [InlineData("-pendingDecisionCount")]
     public void Every_column_of_the_list_can_be_sorted(string sort) =>
         Assert.True(new ListFormDefinitionsRequestValidator().Validate(new ListFormDefinitionsRequest { Sort = sort }).IsValid);
+
+    // FU2-A: «Pending» (what awaits the decision of whoever asks) is one more segment; anything else is still rejected.
+    [Theory]
+    [InlineData("Active", true)]
+    [InlineData("Published", true)]
+    [InlineData("Drafts", true)]
+    [InlineData("Deactivated", true)]
+    [InlineData("Pending", true)]
+    [InlineData("All", false)]
+    [InlineData("pending", false)]
+    public void Only_the_segments_of_the_list_are_valid_filters(string filter, bool valid) =>
+        Assert.Equal(valid, new ListFormDefinitionsRequestValidator().Validate(new ListFormDefinitionsRequest { PublicationFilter = filter }).IsValid);
 
     // «Deprecación», the withdrawal from the channel, comes from the module of the channel and not from SQL; the actions are no datum.
     [Theory]

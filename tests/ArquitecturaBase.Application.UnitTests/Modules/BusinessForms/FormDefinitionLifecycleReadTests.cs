@@ -93,6 +93,64 @@ public sealed class FormDefinitionLifecycleReadTests
         var result = await fixture.Policy.ListAsync(new() { Sort = "responseCount" }, fixture.User.UserId!.Value, Ct);
         Assert.Equal(FormDefinitionErrors.Forbidden.Code, result.Error.Code);
     }
+    // FU2-A: each row counts what awaits the decision of whoever asks, only for whoever can decide approvals. The reader learns who
+    // decides from the policy, never from the client; without the permission the count is omitted, even if the reader had one.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Rows_count_what_awaits_the_decision_only_for_whoever_can_decide(bool canDecide)
+    {
+        var fixture = new FormDefinitionLifecycleReadFixture();
+        var actor = fixture.User.UserId!.Value;
+        if (canDecide) fixture.Permissions.Permissions[actor] = [.. fixture.Permissions.Permissions[actor], BusinessFormsPermissions.ApprovalsDecide];
+        var result = await fixture.Policy.ListAsync(new() { DeciderUserId = Guid.NewGuid() }, actor, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(canDecide ? actor : (Guid?)null, fixture.ListedRequest?.DeciderUserId);
+        int?[] expected = canDecide ? [3, 0] : [null, null];
+        Assert.Equal(expected, result.Value.Items.Select(row => row.PendingDecisionCount));
+        var json = JsonSerializer.Serialize(result.Value.Items[0], JsonSerializerOptions.Web);
+        Assert.Equal(canDecide, json.Contains("\"pendingDecisionCount\":3", StringComparison.Ordinal));
+        Assert.Equal(canDecide, json.Contains("pendingDecisionCount", StringComparison.Ordinal));
+    }
+    // «Pending» lists what awaits the decision of whoever asks: without the permission to decide it is not theirs to ask.
+    [Fact]
+    public async Task The_pending_filter_is_forbidden_without_the_permission_to_decide()
+    {
+        var fixture = new FormDefinitionLifecycleReadFixture();
+        var result = await fixture.Policy.ListAsync(new() { PublicationFilter = "Pending" }, fixture.User.UserId!.Value, Ct);
+        Assert.Equal(FormDefinitionErrors.Forbidden.Code, result.Error.Code);
+        Assert.Null(fixture.ListedRequest);
+    }
+    // OT1-C: the count sorts only for whoever can decide; for anyone else the column is empty and the list keeps its usual order.
+    [Theory]
+    [InlineData(true, "-pendingDecisionCount")]
+    [InlineData(false, null)]
+    public async Task Decisions_sort_only_for_whoever_can_decide(bool canDecide, string? expected)
+    {
+        var fixture = new FormDefinitionLifecycleReadFixture();
+        var actor = fixture.User.UserId!.Value;
+        if (canDecide) fixture.Permissions.Permissions[actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.ApprovalsDecide];
+        var result = await fixture.Policy.ListAsync(new() { Sort = "-pendingDecisionCount" }, actor, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, fixture.ListedRequest?.Sort);
+    }
+    // Losing the permission to decide during the read hides the counts; when the filter or the order already followed them, the
+    // page is discarded instead.
+    [Theory]
+    [InlineData("Active", null, true)]
+    [InlineData("Pending", null, false)]
+    [InlineData("Active", "pendingDecisionCount", false)]
+    public async Task Losing_the_permission_to_decide_during_the_read_hides_the_counts_or_discards_the_page(string filter, string? sort, bool succeeds)
+    {
+        var fixture = new FormDefinitionLifecycleReadFixture();
+        var actor = fixture.User.UserId!.Value;
+        fixture.Permissions.Permissions[actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.ApprovalsDecide];
+        fixture.BeforeFactsReturn = () => fixture.Permissions.Permissions[actor] = [BusinessFormsPermissions.Read];
+        var result = await fixture.Policy.ListAsync(new() { PublicationFilter = filter, Sort = sort }, actor, Ct);
+        Assert.Equal(succeeds, result.IsSuccess);
+        if (succeeds) Assert.All(result.Value.Items, row => Assert.Null(row.PendingDecisionCount));
+        else Assert.Equal(FormDefinitionErrors.Forbidden.Code, result.Error.Code);
+    }
     [Fact]
     public async Task Lifecycle_is_a_detail_sibling_and_does_not_enter_the_editable_definition()
     {

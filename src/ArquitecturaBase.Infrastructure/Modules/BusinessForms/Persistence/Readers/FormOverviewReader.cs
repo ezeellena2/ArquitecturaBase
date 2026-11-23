@@ -4,7 +4,6 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
-using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +43,7 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
         var counted = db.Set<BusinessFormRecord>().Where(record => record.ReplacedByRecordId == null && record.State != FormRecordState.Voided)
             .OrderByDescending(record => record.Number);
         var mine = counted.Where(record => record.ActorUserId == actorUserId);
+        var awaiting = FormPendingDecisionQuery.AwaitingDecisionOf(db, actorUserId);
         var query = from definition in Definitions()
                     join version in db.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.PublishedCultures != null)
                         on definition.ActiveVersionId equals version.Id
@@ -54,12 +54,7 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
                             : version.Culture == "en" ? EF.Property<string>(version, "DisplayNameEn") : EF.Property<string>(version, "DisplayNameEs"),
                         Prefix = definition.Prefix,
                         DeactivatedAtUtc = definition.DeactivatedAtUtc,
-                        PendingApprovalCount = canDecide ? db.Set<BusinessFormTask>().Count(task =>
-                            task.DefinitionId == definition.Id && task.State == FormTaskState.Open && (task.AuthorMayDecide || task.AuthorUserId != actorUserId
-                            && !db.Set<BusinessFormRecord>().Any(record => record.Id == task.RecordId && record.CorrectedByUserId == actorUserId)
-                            && !db.Set<FormReceivedDocument>().Any(document => document.RecordId == task.RecordId && document.ReviewedByUserId == actorUserId))
-                            && db.Users.Any(user => user.Id == actorUserId && user.IsActive)
-                            && db.UserRoles.Any(link => link.UserId == actorUserId && link.RoleId == task.RoleId)) : null,
+                        PendingApprovalCount = canDecide ? awaiting.Count(task => task.DefinitionId == definition.Id) : null,
                         ResponseCount = canReadRecords ? counted.LongCount(record => record.DefinitionId == definition.Id)
                             : own ? mine.LongCount(record => record.DefinitionId == definition.Id) : null,
                         LastRecordId = canReadRecords ? counted.Where(record => record.DefinitionId == definition.Id).Select(record => (Guid?)record.Id).FirstOrDefault()
