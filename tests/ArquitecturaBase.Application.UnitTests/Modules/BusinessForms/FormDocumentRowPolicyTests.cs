@@ -65,6 +65,26 @@ public sealed class FormDocumentRowPolicyTests
         Assert.Equal(["500", "2026-02-03"], FormDocumentRowPolicy.Summary(plan.Rows[4].Candidate!).Select(value => value.Value));
     }
 
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(5, 5)]
+    [InlineData(0, 1)]
+    public async Task The_channel_says_how_many_rows_load_and_the_rest_go_to_the_team(int asked, int loaded)
+    {
+        // RC2-B: a WhatsApp agent's «Formularios por planilla» replaces the three loads; never fewer than one.
+        var f = new Fixture();
+        var rows = FormDocumentRowPolicy.DataRows([
+            Sheet("Enero", Row(1, "Fecha", "Monto"), Row(2, "2026-11-03", "100"), Row(3, "2026-11-04", "200"), Row(4, "2026-11-05", "300"),
+                Row(5, "2026-11-06", "400"), Row(6, "2026-11-07", "500"), Row(7, "2026-11-08", "600"))]);
+        var proposal = Fixture.Proposal([f.Payments("Enero", [2, 3, 4, 5, 6, 7])], seen: [new("Enero", [2, 3, 4, 5, 6, 7])]);
+
+        var plan = await f.Policy.PrepareAsync(proposal, rows, "es", Ct, maximumLoads: asked);
+
+        Assert.Equal(loaded, plan.Rows.Count(row => row.Outcome == FormDocumentRowOutcome.Load));
+        Assert.Equal(6 - loaded, plan.Rows.Count(row => row.Outcome == FormDocumentRowOutcome.OverLimit));
+        Assert.All(plan.Rows.Take(loaded), row => Assert.Equal(FormDocumentRowOutcome.Load, row.Outcome));
+    }
+
     [Fact]
     public async Task Rows_of_a_form_its_person_cannot_receive_go_to_the_team_and_do_not_count_for_the_limit()
     {

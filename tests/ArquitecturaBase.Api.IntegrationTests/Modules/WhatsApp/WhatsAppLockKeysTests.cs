@@ -21,5 +21,6 @@ public sealed class WhatsAppLockKeysTests
     public void The_main_assistant_agent_keeps_its_key()
     {
         Assert.Equal("whatsapp-assistant-agent:main", WhatsAppLockKeys.AssistantAgent);
+        Assert.Equal("whatsapp-settings:main", WhatsAppLockKeys.Settings);
     }
 }

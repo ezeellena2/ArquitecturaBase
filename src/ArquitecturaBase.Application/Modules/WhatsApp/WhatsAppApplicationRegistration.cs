@@ -24,12 +24,13 @@ public static class WhatsAppApplicationRegistration
         services.AddOptions<WhatsAppLoginOptions>()
             .BindConfiguration(WhatsAppLoginOptions.SectionName)
             .ValidateDataAnnotations()
-            .Validate(options => options.HasValidCountries(), WhatsAppLoginOptions.AllowedCountriesError)
             .ValidateOnStart();
 
         // El canal telefónico del módulo reemplaza al apagado del núcleo (TryAdd allá, Replace acá: vale en cualquier
-        // orden). Singleton, como el apagado: solo depende de singletons.
-        services.Replace(ServiceDescriptor.Singleton<IPhoneChannel, WhatsAppPhoneChannel>());
+        // orden). Con scope: lee los países de Configuración › WhatsApp en cada uso (RC3-A).
+        services.Replace(ServiceDescriptor.Scoped<IPhoneChannel, WhatsAppPhoneChannel>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IClientCapabilitySource, WhatsAppClientCapabilitySource>());
+        services.AddScoped<IWhatsAppSettingsService, WhatsAppSettingsService>();
         services.Replace(ServiceDescriptor.Singleton<IAssistantOperationCompletionSignal, WhatsAppAssistantOperationCompletionSignal>());
 
         // Compilación local de formularios; disponible sin transporte, sin efectos externos ni aceptación durable.

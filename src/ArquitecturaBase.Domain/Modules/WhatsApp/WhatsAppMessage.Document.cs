@@ -30,7 +30,10 @@ public sealed partial class WhatsAppMessage
     /// <summary>The largest document copied: as much as the assistant attaches.</summary>
     public const long MaxDocumentBytes = 10 * 1024 * 1024;
 
-    /// <summary>The most pages a PDF that is read may have.</summary>
+    /// <summary>
+    /// The most pages any PDF that is read may have, as the documents' reader and the engine take them: the agent's limit (RC2-B, «Páginas
+    /// de un PDF», 10 by default) is at most this one.
+    /// </summary>
     public const int MaxDocumentPages = 10;
 
     /// <summary>A reading, serialized: its text is bounded by its owner (a Word) or the engine; this only bounds the column.</summary>

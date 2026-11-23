@@ -1,15 +1,14 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Phones;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Services.Auth;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.ValueObjects;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
@@ -29,7 +28,7 @@ internal sealed class WhatsAppCodeIssuer(
     IWhatsAppSendQueue sendQueue,
     IWhatsAppAvailability whatsApp,
     AccountCreationPolicy accountCreation,
-    IOptions<WhatsAppLoginOptions> options)
+    IWhatsAppSettingsReader settings)
 {
     /// <summary>
     /// La ruta HTTP se omite con WhatsApp apagado: llegar hasta acá es un error de programación. El punto de entrada lo
@@ -63,7 +62,7 @@ internal sealed class WhatsAppCodeIssuer(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var phoneResult = ReadPhone(request.Country, request.Number);
+        var phoneResult = await ReadPhoneAsync(request.Country, request.Number, cancellationToken);
         if (phoneResult.IsFailure)
         {
             return phoneResult.Error;
@@ -109,7 +108,7 @@ internal sealed class WhatsAppCodeIssuer(
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(request);
 
-        var phoneResult = ReadPhone(request.Country, request.Number);
+        var phoneResult = await ReadPhoneAsync(request.Country, request.Number, cancellationToken);
         if (phoneResult.IsFailure)
         {
             return phoneResult.Error;
@@ -170,8 +169,8 @@ internal sealed class WhatsAppCodeIssuer(
         return new RequestPhoneConfirmationCodeResponse(issued.Value.ResendCooldownSeconds, phoneNumbers.Mask(phone));
     }
 
-    // El país sale del número ya interpretado, no del que eligió la persona.
-    private Result<PhoneNumber> ReadPhone(string? country, string? number)
+    // El país sale del número ya interpretado, no del que eligió la persona; los países son los de Configuración › WhatsApp (RC3-A).
+    private async Task<Result<PhoneNumber>> ReadPhoneAsync(string? country, string? number, CancellationToken cancellationToken)
     {
         var phoneResult = phoneNumbers.Parse(country, number);
         if (phoneResult.IsFailure)
@@ -179,7 +178,7 @@ internal sealed class WhatsAppCodeIssuer(
             return phoneResult;
         }
 
-        return options.Value.AllowsCountry(phoneNumbers.RegionOf(phoneResult.Value))
+        return WhatsAppCountries.Allows((await settings.FindAsync(cancellationToken)).AllowedCountries, phoneNumbers.RegionOf(phoneResult.Value))
             ? phoneResult
             : WhatsAppErrors.CountryNotSupported;
     }

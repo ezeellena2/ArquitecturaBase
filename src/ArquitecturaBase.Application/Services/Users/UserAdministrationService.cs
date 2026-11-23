@@ -93,7 +93,7 @@ internal sealed class UserAdministrationService(
             return emailResult.Error;
         }
 
-        var phoneResult = contacts.ReadPhone(request.Phone);
+        var phoneResult = await contacts.ReadPhoneAsync(request.Phone, cancellationToken);
         if (phoneResult.IsFailure)
         {
             return phoneResult.Error;
@@ -219,7 +219,7 @@ internal sealed class UserAdministrationService(
             ? email
             : null;
         var newPhone = phone is not null && phone.Value != user.PhoneNumber ? phone : null;
-        if (newPhone is not null && contacts.EnsureCountryAllowed(newPhone) is { IsFailure: true } country)
+        if (newPhone is not null && await contacts.EnsureCountryAllowedAsync(newPhone, cancellationToken) is { IsFailure: true } country)
         {
             return country.Error;
         }

@@ -9,7 +9,7 @@ Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/feature
 ## Carpetas
 
 - `Channels`: adaptadores de los puertos neutrales del núcleo ([guía](Channels/AGENTS.md)).
-- `Configuration`: opciones del ingreso, retención y perfil técnico de Flows (`WhatsAppFlowProfile`).
+- `Configuration`: opciones del ingreso y perfil técnico de Flows (`WhatsAppFlowProfile`). El tiempo para contestar un formulario, los países que reciben códigos y la retención son de Configuración › WhatsApp (`IWhatsAppSettingsReader`, leído en cada uso; RC3-A).
 - `Interfaces/Integrations`: puertos hacia Meta, protectores de datos sellados, cola de acceso, webhook y señal entrante.
 - `Interfaces/Persistence`: repositorios y lectores del módulo.
 - `Interfaces/Services`: contratos de los casos de uso que consumen Api, Infrastructure y `Channels`.

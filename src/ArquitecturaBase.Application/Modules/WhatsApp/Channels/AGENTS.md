@@ -4,7 +4,8 @@ Implementa puertos neutrales de `Application/Interfaces/Channels` con lo que sab
 
 | Adaptador | Puerto | Aporta |
 |---|---|---|
-| `WhatsAppPhoneChannel` | `IPhoneChannel` (`Replace`) | países y número del bot con WhatsApp prendido; el país de un número nuevo se valida siempre |
+| `WhatsAppPhoneChannel` | `IPhoneChannel` (`Replace`, scoped) | países de Configuración › WhatsApp, leídos en cada pedido, y número del bot con WhatsApp prendido; el país de un número nuevo se valida siempre |
+| `WhatsAppClientCapabilitySource` | `IClientCapabilitySource` | `whatsapp` en `installedFeatures`, con el transporte prendido o apagado: el menú muestra Configuración › WhatsApp (RC3-A) |
 | `WhatsAppPhoneLinkParticipant` | `IPhoneLinkParticipant` | locks, vínculo y desvínculo del contacto por `WhatsAppContactLinker` |
 | `WhatsAppInvitationChannel` | `IInvitationChannel` | chequea disponibilidad, número, consentimiento y nombre, en ese orden; encola la plantilla o marca la invitación no enviada |
 | `WhatsAppInvitationDeliveryStatusSource` | `IInvitationDeliveryStatusSource` | último estado de Meta del saliente; Pending sin id |

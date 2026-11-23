@@ -448,6 +448,8 @@
   <data name="WhatsApp.Assistant.OfferLimitReached" xml:space="preserve"><value>The conversation reached today's limit of form offers.</value></data>
   <data name="WhatsApp.AssistantAgent.Invalid" xml:space="preserve"><value>Check the assistant's configuration.</value></data>
   <data name="WhatsApp.AssistantAgent.RevisionConflict" xml:space="preserve"><value>Someone else changed the assistant. Check their changes before saving.</value></data>
+  <data name="WhatsApp.Settings.Invalid" xml:space="preserve"><value>Check the WhatsApp settings.</value></data>
+  <data name="WhatsApp.Settings.RevisionConflict" xml:space="preserve"><value>Someone else changed the WhatsApp settings. Check their changes before saving.</value></data>
   <data name="Forms.MissingRequest.ContentInvalid" xml:space="preserve">
     <value>The missing form request is invalid.</value>
   </data>

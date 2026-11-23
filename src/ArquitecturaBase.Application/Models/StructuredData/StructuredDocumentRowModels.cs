@@ -19,6 +19,13 @@ public sealed record StructuredDocumentRowsRegistrationRequest(string ChannelId,
     public StructuredDocumentNotRead? NotRead { get; init; }
     public DateTime? ReplyExpiresAtUtc { get; init; }
     public Guid? FocusDefinitionId { get; init; }
+
+    /// <summary>
+    /// How many loads the channel sends its person for one spreadsheet (a WhatsApp agent's «Formularios por planilla», RC2-B): a row past them
+    /// is the team's. Null: the inbox's own limit.
+    /// </summary>
+    public int? MaximumLoads { get; init; }
+
     public override string ToString() => "StructuredDocumentRowsRegistrationRequest { Content = [REDACTED] }";
 }
 

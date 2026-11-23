@@ -21,7 +21,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// interpretation recognizes the rows for it (<see cref="IStructuredDocumentRowsChannel.RecognizeRowsAsync"/>), answered like a first registration.
 /// </summary>
 internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRowsChannel rows, IStructuredDocumentChannel documents,
-    WhatsAppFormSendPolicy sending, IWhatsAppFlowEnvironment environment, IAssistantOperations operations, IWhatsAppAssistantReader reader, TimeProvider clock)
+    WhatsAppFormSendPolicy sending, IWhatsAppFlowEnvironment environment, IAssistantOperations operations, IWhatsAppAssistantReader reader, TimeProvider clock,
+    IWhatsAppAssistantAgentReader agents)
 {
     public static readonly AssistantCapabilityReference ProposeRows = new("forms.documents.propose-rows", 1);
     private const int MaximumBody = 1024;
@@ -48,8 +49,8 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
             || Prepared(sheet) is not { DataRowCount: not null } prepared) return WhatsAppAssistantErrors.InvalidProposal;
         var culture = context.Culture;
         var proposalId = proposal?.Id ?? reference.RequestId;
-        var expiresAtUtc = ReplyExpiresAtUtc(reference);
-        var request = Request(reference, source, sheet, prepared, culture, proposal, expiresAtUtc);
+        var expiresAtUtc = await ReplyExpiresAtUtcAsync(reference, ct);
+        var request = Request(reference, source, sheet, prepared, culture, proposal, expiresAtUtc, await MaxLoadsAsync(ct));
         // A form chosen from the list: its proposal recognizes the rows only for that form; without one, the question is asked again.
         var registration = context.FocusDefinitionId is { } focus && proposal is not null
             ? await rows.RecognizeRowsAsync(request with { FocusDefinitionId = focus }, ct) : await rows.RegisterRowsAsync(request, ct);
@@ -60,7 +61,8 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
                 var deadline = registration.ReplyExpiresAtUtc is { } kept && kept < expiresAtUtc ? kept : expiresAtUtc;
                 var recognized = new StructuredRecordAssistantProposal(proposal.Id, proposal.Capability.Id, proposal.Capability.Version, operation.Provenance!);
                 var (loads, said) = deadline > clock.GetUtcNow().UtcDateTime
-                    ? await LoadsAsync(reference, sheet, prepared, registration, recognized, culture, deadline, ct) : ([], Said(registration, []));
+                    ? await LoadsAsync(reference, sheet, prepared, registration, recognized, culture, deadline, request.MaximumLoads!.Value, ct)
+                    : ([], Said(registration, []));
                 return new WhatsAppAssistantTerminalResponse(proposal.Id, Notice(said, context.TimeZoneId, culture), culture)
                 {
                     Loads = loads, SpreadsheetRowsJson = WhatsAppSpreadsheetRowsCodec.Serialize(said),
@@ -96,7 +98,8 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
             || Prepared(sheet) is not { DataRowCount: not null } prepared) return WhatsAppAssistantErrors.InvalidProposal;
         var context = WhatsAppAssistantSuggestionPolicy.Context(reference);
         var culture = context.Culture;
-        var registration = await rows.RegisterRowsAsync(Request(reference, source, sheet, prepared, culture, null, ReplyExpiresAtUtc(reference))
+        var registration = await rows.RegisterRowsAsync(Request(reference, source, sheet, prepared, culture, null, await ReplyExpiresAtUtcAsync(reference, ct),
+                await MaxLoadsAsync(ct))
             with { NotRead = StructuredDocumentNotRead.Quota }, ct);
         return registration.Kind != StructuredDocumentReplyKind.Quota || await AnsweredAsync(reference, context, messageId, registration, ct)
             ? Result.Success<WhatsAppAssistantTerminalResponse?>(null)
@@ -121,7 +124,8 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
         if (operation.IsFailure || operation.Value is null
             || (proposal is null ? proposalId != reference.RequestId : proposal.Id != proposalId || !Handles(proposal.Capability)))
             return new(reference, NotPrepared(proposalId, culture), null);
-        var registration = await rows.RegisterRowsAsync(Request(reference, source, sheet, prepared, culture, proposal, ReplyExpiresAtUtc(reference)), ct);
+        var registration = await rows.RegisterRowsAsync(Request(reference, source, sheet, prepared, culture, proposal, await ReplyExpiresAtUtcAsync(reference, ct),
+            await MaxLoadsAsync(ct)), ct);
         if (registration is not { Kind: StructuredDocumentReplyKind.Unknown, DocumentId: { } documentId }) return new(reference, NotPrepared(proposalId, culture), null);
         if (definitionId is { } form)
             return registration.Forms.Any(choice => choice.DefinitionId == form) ? new(reference, null, form) { Applies = true, Spreadsheet = true }
@@ -178,12 +182,13 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
     // team after its deadline.
     private async Task<(IReadOnlyList<WhatsAppAssistantSpreadsheetLoad> Loads, StructuredDocumentRowsRegistration Said)> LoadsAsync(
         WhatsAppAssistantReferenceRow reference, WhatsAppAssistantSpreadsheetRow sheet, StructuredSpreadsheet prepared, StructuredDocumentRowsRegistration registration,
-        StructuredRecordAssistantProposal recognized, string culture, DateTime deadline, CancellationToken ct)
+        StructuredRecordAssistantProposal recognized, string culture, DateTime deadline, int maxLoads, CancellationToken ct)
     {
         var fileName = WhatsAppMessage.SpreadsheetName(sheet.FileName, prepared.MediaType);
         var built = new List<(StructuredDocumentRowRegistration Row, WhatsAppAssistantDocumentSend Send)>();
+        // RC2-B: as many as «Formularios por planilla» asked of the inbox; a row past them is the team's (OverLimit).
         foreach (var row in registration.Rows.Where(row => row is { Kind: StructuredDocumentRowKind.Load, Form: not null }).OrderBy(row => row.Position)
-                     .Take(WhatsAppAssistantRequest.MaxLoads))
+                     .Take(maxLoads))
         {
             var ready = await documents.PrepareSendAsync(new(row.DocumentId, WhatsAppReceivedDocumentPreparationPolicy.ChannelId, SourceId(sheet.MessageId),
                 reference.SubjectUserId, culture, row.Form!.DefinitionId), ct);
@@ -222,18 +227,24 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
         registration.WasAlreadyRegistered && await reader.ExistsAttachmentAnswerAsync(reference.ContactId, messageId, ct,
             ContinuedQuestion(context, reference.PreviousRequestId));
 
+    // RC2-B: «Formularios por planilla» of the saved agent, 3 until it is saved; the inbox sends the person no more loads than these.
+    private async Task<int> MaxLoadsAsync(CancellationToken ct) =>
+        (await agents.FindMainAsync(ct))?.Limits.MaxSpreadsheetLoads ?? WhatsAppAssistantAgentLimits.DefaultSpreadsheetLoads;
+
     private static StructuredDocumentRowsRegistrationRequest Request(WhatsAppAssistantReferenceRow reference, WhatsAppAssistantSourceRow source,
-        WhatsAppAssistantSpreadsheetRow sheet, StructuredSpreadsheet prepared, string culture, AssistantObservedProposal? proposal, DateTime expiresAtUtc) =>
+        WhatsAppAssistantSpreadsheetRow sheet, StructuredSpreadsheet prepared, string culture, AssistantObservedProposal? proposal, DateTime expiresAtUtc,
+        int maxLoads) =>
         new(WhatsAppReceivedDocumentPreparationPolicy.ChannelId, SourceId(sheet.MessageId), reference.SubjectUserId, culture, source.OccurredAtUtc,
             new StructuredDocumentCopy(sheet.StorageKey, WhatsAppMessage.SpreadsheetName(sheet.FileName, prepared.MediaType), prepared.MediaType, sheet.Size, sheet.Sha256, null))
         {
-            Proposal = proposal, SampleSha256 = prepared.Sha256, ReplyExpiresAtUtc = expiresAtUtc,
+            Proposal = proposal, SampleSha256 = prepared.Sha256, ReplyExpiresAtUtc = expiresAtUtc, MaximumLoads = maxLoads,
         };
 
-    // The reply deadline is the expiry of the sends that may follow: the session lifetime, bounded by the reference's content.
-    private DateTime ReplyExpiresAtUtc(WhatsAppAssistantReferenceRow reference)
+    // The reply deadline is the expiry of the sends that may follow: the session lifetime of Configuración › WhatsApp (RC3-A), bounded by the
+    // reference's content.
+    private async Task<DateTime> ReplyExpiresAtUtcAsync(WhatsAppAssistantReferenceRow reference, CancellationToken ct)
     {
-        var expiresAtUtc = clock.GetUtcNow().UtcDateTime.Add(environment.SessionLifetime);
+        var expiresAtUtc = clock.GetUtcNow().UtcDateTime.Add(await environment.FindSessionLifetimeAsync(ct));
         return reference.ContentExpiresAtUtc < expiresAtUtc ? reference.ContentExpiresAtUtc : expiresAtUtc;
     }
 

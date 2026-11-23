@@ -6,12 +6,13 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 
-internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<WhatsAppMessageRetentionOptions> retention,TimeProvider clock) : IWhatsAppAssistantReader
+internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IWhatsAppSettingsReader settings,TimeProvider clock) : IWhatsAppAssistantReader
 {
+    // RC3-A: the retention of Configuración › WhatsApp, read on every use (90 days until it is saved).
+    private async Task<int> RetentionDaysAsync(CancellationToken ct)=>(await settings.FindAsync(ct)).MessageRetentionDays;
     private IQueryable<WhatsAppAssistantRequest> References()=>db.Set<WhatsAppAssistantRequest>().AsNoTracking();
     private IQueryable<WhatsAppMessage> BusinessInbound()=>db.Set<WhatsAppMessage>().AsNoTracking().Where(message=>message.Direction==WhatsAppMessageDirection.Inbound && message.Purpose!=WhatsAppMessagePurpose.Access);
     // Review of task 9 of the documents: a tap on a document question that was only answered (not a form chosen that continues the
@@ -21,8 +22,8 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         && !db.Set<WhatsAppAssistantRequest>().Any(reference=>reference.ContactId==message.ContactId && reference.SourceMessageId==message.Id
             && reference.PreviousRequestId!=null)));
     // A stored spreadsheet (IA, Stage 2) is a source with or without its caption while its copy and its prepared sheet last.
-    private IQueryable<WhatsAppMessage> Sources()=>BusinessInbound().Where(message=>message.ProcessedAtUtc!=null
-        && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
+    private IQueryable<WhatsAppMessage> Sources(int days)=>BusinessInbound().Where(message=>message.ProcessedAtUtc!=null
+        && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-days)
         && ((message.Kind==WhatsAppMessageKind.Text || message.Kind==WhatsAppMessageKind.Audio && message.AudioState==WhatsAppAudioState.Completed
                 && message.AudioContentExpiresAtUtc>clock.GetUtcNow().UtcDateTime
                 // Casos del asistente: a tap on a case's button reads as its title; a fixed text or a handoff is answered before.
@@ -40,20 +41,20 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             // Task 9 of the documents: a read document, with its copy and its reading, like a stored spreadsheet.
             || message.Kind==WhatsAppMessageKind.ReceivedDocument && message.DocumentState==WhatsAppDocumentState.Read && message.DocumentStorageKey!=null
                 && message.DocumentSize!=null && message.DocumentCopySha256!=null && message.DocumentReadingJson!=null));
-    private IQueryable<WhatsAppAssistantSourceRow> SourceRows(IQueryable<WhatsAppMessage> messages)=>messages.Select(message=>new WhatsAppAssistantSourceRow(
+    private static IQueryable<WhatsAppAssistantSourceRow> SourceRows(IQueryable<WhatsAppMessage> messages,int days)=>messages.Select(message=>new WhatsAppAssistantSourceRow(
         message.Id,message.ContactId!.Value,SourceBody(message.Kind,message.Body),message.OccurredAtUtc,
-        message.Kind==WhatsAppMessageKind.Audio && message.AudioContentExpiresAtUtc<message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays)
-            ? message.AudioContentExpiresAtUtc!.Value : message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays))
+        message.Kind==WhatsAppMessageKind.Audio && message.AudioContentExpiresAtUtc<message.OccurredAtUtc.AddDays(days)
+            ? message.AudioContentExpiresAtUtc!.Value : message.OccurredAtUtc.AddDays(days))
         {CapturedRecordId=message.Kind==WhatsAppMessageKind.FlowReply?message.FlowRecordId:null,WaMessageId=message.WaMessageId,AssistantProcessedAtUtc=message.AssistantProcessedAtUtc,
             Kind=message.Kind,InboundSequence=message.InboundSequence,
             Spreadsheet=message.Kind==WhatsAppMessageKind.Spreadsheet && message.SpreadsheetState==WhatsAppSpreadsheetState.Stored && message.SpreadsheetStorageKey!=null
                 && message.SpreadsheetSize!=null && message.SpreadsheetCopySha256!=null && message.SpreadsheetPreparedJson!=null
                 ? new WhatsAppAssistantSpreadsheetRow(message.Id,message.SpreadsheetStorageKey,OrEmpty(message.SpreadsheetFileName),message.SpreadsheetSize.Value,
-                    message.SpreadsheetCopySha256,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),OrEmpty(message.SpreadsheetPreparedJson)) : null,
+                    message.SpreadsheetCopySha256,message.OccurredAtUtc.AddDays(days),OrEmpty(message.SpreadsheetPreparedJson)) : null,
             Document=message.Kind==WhatsAppMessageKind.ReceivedDocument && message.DocumentState==WhatsAppDocumentState.Read && message.DocumentStorageKey!=null
                 && message.DocumentSize!=null && message.DocumentCopySha256!=null && message.DocumentReadingJson!=null
                 ? new WhatsAppAssistantDocumentRow(message.Id,message.DocumentStorageKey,OrEmpty(message.DocumentFileName),message.DocumentSize.Value,
-                    message.DocumentCopySha256,message.DocumentPages,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),OrEmpty(message.DocumentReadingJson))
+                    message.DocumentCopySha256,message.DocumentPages,message.OccurredAtUtc.AddDays(days),OrEmpty(message.DocumentReadingJson))
                     {ReceivedAtUtc=message.OccurredAtUtc} : null});
     // H16 (ADR 0030): what a message says is encrypted, so nothing goes next to it in SQL (a constant there would go through its converter):
     // these run on what was read. What the key ring no longer opens reads as null while SQL still sees it, so a prepared sheet or a reading
@@ -99,7 +100,7 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     }
     private async Task<WhatsAppAssistantNeighborRow?> FindPreviousAsync(WhatsAppAssistantSourceRow source,CancellationToken ct)
     {
-        var nowUtc=clock.GetUtcNow().UtcDateTime;var days=retention.Value.MessageRetentionDays;
+        var nowUtc=clock.GetUtcNow().UtcDateTime;var days=await RetentionDaysAsync(ct);
         var previous=await PreviousRows(source).FirstOrDefaultAsync(ct);
         if(previous is null)return null;
         var expiresAtUtc=previous.OccurredAtUtc.AddDays(days);
@@ -134,8 +135,9 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             if(await FindDocumentAsync(source.ContactId,attachment,ct) is {} document)
                 return source with {Document=document,ContentExpiresAtUtc=document.ExpiresAtUtc<source.ContentExpiresAtUtc?document.ExpiresAtUtc:source.ContentExpiresAtUtc};
             // VC1-A: and one chosen for a spreadsheet none of whose rows fit, with the stored spreadsheet it carries.
-            var sheet=(await SourceRows(Sources().Where(message=>message.ContactId==source.ContactId && message.Id==attachment
-                && message.Kind==WhatsAppMessageKind.Spreadsheet)).SingleOrDefaultAsync(ct))?.Spreadsheet;
+            var days=await RetentionDaysAsync(ct);
+            var sheet=(await SourceRows(Sources(days).Where(message=>message.ContactId==source.ContactId && message.Id==attachment
+                && message.Kind==WhatsAppMessageKind.Spreadsheet),days).SingleOrDefaultAsync(ct))?.Spreadsheet;
             return sheet is null ? source
                 : source with {Spreadsheet=sheet,ContentExpiresAtUtc=sheet.ExpiresAtUtc<source.ContentExpiresAtUtc?sheet.ExpiresAtUtc:source.ContentExpiresAtUtc};
         }
@@ -170,37 +172,45 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                     && message.Id==BusinessInbound().Where(latest=>latest.ContactId==contactId).OrderByDescending(latest=>latest.InboundSequence).ThenByDescending(latest=>latest.Id).Select(latest=>(Guid?)latest.Id).FirstOrDefault()
                     && message.Kind==WhatsAppMessageKind.FlowReply && message.ProcessedAtUtc!=null && message.FlowCaptureState==WhatsAppFlowCaptureState.Completed && message.FlowRecordId==row.SourceRecordId))
          select row;
-    public async Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId,Guid sourceMessageId,CancellationToken ct)=>
-        await ResolveAsync(await SourceRows(Sources().Where(message=>message.ContactId==contactId && message.Id==sourceMessageId)).SingleOrDefaultAsync(ct),ct);
-    public Task<WhatsAppAssistantChoiceRow?> FindLatestChoiceAsync(Guid contactId,CancellationToken ct)
+    public async Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId,Guid sourceMessageId,CancellationToken ct)
     {
+        var days=await RetentionDaysAsync(ct);
+        return await ResolveAsync(await SourceRows(Sources(days).Where(message=>message.ContactId==contactId && message.Id==sourceMessageId),days).SingleOrDefaultAsync(ct),ct);
+    }
+    public async Task<WhatsAppAssistantChoiceRow?> FindLatestChoiceAsync(Guid contactId,CancellationToken ct)
+    {
+        var days=await RetentionDaysAsync(ct);
         var latest=BusinessInbound().Where(message=>message.ContactId==contactId).OrderByDescending(message=>message.InboundSequence)
             .ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).Take(1);
-        return BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
+        return await BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
                 && message.Kind==WhatsAppMessageKind.ButtonReply && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null
-                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
+                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-days)
                 && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantReplyCodec.Prefix+"%"))
             .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
     }
-    public Task<WhatsAppAssistantChoiceRow?> FindLatestAuthoringTapAsync(Guid contactId,CancellationToken ct)
+    public async Task<WhatsAppAssistantChoiceRow?> FindLatestAuthoringTapAsync(Guid contactId,CancellationToken ct)
     {
+        var days=await RetentionDaysAsync(ct);
         var latest=BusinessInbound().Where(message=>message.ContactId==contactId).OrderByDescending(message=>message.InboundSequence)
             .ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).Take(1);
-        return BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
+        return await BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
                 && message.Kind==WhatsAppMessageKind.ButtonReply && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null
-                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
+                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-days)
                 && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantAuthoringReplyCodec.Prefix+"%"))
             .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
     }
     // Task 9 of the documents: the read document a reference carries, by its message, whatever pairs with it now.
-    public Task<WhatsAppAssistantDocumentRow?> FindDocumentAsync(Guid contactId,Guid messageId,CancellationToken ct)=>
-        BusinessInbound().Where(message=>message.ContactId==contactId && message.Id==messageId && message.Kind==WhatsAppMessageKind.ReceivedDocument
+    public async Task<WhatsAppAssistantDocumentRow?> FindDocumentAsync(Guid contactId,Guid messageId,CancellationToken ct)
+    {
+        var days=await RetentionDaysAsync(ct);
+        return await BusinessInbound().Where(message=>message.ContactId==contactId && message.Id==messageId && message.Kind==WhatsAppMessageKind.ReceivedDocument
                 && message.DocumentState==WhatsAppDocumentState.Read && message.DocumentStorageKey!=null && message.DocumentSize!=null
                 && message.DocumentCopySha256!=null && message.DocumentReadingJson!=null
-                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays))
+                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-days))
             .Select(message=>new WhatsAppAssistantDocumentRow(message.Id,message.DocumentStorageKey!,OrEmpty(message.DocumentFileName),message.DocumentSize!.Value,
-                message.DocumentCopySha256!,message.DocumentPages,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),OrEmpty(message.DocumentReadingJson))
+                message.DocumentCopySha256!,message.DocumentPages,message.OccurredAtUtc.AddDays(days),OrEmpty(message.DocumentReadingJson))
                 {ReceivedAtUtc=message.OccurredAtUtc}).SingleOrDefaultAsync(ct);
+    }
     // Review of task 9: a tap on a document question changes something only in the person's automatic conversation with the question's
     // link, before its content expires, and once: another tap on the same question that got its own reference already answered it.
     public async Task<WhatsAppAssistantDocumentTapState> FindDocumentTapStateAsync(WhatsAppAssistantReferenceRow question,Guid tapId,DateTime nowUtc,CancellationToken ct)
@@ -222,13 +232,14 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         return answered?WhatsAppAssistantDocumentTapState.Answered:WhatsAppAssistantDocumentTapState.Open;
     }
     // Task 9: the latest inbound, only if it is a tap on an option of a document question not yet attended.
-    public Task<WhatsAppAssistantChoiceRow?> FindLatestDocumentTapAsync(Guid contactId,CancellationToken ct)
+    public async Task<WhatsAppAssistantChoiceRow?> FindLatestDocumentTapAsync(Guid contactId,CancellationToken ct)
     {
+        var days=await RetentionDaysAsync(ct);
         var latest=BusinessInbound().Where(message=>message.ContactId==contactId).OrderByDescending(message=>message.InboundSequence)
             .ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).Take(1);
-        return BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
+        return await BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
                 && message.Kind==WhatsAppMessageKind.ButtonReply && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null
-                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
+                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-days)
                 && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantDocumentReplyCodec.Prefix+"%"))
             .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
     }
@@ -246,13 +257,14 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         // H16: what the key ring no longer opens reads as null.
         return questions.FirstOrDefault(question=>question.QuickRepliesJson?.Contains(WhatsAppAssistantDocumentReplyCodec.Prefix,StringComparison.Ordinal)==true)?.RequestId;
     }
-    public Task<WhatsAppAssistantChoiceRow?> FindLatestCaseTapAsync(Guid contactId,CancellationToken ct)
+    public async Task<WhatsAppAssistantChoiceRow?> FindLatestCaseTapAsync(Guid contactId,CancellationToken ct)
     {
+        var days=await RetentionDaysAsync(ct);
         var latest=BusinessInbound().Where(message=>message.ContactId==contactId).OrderByDescending(message=>message.InboundSequence)
             .ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).Take(1);
-        return BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
+        return await BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
                 && message.Kind==WhatsAppMessageKind.ButtonReply && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null
-                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
+                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-days)
                 && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantCaseButtonCodec.Prefix+"%"))
             .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
     }
@@ -297,16 +309,17 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         var latest=CurrentSourceMessages(ConversationInbound().Where(message=>message.ContactId==contactId && message.Kind!=WhatsAppMessageKind.Media
             && message.Kind!=WhatsAppMessageKind.Location && message.Kind!=WhatsAppMessageKind.Contact && message.Kind!=WhatsAppMessageKind.Other
             && message.Kind!=WhatsAppMessageKind.System)).Select(message=>message.Id);
-        return await ResolveAsync(await SourceRows(Sources().Where(message=>message.ContactId==contactId && latest.Contains(message.Id))).SingleOrDefaultAsync(ct),ct);
+        var days=await RetentionDaysAsync(ct);
+        return await ResolveAsync(await SourceRows(Sources(days).Where(message=>message.ContactId==contactId && latest.Contains(message.Id)),days).SingleOrDefaultAsync(ct),ct);
     }
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
-        await PendingContactRows(excluded,limit,nowUtc).ToListAsync(ct);
+        await PendingContactRows(excluded,limit,nowUtc,await RetentionDaysAsync(ct)).ToListAsync(ct);
     // A source still waiting for its turn (a burst of the agent) also counts, so the processor looks again soon.
     public async Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>
-        await PendingReferences(nowUtc).AnyAsync(ct) || await PendingContactRows([],1,nowUtc).AnyAsync(ct);
+        await PendingReferences(nowUtc).AnyAsync(ct) || await PendingContactRows([],1,nowUtc,await RetentionDaysAsync(ct)).AnyAsync(ct);
     private IQueryable<WhatsAppAssistantRequest> PendingReferences(DateTime nowUtc)=>
         References().Where(row=>row.State==WhatsAppAssistantRequestState.Pending && row.ContentExpiresAtUtc>nowUtc);
-    private IQueryable<Guid> PendingContactRows(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc)
+    private IQueryable<Guid> PendingContactRows(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,int days)
     {
         var pending=PendingReferences(nowUtc).Select(row=>row.ContactId);
         // Closing task 9: the latest message of the conversation, as FindLatestSourceAsync takes it: a tap on a document question that was only
@@ -316,28 +329,28 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         var automatic=from contact in db.Set<WhatsAppContact>().AsNoTracking()
             let latest=ConversationInbound().Where(message=>message.ContactId==contact.Id).OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
             where contact.Mode==WhatsAppConversationMode.Assistant && latest!=null
-                && (Sources().Any(message=>message.Id==latest && message.Kind!=WhatsAppMessageKind.FlowReply && message.AssistantProcessedAtUtc==null)
+                && (Sources(days).Any(message=>message.Id==latest && message.Kind!=WhatsAppMessageKind.FlowReply && message.AssistantProcessedAtUtc==null)
                     || BusinessInbound().Any(message=>message.Id==latest && message.Kind==WhatsAppMessageKind.ButtonReply
                         && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null && message.ReplyId!=null
                         && EF.Functions.Like(message.ReplyId,WhatsAppAssistantReplyCodec.Prefix+"%")
-                        && message.OccurredAtUtc>nowUtc.AddDays(-retention.Value.MessageRetentionDays))
+                        && message.OccurredAtUtc>nowUtc.AddDays(-days))
                         && References().Any(row=>row.ContactId==contact.Id && row.Kind==WhatsAppAssistantRequestKind.Automatic
                             && row.State==WhatsAppAssistantRequestState.Ready && row.QuestionOutgoingId!=null)
                     || BusinessInbound().Any(message=>message.Id==latest && message.Kind==WhatsAppMessageKind.ButtonReply
                         && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null && message.ReplyId!=null
                         && EF.Functions.Like(message.ReplyId,WhatsAppAssistantAuthoringReplyCodec.Prefix+"%")
-                        && message.OccurredAtUtc>nowUtc.AddDays(-retention.Value.MessageRetentionDays))
+                        && message.OccurredAtUtc>nowUtc.AddDays(-days))
                     // Task 9 of the documents: a tap on an option of a document question.
                     || BusinessInbound().Any(message=>message.Id==latest && message.Kind==WhatsAppMessageKind.ButtonReply
                         && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null && message.ReplyId!=null
                         && EF.Functions.Like(message.ReplyId,WhatsAppAssistantDocumentReplyCodec.Prefix+"%")
-                        && message.OccurredAtUtc>nowUtc.AddDays(-retention.Value.MessageRetentionDays)))
+                        && message.OccurredAtUtc>nowUtc.AddDays(-days)))
                 && !References().Any(row=>row.ContactId==contact.Id && row.SourceMessageId==latest && row.Kind==WhatsAppAssistantRequestKind.Automatic)
             select contact.Id;
         var captured=from contact in db.Set<WhatsAppContact>().AsNoTracking()
             let latest=ConversationInbound().Where(receipt=>receipt.ContactId==contact.Id)
                 .OrderByDescending(receipt=>receipt.InboundSequence).ThenByDescending(receipt=>receipt.Id).FirstOrDefault()
-            from message in Sources()
+            from message in Sources(days)
             where latest!=null && latest.Kind==WhatsAppMessageKind.FlowReply && latest.ProcessedAtUtc!=null
                 && latest.FlowCaptureState==WhatsAppFlowCaptureState.Completed && latest.FlowRecordId!=null
                 && message.ContactId==contact.Id && message.Id==BusinessInbound().Where(first=>first.ContactId==contact.Id
@@ -389,10 +402,19 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         References().AnyAsync(row=>row.ContactId==contactId && row.AttachmentMessageId==attachmentMessageId && row.ActionOrdinal==0
             && (continuing==null || row.PreviousRequestId==continuing) && (row.OutgoingId!=null || row.QuestionOutgoingId!=null),ct);
 
-    public Task<bool> ExistsDeclinedAsync(Guid contactId,Guid definitionId,CancellationToken ct)=>
-        (from row in References() join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id
+    // RC2-B: a decline keeps the form from going again forever, as before, or only for the last days of «Volver a ofrecer un formulario
+    // rechazado» of the saved agent.
+    private async Task<DateTime?> DeclinedSinceAsync(CancellationToken ct)=>
+        (await db.Set<WhatsAppAssistantAgent>().AsNoTracking().Where(agent=>agent.IsMain).Select(agent=>agent.Limits).SingleOrDefaultAsync(ct))
+            ?.DeclinedSinceUtc(clock.GetUtcNow().UtcDateTime);
+    public async Task<bool> ExistsDeclinedAsync(Guid contactId,Guid definitionId,CancellationToken ct)
+    {
+        var sinceUtc=await DeclinedSinceAsync(ct);
+        return await (from row in References() join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id
          where row.ContactId==contactId && row.SubjectUserId==contact.UserId && row.LinkRevision==contact.LinkRevision && row.DeclinedDefinitionId==definitionId
+            && (sinceUtc==null || row.DecidedAtUtc>=sinceUtc)
          select row.Id).AnyAsync(ct);
+    }
     public async Task<IReadOnlyList<StructuredFormOfferReference>> ListOffersAsync(Guid subjectUserId, CancellationToken ct)
     {
         var sinceUtc = clock.GetUtcNow().UtcDateTime.AddHours(-24);
@@ -421,11 +443,13 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         IReadOnlyCollection<Guid> definitionIds, CancellationToken ct)
     {
         if (definitionIds.Count == 0) return [];
+        var sinceUtc = await DeclinedSinceAsync(ct);
         return await (from reference in References()
             join contact in db.Set<WhatsAppContact>().AsNoTracking() on reference.ContactId equals contact.Id
             where contact.UserId == subjectUserId && reference.SubjectUserId == subjectUserId
                 && reference.LinkRevision == contact.LinkRevision && reference.DeclinedDefinitionId != null
                 && definitionIds.Contains(reference.DeclinedDefinitionId.Value)
+                && (sinceUtc == null || reference.DecidedAtUtc >= sinceUtc)
             select reference.DeclinedDefinitionId!.Value).Distinct().OrderBy(id => id).ToArrayAsync(ct);
     }
     private IQueryable<QuickOfferRow> QuestionRows(Guid subjectUserId, DateTime sinceUtc) =>

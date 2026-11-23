@@ -10,20 +10,20 @@ namespace ArquitecturaBase.Application.UnitTests.Channels;
 public sealed class DisabledPhoneChannelTests
 {
     [Fact]
-    public void It_is_off_with_neither_countries_nor_a_number()
+    public async Task It_is_off_with_neither_countries_nor_a_number()
     {
         var channel = new DisabledPhoneChannel();
 
         Assert.False(channel.IsEnabled);
-        Assert.Empty(channel.Countries);
+        Assert.Empty(await channel.ListCountriesAsync(TestContext.Current.CancellationToken));
         Assert.Null(channel.DisplayNumber);
     }
 
     [Theory]
     [InlineData("+59899123456")]
     [InlineData("+5493515550101")]
-    public void It_accepts_a_number_from_any_country(string phone)
+    public async Task It_accepts_a_number_from_any_country(string phone)
     {
-        Assert.True(new DisabledPhoneChannel().EnsureCanSendTo(PhoneNumber.Create(phone).Value).IsSuccess);
+        Assert.True((await new DisabledPhoneChannel().EnsureCanSendToAsync(PhoneNumber.Create(phone).Value, TestContext.Current.CancellationToken)).IsSuccess);
     }
 }

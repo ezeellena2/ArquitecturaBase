@@ -51,6 +51,8 @@ public static class WhatsAppInfrastructureRegistration
         services.AddScoped<IWhatsAppAssistantRepository, WhatsAppAssistantRepository>();
         services.AddScoped<IWhatsAppAssistantAgentReader, WhatsAppAssistantAgentReader>();
         services.AddScoped<IWhatsAppAssistantAgentRepository, WhatsAppAssistantAgentRepository>();
+        services.AddScoped<IWhatsAppSettingsReader, WhatsAppSettingsReader>();
+        services.AddScoped<IWhatsAppSettingsRepository, WhatsAppSettingsRepository>();
         services.AddScoped<IWhatsAppAssistantHistoryReader, WhatsAppAssistantHistoryReader>();
         services.AddScoped<IWhatsAppAudioReader, WhatsAppAudioReader>();
         services.AddScoped<IWhatsAppOutgoingWorkloadReader, WhatsAppOutgoingWorkloadReader>();
@@ -114,7 +116,7 @@ public static class WhatsAppInfrastructureRegistration
         if (!enabled)
         {
             services.AddSingleton<IWhatsAppSendQueue, DisabledWhatsAppSendQueue>();
-            services.AddSingleton<IWhatsAppFlowEnvironment, DisabledWhatsAppFlowEnvironment>();
+            services.AddScoped<IWhatsAppFlowEnvironment, DisabledWhatsAppFlowEnvironment>();
             services.AddSingleton<IWhatsAppFlowProvider, DisabledWhatsAppFlowProvider>();
 
             return services;
@@ -181,14 +183,10 @@ public static class WhatsAppInfrastructureRegistration
     private static void AddMessageRetention(IServiceCollection services, IConfigurationSection section)
     {
         services.AddOptions<WhatsAppMessageRetentionOptions>()
-            .Bind(section)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+            .Bind(section);
 
         // Uno solo, con su propio tipo, como el procesador: los tests lo llaman con ClearExpiredTextsAsync y el host lo
-        // corre en segundo plano.
-        services.AddSingleton(provider => new ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppContentRetention(
-            provider.GetRequiredService<IOptions<WhatsAppMessageRetentionOptions>>().Value.MessageRetentionDays));
+        // corre en segundo plano. El plazo se lee de Configuración › WhatsApp en cada corrida (RC3-A).
         services.AddSingleton<WhatsAppMessageRetentionService>();
         services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<WhatsAppMessageRetentionService>());
     }

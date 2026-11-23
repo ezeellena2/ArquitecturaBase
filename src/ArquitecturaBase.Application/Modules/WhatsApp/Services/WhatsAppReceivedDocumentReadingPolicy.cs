@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -15,7 +14,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 // like an audio's normalization: Actor and Subject are who sent it, without capabilities, terminals or history; the request is checked
 // again on every poll and before its reading is kept. The document's content lasts as long as its message's body.
 internal sealed class WhatsAppReceivedDocumentReadingPolicy(IUserReader users, IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings,
-    WhatsAppContentRetention retention, TimeProvider clock)
+    IWhatsAppSettingsReader channel, TimeProvider clock)
 {
     public const string ChannelId = "whatsapp-assistant";
 
@@ -28,9 +27,11 @@ internal sealed class WhatsAppReceivedDocumentReadingPolicy(IUserReader users, I
 
     public DateTime NowUtc => clock.GetUtcNow().UtcDateTime;
 
-    public DateTime ExpiresAtUtc(WhatsAppReceivedDocumentSourceRow source) => source.OccurredAtUtc.AddDays(retention.MessageRetentionDays);
+    /// <summary>The end of the message's content: its retention in Configuración › WhatsApp (RC3-A), read now.</summary>
+    public async Task<DateTime> ExpiresAtUtcAsync(WhatsAppReceivedDocumentSourceRow source, CancellationToken ct) =>
+        source.OccurredAtUtc.AddDays((await channel.FindAsync(ct)).MessageRetentionDays);
 
-    public bool IsExpired(WhatsAppReceivedDocumentSourceRow source) => ExpiresAtUtc(source) <= NowUtc;
+    public async Task<bool> IsExpiredAsync(WhatsAppReceivedDocumentSourceRow source, CancellationToken ct) => await ExpiresAtUtcAsync(source, ct) <= NowUtc;
 
     public static string SerializeReading(StructuredDocumentReading reading) => JsonSerializer.Serialize(reading, ReadingJson);
 

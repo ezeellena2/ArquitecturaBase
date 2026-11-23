@@ -30,7 +30,7 @@ internal static class WhatsAppAssistantAcceptanceFixture
         WhatsAppFormSendPolicy? sending = null, IStructuredDocumentRowsChannel? rows = null) =>
         new(rows ?? new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentRowsChannel(),
             documents ?? new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentChannel(), sending ?? CreateSending(host), new Environment(host.UnitOfWork),
-            host.Assistant, host.Reader, host.Context.Clock);
+            host.Assistant, host.Reader, host.Context.Clock, host.Agents);
 
     /// <summary>VC1-A (task 29): the notice and the loads of a spreadsheet, accepted with the chat's own doubles.</summary>
     public static WhatsAppAssistantLoadAcceptancePolicy CreateLoads(WhatsAppAssistantSuggestionFixture host, WhatsAppFormSendPolicy? sending = null) =>
@@ -74,7 +74,7 @@ internal static class WhatsAppAssistantAcceptanceFixture
     private sealed class Environment(FakeUnitOfWork transaction) : IWhatsAppFlowEnvironment
     {
         public bool IsConfigured => true;
-        public TimeSpan SessionLifetime => TimeSpan.FromHours(24);
+        public Task<TimeSpan> FindSessionLifetimeAsync(CancellationToken cancellationToken) => Task.FromResult(TimeSpan.FromHours(24));
         public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => Account;
         public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken ct)
         {Assert.False(transaction.InTransaction);return Task.FromResult(Result.Success(Account));}

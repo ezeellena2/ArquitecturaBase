@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
@@ -157,9 +156,11 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
         CapturingWhatsAppCloudClient cloud, CapturingStructuredFormSource? source, FakeTimeProvider clock,
         int flowSessionLifetimeHours = 24) =>
         factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:WabaId", "222")
-            .UseSetting("WhatsApp:FlowSessionLifetimeHours", flowSessionLifetimeHours.ToString(CultureInfo.InvariantCulture))
             .ConfigureTestServices(services =>
         {
+            // RC3-A: the time to answer a form is Configuración › WhatsApp, read on each send.
+            services.RemoveAll<IWhatsAppSettingsReader>();
+            services.AddScoped<IWhatsAppSettingsReader>(_ => new FixedWhatsAppSettingsReader(flowSessionLifetimeHours: flowSessionLifetimeHours));
             services.RemoveAll<IWhatsAppFlowProvider>(); services.AddSingleton<IWhatsAppFlowProvider>(provider);
             services.RemoveAll<IWhatsAppCloudClient>(); services.AddSingleton<IWhatsAppCloudClient>(cloud);
             if (source is not null)

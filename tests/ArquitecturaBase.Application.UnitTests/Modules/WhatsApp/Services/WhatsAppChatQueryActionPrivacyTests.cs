@@ -51,7 +51,7 @@ public sealed partial class WhatsAppChatQueryActionPrivacyTests
         public AssistantOperations Operations { get; } = new();
         public WhatsAppChatQueryService Service { get; }
         public Microsoft.Extensions.Time.Testing.FakeTimeProvider Clock { get; } = new(new DateTimeOffset(Now));
-        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, new(new(90),Clock), new(Presentation.Protector,Presentation.Reader,Source,Presentation.Context.Permissions,Presentation.Context.Clock,Presentation.Forms), NullLogger<WhatsAppChatQueryService>.Instance);
+        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, new(new FakeWhatsAppSettings(),Clock), new(Presentation.Protector,Presentation.Reader,Source,Presentation.Context.Permissions,Presentation.Context.Clock,Presentation.Forms), NullLogger<WhatsAppChatQueryService>.Instance);
     }
     private sealed class Reader : IWhatsAppChatReader
     {

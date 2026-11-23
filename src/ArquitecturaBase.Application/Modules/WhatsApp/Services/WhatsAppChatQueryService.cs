@@ -46,13 +46,14 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var formNames = row.Messages.Any(message => message.Document?.Why is not null || message.SpreadsheetRowsJson is not null)
             || row.Outgoing.Any(item => item.SpreadsheetRowsJson is not null)
             ? await presentation.FormNamesAsync(culture, cancellationToken) : new Dictionary<Guid, string>();
+        var audios = await audio.ReadAsync(cancellationToken);
         return new WhatsAppThreadResponse(new(ToResponse(row.Contact), formContact),
             [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
                 message.Purpose == WhatsAppMessagePurpose.Access || (message.Origin == WhatsAppMessageOrigin.FormAction || message.LoadsFile) && !recordResult.CanReadRecords
-                    ? null : audio.VisibleText(message), message.OccurredAtUtc,
+                    ? null : audios.VisibleText(message), message.OccurredAtUtc,
                 message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind,
                 ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin, Assistant: presentation.Explain(message.Assistant, recordResult.CanReadRecords),
-                QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(message.QuickReplyTitlesJson, false), Audio: audio.View(message),
+                QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(message.QuickReplyTitlesJson, false), Audio: audios.View(message),
                 // A received spreadsheet shows its name, and its caption as the body (stage 2 of the assistant authoring).
                 SpreadsheetName: message.Kind == WhatsAppMessageKind.Spreadsheet ? message.SpreadsheetName : null,
                 // W1-A: a received location shows its point.

@@ -9,7 +9,8 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 /// <summary>
 /// La retención de los mensajes de WhatsApp (sección 6.5 del spec y "Cuánto tiempo los guardamos" de la política de
-/// privacidad): a los mensajes, entrantes y salientes, de más de <c>WhatsApp:MessageRetentionDays</c> días les borra el
+/// privacidad): a los mensajes, entrantes y salientes, de más de los días de Configuración › WhatsApp (RC3-A, leídos en cada
+/// corrida) les borra el
 /// texto. La fila queda, con su fecha, su dirección, su tipo, su estado, el botón que se tocó y cuándo lo procesó el bot,
 /// que es el registro que la política dice que se conserva; los contactos no se tocan. Corre al arrancar y después una vez
 /// por día, esté WhatsApp prendido o no. Un error se registra y se reintenta en la corrida siguiente: nunca apaga el host.
@@ -31,13 +32,15 @@ internal sealed partial class WhatsAppMessageRetentionService(
     /// </summary>
     public async Task<int> ClearExpiredTextsAsync(CancellationToken cancellationToken = default)
     {
-        var retentionDays = options.Value.MessageRetentionDays;
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
-        var cutoffUtc = nowUtc.AddDays(-retentionDays);
 
         int cleared;
+        int retentionDays;
         await using(var scope=scopeFactory.CreateAsyncScope())
-            cleared=await scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRetentionRepository>().ClearExpiredBodiesAsync(cutoffUtc,cancellationToken);
+        {
+            retentionDays=(await scope.ServiceProvider.GetRequiredService<IWhatsAppSettingsReader>().FindAsync(cancellationToken)).MessageRetentionDays;
+            cleared=await scope.ServiceProvider.GetRequiredService<IWhatsAppMessageRetentionRepository>().ClearExpiredBodiesAsync(nowUtc.AddDays(-retentionDays),cancellationToken);
+        }
         var assistant=0;
         int batch;
         do

@@ -5,6 +5,7 @@ using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 public sealed class WhatsAppAudioReadQueryTests
 {
@@ -33,9 +34,9 @@ public sealed class WhatsAppAudioReadQueryTests
     {
         var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAudioReader(db,new(90),new FakeTimeProvider(now));
+        var reader=new WhatsAppAudioReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(now));
         var method=typeof(WhatsAppAudioReader).GetMethod(methodName,BindingFlags.NonPublic|BindingFlags.Instance)!;
-        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppAudioSourceRow>>(method.Invoke(reader,methodName=="Pending"?[now]:null));
+        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppAudioSourceRow>>(method.Invoke(reader,methodName=="Pending"?[now,90]:null));
         query=query.Where(row=>row.ContactId==Guid.Empty).OrderBy(row=>row.OccurredAtUtc).ThenBy(row=>row.MessageId).Take(50);
         string? sql=null;var exception=Record.Exception(()=>sql=query.ToQueryString());Assert.Null(exception);Assert.NotNull(sql);
         Assert.Contains("INNER JOIN",sql,StringComparison.Ordinal);Assert.Contains("Audio",sql,StringComparison.Ordinal);Assert.Contains("LIMIT",sql,StringComparison.Ordinal);
@@ -46,11 +47,11 @@ public sealed class WhatsAppAudioReadQueryTests
     {
         var now=new DateTime(2026,10,18,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAudioReader(db,new(90),new FakeTimeProvider(now));
+        var reader=new WhatsAppAudioReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(now));
         var audio=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAudioReader)
             .GetMethod("Audio",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
         var live=Assert.IsAssignableFrom<IQueryable<WhatsAppAudioSourceRow>>(typeof(WhatsAppAudioReader)
-            .GetMethod("PendingRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[audio,now]));
+            .GetMethod("PendingRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[audio,now,90]));
         var sql=live.Select(row=>row.MessageId).ToQueryString();
         foreach(var expected in new[]{"Pending","Transcribing","OccurredAtUtc","AudioContentExpiresAtUtc","Assistant","\"AudioStorageKey\" IS NULL","\"AudioRequestId\" IS NOT NULL"})
             Assert.Contains(expected,sql,StringComparison.Ordinal);
@@ -59,6 +60,6 @@ public sealed class WhatsAppAudioReadQueryTests
         Assert.DoesNotContain("AudioContextJson",sql,StringComparison.Ordinal);
 
         var due=Assert.IsAssignableFrom<IQueryable<WhatsAppAudioSourceRow>>(typeof(WhatsAppAudioReader)
-            .GetMethod("Pending",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[now]));
+            .GetMethod("Pending",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[now,90]));
         Assert.Contains("\"AudioFirstFailureAtUtc\" IS NULL",due.Select(row=>row.MessageId).ToQueryString(),StringComparison.Ordinal);
     }}

@@ -1,8 +1,8 @@
 using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Channels;
 
@@ -17,7 +17,7 @@ public sealed class WhatsAppSpreadsheetRetentionSourceTests
         var kept = Guid.NewGuid();
         var expired = Guid.NewGuid();
         var reader = new Reader([kept]);
-        var source = new WhatsAppSpreadsheetRetentionSource(reader, new WhatsAppContentRetention(90), new FakeTimeProvider(Now));
+        var source = new WhatsAppSpreadsheetRetentionSource(reader, new FakeWhatsAppSettings(), new FakeTimeProvider(Now));
         string[] keys =
         [
             $"whatsapp/documents/{kept:N}.xlsx", $"whatsapp/documents/{kept:N}.csv", $"whatsapp/documents/{expired:N}.csv",
@@ -36,7 +36,7 @@ public sealed class WhatsAppSpreadsheetRetentionSourceTests
     public async Task Without_spreadsheet_keys_it_does_not_read()
     {
         var reader = new Reader([]);
-        var source = new WhatsAppSpreadsheetRetentionSource(reader, new WhatsAppContentRetention(90), new FakeTimeProvider(Now));
+        var source = new WhatsAppSpreadsheetRetentionSource(reader, new FakeWhatsAppSettings(), new FakeTimeProvider(Now));
 
         Assert.Empty(await source.ListReferencedKeysAsync([$"whatsapp/audio/{Guid.NewGuid():N}.ogg"], TestContext.Current.CancellationToken));
 

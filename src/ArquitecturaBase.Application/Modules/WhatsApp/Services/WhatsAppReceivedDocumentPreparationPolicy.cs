@@ -30,7 +30,7 @@ internal enum WhatsAppReceivedDocumentDecision { Keep, NotLinked, NotAllowed, Wa
 // bytes of a macro-enabled Word nor a photo over the pixel limit); registering it is retried for a person who loads.
 internal sealed class WhatsAppReceivedDocumentPreparationPolicy(IWhatsAppMediaClient media, IStructuredAttachmentReader attachments,
     IPrivateFileStore files, IWhatsAppFormRecipientReader recipients, WhatsAppFormActionPolicy recipientGuard, IStructuredDocumentChannel documents,
-    IAssistantOperations operations)
+    IAssistantOperations operations, IWhatsAppAssistantAgentReader agents)
 {
     /// <summary>The channel's id in the inbox; the source id is the message's.</summary>
     public const string ChannelId = "whatsapp";
@@ -118,8 +118,10 @@ internal sealed class WhatsAppReceivedDocumentPreparationPolicy(IWhatsAppMediaCl
         if (!requested && !loading.CanLoad && MayStillBeAsked(source, nowUtc))
             return new(WhatsAppReceivedDocumentDecision.Wait, recipient.Culture) { AwaitedUntilUtc = source.OccurredAtUtc + WhatsAppAssistantSourcePolicy.PairingWindow };
         if (!loading.AnyFormReads && !requested) return WhatsAppReceivedDocumentPlan.Keep;
+        // RC2-B: «Páginas de un PDF» of the saved agent (10 until it is saved), decided with the rest of the plan.
+        var maxPages = (await agents.FindMainAsync(ct))?.Limits.MaxDocumentPages ?? WhatsAppAssistantAgentLimits.DefaultDocumentPages;
         return new(WhatsAppReceivedDocumentDecision.Download, recipient.Culture)
-            { Reads = requested || loading.CanLoad, CanLoad = loading.CanLoad, EngineReads = engineReads };
+            { Reads = requested || loading.CanLoad, CanLoad = loading.CanLoad, EngineReads = engineReads, MaxDocumentPages = maxPages };
     }
 
     public async Task<Result<WhatsAppPreparedDocument>> AcquireAsync(WhatsAppReceivedDocumentSourceRow source, WhatsAppReceivedDocumentPlan plan, CancellationToken ct)
@@ -139,6 +141,10 @@ internal sealed class WhatsAppReceivedDocumentPreparationPolicy(IWhatsAppMediaCl
         var sha256 = Sha256(content);
         if (sha256 != source.Sha256) return FileErrors.HashMismatch;
         var prepared = await attachments.PrepareAsync(content, source.FileName ?? string.Empty, ct);
+        // RC2-B: a PDF over the agent's pages is the person's reason, as one over the reader's own limit, and goes to the inbox with its copy.
+        if (prepared.Document is { Kind: StructuredDocumentKind.Pdf, Pages: { } pages } && pages > plan.MaxDocumentPages)
+            return await RejectAsync(source, plan, sender, culture, StructuredAttachmentRejection.TooManyPages, StructuredAttachmentFileKind.Pdf, content.LongLength,
+                new KeptCopy(StructuredDocumentKind.Pdf, content, sha256), ct);
         if (prepared.Document is { } document)
         {
             var copied = await CopyAsync(Key(source.MessageId, document.Kind), content, sha256, MediaType(document.Kind), ct);
@@ -253,6 +259,9 @@ internal sealed record WhatsAppReceivedDocumentPlan(WhatsAppReceivedDocumentDeci
 
     /// <summary>The installation reads a PDF or a photo (ReadDocument).</summary>
     public bool EngineReads { get; init; }
+
+    /// <summary>The most pages of a PDF that is read: «Páginas de un PDF» of the agent (RC2-B).</summary>
+    public int MaxDocumentPages { get; init; } = WhatsAppAssistantAgentLimits.DefaultDocumentPages;
 
     /// <summary>Until when it waits for its request (Wait).</summary>
     public DateTime? AwaitedUntilUtc { get; init; }

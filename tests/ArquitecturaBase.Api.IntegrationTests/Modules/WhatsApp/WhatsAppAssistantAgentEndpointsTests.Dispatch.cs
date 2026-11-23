@@ -100,7 +100,8 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests
         },
         fallback = new { kind = "NoReply" },
         limits = new { blockedTopics = Array.Empty<string>(), cannotPromise = "", maxReplyLength = 400, dailyReplyLimit = 10, dailyOfferLimit = 2,
-            allowedActions = new[] { "SendForm", "ExactText", "DraftedReply", "AskButtons", "Handoff", "NoReply" } },
+            allowedActions = new[] { "SendForm", "ExactText", "DraftedReply", "AskButtons", "Handoff", "NoReply" },
+            maxSpreadsheetLoads = 3, maxDocumentPages = 10, declinedReofferDays = (int?)null },
     };
 
     private sealed partial class Host

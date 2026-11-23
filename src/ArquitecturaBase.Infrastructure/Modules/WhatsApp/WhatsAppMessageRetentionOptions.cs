@@ -1,23 +1,14 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 /// <summary>
 /// La retención de los mensajes de WhatsApp (sección 6.5 del spec), de la sección <c>WhatsApp</c>. Va aparte de
 /// <see cref="WhatsAppOptions"/> a propósito: esas se registran y se validan solo con WhatsApp prendido, y la retención
-/// corre siempre, porque la tabla puede tener mensajes de antes de apagarlo. Se valida al arrancar, esté WhatsApp prendido
-/// o no, como <c>WhatsAppLoginOptions</c>: los valores por defecto son válidos.
+/// corre siempre, porque la tabla puede tener mensajes de antes de apagarlo. El plazo ya no está acá: es «Conservar el contenido
+/// de los mensajes» de Configuración › WhatsApp (RC3-A, 2026-11-22), que se lee de la base en cada corrida.
 /// </summary>
 internal sealed class WhatsAppMessageRetentionOptions
 {
     public const string SectionName = WhatsAppOptions.SectionName;
-
-    /// <summary>
-    /// A los cuántos días se borra el texto de un mensaje, entrante o saliente. La política de privacidad promete 90:
-    /// cambiar este valor pide cambiar antes la política. Como mucho, 10 años.
-    /// </summary>
-    [Range(1, 3650, ErrorMessage = "WhatsApp:MessageRetentionDays must be between {1} and {2}.")]
-    public int MessageRetentionDays { get; init; } = 90;
 
     /// <summary>
     /// Si la retención corre sola, en segundo plano. Apagada, los textos esperan a que alguien llame a

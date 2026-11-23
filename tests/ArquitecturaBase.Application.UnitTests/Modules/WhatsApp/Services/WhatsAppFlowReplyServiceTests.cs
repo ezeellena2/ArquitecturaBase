@@ -6,7 +6,6 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
@@ -526,7 +525,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
             Rejections = new(new WhatsAppAssistantSuggestionFixture.Conversations(Contact));
             var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, UnitOfWork, Clock, Signal,
                 new WhatsAppFlowRejectionPolicy(Requests, Rejections.Conversations, Rejections.Sessions, new WhatsAppFlowSessionIssuer(Rejections.Protector, Clock),
-                    WhatsAppAssistantDispatchFixture.CreateGuard(_context), new WhatsAppContentRetention(30), Clock));
+                    WhatsAppAssistantDispatchFixture.CreateGuard(_context), FakeWhatsAppSettings.With(messageRetentionDays: 30), Clock));
             Media = new FakeWhatsAppMediaClient();
             SessionProtector = new FakeSessionProtector(new(automatic ? 2 : 1, _contactId, _userId, Session.OperatorUserId, _definitionId, _versionId, _bindingId,
                 "es", new string('c', 64), 0, "1", "flow-name", Projection.Hash, _token, "Abrir", "START",

@@ -46,7 +46,7 @@
   <data name="DocumentMacroEnabled" xml:space="preserve"><value>The file has macros and I don't open it. Send it without macros or as a PDF.</value></data>
   <data name="DocumentTooLarge" xml:space="preserve"><value>The file is over the 10 MB limit and I can't read it. Send me a lighter one or a screenshot.</value></data>
   <data name="DocumentImageTooLarge" xml:space="preserve"><value>The photo is too big and I can't read it. Send me a smaller one or a screenshot.</value></data>
-  <data name="DocumentTooManyPages" xml:space="preserve"><value>The PDF has more than 10 pages and I can't read it. Send me only the pages that matter.</value></data>
+  <data name="DocumentTooManyPages" xml:space="preserve"><value>The PDF has more than {0} pages and I can't read it. Send me only the pages that matter.</value></data>
   <data name="DocumentEmpty" xml:space="preserve"><value>The Word file is empty. Can you send me the one with the content?</value></data>
   <data name="DocumentUnreadable" xml:space="preserve"><value>I couldn't open the file. Send it to me again as a PDF or a photo.</value></data>
   <data name="DocumentNotAllowed" xml:space="preserve"><value>Thanks, I got your document. Your account can't load it from here: I passed it to someone on the team.</value></data>

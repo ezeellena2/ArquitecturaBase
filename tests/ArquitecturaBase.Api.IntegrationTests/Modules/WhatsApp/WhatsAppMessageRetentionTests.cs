@@ -1,5 +1,7 @@
 using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
@@ -12,7 +14,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using InfrastructureSetup = ArquitecturaBase.Infrastructure.DependencyInjection;
 
@@ -193,13 +194,19 @@ public sealed class WhatsAppMessageRetentionTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task The_retention_days_are_configurable()
+    public async Task The_retention_days_are_the_ones_of_the_settings()
     {
+        // RC3-A: «Conservar el contenido de los mensajes» of Configuración › WhatsApp, read on each run (the saved row, in
+        // WhatsAppSettingsEndpointsTests, which has a base of its own).
         var contact = await AddContactAsync();
         var older = Inbound(contact, "Hace 31 días", Now.AddDays(-31));
         var younger = Inbound(contact, "Hace 29 días", Now.AddDays(-29));
         await AddAsync(older, younger);
-        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:MessageRetentionDays", "30"));
+        await using var api = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IWhatsAppSettingsReader>();
+            services.AddScoped<IWhatsAppSettingsReader>(_ => new FixedWhatsAppSettingsReader(30));
+        }));
 
         await api.Services.GetRequiredService<WhatsAppMessageRetentionService>().ClearExpiredTextsAsync(Ct);
 
@@ -228,38 +235,6 @@ public sealed class WhatsAppMessageRetentionTests(ApiFactory factory)
 
         var retention = api.Services.GetRequiredService<WhatsAppMessageRetentionService>();
         Assert.Contains(api.Services.GetServices<IHostedService>(), service => ReferenceEquals(service, retention));
-    }
-
-    /// <summary>
-    /// Con WhatsApp prendido o apagado: la retención corre siempre, así que su opción se valida siempre. Corre el mismo
-    /// validador que el host antes de arrancar (<see cref="IStartupValidator"/>) y no una Api entera: un arranque que
-    /// falla tan rápido a veces ya desechó el host cuando WebApplicationFactory lo espera, y el test ve un
-    /// ObjectDisposedException en lugar del error.
-    /// </summary>
-    [Theory]
-    [InlineData("0", true)]
-    [InlineData("3651", true)]
-    [InlineData("0", false)]
-    [InlineData("-5", false)]
-    public void Api_does_not_start_with_the_retention_days_out_of_range(string value, bool whatsAppOn)
-    {
-        var settings = new Dictionary<string, string?> { ["WhatsApp:MessageRetentionDays"] = value };
-
-        if (whatsAppOn)
-        {
-            settings["WhatsApp:PhoneNumberId"] = ApiFactory.WhatsAppPhoneNumberId;
-            settings["WhatsApp:AccessToken"] = "test-access-token";
-        }
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddWhatsAppInfrastructure(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
-        using var provider = services.BuildServiceProvider();
-
-        var exception = Assert.ThrowsAny<Exception>(() => provider.GetRequiredService<IStartupValidator>().Validate());
-
-        Assert.Equal(whatsAppOn, provider.GetRequiredService<IWhatsAppAvailability>().IsEnabled);
-        Assert.Contains("WhatsApp:MessageRetentionDays must be between 1 and 3650", exception.Message, StringComparison.Ordinal);
     }
 
     /// <summary>

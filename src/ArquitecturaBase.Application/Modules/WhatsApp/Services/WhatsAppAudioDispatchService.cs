@@ -20,7 +20,8 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
     private async Task<Result<WhatsAppAssistantWorkResponse?>> PrepareCoreAsync(Guid contactId,CancellationToken ct)
     {
         var source=await reader.FindPendingAsync(contactId,presentation.NowUtc,ct);
-        if(source is null || presentation.IsExpired(source))return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        var audio=await presentation.ReadAsync(ct);
+        if(source is null || audio.IsExpired(source))return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         var before=CopyOnly(source)?null:source.RequestId is null?await access.CaptureAsync(source,null,false,ct):await access.RevalidateAsync(source,ct);
         // Authentication, provider reads and private WriteOnce happen outside the WA transaction.
         var acquired=source.RequestId is not null && before?.IsFailure==true?null:await preparation.AcquireAsync(source,ct);
@@ -31,7 +32,7 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             var message=await messages.GetForUpdateAsync(contactId,source.MessageId,token);
             var current=await reader.FindAsync(contactId,source.MessageId,token);
             if(message is null || current is null || current.State is not (WhatsAppAudioState.Pending or WhatsAppAudioState.Transcribing))return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-            if(presentation.IsExpired(current)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success<WhatsAppAssistantWorkResponse?>(null);}
+            if(audio.IsExpired(current)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success<WhatsAppAssistantWorkResponse?>(null);}
             var copyOnly=CopyOnly(current);
             var captured=copyOnly?null:current.RequestId is null?await access.CaptureAsync(current,null,false,token):await access.RevalidateAsync(current,token);
             if(current.RequestId is not null && captured?.IsFailure==true)
@@ -60,7 +61,7 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
             }
             // O39 (2026-11-21): the day's form offers stop only offering forms; the audio is transcribed and goes on as a text would.
             var request=message.RequestAudioNormalization(captured!.Value.ActorUserId,JsonSerializer.Serialize(captured.Value,JsonSerializerOptions.Web),
-                contact.LinkRevision,presentation.ExpiresAtUtc(current),presentation.NowUtc);
+                contact.LinkRevision,audio.ExpiresAtUtc(current),presentation.NowUtc);
             if(request.IsFailure)return Result.Failure<WhatsAppAssistantWorkResponse?>(request.Error);
             message.SetAudioState(WhatsAppAudioState.Transcribing);
             var expires=message.AudioContentExpiresAtUtc!.Value;
@@ -74,11 +75,12 @@ internal sealed class WhatsAppAudioDispatchService(IWhatsAppAudioReader reader,I
         OperationLog.RunAsync<Result>(logger,"CompleteWhatsAppAudio",()=>unitOfWork.ExecuteInTransactionAsync(async token=>
         {
             if(await conversations.GetForUpdateAsync(contactId,token) is null)return Result.Success();
+            var audio=await presentation.ReadAsync(token);
             var message=await messages.GetByRequestForUpdateAsync(contactId,requestId,token);
             if(message is null)return Result.Success();
             var source=await reader.FindAsync(contactId,message.Id,token);
             if(source is null)return Result.Success();
-            if(presentation.IsExpired(source)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success();}
+            if(audio.IsExpired(source)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success();}
             var authorized=await access.RevalidateAsync(source,token);
             if(authorized.IsFailure){message.SetAudioState(WhatsAppAudioState.Unavailable,authorized.Error.Code);return Result.Success();}
             if(outcome.IsFailure)

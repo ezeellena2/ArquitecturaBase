@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
@@ -187,7 +186,7 @@ public sealed class WhatsAppFlowRejectionPolicyTests
             Assert.True(Session.CompleteCapture(Reply.WaMessageId, WhatsAppFlowCaptureState.Rejected, null, null, "Forms.Record.BankAccountInvalid", "Cuenta"));
             Conversations = new(contact);
             Policy = new(Requests, Conversations, Sessions, new WhatsAppFlowSessionIssuer(Protector, context.Clock),
-                WhatsAppAssistantDispatchFixture.CreateGuard(context, Reader, Forms, Dispatches), new WhatsAppContentRetention(RetentionDays), context.Clock);
+                WhatsAppAssistantDispatchFixture.CreateGuard(context, Reader, Forms, Dispatches), FakeWhatsAppSettings.With(messageRetentionDays: RetentionDays), context.Clock);
         }
 
         public static async Task<Host> CreateAsync(bool automatic)

@@ -32,10 +32,11 @@ public sealed class WhatsAppAssistantRetentionTests
         session.SealPayload([8]);Assert.True(session.SealAssistantContent([9],now));
         var repository=new RetentionRepository(transaction,session);
         await using var provider=new ServiceCollection().AddSingleton<IWhatsAppMessageRetentionRepository>(repository)
+            .AddSingleton<IWhatsAppSettingsReader>(new FixedWhatsAppSettingsReader())
             .AddSingleton<IWhatsAppAssistantContentRetentionService>(new WhatsAppAssistantContentRetentionService(repository,transaction,new FakeTimeProvider(now),
-                new(90),NullLogger<WhatsAppAssistantContentRetentionService>.Instance)).BuildServiceProvider();
+                new FixedWhatsAppSettingsReader(),NullLogger<WhatsAppAssistantContentRetentionService>.Instance)).BuildServiceProvider();
         using var service=new WhatsAppMessageRetentionService(provider.GetRequiredService<IServiceScopeFactory>(),
-            Options.Create(new WhatsAppMessageRetentionOptions{MessageRetentionDays=90,ApplyMessageRetentionInBackground=false}),new FakeTimeProvider(now),
+            Options.Create(new WhatsAppMessageRetentionOptions{ApplyMessageRetentionInBackground=false}),new FakeTimeProvider(now),
             NullLogger<WhatsAppMessageRetentionService>.Instance);
         Assert.Equal(1,await service.ClearExpiredTextsAsync(TestContext.Current.CancellationToken));
         Assert.Empty(session.ProtectedAssistantContent);Assert.Equal(new byte[]{8},session.ProtectedPayload);

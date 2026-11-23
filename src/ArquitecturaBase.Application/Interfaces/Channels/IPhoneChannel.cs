@@ -14,8 +14,11 @@ public interface IPhoneChannel
     /// <summary>Si se pueden mandar códigos por teléfono. Apagado, el ingreso no ofrece la opción.</summary>
     bool IsEnabled { get; }
 
-    /// <summary>Los países a los que se mandan códigos, ISO 3166-1 alfa-2 en mayúsculas. Vacío si está apagado.</summary>
-    IReadOnlyList<string> Countries { get; }
+    /// <summary>
+    /// Los países a los que se mandan códigos, ISO 3166-1 alfa-2 en mayúsculas. Vacío si está apagado. Se leen en cada uso: el módulo los
+    /// guarda en su configuración.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken);
 
     /// <summary>El número del canal, solo dígitos, para volver a él desde la web; null si no hay.</summary>
     string? DisplayNumber { get; }
@@ -24,5 +27,5 @@ public interface IPhoneChannel
     /// Si se le pueden mandar códigos a <paramref name="phone"/> por su país. Vale aunque el canal esté apagado: es la regla
     /// de un número nuevo en el alta y la edición. El error es el del canal.
     /// </summary>
-    Result EnsureCanSendTo(PhoneNumber phone);
+    Task<Result> EnsureCanSendToAsync(PhoneNumber phone, CancellationToken cancellationToken);
 }

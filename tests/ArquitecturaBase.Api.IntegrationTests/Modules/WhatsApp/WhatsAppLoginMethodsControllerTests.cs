@@ -1,6 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
@@ -37,11 +42,16 @@ public sealed class WhatsAppLoginMethodsControllerTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task The_number_of_the_bot_comes_from_the_configuration()
+    public async Task The_number_of_the_bot_comes_from_the_configuration_and_the_countries_from_the_settings()
     {
+        // RC3-A: the countries are Configuración › WhatsApp; the number of the bot stays in appsettings.
         await using var api = factory.WithWebHostBuilder(builder => builder
             .UseSetting("WhatsApp:DisplayPhoneNumber", "15551632662")
-            .UseSetting("WhatsApp:AllowedCountries:1", "UY"));
+            .ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IWhatsAppSettingsReader>();
+                services.AddScoped<IWhatsAppSettingsReader>(_ => new FixedWhatsAppSettingsReader(allowedCountries: ["AR", "UY"]));
+            }));
         using var client = api.CreateClient();
 
         using var response = await client.SendAsync(HttpMethod.Get, Url);

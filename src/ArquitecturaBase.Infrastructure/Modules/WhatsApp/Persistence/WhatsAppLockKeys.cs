@@ -15,6 +15,9 @@ internal static class WhatsAppLockKeys
     /// <summary>Casos del asistente: the saves of the main agent, also the first one, when there is no row to lock.</summary>
     public static string AssistantAgent => "whatsapp-assistant-agent:main";
 
+    /// <summary>Configuración › WhatsApp (RC3-A): the saves of the settings, also the first one, when there is no row to lock.</summary>
+    public static string Settings => "whatsapp-settings:main";
+
     /// <summary>
     /// "whatsapp-contact:user:" + el BSUID. El prefijo hace que el mismo texto como BSUID y como número no compartan lock.
     /// </summary>

@@ -189,16 +189,40 @@ public sealed class WhatsAppSpreadsheetLoadTests
         Assert.Equal(2, rows.Recognitions.Count);
     }
 
+    // RC2-B: the inbox is asked for as many loads as «Formularios por planilla» of the saved agent says, and 3 until it is saved.
+    [Theory]
+    [InlineData(null, 3)]
+    [InlineData(1, 1)]
+    [InlineData(10, 10)]
+    public async Task The_inbox_is_asked_for_the_loads_of_the_agent(int? saved, int asked)
+    {
+        var agents = new FakeWhatsAppAssistantAgentReader();
+        if (saved is { } loads)
+            agents.Agent = new(1, "es", new("Asistente", "", "", "", "", new(null, null)), [], new(WhatsAppAssistantActionKind.NoReply),
+                WhatsAppAssistantAgentLimits.DefaultLimits with { MaxSpreadsheetLoads = loads });
+        var (policy, rows, reader) = Spreadsheet(agents);
+        var context = Continued();
+        var reference = Continuation(context);
+        rows.Reply = new(StructuredDocumentReplyKind.Unknown) { DocumentId = Guid.NewGuid(), Forms = [Collections, Expenses] };
+        reader.AttachmentAnswers.Add((Sheet, null));
+
+        await policy.RegisterAsync(reference, Source(), Operation(reference.RequestId, proposal: false), context, Ct);
+
+        Assert.Equal(asked, Assert.Single(rows.Registrations).MaximumLoads);
+    }
+
     private static readonly Guid Sheet = Guid.NewGuid();
     private static readonly Guid Question = Guid.NewGuid();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static (WhatsAppAssistantSpreadsheetPolicy Policy, RowsChannel Rows, FakeWhatsAppAssistantReader Reader) Spreadsheet()
+    private static (WhatsAppAssistantSpreadsheetPolicy Policy, RowsChannel Rows, FakeWhatsAppAssistantReader Reader) Spreadsheet(
+        FakeWhatsAppAssistantAgentReader? agents = null)
     {
         var rows = new RowsChannel();
         var reader = new FakeWhatsAppAssistantReader();
-        return (new(rows, new UnavailableStructuredDocumentChannel(), null!, new StubWhatsAppFlowEnvironment(), null!, reader, new FakeTimeProvider(Day)), rows, reader);
+        return (new(rows, new UnavailableStructuredDocumentChannel(), null!, new StubWhatsAppFlowEnvironment(), null!, reader, new FakeTimeProvider(Day),
+            agents ?? new FakeWhatsAppAssistantAgentReader()), rows, reader);
     }
 
     // The continuation of the «No lo reconoce» question with «Cobranzas» chosen from its list.

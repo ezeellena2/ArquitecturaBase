@@ -13,12 +13,13 @@ internal sealed class WhatsAppAudioContentService(WhatsAppAudioAccessPolicy acce
         OperationLog.RunAsync<Result<WhatsAppAudioContentResponse>>(logger,"OpenWhatsAppAudio",async()=>
         {
             var actor=await access.RequireOperatorAsync(ct);if(actor.IsFailure)return actor.Error;
+            var audio=await presentation.ReadAsync(ct);
             var source=await reader.FindAsync(contactId,messageId,ct);
-            if(source is null || presentation.IsExpired(source) || source.StorageKey!=WhatsAppAudioStoragePolicy.Key(messageId) || source.Sha256 is null)return WhatsAppChatErrors.NotFound;
+            if(source is null || audio.IsExpired(source) || source.StorageKey!=WhatsAppAudioStoragePolicy.Key(messageId) || source.Sha256 is null)return WhatsAppChatErrors.NotFound;
             var opened=await storage.OpenAsync(messageId,source.Sha256,ct);if(opened.IsFailure)return opened.Error;
             var permitted=await access.RequireOperatorAsync(ct);
             var current=await reader.FindAsync(contactId,messageId,ct);
-            if(permitted.IsFailure || current is null || presentation.IsExpired(current) || current.StorageKey!=source.StorageKey || current.Sha256!=source.Sha256)
+            if(permitted.IsFailure || current is null || audio.IsExpired(current) || current.StorageKey!=source.StorageKey || current.Sha256!=source.Sha256)
             {await opened.Value.DisposeAsync();return permitted.IsFailure?permitted.Error:WhatsAppChatErrors.NotFound;}
             return new WhatsAppAudioContentResponse(opened.Value,"audio/ogg",$"audio_{messageId:N}.ogg");
         });

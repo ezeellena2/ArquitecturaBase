@@ -10,26 +10,12 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Configuration;
 public sealed class WhatsAppLoginOptionsTests
 {
     [Fact]
-    public void Without_the_keys_only_argentina_is_allowed_and_the_daily_limit_is_100()
+    public void Without_the_keys_the_daily_limit_is_100()
     {
         var options = Read(new());
 
-        Assert.Equal(["AR"], options.Countries);
         Assert.Equal(100, options.DailyAuthCodeLimit);
         Assert.Null(options.DisplayPhoneNumber);
-    }
-
-    [Fact]
-    public void Allowed_countries_from_the_configuration_replace_the_default()
-    {
-        // Sin repetir "AR": el binder suma a lo que la lista ya tenía, por eso la propiedad no arranca con el default.
-        var options = Read(new()
-        {
-            ["WhatsApp:AllowedCountries:0"] = "AR",
-            ["WhatsApp:AllowedCountries:1"] = "UY",
-        });
-
-        Assert.Equal(["AR", "UY"], options.Countries);
     }
 
     [Fact]
@@ -41,9 +27,6 @@ public sealed class WhatsAppLoginOptionsTests
     }
 
     [Theory]
-    [InlineData("WhatsApp:AllowedCountries:0", "ar")]
-    [InlineData("WhatsApp:AllowedCountries:0", "ARG")]
-    [InlineData("WhatsApp:AllowedCountries:0", "A1")]
     [InlineData("WhatsApp:DailyAuthCodeLimit", "0")]
     [InlineData("WhatsApp:DisplayPhoneNumber", "+15551632662")]
     [InlineData("WhatsApp:DisplayPhoneNumber", "1 555 163 2662")]

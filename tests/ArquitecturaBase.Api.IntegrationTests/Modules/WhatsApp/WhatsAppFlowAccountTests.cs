@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 using System.Text;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
@@ -17,7 +18,7 @@ public sealed class WhatsAppFlowAccountTests
     public void Publication_capacity_requires_its_account_and_frozen_profile_without_disabling_text(string? wabaId, string graph, bool expected)
     {
         var options = new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token", WabaId = wabaId, GraphApiVersion = graph };
-        var environment = new WhatsAppFlowEnvironment(Options.Create(options), null!);
+        var environment = new WhatsAppFlowEnvironment(Options.Create(options), null!, new FixedWhatsAppSettingsReader());
         Assert.Equal(expected, environment.IsConfigured);
         Assert.Equal("111", options.PhoneNumberId);
         Assert.Equal("test-token", options.AccessToken);

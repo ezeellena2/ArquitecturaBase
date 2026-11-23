@@ -22,7 +22,7 @@ public sealed class WhatsAppAudioLimitTests
         Assert.Equal(WhatsAppAudioState.Unavailable, fixture.Message.AudioState);
         Assert.Equal(FileErrors.TooLarge.Code, fixture.Message.AudioFailureCode);
         Assert.Equal(bytes.Length, fixture.Message.AudioSize);
-        Assert.True(fixture.Presentation.View(fixture.Row()).CanPlay);
+        Assert.True(fixture.Audio.View(fixture.Row()).CanPlay);
         Assert.Equal(1, fixture.Files.WriteCount);
     }
     [Fact]

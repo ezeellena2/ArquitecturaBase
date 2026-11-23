@@ -449,7 +449,7 @@ public sealed class ProfileWhatsAppServiceTests
                 SendQueue,
                 new FakeWhatsAppAvailability(IsEnabled: true),
                 new AccountCreationPolicy(new FakeSystemSettingsReader(), new FakeInitialAdmin()),
-                whatsAppOptions);
+                new FakeWhatsAppSettings());
             var phoneLinker = new PhoneNumberLinker(
                 Accounts,
                 Repository ?? Accounts,
@@ -472,7 +472,7 @@ public sealed class ProfileWhatsAppServiceTests
                 new FakeCurrentUser { UserId = userId }, Accounts,
                 new WhatsAppCodeIssuer(
                     null!, null!, null!, new FakePhoneNumberParser(), null!, new FakeWhatsAppAvailability(IsEnabled: false),
-                    null!, Options.Create(new WhatsAppLoginOptions())),
+                    null!, new FakeWhatsAppSettings()),
                 null!, Validator(), UnitOfWork, Logger);
 
         private IRequestValidator Validator() =>

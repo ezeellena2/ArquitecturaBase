@@ -1,7 +1,8 @@
 # Reglas fijas que pasan a Configuración: inventario
 
 Fecha: 2026-11-22. Estado: **decidido el mismo día (RC1-A, RC2-B, RC3-A, RC4-A, RC6-B y RC7-B); RC5 programado (`1b48cf9d`), RC7-B
-y RC4-A programados, la tanda del núcleo e IA (RC6-B y la retención de identidad y de la IA) programada y el resto sin programar.**
+y RC4-A programados, la tanda del núcleo e IA (RC6-B y la retención de identidad y de la IA) y la de WhatsApp programadas y el
+resto sin programar.**
 
 El 2026-11-21 el usuario pidió que ninguna regla de negocio quede fija en el código: «toda configuración o regla tenemos que
 tratar de colocarla en la zona de configuraciones del administrador». El primer caso ya está hecho: el tope de ofrecimientos de
@@ -155,7 +156,11 @@ Como TO1-A, por grupo y con su tablero antes de tocar una pantalla:
 En cuatro tandas por módulo, porque varias decisiones comparten pantalla. Son independientes entre sí y cada pantalla pasa antes
 por su tablero:
 
-1. **WhatsApp:** RC3-A, RC2-B y la retención de WhatsApp de RC1.
+1. **WhatsApp:** RC3-A, RC2-B y la retención de WhatsApp de RC1. Programado el 2026-11-22 con el tablero «WhatsApp: reglas en
+   Configuración», registrado en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/asistente-casos.md):
+   Configuración › WhatsApp con sus tres valores (país nuevo con aviso de costo) y, en Límites, volver a ofrecer un rechazado,
+   formularios por planilla y páginas de un PDF, que quedaron de 1 a 10, lo más que lee la lectura de documentos
+   ([WhatsApp](../features/whatsapp.md#configuración--whatsapp-rc3-a-2026-11-22)).
 2. **Formularios:** RC4-A y la retención de documentos de RC1. Programado el 2026-11-22 con los tableros AP1, AP2 y CF1,
    registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#reglas-fijas-a-configuración-pedir-aprobación-y-configuración--formularios-rc4-a--2026-11-22):
    las dos casillas de «Pedir aprobación» y Configuración › Formularios, con los dos plazos de los documentos recibidos

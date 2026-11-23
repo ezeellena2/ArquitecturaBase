@@ -15,6 +15,8 @@ internal sealed class FakePhoneChannel(bool isEnabled, IReadOnlyList<string>? co
 
     public IReadOnlyList<string> Countries { get; } = countries ?? [];
 
+    public Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken) => Task.FromResult(Countries);
+
     public string? DisplayNumber { get; } = displayNumber;
 
     /// <summary>El error con que rechaza todo número, como un canal que no le manda a ese país; null acepta todo.</summary>
@@ -22,10 +24,10 @@ internal sealed class FakePhoneChannel(bool isEnabled, IReadOnlyList<string>? co
 
     public List<PhoneNumber> Checked { get; } = [];
 
-    public Result EnsureCanSendTo(PhoneNumber phone)
+    public Task<Result> EnsureCanSendToAsync(PhoneNumber phone, CancellationToken cancellationToken)
     {
         Checked.Add(phone);
 
-        return Rejection is { } error ? error : Result.Success();
+        return Task.FromResult(Rejection is { } error ? error : Result.Success());
     }
 }

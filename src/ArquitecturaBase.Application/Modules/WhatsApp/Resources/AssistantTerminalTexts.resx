@@ -46,7 +46,7 @@
   <data name="DocumentMacroEnabled" xml:space="preserve"><value>El archivo tiene macros y no lo abro. Mandámelo sin macros o en PDF.</value></data>
   <data name="DocumentTooLarge" xml:space="preserve"><value>El archivo pasa el tope de 10 MB y no lo puedo leer. Mandame uno más liviano o una captura.</value></data>
   <data name="DocumentImageTooLarge" xml:space="preserve"><value>La foto es demasiado grande y no la puedo leer. Mandame una más chica o una captura.</value></data>
-  <data name="DocumentTooManyPages" xml:space="preserve"><value>El PDF tiene más de 10 páginas y no lo puedo leer. Mandame sólo las páginas que importan.</value></data>
+  <data name="DocumentTooManyPages" xml:space="preserve"><value>El PDF tiene más de {0} páginas y no lo puedo leer. Mandame sólo las páginas que importan.</value></data>
   <data name="DocumentEmpty" xml:space="preserve"><value>El Word está vacío. ¿Me mandás el que tiene el contenido?</value></data>
   <data name="DocumentUnreadable" xml:space="preserve"><value>No pude abrir el archivo. Mandámelo de nuevo como PDF o como foto.</value></data>
   <data name="DocumentNotAllowed" xml:space="preserve"><value>Gracias, recibí tu documento. Tu cuenta no puede cargarlo desde acá: se lo pasé a una persona del equipo.</value></data>

@@ -45,7 +45,8 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         {
             var nowUtc = reading.NowUtc;
             if (await reader.FindPendingAsync(contactId, nowUtc, ct) is not { State: WhatsAppDocumentState.Pending } source) return true;
-            if ((await preparation.DecideAsync(source, nowUtc, ct)).Decision != WhatsAppReceivedDocumentDecision.Download) return true;
+            var plan = await preparation.DecideAsync(source, nowUtc, ct);
+            if (plan.Decision != WhatsAppReceivedDocumentDecision.Download) return true;
             var taken = false;
             var saved = await unitOfWork.ExecuteInTransactionAsync(async token =>
             {
@@ -53,7 +54,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
                 if (await messages.GetForUpdateAsync(source.ContactId, source.MessageId, token) is not { } message) return Result.Success();
                 taken = message.TakeDocumentForReading();
                 if (!taken && message.DocumentState == WhatsAppDocumentState.Pending)
-                    await replies.RejectAsync(contact, message, StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Unknown, token);
+                    await replies.RejectAsync(contact, message, StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Unknown, plan.MaxDocumentPages, token);
                 return Result.Success();
             }, CommitPolicy.OnSuccess, ct);
             return saved.IsFailure ? Result.Failure<bool>(saved.Error) : Result.Success(taken);
@@ -108,7 +109,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         if (acquired.Value.Rejection is { } rejection)
         {
             if (rejection == StructuredAttachmentRejection.Unavailable) message.SetDocumentUnavailable(WhatsAppReceivedDocumentReplyPolicy.ReasonCode(rejection));
-            else await replies.RejectAsync(contact, message, rejection, acquired.Value.FileKind, token);
+            else await replies.RejectAsync(contact, message, rejection, acquired.Value.FileKind, plan.MaxDocumentPages, token);
             return Nothing;
         }
         return await StoreAsync(contact, message, current, plan, acquired.Value, token);
@@ -134,7 +135,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         // Without the person's context it stays in the chat, stored, as a document that is not used.
         var context = await reading.CaptureAsync(current, ct);
         if (context.IsFailure) return Nothing;
-        var expiresAtUtc = reading.ExpiresAtUtc(current);
+        var expiresAtUtc = await reading.ExpiresAtUtcAsync(current, ct);
         var request = message.RequestDocumentReading(context.Value.ActorUserId, System.Text.Json.JsonSerializer.Serialize(context.Value, System.Text.Json.JsonSerializerOptions.Web),
             contact.LinkRevision, expiresAtUtc, reading.NowUtc);
         if (request.IsFailure) return Result.Failure<WhatsAppAssistantWorkResponse?>(request.Error);
@@ -151,7 +152,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         var message = await messages.GetForUpdateAsync(source.ContactId, source.MessageId, token);
         var current = await reader.FindAsync(source.ContactId, source.MessageId, token);
         if (message is null || current is not { State: WhatsAppDocumentState.Reading, RequestId: { } requestId }) return Nothing;
-        if (reading.IsExpired(current))
+        if (await reading.IsExpiredAsync(current, token))
         {
             message.SetDocumentReadingState(WhatsAppDocumentState.Expired);
             return Nothing;
@@ -164,7 +165,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         }
         var operation = current is { StorageKey: { } key, FileName: { } name, Size: { } size, CopySha256: { } sha256 }
             ? WhatsAppReceivedDocumentReadingPolicy.Operation(requestId, context.Value, key, name, size, sha256, current.Pages, current.OccurredAtUtc,
-                current.ContentExpiresAtUtc ?? reading.ExpiresAtUtc(current))
+                current.ContentExpiresAtUtc ?? await reading.ExpiresAtUtcAsync(current, token))
             : null;
         if (operation is null)
         {
@@ -191,7 +192,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         var message = await messages.GetByRequestForUpdateAsync(contactId, requestId, ct);
         var source = message is null ? null : await reader.FindAsync(contactId, message.Id, ct);
         if (message is null || source is not { State: WhatsAppDocumentState.Reading }) return Result.Success();
-        if (reading.IsExpired(source))
+        if (await reading.IsExpiredAsync(source, ct))
         {
             message.SetDocumentReadingState(WhatsAppDocumentState.Expired);
             return Result.Success();

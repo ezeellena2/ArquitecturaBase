@@ -37,7 +37,8 @@ internal sealed class WhatsAppAssistantTerminalFixture : IStructuredAuthoringPro
         get
         {
             var spreadsheets = new WhatsAppAssistantSpreadsheetPolicy(new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentRowsChannel(),
-                new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentChannel(), null!, null!, null!, Reader, TimeProvider.System);
+                new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentChannel(), null!, null!, null!, Reader, TimeProvider.System,
+                new FakeWhatsAppAssistantAgentReader());
             return new(this, this, this, Reader, new WhatsAppAssistantDocumentPolicy(new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentChannel(),
                 null!, null!, null!, Reader, TimeProvider.System, spreadsheets), spreadsheets, null!);
         }

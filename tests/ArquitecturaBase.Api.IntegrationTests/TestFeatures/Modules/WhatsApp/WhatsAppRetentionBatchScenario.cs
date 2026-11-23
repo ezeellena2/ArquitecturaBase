@@ -21,10 +21,11 @@ internal sealed class WhatsAppRetentionBatchScenario : IAsyncDisposable
     {
         var clock=new FakeTimeProvider(new DateTimeOffset(2026,10,18,12,0,0,TimeSpan.Zero));
         provider=new ServiceCollection().AddSingleton(this).AddSingleton<TimeProvider>(clock)
+            .AddSingleton<IWhatsAppSettingsReader>(new FixedWhatsAppSettingsReader())
             .AddScoped<IWhatsAppMessageRetentionRepository,Repository>().AddScoped<Transaction>().AddScoped<IUnitOfWork>(services=>services.GetRequiredService<Transaction>())
             .AddScoped<IWhatsAppAssistantContentRetentionService>(services=>new WhatsAppAssistantContentRetentionService(
                 services.GetRequiredService<IWhatsAppMessageRetentionRepository>(),services.GetRequiredService<IUnitOfWork>(),clock,
-                new(90),NullLogger<WhatsAppAssistantContentRetentionService>.Instance)).BuildServiceProvider();
+                new FixedWhatsAppSettingsReader(),NullLogger<WhatsAppAssistantContentRetentionService>.Instance)).BuildServiceProvider();
         Service=new(provider.GetRequiredService<IServiceScopeFactory>(),Options.Create(new WhatsAppMessageRetentionOptions()),clock,
             NullLogger<WhatsAppMessageRetentionService>.Instance);
     }

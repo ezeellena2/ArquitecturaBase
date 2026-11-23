@@ -7,8 +7,10 @@ public sealed partial class WhatsAppAssistantRequest
     /// <summary>The spreadsheet message whose copy and prepared sheet go with this reference's request; null without one.</summary>
     public Guid? AttachmentMessageId { get; private set; }
 
-    /// <summary>The most loads a spreadsheet sends to its person (VC1-A, task 29).</summary>
-    public const int MaxLoads = 3;
+    /// <summary>
+    /// The most loads any spreadsheet may carry: the agent's limit (RC2-B, «Formularios por planilla», 3 by default) is at most this one.
+    /// </summary>
+    public const int MaxLoads = 10;
 
     /// <summary>
     /// VC1-A (task 29): each load of a spreadsheet is a reference of its own (its Flow and its checks before sending), like another action of

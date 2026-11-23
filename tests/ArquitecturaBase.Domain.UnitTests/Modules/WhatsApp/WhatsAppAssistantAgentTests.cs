@@ -153,6 +153,19 @@ public sealed class WhatsAppAssistantAgentTests
         Assert.True(Saves(Limits() with { DailyOfferLimit = WhatsAppAssistantAgentLimits.MaxDailyOffers }));
         Assert.False(Saves(Limits() with { DailyOfferLimit = WhatsAppAssistantAgentLimits.MinDailyOffers - 1 }));
         Assert.False(Saves(Limits() with { DailyOfferLimit = WhatsAppAssistantAgentLimits.MaxDailyOffers + 1 }));
+        Assert.True(Saves(Limits() with { MaxSpreadsheetLoads = WhatsAppAssistantAgentLimits.MinSpreadsheetLoads }));
+        Assert.True(Saves(Limits() with { MaxSpreadsheetLoads = WhatsAppAssistantAgentLimits.MaxSpreadsheetLoads }));
+        Assert.False(Saves(Limits() with { MaxSpreadsheetLoads = WhatsAppAssistantAgentLimits.MinSpreadsheetLoads - 1 }));
+        Assert.False(Saves(Limits() with { MaxSpreadsheetLoads = WhatsAppAssistantAgentLimits.MaxSpreadsheetLoads + 1 }));
+        Assert.True(Saves(Limits() with { MaxDocumentPages = WhatsAppAssistantAgentLimits.MinDocumentPages }));
+        Assert.True(Saves(Limits() with { MaxDocumentPages = WhatsAppAssistantAgentLimits.MaxDocumentPages }));
+        Assert.False(Saves(Limits() with { MaxDocumentPages = WhatsAppAssistantAgentLimits.MinDocumentPages - 1 }));
+        Assert.False(Saves(Limits() with { MaxDocumentPages = WhatsAppAssistantAgentLimits.MaxDocumentPages + 1 }));
+        Assert.True(Saves(Limits() with { DeclinedReofferDays = null }));
+        Assert.True(Saves(Limits() with { DeclinedReofferDays = WhatsAppAssistantAgentLimits.MinDeclinedReofferDays }));
+        Assert.True(Saves(Limits() with { DeclinedReofferDays = WhatsAppAssistantAgentLimits.MaxDeclinedReofferDays }));
+        Assert.False(Saves(Limits() with { DeclinedReofferDays = WhatsAppAssistantAgentLimits.MinDeclinedReofferDays - 1 }));
+        Assert.False(Saves(Limits() with { DeclinedReofferDays = WhatsAppAssistantAgentLimits.MaxDeclinedReofferDays + 1 }));
         Assert.False(Saves(Limits() with { BlockedTopics = ["Precios", "precios"] }));
         Assert.False(Saves(Limits() with { BlockedTopics = [" "] }));
         Assert.False(Saves(Limits() with { BlockedTopics = [.. Enumerable.Range(0, WhatsAppAssistantAgentLimits.BlockedTopics + 1).Select(index => $"Tema {index}")] }));
@@ -176,6 +189,9 @@ public sealed class WhatsAppAssistantAgentTests
         Assert.Equal(400, defaults.MaxReplyLength);
         Assert.Equal(10, defaults.DailyReplyLimit);
         Assert.Equal(2, defaults.DailyOfferLimit);
+        Assert.Equal(3, defaults.MaxSpreadsheetLoads);
+        Assert.Equal(10, defaults.MaxDocumentPages);
+        Assert.Null(defaults.DeclinedReofferDays);
         Assert.Equal(Enum.GetValues<WhatsAppAssistantActionKind>(), defaults.AllowedActions);
     }
 
@@ -189,6 +205,37 @@ public sealed class WhatsAppAssistantAgentTests
 
         Assert.Equal(2, limits.DailyOfferLimit);
         Assert.Equal(10, limits.DailyReplyLimit);
+    }
+
+    [Fact]
+    public void Limits_saved_before_the_spreadsheets_and_documents_limits_keep_the_values_of_before()
+    {
+        // RC2-B (2026-11-22): an agent saved before, or by the previous version while both run, has none of the three new limits.
+        const string saved = """{"blockedTopics":[],"cannotPromise":"","maxReplyLength":400,"dailyReplyLimit":10,"allowedActions":[1,5],"dailyOfferLimit":4}""";
+
+        var limits = System.Text.Json.JsonSerializer.Deserialize<WhatsAppAssistantLimits>(saved, System.Text.Json.JsonSerializerOptions.Web)!;
+
+        Assert.Equal(4, limits.DailyOfferLimit);
+        Assert.Equal(3, limits.MaxSpreadsheetLoads);
+        Assert.Equal(10, limits.MaxDocumentPages);
+        Assert.Null(limits.DeclinedReofferDays);
+    }
+
+    [Fact]
+    public void The_limits_of_spreadsheets_and_documents_never_pass_what_the_channel_can_take()
+    {
+        Assert.Equal(WhatsAppAssistantRequest.MaxLoads, WhatsAppAssistantAgentLimits.MaxSpreadsheetLoads);
+        Assert.Equal(WhatsAppMessage.MaxDocumentPages, WhatsAppAssistantAgentLimits.MaxDocumentPages);
+    }
+
+    [Fact]
+    public void A_declined_form_is_never_offered_again_or_only_after_its_days()
+    {
+        var nowUtc = new DateTime(2026, 11, 22, 12, 0, 0, DateTimeKind.Utc);
+
+        // Null: every decline of the conversation's link counts, as before RC2-B; with days, only the declines since then.
+        Assert.Null(WhatsAppAssistantAgentLimits.DefaultLimits.DeclinedSinceUtc(nowUtc));
+        Assert.Equal(nowUtc.AddDays(-7), (WhatsAppAssistantAgentLimits.DefaultLimits with { DeclinedReofferDays = 7 }).DeclinedSinceUtc(nowUtc));
     }
 
     private static bool Saves(WhatsAppAssistantCase @case) => WhatsAppAssistantAgent.Create("es").Update(Profile(), [@case], NoReply(), Limits()).IsSuccess;

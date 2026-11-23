@@ -66,7 +66,7 @@ internal sealed class WhatsAppFormSendPolicy(
             binding.VersionId, binding.ProtectedManifest);
         if (!account.Value.HasSameIdentity(manifest.Account)) return FlowErrors.AccountMismatch;
         return new WhatsAppFormSendContext(recipient, recipientRevision, form, binding, projection, buttonText, startScreen,
-            account.Value, environment.SessionLifetime);
+            account.Value, await environment.FindSessionLifetimeAsync(cancellationToken));
     }
 
     public async Task<Result<WhatsAppFormRecipientRow>> RevalidateAsync(WhatsAppFormSendContext context,

@@ -28,7 +28,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
     {
         var f=new WhatsAppAudioFixture();var result=await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);Assert.Null(result.Value);Assert.Equal(1,f.Downloads);Assert.Null(f.Message.AudioRequestId);
-        Assert.Equal(1,f.Files.WriteCount);Assert.True(f.Presentation.View(f.Row()).CanPlay);
+        Assert.Equal(1,f.Files.WriteCount);Assert.True(f.Audio.View(f.Row()).CanPlay);
         Assert.Equal(WhatsAppAudioState.Pending,f.Message.AudioState);Assert.Null(f.Message.AudioContextJson);
     }
     [Fact]
@@ -38,7 +38,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
         var f=new WhatsAppAudioFixture(bytes);f.Contact.UnlinkUser();f.Permissions.Permissions[f.Actor]=[];
         var result=await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);Assert.Null(result.Value);Assert.Null(f.Message.AudioRequestId);
-        Assert.True(f.Presentation.View(f.Row()).CanPlay);Assert.Equal(bytes.Length,f.Message.AudioSize);
+        Assert.True(f.Audio.View(f.Row()).CanPlay);Assert.Equal(bytes.Length,f.Message.AudioSize);
         Assert.Equal(WhatsAppAudioState.Pending,f.Message.AudioState);
     }
     [Fact]
@@ -77,7 +77,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
         Assert.Equal(1, f.Downloads);
         Assert.Equal(1, f.Files.WriteCount);
         Assert.Equal(WhatsAppAudioFixture.Bytes().Length, f.Message.AudioSize);
-        Assert.True(f.Presentation.View(f.Row()).CanPlay);
+        Assert.True(f.Audio.View(f.Row()).CanPlay);
         Assert.Null(f.Message.AudioRequestId);
         Assert.Null(f.Message.AudioContextJson);
         Assert.Null(f.Message.Body);
@@ -98,7 +98,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
         Assert.Equal(WhatsAppChatErrors.Forbidden.Code, f.Message.AudioFailureCode);
         Assert.Equal(1, f.Downloads);
         Assert.Equal(1, f.Files.WriteCount);
-        Assert.True(f.Presentation.View(f.Row()).CanPlay);
+        Assert.True(f.Audio.View(f.Row()).CanPlay);
         Assert.Null(f.Message.AudioRequestId);
         Assert.Null(f.Message.AudioContextJson);
         Assert.Null(f.Message.Body);
@@ -136,7 +136,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
         Assert.Equal(1, f.Files.WriteCount);
         Assert.Equal(WhatsAppAudioState.Unavailable, f.Message.AudioState);
         Assert.Equal(WhatsAppChatErrors.Forbidden.Code, f.Message.AudioFailureCode);
-        Assert.True(f.Presentation.View(f.Row()).CanPlay);
+        Assert.True(f.Audio.View(f.Row()).CanPlay);
         Assert.Null(f.Message.AudioRequestId);
         Assert.Null(f.Message.AudioContextJson);
         Assert.Null(f.Message.Body);
@@ -223,7 +223,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
     public void Presentation_uses_source_expiry_and_hides_its_content_after_retention()
     {
         var f=new WhatsAppAudioFixture();f.Pin();f.Message.StoreAudio("private-key",47);
-        Assert.Equal(WhatsAppAudioFixture.Now.AddDays(90),f.Presentation.ExpiresAtUtc(f.Row()));Assert.True(f.Presentation.View(f.Row()).CanPlay);
-        f.Clock.Advance(TimeSpan.FromDays(90));Assert.True(f.Presentation.IsExpired(f.Row()));Assert.Equal(WhatsAppAudioState.Expired,f.Presentation.View(f.Row()).State);Assert.False(f.Presentation.View(f.Row()).CanPlay);
+        Assert.Equal(WhatsAppAudioFixture.Now.AddDays(90),f.Audio.ExpiresAtUtc(f.Row()));Assert.True(f.Audio.View(f.Row()).CanPlay);
+        f.Clock.Advance(TimeSpan.FromDays(90));Assert.True(f.Audio.IsExpired(f.Row()));Assert.Equal(WhatsAppAudioState.Expired,f.Audio.View(f.Row()).State);Assert.False(f.Audio.View(f.Row()).CanPlay);
     }
 }

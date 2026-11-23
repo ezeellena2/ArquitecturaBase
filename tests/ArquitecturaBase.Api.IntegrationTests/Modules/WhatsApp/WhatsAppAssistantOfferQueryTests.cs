@@ -2,12 +2,11 @@ using System.Reflection;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
-using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
@@ -21,7 +20,7 @@ public sealed class WhatsAppAssistantOfferQueryTests
     public void Quick_reply_metadata_is_bound_to_the_current_subject_and_link_in_SQL(string expected)
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader = new WhatsAppAssistantReader(db, Options.Create(new WhatsAppMessageRetentionOptions()),
+        var reader = new WhatsAppAssistantReader(db, new FixedWhatsAppSettingsReader(),
             new FakeTimeProvider(new DateTime(2026, 10, 17, 12, 0, 0, DateTimeKind.Utc)));
         var method = typeof(WhatsAppAssistantReader).GetMethod("QuestionRows", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(reader, [Guid.NewGuid(), new DateTime(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc)]));

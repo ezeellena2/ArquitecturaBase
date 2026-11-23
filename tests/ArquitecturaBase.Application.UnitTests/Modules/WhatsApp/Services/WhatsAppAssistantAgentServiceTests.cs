@@ -133,6 +133,42 @@ public sealed class WhatsAppAssistantAgentServiceTests
         Assert.Equal(0, host.UnitOfWork.Transactions);
     }
 
+    // RC2-B: forms per spreadsheet, pages of a PDF and the days to offer a declined form again answer at their paths out of their ranges.
+    [Theory]
+    [InlineData(WhatsAppAssistantAgentLimits.MinSpreadsheetLoads - 1, 10, null, "limits.maxSpreadsheetLoads")]
+    [InlineData(WhatsAppAssistantAgentLimits.MaxSpreadsheetLoads + 1, 10, null, "limits.maxSpreadsheetLoads")]
+    [InlineData(3, WhatsAppAssistantAgentLimits.MinDocumentPages - 1, null, "limits.maxDocumentPages")]
+    [InlineData(3, WhatsAppAssistantAgentLimits.MaxDocumentPages + 1, null, "limits.maxDocumentPages")]
+    [InlineData(3, 10, WhatsAppAssistantAgentLimits.MinDeclinedReofferDays - 1, "limits.declinedReofferDays")]
+    [InlineData(3, 10, WhatsAppAssistantAgentLimits.MaxDeclinedReofferDays + 1, "limits.declinedReofferDays")]
+    public async Task The_spreadsheet_document_and_declined_limits_answer_at_their_paths_out_of_their_ranges(int loads, int pages, int? days, string path)
+    {
+        var host = new Host();
+
+        var invalid = await host.Service.UpdateAsync(Request(0, "es") with
+        {
+            Limits = Limits() with { MaxSpreadsheetLoads = loads, MaxDocumentPages = pages, DeclinedReofferDays = days },
+        }, Ct);
+
+        var validation = Assert.IsType<ValidationError>(invalid.Error);
+        Assert.Equal([path], validation.Errors.Keys);
+        Assert.Equal(0, host.UnitOfWork.Transactions);
+    }
+
+    [Fact]
+    public async Task The_spreadsheet_document_and_declined_limits_are_saved_and_read_back()
+    {
+        var host = new Host();
+
+        var saved = await host.Service.UpdateAsync(Request(0, "es") with
+        {
+            Limits = Limits() with { MaxSpreadsheetLoads = 5, MaxDocumentPages = 4, DeclinedReofferDays = 30 },
+        }, Ct);
+
+        Assert.True(saved.IsSuccess);
+        Assert.Equal((5, 4, (int?)30), (saved.Value.Limits.MaxSpreadsheetLoads, saved.Value.Limits.MaxDocumentPages, saved.Value.Limits.DeclinedReofferDays));
+    }
+
     // A text over its length names its limit with the thousands of its language (2026-11-12): AddFailure does not fill the
     // placeholder of the message by itself, so the validator gives it the limit.
     [Fact]

@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
@@ -13,21 +12,24 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 // until its next attempt (30, 90, 210, 450, 930, 1890 and 3810 seconds and then an hour more each time (H11) after the first, as a spreadsheet's), or being read by the engine while its
 // content lasts, polled in every round. One that waits for its request is due only when its time passed or a text of the person (or an
 // audio once transcribed) followed it; a pending one is taken before a reading, so a slow reading never holds back a reply or a handoff.
-internal sealed class WhatsAppReceivedDocumentReader(ApplicationDbContext db, WhatsAppContentRetention retention) : IWhatsAppReceivedDocumentReader
+internal sealed class WhatsAppReceivedDocumentReader(ApplicationDbContext db, IWhatsAppSettingsReader settings) : IWhatsAppReceivedDocumentReader
 {
+    // RC3-A: the retention of Configuración › WhatsApp, read on every use (90 days until it is saved).
+    private async Task<int> RetentionDaysAsync(CancellationToken ct) => (await settings.FindAsync(ct)).MessageRetentionDays;
+
     private IQueryable<WhatsAppMessage> Documents() => db.Set<WhatsAppMessage>().AsNoTracking().Where(message => message.Kind == WhatsAppMessageKind.ReceivedDocument
         && message.Direction == WhatsAppMessageDirection.Inbound && message.ContactId != null && message.DocumentState != null);
 
-    private IQueryable<WhatsAppMessage> Waiting(DateTime nowUtc)
+    private IQueryable<WhatsAppMessage> Waiting(DateTime nowUtc, int days)
     {
-        var cutoff = nowUtc.AddDays(-retention.MessageRetentionDays);
+        var cutoff = nowUtc.AddDays(-days);
         return Documents().Where(message => message.OccurredAtUtc > cutoff && (message.DocumentState == WhatsAppDocumentState.Pending
             || message.DocumentState == WhatsAppDocumentState.Reading && (message.DocumentContentExpiresAtUtc == null || message.DocumentContentExpiresAtUtc > nowUtc)));
     }
 
     // One that waits for its request is due once its time passed or a text followed it (by the inbound sequence): an audio counts once
     // transcribed, as a spreadsheet waits for it.
-    private IQueryable<WhatsAppMessage> Due(DateTime nowUtc) => Waiting(nowUtc).Where(message => message.DocumentState == WhatsAppDocumentState.Reading
+    private IQueryable<WhatsAppMessage> Due(DateTime nowUtc, int days) => Waiting(nowUtc, days).Where(message => message.DocumentState == WhatsAppDocumentState.Reading
         || message.DocumentRequestAwaitedUntilUtc == null || message.DocumentRequestAwaitedUntilUtc <= nowUtc
                 || db.Set<WhatsAppMessage>().Any(next => next.ContactId == message.ContactId && next.Direction == WhatsAppMessageDirection.Inbound
                     && next.InboundSequence > message.InboundSequence && (next.Kind == WhatsAppMessageKind.Text
@@ -77,17 +79,17 @@ internal sealed class WhatsAppReceivedDocumentReader(ApplicationDbContext db, Wh
     private static readonly double PairingSeconds = WhatsAppAssistantSourcePolicy.PairingWindow.TotalSeconds;
 
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct) =>
-        await Due(nowUtc).Select(message => message.ContactId!.Value).Where(id => !excluded.Contains(id))
+        await Due(nowUtc, await RetentionDaysAsync(ct)).Select(message => message.ContactId!.Value).Where(id => !excluded.Contains(id))
             .Distinct().OrderBy(id => id).Take(limit).ToListAsync(ct);
 
     // Only for the processor's wait, as a spreadsheet's: one waiting for its next attempt counts once it is near (H11); one that waits
     // for its request does not, since nothing hurries it (the next message wakes the processor anyway).
-    public Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct) => Waiting(nowUtc).Where(message => message.DocumentState == WhatsAppDocumentState.Reading
+    public async Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct) => await Waiting(nowUtc, await RetentionDaysAsync(ct)).Where(message => message.DocumentState == WhatsAppDocumentState.Reading
         || message.DocumentRequestAwaitedUntilUtc == null || message.DocumentRequestAwaitedUntilUtc <= nowUtc)
         .Where(RetryDueAt(nowUtc + WhatsAppAcquisitionRetry.ImminentAttempt)).AnyAsync(ct);
 
-    public Task<WhatsAppReceivedDocumentSourceRow?> FindPendingAsync(Guid contactId, DateTime nowUtc, CancellationToken ct) =>
-        Project(Due(nowUtc).Where(message => message.ContactId == contactId))
+    public async Task<WhatsAppReceivedDocumentSourceRow?> FindPendingAsync(Guid contactId, DateTime nowUtc, CancellationToken ct) =>
+        await Project(Due(nowUtc, await RetentionDaysAsync(ct)).Where(message => message.ContactId == contactId))
             .OrderBy(row => row.State == WhatsAppDocumentState.Reading).ThenBy(row => row.OccurredAtUtc).ThenBy(row => row.MessageId).FirstOrDefaultAsync(ct);
 
     public Task<WhatsAppReceivedDocumentSourceRow?> FindAsync(Guid contactId, Guid messageId, CancellationToken ct) =>

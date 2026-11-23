@@ -35,11 +35,22 @@ public sealed record WhatsAppAssistantProfile(string Name, string Introduction, 
 
 /// <summary>
 /// The agent's limits. <see cref="DailyOfferLimit"/> (TO1-A, 2026-11-21) is how many forms the assistant offers on its own per
-/// conversation and business day; it goes last with its default so that limits saved before it, or by the previous version while
-/// both run, read two, as before.
+/// conversation and business day. RC2-B (2026-11-22) adds how many forms a spreadsheet sends (<see cref="MaxSpreadsheetLoads"/>, the
+/// rest goes to a person), how many pages of a PDF are read (<see cref="MaxDocumentPages"/>) and after how many days a declined form
+/// may be offered again (<see cref="DeclinedReofferDays"/>, null: never). Each new limit goes last with its default, so that limits
+/// saved before it, or by the previous version while both run, read the value of before.
 /// </summary>
 public sealed record WhatsAppAssistantLimits(IReadOnlyList<string> BlockedTopics, string CannotPromise, int MaxReplyLength, int DailyReplyLimit,
-    IReadOnlyList<WhatsAppAssistantActionKind> AllowedActions, int DailyOfferLimit = WhatsAppAssistantAgentLimits.DefaultDailyOffers);
+    IReadOnlyList<WhatsAppAssistantActionKind> AllowedActions, int DailyOfferLimit = WhatsAppAssistantAgentLimits.DefaultDailyOffers,
+    int MaxSpreadsheetLoads = WhatsAppAssistantAgentLimits.DefaultSpreadsheetLoads, int MaxDocumentPages = WhatsAppAssistantAgentLimits.DefaultDocumentPages,
+    int? DeclinedReofferDays = null)
+{
+    /// <summary>
+    /// From when a declined form keeps the assistant from sending it again: null, every decline of the conversation's link (never again);
+    /// with <see cref="DeclinedReofferDays"/>, only the declines of the last days.
+    /// </summary>
+    public DateTime? DeclinedSinceUtc(DateTime nowUtc) => DeclinedReofferDays is { } days ? nowUtc.AddDays(-days) : null;
+}
 
 /// <summary>The limits of the agent's configuration: every layer uses these, from the validator to the screen.</summary>
 public static class WhatsAppAssistantAgentLimits
@@ -70,10 +81,25 @@ public static class WhatsAppAssistantAgentLimits
     public const int MinDailyOffers = 1;
     public const int MaxDailyOffers = 50;
     public const int DefaultDailyOffers = 2;
+    public const int MinSpreadsheetLoads = 1;
+
+    /// <summary>As many loads as a spreadsheet can carry (<see cref="WhatsAppAssistantRequest.MaxLoads"/>).</summary>
+    public const int MaxSpreadsheetLoads = WhatsAppAssistantRequest.MaxLoads;
+
+    public const int DefaultSpreadsheetLoads = 3;
+    public const int MinDocumentPages = 1;
+
+    /// <summary>As many pages as the documents' reader and the engine take (<see cref="WhatsAppMessage.MaxDocumentPages"/>).</summary>
+    public const int MaxDocumentPages = WhatsAppMessage.MaxDocumentPages;
+
+    public const int DefaultDocumentPages = MaxDocumentPages;
+    public const int MinDeclinedReofferDays = 1;
+    public const int MaxDeclinedReofferDays = 365;
 
     /// <summary>
-    /// Until the profile is saved: every action allowed, 400 characters, 10 replies and 2 form offers per conversation and day (AS5,
-    /// TO1-A).
+    /// Until the profile is saved: every action allowed, 400 characters, 10 replies and 2 form offers per conversation and day, 3 forms
+    /// per spreadsheet, 10 pages per PDF and a declined form never offered again (AS5, TO1-A, RC2-B).
     /// </summary>
-    public static WhatsAppAssistantLimits DefaultLimits { get; } = new([], "", 400, 10, Enum.GetValues<WhatsAppAssistantActionKind>(), DefaultDailyOffers);
+    public static WhatsAppAssistantLimits DefaultLimits { get; } = new([], "", 400, 10, Enum.GetValues<WhatsAppAssistantActionKind>(), DefaultDailyOffers,
+        DefaultSpreadsheetLoads, DefaultDocumentPages);
 }

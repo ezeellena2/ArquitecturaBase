@@ -3,7 +3,6 @@ using System.Text;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
@@ -61,10 +60,10 @@ internal sealed class WhatsAppReceivedDocumentFixture : IWhatsAppReceivedDocumen
         Assert.True(Message.SetDocumentDescriptor("1234", contentType, metaHash ?? Hash(Content), fileName));
         var recipientGuard = new WhatsAppFormActionPolicy(Host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Host.Context.Clock);
         var conversations = new Conversations(this);
-        var preparation = new WhatsAppReceivedDocumentPreparationPolicy(this, this, Files, Host.Context.Recipients, recipientGuard, this, this);
+        var preparation = new WhatsAppReceivedDocumentPreparationPolicy(this, this, Files, Host.Context.Recipients, recipientGuard, this, this, Host.Agents);
         var replies = new WhatsAppReceivedDocumentReplyPolicy(Host.Context.Policy, WhatsAppAssistantAcceptanceFixture.CreateAutomatic(Host), Host.Requests,
             new WhatsAppAssistantHandoffPolicy(conversations, recipientGuard, Host.Context.Clock), Host.Context.Clock);
-        var reading = new WhatsAppReceivedDocumentReadingPolicy(Host.Context.Users, Host.Context.Recipients, Host.Context.Settings, new WhatsAppContentRetention(90),
+        var reading = new WhatsAppReceivedDocumentReadingPolicy(Host.Context.Users, Host.Context.Recipients, Host.Context.Settings, new FakeWhatsAppSettings(),
             Host.Context.Clock);
         Dispatch = new(this, this, conversations, preparation, replies, reading, Host.UnitOfWork, NullLogger<WhatsAppReceivedDocumentDispatchService>.Instance);
     }

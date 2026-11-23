@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
@@ -33,6 +32,9 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
     public int Signals { get; private set; }
     public void Notify()=>Signals++;
     public WhatsAppAudioPresentationPolicy Presentation { get; }
+
+    /// <summary>What the audios show with the retention of the settings (90 days, as before RC3-A) and the fixture's clock.</summary>
+    public WhatsAppAudioPresentation Audio => new(WhatsAppSettings.DefaultMessageRetentionDays, Clock);
     public WhatsAppAudioPreparationPolicy Preparation { get; }
     public int Downloads { get; private set; }
     public Action? BeforeDownload { get; set; }
@@ -54,7 +56,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
         Message=WhatsAppMessage.Inbound(Contact.Id,"wamid.audio.test",WhatsAppMessageKind.Audio,null,null,Now);
         Message.SetAudioDescriptor("12345","audio/ogg; codecs=opus",Convert.ToHexStringLower(SHA256.HashData(sampleContent)));
         Access=new(Users,Permissions,Current,this,Settings);
-        Presentation=new(new WhatsAppContentRetention(90),Clock);
+        Presentation=new(new FakeWhatsAppSettings(),Clock);
         Preparation=new(this,new WhatsAppAudioStoragePolicy(Files));
         Service=new(Access,this,this,new Conversations(this),UnitOfWork,Presentation,this,Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppAudioService>.Instance);
         Content=new(Access,this,new WhatsAppAudioStoragePolicy(Files),Presentation,Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppAudioContentService>.Instance);

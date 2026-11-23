@@ -4,7 +4,6 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
@@ -26,7 +25,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// </summary>
 internal sealed class WhatsAppFlowRejectionPolicy(IWhatsAppAssistantRepository requests, IWhatsAppConversationRepository conversations,
     IWhatsAppFlowSessionRepository sessions, WhatsAppFlowSessionIssuer issuer, WhatsAppOutgoingSendGuard reservation,
-    WhatsAppContentRetention retention, TimeProvider clock)
+    IWhatsAppSettingsReader settings, TimeProvider clock)
 {
     public static WhatsAppFlowRejectionAnswer Decide(StructuredRecordCaptureResponse capture) =>
         capture.State != "Rejected" ? WhatsAppFlowRejectionAnswer.None
@@ -48,7 +47,7 @@ internal sealed class WhatsAppFlowRejectionPolicy(IWhatsAppAssistantRepository r
             var sender = rejected.OperatorUserId!.Value;
             if (answer != WhatsAppFlowRejectionAnswer.Resend || await conversations.GetByRequestAsync(rejected.ContactId, sender, reply.Id, ct) is not null
                 || await conversations.GetForUpdateAsync(rejected.ContactId, ct) is not { } chat) return;
-            var again = Again(reply, rejected, rejection);
+            var again = await AgainAsync(reply, rejected, rejection, ct);
             var flow = Attached(WhatsAppOutgoingMessage.CreateFlow(sender, rejected.ContactId, reply.Id, Body(rejected, rejection.Capture), again.Id, nowUtc), again);
             // As any message of the operator: in Atención manual, with the window open and the operator still allowed to send.
             if ((await reservation.ValidateAsync(chat, flow, ct)).IsFailure) return;
@@ -70,7 +69,7 @@ internal sealed class WhatsAppFlowRejectionPolicy(IWhatsAppAssistantRepository r
         WhatsAppOutgoingMessage outgoing;
         if (answer == WhatsAppFlowRejectionAnswer.Resend)
         {
-            var again = Again(reply, rejected, rejection);
+            var again = await AgainAsync(reply, rejected, rejection, ct);
             outgoing = Attached(WhatsAppOutgoingMessage.CreateAssistantFlow(recipient, rejected.ContactId, reference.RequestId, Body(rejected, rejection.Capture),
                 again.Id, nowUtc, linkRevision, waId, modeRevision), again);
         }
@@ -91,7 +90,7 @@ internal sealed class WhatsAppFlowRejectionPolicy(IWhatsAppAssistantRepository r
     // server adds on capture, what the person sent and the mark of the question that did not pass, with the notice that asks to correct it.
     // Its content lives as long as the rejected one's; an operator's had none, so it lives as long as the reply that brought what the person
     // sent, as an assistant's lives as long as its source message: past the deadline, so a reply sent in time and processed late is read.
-    private WhatsAppFlowSession Again(WhatsAppMessage reply, WhatsAppFlowSession rejected, WhatsAppFlowRejection rejection)
+    private async Task<WhatsAppFlowSession> AgainAsync(WhatsAppMessage reply, WhatsAppFlowSession rejected, WhatsAppFlowRejection rejection, CancellationToken ct)
     {
         var capture = rejection.Capture;
         var content = rejection.Content;
@@ -101,7 +100,7 @@ internal sealed class WhatsAppFlowRejectionPolicy(IWhatsAppAssistantRepository r
         var origin = content?.Origin ?? new StructuredRecordCaptureOrigin(StructuredRecordSenderKind.Manual, rejected.OperatorUserId, null, null, [], []);
         var opened = new WhatsAppFlowAssistantContent(1, origin, content?.ProposedFields ?? []) { Server = server, Answers = Answers(rejection) };
         return issuer.Again(rejected, rejection.Payload, opened,
-            rejected.AssistantContentExpiresAtUtc ?? reply.OccurredAtUtc.AddDays(retention.MessageRetentionDays));
+            rejected.AssistantContentExpiresAtUtc ?? reply.OccurredAtUtc.AddDays((await settings.FindAsync(ct)).MessageRetentionDays));
     }
 
     // What the person sent, as the new send's initial values: each question the prefill takes, with a value it takes.

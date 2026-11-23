@@ -19,6 +19,7 @@ internal sealed class WhatsAppAudioService(WhatsAppAudioAccessPolicy access,IWha
     private async Task<Result<WhatsAppAudioResponse>> RequestCoreAsync(Guid contactId,Guid messageId,CancellationToken ct)
     {
         var actor=await access.RequireOperatorAsync(ct);if(actor.IsFailure)return actor.Error;
+        var audio=await presentation.ReadAsync(ct);
         var result=await unitOfWork.ExecuteInTransactionAsync(async token=>
         {
             var contact=await conversations.GetForUpdateAsync(contactId,token);
@@ -26,19 +27,19 @@ internal sealed class WhatsAppAudioService(WhatsAppAudioAccessPolicy access,IWha
             var message=await messages.GetForUpdateAsync(contactId,messageId,token);
             var source=await reader.FindAsync(contactId,messageId,token);
             if(message is null || source is null)return Result.Failure<WhatsAppAudioResponse>(WhatsAppChatErrors.NotFound);
-            if(presentation.IsExpired(source)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success(presentation.View(source));}
-            if(source.RequestId is not null)return Result.Success(presentation.View(source));
+            if(audio.IsExpired(source)){message.SetAudioState(WhatsAppAudioState.Expired);return Result.Success(audio.View(source));}
+            if(source.RequestId is not null)return Result.Success(audio.View(source));
             if(source.Size>WhatsAppAudioStoragePolicy.MaximumNormalizationBytes)
             {
                 message.SetAudioState(WhatsAppAudioState.Unavailable,FileErrors.TooLarge.Code);
-                return Result.Success(presentation.View(source with { State=message.AudioState!.Value, FailureCode=message.AudioFailureCode }));
+                return Result.Success(audio.View(source with { State=message.AudioState!.Value, FailureCode=message.AudioFailureCode }));
             }
-            if(source.State!=WhatsAppAudioState.Pending)return Result.Success(presentation.View(source));
+            if(source.State!=WhatsAppAudioState.Pending)return Result.Success(audio.View(source));
             var context=await access.CaptureAsync(source,actor.Value,false,token);
             if(context.IsFailure)return Result.Failure<WhatsAppAudioResponse>(context.Error);
             var accepted=message.RequestAudioNormalization(actor.Value,JsonSerializer.Serialize(context.Value,JsonSerializerOptions.Web),contact.LinkRevision,
-                presentation.ExpiresAtUtc(source),presentation.NowUtc);
-            return accepted.IsFailure?Result.Failure<WhatsAppAudioResponse>(accepted.Error):Result.Success(presentation.View(source));
+                audio.ExpiresAtUtc(source),presentation.NowUtc);
+            return accepted.IsFailure?Result.Failure<WhatsAppAudioResponse>(accepted.Error):Result.Success(audio.View(source));
         },CommitPolicy.OnSuccess,ct);
         if(result.IsSuccess)signal.Notify();
         return result;

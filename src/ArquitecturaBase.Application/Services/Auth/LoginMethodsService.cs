@@ -21,7 +21,7 @@ internal sealed class LoginMethodsService(
         {
             var registrationOpen = await settings.FindRegistrationModeAsync(cancellationToken) == RegistrationMode.Open;
             LoginMethodsResponse response = phone.IsEnabled
-                ? new(google.IsEnabled, WhatsApp: true, phone.Countries, phone.DisplayNumber, registrationOpen)
+                ? new(google.IsEnabled, WhatsApp: true, await phone.ListCountriesAsync(cancellationToken), phone.DisplayNumber, registrationOpen)
                 : new(google.IsEnabled, WhatsApp: false, WhatsAppCountries: [], WhatsAppNumber: null, registrationOpen);
 
             return response;

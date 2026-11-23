@@ -19,7 +19,7 @@ internal sealed class WhatsAppFlowDeprecationWorkerFixture : IWhatsAppFlowDeprec
     public WhatsAppFlowStateResponse? Verification { get; private set; }
     public bool CompletionWasCancelled { get; private set; }
     public bool IsConfigured => true;
-    public TimeSpan SessionLifetime => TimeSpan.FromHours(1);
+    public Task<TimeSpan> FindSessionLifetimeAsync(CancellationToken cancellationToken) => Task.FromResult(TimeSpan.FromHours(1));
     private static WhatsAppFlowAccountContext Account => new("222","111","v25.0","configuration");
     public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => Account;
     public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken ct)

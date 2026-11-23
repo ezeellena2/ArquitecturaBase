@@ -1,11 +1,10 @@
 using System.Reflection;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
-using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
@@ -37,9 +36,9 @@ public sealed class WhatsAppAssistantCaptureQueryTests
     {
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
         var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(now));
         var method=typeof(WhatsAppAssistantReader).GetMethod(methodName,BindingFlags.Instance|BindingFlags.NonPublic)!;
-        object?[] args=methodName=="CurrentReferenceRows"?[Guid.NewGuid()]:[Array.Empty<Guid>(),50,now];
+        object?[] args=methodName=="CurrentReferenceRows"?[Guid.NewGuid()]:[Array.Empty<Guid>(),50,now,90];
         var query=Assert.IsAssignableFrom<IQueryable>(method.Invoke(reader,args));
         Assert.Contains(expected,query.ToQueryString(),StringComparison.Ordinal);
     }

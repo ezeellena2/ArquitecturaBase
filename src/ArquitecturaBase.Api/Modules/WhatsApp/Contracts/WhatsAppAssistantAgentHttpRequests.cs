@@ -51,7 +51,8 @@ public sealed record WhatsAppAssistantButtonHttpRequest(WhatsAppAssistantTextHtt
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record WhatsAppAssistantLimitsHttpRequest(IReadOnlyList<string> BlockedTopics, string CannotPromise, int MaxReplyLength,
-    int DailyReplyLimit, int DailyOfferLimit, IReadOnlyList<WhatsAppAssistantActionKind> AllowedActions)
+    int DailyReplyLimit, int DailyOfferLimit, IReadOnlyList<WhatsAppAssistantActionKind> AllowedActions, int MaxSpreadsheetLoads, int MaxDocumentPages,
+    int? DeclinedReofferDays)
 {
     public override string ToString() => "WhatsAppAssistantLimitsHttpRequest { Content = [REDACTED] }";
 }
@@ -90,7 +91,8 @@ internal static class WhatsAppAssistantAgentRequestMapping
                 button.FormDefinitionId, Map(button.Text))).ToArray(), action.HandoffReason);
 
     private static WhatsAppAssistantLimits? Map(WhatsAppAssistantLimitsHttpRequest? limits) => limits is null ? null
-        : new(limits.BlockedTopics, limits.CannotPromise, limits.MaxReplyLength, limits.DailyReplyLimit, limits.AllowedActions, limits.DailyOfferLimit);
+        : new(limits.BlockedTopics, limits.CannotPromise, limits.MaxReplyLength, limits.DailyReplyLimit, limits.AllowedActions, limits.DailyOfferLimit,
+            limits.MaxSpreadsheetLoads, limits.MaxDocumentPages, limits.DeclinedReofferDays);
 
     private static WhatsAppAssistantText? Map(WhatsAppAssistantTextHttpRequest? text) => text is null ? null : new(text.Es, text.En);
 }

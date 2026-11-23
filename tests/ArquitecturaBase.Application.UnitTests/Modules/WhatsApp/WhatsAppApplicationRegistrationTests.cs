@@ -60,7 +60,8 @@ public sealed class WhatsAppApplicationRegistrationTests
         {
             var channel = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IPhoneChannel));
             Assert.Equal(typeof(WhatsAppPhoneChannel), channel.ImplementationType);
-            Assert.Equal(ServiceLifetime.Singleton, channel.Lifetime);
+            // RC3-A: with a scope, because it reads the countries of Configuración › WhatsApp on every use.
+            Assert.Equal(ServiceLifetime.Scoped, channel.Lifetime);
         });
     }
 

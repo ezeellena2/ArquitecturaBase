@@ -412,11 +412,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         public Fixture(bool enabled = true, int dailyLimit = 100, string[]? allowedCountries = null)
         {
             var codeOptions = Options.Create(new LoginCodeOptions());
-            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions
-            {
-                DailyAuthCodeLimit = dailyLimit,
-                AllowedCountries = allowedCountries,
-            });
+            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions { DailyAuthCodeLimit = dailyLimit });
             var accountCreation = new AccountCreationPolicy(Settings, new FakeInitialAdmin());
             SendQueue = new RecordingSendQueue(Events);
             UnitOfWork = new FakeUnitOfWork(Events) { OnCommit = () => SentAtCommit = Codes.Codes.LastOrDefault()?.SentAtUtc };
@@ -430,7 +426,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
                     SendQueue,
                     new FakeWhatsAppAvailability(enabled),
                     accountCreation,
-                    whatsAppOptions),
+                    allowedCountries is null ? new FakeWhatsAppSettings() : FakeWhatsAppSettings.With(allowedCountries: allowedCountries)),
                 RequestValidators.For(new RequestWhatsAppLoginCodeRequestValidator()),
                 UnitOfWork,
                 Logger);

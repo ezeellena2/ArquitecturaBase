@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -9,9 +10,11 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
-internal sealed class WhatsAppFlowEnvironment(IOptions<WhatsAppOptions> options, IWhatsAppFlowProvider client) : IWhatsAppFlowEnvironment
+internal sealed class WhatsAppFlowEnvironment(IOptions<WhatsAppOptions> options, IWhatsAppFlowProvider client, IWhatsAppSettingsReader settings)
+    : IWhatsAppFlowEnvironment
 {
-    public TimeSpan SessionLifetime => TimeSpan.FromHours(options.Value.FlowSessionLifetimeHours);
+    public async Task<TimeSpan> FindSessionLifetimeAsync(CancellationToken cancellationToken) =>
+        TimeSpan.FromHours((await settings.FindAsync(cancellationToken)).FlowSessionLifetimeHours);
     public bool IsConfigured => NumericId(options.Value.WabaId) && NumericId(options.Value.PhoneNumberId)
         && !string.IsNullOrWhiteSpace(options.Value.AccessToken) && options.Value.GraphApiVersion == WhatsAppFlowProfile.GraphApiVersion;
     public Result<WhatsAppFlowAccountContext> ConfiguredAccount()

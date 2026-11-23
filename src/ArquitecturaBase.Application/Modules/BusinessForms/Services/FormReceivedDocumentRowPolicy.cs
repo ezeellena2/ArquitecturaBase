@@ -91,7 +91,7 @@ internal sealed class FormReceivedDocumentRowPolicy(IFormReceivedDocumentReader 
         if (data.Count is 0 or > StructuredAttachmentLimits.MaximumLoadingRows) return null;
         var forms = await FormsAsync(mapping, request, ct);
         var plan = await rows.PrepareAsync(mapping, [.. data.Where(HasText)], request.Culture, ct,
-            forms.Where(form => form.Value.Sendable).Select(form => form.Key).ToHashSet());
+            forms.Where(form => form.Value.Sendable).Select(form => form.Key).ToHashSet(), request.MaximumLoads);
         if (!plan.AnyFits) return new([], null, new(StructuredDocumentReplyKind.Unknown));
         var sheets = FormDocumentRowPolicy.Sheets(opened.Value);
         var headers = new Dictionary<string, int>(StringComparer.Ordinal);

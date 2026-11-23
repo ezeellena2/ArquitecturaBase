@@ -327,6 +327,43 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         Assert.Equal("Sent a document and their account can't load it or build forms.", f.Contact.HandoffReason);
     }
 
+    [Fact]
+    public async Task A_pdf_over_the_pages_of_the_agent_is_answered_with_its_limit_and_goes_to_the_inbox_with_its_copy()
+    {
+        // RC2-B: «Páginas de un PDF» of the saved agent, below the reader's own ten; the text names the saved number.
+        var f = new WhatsAppReceivedDocumentFixture(caption: null)
+        {
+            Preparation = WhatsAppReceivedDocumentFixture.Prepared(StructuredDocumentKind.Pdf, WhatsAppReceivedDocumentFixture.Pdf, pages: 4),
+        };
+        f.Host.Agents.Agent = new(1, "es", new("Asistente", "", "", "", "", new(null, null)), [], new(WhatsAppAssistantActionKind.NoReply),
+            WhatsAppAssistantAgentLimits.DefaultLimits with { MaxDocumentPages = 3 });
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal((WhatsAppDocumentState.Rejected, "tooManyPages", (string?)null), (f.Message.DocumentState, f.Message.DocumentFailureCode, f.Message.DocumentStorageKey));
+        Assert.Equal("El PDF tiene más de 3 páginas y no lo puedo leer. Mandame sólo las páginas que importan.", Assert.Single(f.Replies).Body);
+        var registered = Assert.Single(f.Registrations);
+        Assert.Equal((StructuredDocumentNotRead.Rejected, (StructuredAttachmentRejection?)StructuredAttachmentRejection.TooManyPages),
+            (registered.NotRead, registered.Rejection));
+        Assert.Equal(f.Key(), registered.Copy!.StorageKey);
+    }
+
+    [Fact]
+    public async Task A_pdf_within_the_pages_of_the_agent_is_read()
+    {
+        var f = new WhatsAppReceivedDocumentFixture(caption: null)
+        {
+            Preparation = WhatsAppReceivedDocumentFixture.Prepared(StructuredDocumentKind.Pdf, WhatsAppReceivedDocumentFixture.Pdf, pages: 3),
+        };
+        f.Host.Agents.Agent = new(1, "es", new("Asistente", "", "", "", "", new(null, null)), [], new(WhatsAppAssistantActionKind.NoReply),
+            WhatsAppAssistantAgentLimits.DefaultLimits with { MaxDocumentPages = 3 });
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal((WhatsAppDocumentState.Reading, (int?)3), (f.Message.DocumentState, f.Message.DocumentPages));
+        Assert.Empty(f.Replies);
+    }
+
     [Theory]
     [InlineData(StructuredAttachmentRejection.Protected, StructuredAttachmentFileKind.Pdf, "protected", ".pdf",
         "El PDF tiene contraseña y no lo puedo abrir. Mandame uno sin contraseña o una captura del documento.")]

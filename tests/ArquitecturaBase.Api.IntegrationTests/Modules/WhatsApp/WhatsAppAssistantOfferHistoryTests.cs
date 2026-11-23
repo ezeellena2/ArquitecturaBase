@@ -57,6 +57,50 @@ public sealed class WhatsAppAssistantOfferHistoryTests(ApiFactory factory)
         });
     }
 
+    // RC2-B: «Volver a ofrecer un formulario rechazado». Without the agent, or with «Nunca», every decline of the link counts, as before;
+    // with days, only the declines of those last days.
+    [Fact]
+    public async Task A_decline_counts_forever_or_only_for_the_days_of_the_agent()
+    {
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct);
+        var actor = await host.ContactAsync(Ct, automatic: true);
+        var now = host.Clock.GetUtcNow().UtcDateTime;
+        var old = host.Forms.Form.DefinitionId;
+        var recent = host.Forms.AlternativeForm.DefinitionId;
+        await host.ScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var contact = await db.Set<WhatsAppContact>().SingleAsync(row => row.Id == actor.ContactId, Ct);
+            AddDecline(db, actor, contact, Guid.NewGuid(), old, now.AddDays(-8));
+            AddDecline(db, actor, contact, Guid.NewGuid(), recent, now.AddDays(-2));
+            await db.SaveChangesAsync(Ct);
+        });
+        await host.ScopeAsync(async services =>
+        {
+            var reader = services.GetRequiredService<IWhatsAppAssistantReader>();
+            Assert.Equal(new[] { old, recent }.Order(), await reader.ListDeclinedDefinitionIdsAsync(actor.RecipientId, [old, recent], Ct));
+            Assert.True(await reader.ExistsDeclinedAsync(actor.ContactId, old, Ct));
+        });
+
+        await host.ScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var agent = await db.Set<WhatsAppAssistantAgent>().SingleOrDefaultAsync(row => row.IsMain, Ct) ?? WhatsAppAssistantAgent.Create("es");
+            Assert.True(agent.Update(new("Asistente", "", "", "", "", new("Te paso con una persona del equipo.", null)), [], new(WhatsAppAssistantActionKind.NoReply),
+                WhatsAppAssistantAgentLimits.DefaultLimits with { DeclinedReofferDays = 7 }).IsSuccess);
+            if (db.Entry(agent).State == EntityState.Detached) db.Add(agent);
+            await db.SaveChangesAsync(Ct);
+        });
+
+        await host.ScopeAsync(async services =>
+        {
+            var reader = services.GetRequiredService<IWhatsAppAssistantReader>();
+            Assert.Equal([recent], await reader.ListDeclinedDefinitionIdsAsync(actor.RecipientId, [old, recent], Ct));
+            Assert.False(await reader.ExistsDeclinedAsync(actor.ContactId, old, Ct));
+            Assert.True(await reader.ExistsDeclinedAsync(actor.ContactId, recent, Ct));
+        });
+    }
+
     private static void AddQuestion(ApplicationDbContext db, WhatsAppAssistantScenario host, WhatsAppAssistantContact actor,
         WhatsAppContact contact, Guid requestId, DateTime atUtc)
     {

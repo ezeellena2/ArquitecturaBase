@@ -35,8 +35,9 @@ public sealed class WhatsAppSpreadsheetLoadTests
 
         var load = WhatsAppAssistantRequest.CreateLoad(first, Guid.NewGuid(), WhatsAppAssistantRequest.MaxLoads, Now);
 
-        Assert.Equal((sheet, 3, first.RequestId, first.SourceMessageId), (load.AttachmentMessageId, load.ActionOrdinal, load.OperationRequestId, load.SourceMessageId));
-        Assert.Throws<ArgumentException>(() => WhatsAppAssistantRequest.CreateLoad(first, Guid.NewGuid(), 4, Now));
+        Assert.Equal((sheet, WhatsAppAssistantRequest.MaxLoads, first.RequestId, first.SourceMessageId),
+            (load.AttachmentMessageId, load.ActionOrdinal, load.OperationRequestId, load.SourceMessageId));
+        Assert.Throws<ArgumentException>(() => WhatsAppAssistantRequest.CreateLoad(first, Guid.NewGuid(), WhatsAppAssistantRequest.MaxLoads + 1, Now));
         Assert.Throws<ArgumentException>(() => WhatsAppAssistantRequest.CreateLoad(load, Guid.NewGuid(), 1, Now));
     }
 }

@@ -4,12 +4,10 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
-using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 // The SQL of the sources is checked without opening a database; the pairing with the reply in between, with PostgreSQL.
@@ -21,13 +19,13 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     {
         var now=new DateTime(2026,10,18,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(now));
         var message=WhatsAppMessage.Inbound(Guid.NewGuid(),"wamid.marked-source",WhatsAppMessageKind.Text,"A fictitious visit",null,now);
         message.MarkAssistantProcessed(now);
         var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(
-            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[new[]{message}.AsQueryable()]));
+            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[new[]{message}.AsQueryable(),90]));
         Assert.Equal(now,Assert.Single(rows).AssistantProcessedAtUtc);
-        var sources=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
+        var sources=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[90]));
         Assert.DoesNotContain("AssistantProcessedAtUtc",sources.Select(source=>source.Id).ToQueryString(),StringComparison.Ordinal);
     }
 
@@ -38,10 +36,10 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     {
         var now=new DateTime(2026,11,14,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
-        var sources=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(now));
+        var sources=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[90]));
         var rows=Assert.IsAssignableFrom<IQueryable<WhatsAppAssistantSourceRow>>(
-            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[sources]));
+            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[sources,90]));
         var sql=rows.ToQueryString();
         Assert.Matches("""[a-zA-Z0-9_]+[.]["]Body["] IS NOT NULL""",sql);
         Assert.DoesNotContain("btrim",sql,StringComparison.Ordinal);
@@ -53,9 +51,9 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     {
         var now=new DateTime(2026,10,18,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(now));
         var query=Assert.IsAssignableFrom<IQueryable<Guid>>(typeof(WhatsAppAssistantReader).GetMethod("PendingContactRows",BindingFlags.Instance|BindingFlags.NonPublic)!
-            .Invoke(reader,[Array.Empty<Guid>(),50,now]));
+            .Invoke(reader,[Array.Empty<Guid>(),50,now,90]));
         Assert.Matches("""["]Kind["] <> 'FlowReply' AND [a-zA-Z0-9_]+[.]["]AssistantProcessedAtUtc["] IS NULL""",query.ToQueryString());
     }
 
@@ -66,9 +64,9 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     public void Current_normalized_audio_is_an_interpretable_source_with_SQL_guards(string expected)
     {
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc)));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc)));
         var method=typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!;
-        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(method.Invoke(reader,null));
+        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(method.Invoke(reader,[90]));
         var sql=query.Where(message=>message.ContactId==Guid.Empty).OrderByDescending(message=>message.InboundSequence).Select(message=>message.Id).Take(1).ToQueryString();
         Assert.Contains(expected,sql,StringComparison.Ordinal);
         Assert.Contains("ProcessedAtUtc",sql,StringComparison.Ordinal);Assert.Contains("OccurredAtUtc",sql,StringComparison.Ordinal);Assert.Contains("Body",sql,StringComparison.Ordinal);
@@ -80,13 +78,13 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     {
         var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions{MessageRetentionDays=retentionDays}),new FakeTimeProvider(now));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(retentionDays),new FakeTimeProvider(now));
         var message=WhatsAppMessage.Inbound(Guid.NewGuid(),"wamid.source-audio",WhatsAppMessageKind.Audio,null,null,now.AddHours(-1));
         Assert.True(message.SetAudioDescriptor("12345","audio/ogg",new string('a',64)));Assert.True(message.StoreAudio("whatsapp/audio/"+message.Id.ToString("N")+".ogg",100).IsSuccess);
         var requested=message.RequestAudioNormalization(Guid.NewGuid(),"{}",0,now.AddDays(pinnedDays),now);Assert.True(requested.IsSuccess);
         Assert.True(message.CompleteAudio(requested.Value,"Visité la sucursal norte.",now).IsSuccess);
-        var method=typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!;
-        var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(method.Invoke(reader,new object[]{new[]{message}.AsQueryable()}));
+        var method=typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Static|BindingFlags.NonPublic)!;
+        var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(method.Invoke(null,new object[]{new[]{message}.AsQueryable(),retentionDays}));
         var source=Assert.Single(rows);Assert.Equal(message.Id,source.Id);Assert.Equal(message.Body,source.Body);Assert.Equal(WhatsAppMessageKind.Audio,message.Kind);
         var retentionExpiry=message.OccurredAtUtc.AddDays(retentionDays);var pinnedExpiry=message.AudioContentExpiresAtUtc!.Value;
         Assert.Equal(retentionExpiry<pinnedExpiry?retentionExpiry:pinnedExpiry,source.ContentExpiresAtUtc);
@@ -98,8 +96,8 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     public void A_completed_capture_is_a_current_source_with_a_real_record_identity(string expected)
     {
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc)));
-        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc)));
+        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[90]));
         var sql=query.Select(message=>message.Id).ToQueryString();Assert.Contains(expected,sql,StringComparison.Ordinal);
     }
     [Fact]
@@ -107,11 +105,11 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     {
         var now=new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc);var recordId=Guid.NewGuid();
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions{MessageRetentionDays=30}),new FakeTimeProvider(now));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(30),new FakeTimeProvider(now));
         var message=WhatsAppMessage.Inbound(Guid.NewGuid(),"wamid.captured-source",WhatsAppMessageKind.FlowReply,null,null,now.AddHours(-1),[1]);
         message.Classify(WhatsAppMessagePurpose.Business);Assert.True(message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Completed,recordId,"VISIT-000024",null));message.MarkProcessed(now);
-        var method=typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!;
-        var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(method.Invoke(reader,[new[]{message}.AsQueryable()]));
+        var method=typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Static|BindingFlags.NonPublic)!;
+        var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(method.Invoke(null,[new[]{message}.AsQueryable(),30]));
         var source=Assert.Single(rows);Assert.Equal(message.Id,source.Id);Assert.Equal(message.WaMessageId,source.WaMessageId);
         Assert.Equal(recordId,source.CapturedRecordId);Assert.Equal(string.Empty,source.Body);
         Assert.Equal(message.OccurredAtUtc,source.OccurredAtUtc);Assert.Equal(message.OccurredAtUtc.AddDays(30),source.ContentExpiresAtUtc);
@@ -121,7 +119,7 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     {
         var now=new DateTime(2026,10,18,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(now));
         var query=Assert.IsAssignableFrom<IQueryable<WhatsAppAssistantRequest>>(typeof(WhatsAppAssistantReader)
             .GetMethod("PendingReferences",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[now]));
         var sql=query.Select(row=>row.Id).ToQueryString();
@@ -141,8 +139,8 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     public void A_stored_spreadsheet_is_a_source_with_SQL_guards(string expected)
     {
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(new DateTime(2026,11,10,12,0,0,DateTimeKind.Utc)));
-        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(new DateTime(2026,11,10,12,0,0,DateTimeKind.Utc)));
+        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[90]));
         Assert.Contains(expected,query.Select(message=>message.Id).ToQueryString(),StringComparison.Ordinal);
     }
 
@@ -153,12 +151,12 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     {
         var now=new DateTime(2026,11,10,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions{MessageRetentionDays=30}),new FakeTimeProvider(now));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(30),new FakeTimeProvider(now));
         var message=WhatsAppMessage.Inbound(Guid.NewGuid(),"wamid.source-spreadsheet",WhatsAppMessageKind.Spreadsheet,caption,null,now.AddHours(-1));
         Assert.True(message.SetSpreadsheetDescriptor("1234","text/csv",new string('a',64),"clientes.csv"));
         Assert.True(message.StoreSpreadsheet($"whatsapp/documents/{message.Id:N}.csv",27,new string('b',64),"{\"rowCount\":3}").IsSuccess);
         var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(
-            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[new[]{message}.AsQueryable()]));
+            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[new[]{message}.AsQueryable(),30]));
         var source=Assert.Single(rows);
         Assert.Equal((message.Id,body,WhatsAppMessageKind.Spreadsheet,message.OccurredAtUtc.AddDays(30)),(source.Id,source.Body,source.Kind,source.ContentExpiresAtUtc));
         var spreadsheet=Assert.IsType<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSpreadsheetRow>(source.Spreadsheet);
@@ -180,7 +178,7 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
     {
         var now=new DateTime(2026,11,10,12,0,0,DateTimeKind.Utc);
         using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var reader=new WhatsAppAssistantReader(db,new FixedWhatsAppSettingsReader(),new FakeTimeProvider(now));
         var source=new ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow(Guid.NewGuid(),Guid.NewGuid(),"Armame un catálogo",now,now.AddDays(90)){InboundSequence=4};
         var query=Assert.IsAssignableFrom<IQueryable>(typeof(WhatsAppAssistantReader).GetMethod("PreviousRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[source]));
         Assert.Contains(expected,query.ToQueryString(),StringComparison.Ordinal);

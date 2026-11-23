@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 internal sealed class StubWhatsAppFlowEnvironment : IWhatsAppFlowEnvironment
 {
     public bool IsConfigured => false;
-    public TimeSpan SessionLifetime => TimeSpan.FromHours(24);
+    public Task<TimeSpan> FindSessionLifetimeAsync(CancellationToken cancellationToken) => Task.FromResult(TimeSpan.FromHours(24));
     public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => FlowErrors.AccountUnavailable;
     public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken) =>
         Task.FromResult<Result<WhatsAppFlowAccountContext>>(FlowErrors.AccountUnavailable);

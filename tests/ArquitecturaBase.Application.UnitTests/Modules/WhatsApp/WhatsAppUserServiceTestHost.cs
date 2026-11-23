@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.UnitTests.Services.Users;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp;
 
@@ -44,7 +45,7 @@ internal sealed class WhatsAppUserServiceTestHost : UserServiceTestHost
             Contacts = new InMemoryWhatsAppContactRepository(MessagesLog);
             var phoneNumbers = new FakePhoneNumberParser();
             PhoneChannel = new WhatsAppPhoneChannel(
-                new FakeWhatsAppAvailability(IsEnabled: true), Options.Create(new WhatsAppLoginOptions()), phoneNumbers);
+                new FakeWhatsAppAvailability(IsEnabled: true), Options.Create(new WhatsAppLoginOptions()), phoneNumbers, new FakeWhatsAppSettings());
             InvitationChannel = new WhatsAppInvitationChannel(
                 SendQueue,
                 new FakeWhatsAppAvailability(IsEnabled: true),

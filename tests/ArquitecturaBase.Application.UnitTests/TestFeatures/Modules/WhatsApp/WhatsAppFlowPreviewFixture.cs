@@ -34,7 +34,7 @@ internal sealed class WhatsAppFlowPreviewFixture : IWhatsAppFlowReader, IWhatsAp
     public FakeTimeProvider Time { get; } = new(new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero));
     public WhatsAppFlowPreviewHang Hang { get; set; }
     public bool IsConfigured => true;
-    public TimeSpan SessionLifetime => TimeSpan.FromHours(24);
+    public Task<TimeSpan> FindSessionLifetimeAsync(CancellationToken cancellationToken) => Task.FromResult(TimeSpan.FromHours(24));
 
     public StructuredFormPreviewQuery Query => new(_row.NeutralOperationId, _row.DefinitionId, _row.VersionId, "fingerprint", "es");
 

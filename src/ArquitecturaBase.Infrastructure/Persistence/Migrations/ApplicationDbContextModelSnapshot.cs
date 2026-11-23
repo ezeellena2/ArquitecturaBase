@@ -4923,6 +4923,49 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("WhatsAppReadStates", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllowedCountries")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("FlowSessionLifetimeHours")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MessageRetentionDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WhatsAppSettings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WhatsAppSettings_FlowSessionLifetimeHours", "\"FlowSessionLifetimeHours\" BETWEEN 1 AND 168");
+
+                            t.HasCheckConstraint("CK_WhatsAppSettings_MessageRetentionDays", "\"MessageRetentionDays\" BETWEEN 1 AND 3650");
+
+                            t.HasCheckConstraint("CK_WhatsAppSettings_Singleton", "\"Id\" = '00000000-0000-0000-0000-00000000a9a1'");
+                        });
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Settings.SystemSettings", b =>
                 {
                     b.Property<Guid>("Id")

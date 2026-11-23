@@ -1,8 +1,8 @@
 using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Channels;
 
@@ -18,7 +18,7 @@ public sealed class WhatsAppReceivedDocumentRetentionSourceTests
         var kept = Guid.NewGuid();
         var expired = Guid.NewGuid();
         var reader = new Reader([kept]);
-        var source = new WhatsAppReceivedDocumentRetentionSource(reader, new WhatsAppContentRetention(90), new FakeTimeProvider(Now));
+        var source = new WhatsAppReceivedDocumentRetentionSource(reader, new FakeWhatsAppSettings(), new FakeTimeProvider(Now));
         string[] keys =
         [
             $"whatsapp/documents/{kept:N}.pdf", $"whatsapp/documents/{kept:N}.jpg", $"whatsapp/documents/{kept:N}.png", $"whatsapp/documents/{kept:N}.docx",
@@ -37,7 +37,7 @@ public sealed class WhatsAppReceivedDocumentRetentionSourceTests
     public async Task Without_document_keys_it_does_not_read()
     {
         var reader = new Reader([]);
-        var source = new WhatsAppReceivedDocumentRetentionSource(reader, new WhatsAppContentRetention(90), new FakeTimeProvider(Now));
+        var source = new WhatsAppReceivedDocumentRetentionSource(reader, new FakeWhatsAppSettings(), new FakeTimeProvider(Now));
 
         Assert.Empty(await source.ListReferencedKeysAsync([$"whatsapp/documents/{Guid.NewGuid():N}.xlsx"], TestContext.Current.CancellationToken));
 

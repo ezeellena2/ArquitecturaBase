@@ -50,7 +50,7 @@ internal sealed class UserContactLinker(
     }
 
     /// <summary>El número de un alta, que siempre es nuevo: tiene que ser un celular de un país habilitado.</summary>
-    public Result<PhoneNumber?> ReadPhone(PhoneNumberInput? phone)
+    public async Task<Result<PhoneNumber?>> ReadPhoneAsync(PhoneNumberInput? phone, CancellationToken cancellationToken)
     {
         var parsed = ParsePhone(phone);
 
@@ -59,14 +59,14 @@ internal sealed class UserContactLinker(
             return parsed;
         }
 
-        var allowed = EnsureCountryAllowed(parsed.Value);
+        var allowed = await EnsureCountryAllowedAsync(parsed.Value, cancellationToken);
 
         return allowed.IsSuccess ? parsed : Result.Failure<PhoneNumber?>(allowed.Error);
     }
 
     /// <summary>
     /// Solo la forma: un celular, de cualquier país. La edición lo usa antes de saber si el número es nuevo, y controla el
-    /// país (<see cref="EnsureCountryAllowed"/>) recién si lo es.
+    /// país (<see cref="EnsureCountryAllowedAsync"/>) recién si lo es.
     /// </summary>
     public Result<PhoneNumber?> ParsePhone(PhoneNumberInput? phone)
     {
@@ -81,7 +81,8 @@ internal sealed class UserContactLinker(
     }
 
     /// <summary>Si el canal telefónico manda códigos a números del país de <paramref name="phone"/>, como en el ingreso.</summary>
-    public Result EnsureCountryAllowed(PhoneNumber phone) => phoneChannel.EnsureCanSendTo(phone);
+    public Task<Result> EnsureCountryAllowedAsync(PhoneNumber phone, CancellationToken cancellationToken) =>
+        phoneChannel.EnsureCanSendToAsync(phone, cancellationToken);
 
     /// <summary>
     /// Los locks del alta: correo primero y teléfono después, el mismo orden que la edición, así dos pedidos con los

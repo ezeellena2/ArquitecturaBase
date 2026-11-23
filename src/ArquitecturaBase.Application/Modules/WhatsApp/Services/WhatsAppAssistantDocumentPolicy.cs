@@ -42,7 +42,7 @@ internal sealed class WhatsAppAssistantDocumentPolicy(IStructuredDocumentChannel
         if (reference.AttachmentMessageId is not { } messageId || await reader.FindDocumentAsync(reference.ContactId, messageId, ct) is not { } document)
             return WhatsAppAssistantErrors.InvalidProposal;
         var proposal = operation.Proposal is { } observed && Handles(observed.Capability) ? observed : null;
-        var expiresAtUtc = ReplyExpiresAtUtc(reference);
+        var expiresAtUtc = await ReplyExpiresAtUtcAsync(reference, ct);
         var registration = await documents.RegisterAsync(new StructuredDocumentRegistrationRequest(WhatsAppReceivedDocumentPreparationPolicy.ChannelId,
             SourceId(document), reference.SubjectUserId, context.Culture, document.ReceivedAtUtc, Copy(document))
         {
@@ -88,11 +88,11 @@ internal sealed class WhatsAppAssistantDocumentPolicy(IStructuredDocumentChannel
         var registration = await documents.RegisterAsync(new StructuredDocumentRegistrationRequest(WhatsAppReceivedDocumentPreparationPolicy.ChannelId,
             SourceId(document), reference.SubjectUserId, culture, document.ReceivedAtUtc, Copy(document))
         {
-            Reading = Reading(document), ReplyExpiresAtUtc = ReplyExpiresAtUtc(reference),
+            Reading = Reading(document), ReplyExpiresAtUtc = await ReplyExpiresAtUtcAsync(reference, ct),
         }, ct);
         if (registration.DocumentId is not { } documentId) return new(reference, NotPrepared(proposalId, culture), null);
         // The form goes only while the inbox waits for its person, and never outlives that deadline as the inbox kept it.
-        var expiresAtUtc = Deadline(registration, ReplyExpiresAtUtc(reference));
+        var expiresAtUtc = Deadline(registration, await ReplyExpiresAtUtcAsync(reference, ct));
         if (definitionId is null)
         {
             var chosen = await documents.ChooseOtherAsync(new(documentId, WhatsAppReceivedDocumentPreparationPolicy.ChannelId, SourceId(document),
@@ -228,10 +228,11 @@ internal sealed class WhatsAppAssistantDocumentPolicy(IStructuredDocumentChannel
         return rows;
     }
 
-    // The reply deadline is the expiry of the send that may follow: the session lifetime, bounded by the reference's content.
-    private DateTime ReplyExpiresAtUtc(WhatsAppAssistantReferenceRow reference)
+    // The reply deadline is the expiry of the send that may follow: the session lifetime of Configuración › WhatsApp (RC3-A), bounded by the
+    // reference's content.
+    private async Task<DateTime> ReplyExpiresAtUtcAsync(WhatsAppAssistantReferenceRow reference, CancellationToken ct)
     {
-        var expiresAtUtc = clock.GetUtcNow().UtcDateTime.Add(environment.SessionLifetime);
+        var expiresAtUtc = clock.GetUtcNow().UtcDateTime.Add(await environment.FindSessionLifetimeAsync(ct));
         return reference.ContentExpiresAtUtc < expiresAtUtc ? reference.ContentExpiresAtUtc : expiresAtUtc;
     }
 

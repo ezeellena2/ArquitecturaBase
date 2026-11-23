@@ -20,14 +20,15 @@ internal sealed class WhatsAppReceivedDocumentReplyPolicy(WhatsAppAssistantAcces
     /// <summary>The code the contact keeps when its document is handed to a person.</summary>
     public const string HandoffReasonCode = "documentNotAllowed";
 
+    /// <summary>The fixed text of the reason, once; a PDF with too many pages names the agent's limit (RC2-B).</summary>
     public async Task RejectAsync(WhatsAppContact contact, WhatsAppMessage message, StructuredAttachmentRejection rejection,
-        StructuredAttachmentFileKind fileKind, CancellationToken ct)
+        StructuredAttachmentFileKind fileKind, int maxDocumentPages, CancellationToken ct)
     {
         if (!message.RejectDocument(ReasonCode(rejection))) return;
         if (await ReferenceAsync(contact, message, ct) is not { } reference) return;
         var (row, culture) = reference;
         // A fixed text answers no proposal of the model: the reference names its own request.
-        if (automatic.AcceptTerminal(contact, row, new WhatsAppAssistantTerminalResponse(row.RequestId, Text(rejection, fileKind, culture), culture)))
+        if (automatic.AcceptTerminal(contact, row, new WhatsAppAssistantTerminalResponse(row.RequestId, Text(rejection, fileKind, culture, maxDocumentPages), culture)))
             requests.Add(row);
     }
 
@@ -117,7 +118,10 @@ internal sealed class WhatsAppReceivedDocumentReplyPolicy(WhatsAppAssistantAcces
 
     // The fixed texts of DOC4, which name the file (a PDF, a photo, a Word) and say what to send instead. Only a Word is empty and only
     // a photo, or a file over the limit before its bytes were known, is too big; anything else (a spreadsheet sent as a document) did not open.
-    private static string Text(StructuredAttachmentRejection rejection, StructuredAttachmentFileKind fileKind, string culture) => AssistantTerminalTexts.Get(rejection switch
+    private static string Text(StructuredAttachmentRejection rejection, StructuredAttachmentFileKind fileKind, string culture, int maxDocumentPages) =>
+        rejection == StructuredAttachmentRejection.TooManyPages
+            ? WhatsAppAssistantDocumentPolicy.Text("DocumentTooManyPages", culture, maxDocumentPages)
+            : AssistantTerminalTexts.Get(rejection switch
     {
         StructuredAttachmentRejection.Protected => fileKind == StructuredAttachmentFileKind.Pdf ? "DocumentProtectedPdf" : "DocumentProtected",
         StructuredAttachmentRejection.Legacy => fileKind == StructuredAttachmentFileKind.Word ? "DocumentLegacyWord" : "DocumentLegacy",
@@ -128,7 +132,6 @@ internal sealed class WhatsAppReceivedDocumentReplyPolicy(WhatsAppAssistantAcces
             StructuredAttachmentFileKind.Unknown => "DocumentTooLarge",
             _ => "DocumentUnreadable",
         },
-        StructuredAttachmentRejection.TooManyPages => "DocumentTooManyPages",
         StructuredAttachmentRejection.Empty => fileKind == StructuredAttachmentFileKind.Word ? "DocumentEmpty" : "DocumentUnreadable",
         StructuredAttachmentRejection.Unreadable => "DocumentUnreadable",
         _ => throw new ArgumentOutOfRangeException(nameof(rejection), rejection, "A document that is not available is not answered."),

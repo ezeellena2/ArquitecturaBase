@@ -13,9 +13,9 @@ internal sealed class DisabledPhoneChannel : IPhoneChannel
 {
     public bool IsEnabled => false;
 
-    public IReadOnlyList<string> Countries => [];
+    public Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>([]);
 
     public string? DisplayNumber => null;
 
-    public Result EnsureCanSendTo(PhoneNumber phone) => Result.Success();
+    public Task<Result> EnsureCanSendToAsync(PhoneNumber phone, CancellationToken cancellationToken) => Task.FromResult(Result.Success());
 }

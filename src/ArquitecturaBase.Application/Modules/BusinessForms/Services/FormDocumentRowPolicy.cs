@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -17,7 +18,10 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// </summary>
 internal sealed class FormDocumentRowPolicy(IFormReceivedDocumentReader reader, FormDocumentProposalPolicy proposals)
 {
-    /// <summary>The loads proposed for one spreadsheet, the limit of actions of the assistant's cases.</summary>
+    /// <summary>
+    /// The loads proposed for one spreadsheet when the channel does not say how many it sends (RC2-B: a WhatsApp agent's «Formularios por
+    /// planilla», 3 by default); never more than the rows a spreadsheet loads.
+    /// </summary>
     public const int MaximumLoads = 3;
 
     // The sheets the person sees, never one the workbook hides (the list of a dropdown), with their rows with content.
@@ -41,10 +45,11 @@ internal sealed class FormDocumentRowPolicy(IFormReceivedDocumentReader reader, 
     }
 
     public async Task<FormDocumentRowPlan> PrepareAsync(FormDocumentRowsProposal proposal, IReadOnlyList<FormDocumentSheetRow> rows, string culture,
-        CancellationToken ct, IReadOnlySet<Guid>? sendable = null)
+        CancellationToken ct, IReadOnlySet<Guid>? sendable = null, int? maximumLoads = null)
     {
         ArgumentNullException.ThrowIfNull(proposal);
         ArgumentNullException.ThrowIfNull(rows);
+        var limit = Math.Clamp(maximumLoads ?? MaximumLoads, 1, StructuredAttachmentLimits.MaximumLoadingRows);
         var seen = proposal.Seen.SelectMany(set => set.Rows.Select(number => (set.Sheet, number))).ToHashSet();
         var unmatched = proposal.Unmatched.SelectMany(set => set.Rows.Select(number => (set.Sheet, number))).ToHashSet();
         var mapped = new Dictionary<(string, int), FormDocumentRowForm>();
@@ -91,7 +96,7 @@ internal sealed class FormDocumentRowPolicy(IFormReceivedDocumentReader reader, 
                 var repetition = await proposals.FindRepeatedDataAsync(form, candidate, ct);
                 var outcome = repetition is not null ? FormDocumentRowOutcome.Repeated
                     : sendable is not null && !sendable.Contains(mapping.DefinitionId) ? FormDocumentRowOutcome.NotSendable
-                    : ++loads <= MaximumLoads ? FormDocumentRowOutcome.Load : FormDocumentRowOutcome.OverLimit;
+                    : ++loads <= limit ? FormDocumentRowOutcome.Load : FormDocumentRowOutcome.OverLimit;
                 result = new(row.Sheet, row.Number, outcome) { Candidate = candidate, Repetition = repetition };
             }
             armed.Add((row, mapping.DefinitionId, result));

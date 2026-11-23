@@ -24,6 +24,7 @@ Casos de uso del módulo (`*Service`, detrás de `Interfaces/Services`), sus hel
 - [Planillas](../../../../../docs/features/whatsapp-servicios.md#planillas): bajar, preparar y copiar una planilla recibida, y contestar el motivo de la que no se lee (`WhatsAppSpreadsheet*`). Quién baja se decide antes del I/O y bajo lock; el rechazo contesta una vez por la salida del asistente.
 - [Documentos recibidos](../../../../../docs/features/whatsapp-servicios.md#documentos-recibidos): decidir, bajar, preparar, copiar y leer una foto, un PDF o un Word, contestar su rechazo y derivar a quien no puede cargar ni armar (`WhatsAppReceivedDocument*`). Quién lo baja, o si espera su pedido, se decide antes del I/O y bajo lock; se lee sólo si se usa. El circuito de la tarea 9 (`WhatsAppAssistantDocument*`) registra en la bandeja fuera de la UoW, contesta por la salida del asistente y atiende el toque de su pregunta antes de interpretar.
 - [Retención](../../../../../docs/features/whatsapp-servicios.md#retención): `WhatsAppAssistantContentRetentionService` vacía un lote de hasta 500 por UoW; lo invoca la retención diaria de Infrastructure, sin otro job ni plazo.
+- [Configuración › WhatsApp](../../../../../docs/features/whatsapp.md#configuración--whatsapp-rc3-a-2026-11-22): `WhatsAppSettingsService` guarda los tres valores juntos con la revisión leída, bajo `whatsapp-settings:main`; cada uso los lee con `IWhatsAppSettingsReader`, sin caché.
 
 ## Referencias
 

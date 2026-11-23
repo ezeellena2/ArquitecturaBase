@@ -66,6 +66,9 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory fact
         var read = await defaults.ReadJsonAsync();
         Assert.Equal((0, "NoReply", 400, 2), (read.GetProperty("revision").GetInt64(), read.GetProperty("fallback").GetProperty("kind").GetString(),
             read.GetProperty("limits").GetProperty("maxReplyLength").GetInt32(), read.GetProperty("limits").GetProperty("dailyOfferLimit").GetInt32()));
+        // RC2-B: until it is saved, 3 forms per spreadsheet, 10 pages per PDF and a declined form never offered again.
+        Assert.Equal((3, 10, JsonValueKind.Null), (read.GetProperty("limits").GetProperty("maxSpreadsheetLoads").GetInt32(),
+            read.GetProperty("limits").GetProperty("maxDocumentPages").GetInt32(), read.GetProperty("limits").GetProperty("declinedReofferDays").ValueKind));
         Assert.Empty(read.GetProperty("cases").EnumerateArray());
         // The front reads a closed contract: the knowledge carries its zones and nothing derived from them.
         Assert.Equal(["availability", "revision", "sections", "unansweredQuestions"],
@@ -78,6 +81,8 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory fact
         Assert.Equal(1, agent.GetProperty("revision").GetInt64());
         // TO1-A: the offers of a day are saved with the rest of the limits.
         Assert.Equal(3, agent.GetProperty("limits").GetProperty("dailyOfferLimit").GetInt32());
+        Assert.Equal((5, 4, 7), (agent.GetProperty("limits").GetProperty("maxSpreadsheetLoads").GetInt32(),
+            agent.GetProperty("limits").GetProperty("maxDocumentPages").GetInt32(), agent.GetProperty("limits").GetProperty("declinedReofferDays").GetInt32()));
         var item = Assert.Single(agent.GetProperty("cases").EnumerateArray());
         Assert.Equal(("Pregunta por el horario", "ExactText", "Abrimos de 9 a 18."), (item.GetProperty("when").GetString(),
             item.GetProperty("action").GetProperty("kind").GetString(), item.GetProperty("action").GetProperty("text").GetProperty("es").GetString()));
@@ -237,7 +242,8 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory fact
                         buttons = new[] { new { title = new { es = buttonTitle, en = (string?)null }, destination = "Handoff" } } } }],
         fallback = new { kind = "NoReply" },
         limits = new { blockedTopics = Array.Empty<string>(), cannotPromise = "", maxReplyLength = 400, dailyReplyLimit = 10, dailyOfferLimit = 3,
-            allowedActions = new[] { "SendForm", "ExactText", "DraftedReply", "AskButtons", "Handoff", "NoReply" } },
+            allowedActions = new[] { "SendForm", "ExactText", "DraftedReply", "AskButtons", "Handoff", "NoReply" },
+            maxSpreadsheetLoads = 5, maxDocumentPages = 4, declinedReofferDays = (int?)7 },
     };
 
     // AS4: the chat with the agent, for the front's contract. The list with «Necesita una persona», the thread with the why of a

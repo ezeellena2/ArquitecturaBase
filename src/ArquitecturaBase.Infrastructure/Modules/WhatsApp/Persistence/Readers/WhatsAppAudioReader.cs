@@ -1,13 +1,14 @@
 using System.Linq.Expressions;
-using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
-internal sealed class WhatsAppAudioReader(ApplicationDbContext db,WhatsAppContentRetention retention,TimeProvider clock):IWhatsAppAudioReader
+internal sealed class WhatsAppAudioReader(ApplicationDbContext db,IWhatsAppSettingsReader settings,TimeProvider clock):IWhatsAppAudioReader
 {
+    // RC3-A: the retention of Configuración › WhatsApp, read on every use (90 days until it is saved).
+    private async Task<int> RetentionDaysAsync(CancellationToken ct)=>(await settings.FindAsync(ct)).MessageRetentionDays;
     private IQueryable<WhatsAppMessage> Audio()=>db.Set<WhatsAppMessage>().AsNoTracking().Where(message=>message.Kind==WhatsAppMessageKind.Audio && message.Direction==WhatsAppMessageDirection.Inbound && message.ContactId!=null && message.AudioState!=null);
     private IQueryable<WhatsAppAudioSourceRow> Rows()=>Project(Audio());
     private IQueryable<WhatsAppAudioSourceRow> Project(IQueryable<WhatsAppMessage> audio)=>from message in audio
@@ -18,13 +19,13 @@ internal sealed class WhatsAppAudioReader(ApplicationDbContext db,WhatsAppConten
             MediaId=message.AudioMediaId,ContentType=message.AudioContentType,Sha256=message.AudioSha256,StorageKey=message.AudioStorageKey,Size=message.AudioSize,RequestId=message.AudioRequestId,ActorUserId=message.AudioActorUserId,
             ContextJson=message.AudioContextJson,CapturedLinkRevision=message.AudioLinkRevision,ContentExpiresAtUtc=message.AudioContentExpiresAtUtc,
         };
-    private IQueryable<WhatsAppAudioSourceRow> Pending(DateTime nowUtc)=>PendingRows(Audio().Where(RetryDueAt(nowUtc)),nowUtc);
+    private IQueryable<WhatsAppAudioSourceRow> Pending(DateTime nowUtc,int days)=>PendingRows(Audio().Where(RetryDueAt(nowUtc)),nowUtc,days);
     // H11: one waiting for its next attempt counts only once it is near, so a day of retries does not keep the processor in quick rounds.
-    public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>
-        PendingRows(Audio().Where(RetryDueAt(nowUtc+WhatsAppAcquisitionRetry.ImminentAttempt)),nowUtc).AnyAsync(ct);
-    private IQueryable<WhatsAppAudioSourceRow> PendingRows(IQueryable<WhatsAppMessage> audio,DateTime nowUtc)
+    public async Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>
+        await PendingRows(Audio().Where(RetryDueAt(nowUtc+WhatsAppAcquisitionRetry.ImminentAttempt)),nowUtc,await RetentionDaysAsync(ct)).AnyAsync(ct);
+    private IQueryable<WhatsAppAudioSourceRow> PendingRows(IQueryable<WhatsAppMessage> audio,DateTime nowUtc,int days)
     {
-        var cutoff=nowUtc.AddDays(-retention.MessageRetentionDays);
+        var cutoff=nowUtc.AddDays(-days);
         return Project(audio).Where(row=>(row.State==WhatsAppAudioState.Pending || row.State==WhatsAppAudioState.Transcribing) && row.OccurredAtUtc>cutoff
             && (row.ContentExpiresAtUtc==null || row.ContentExpiresAtUtc>nowUtc) && (row.StorageKey==null || row.RequestId!=null || row.Mode==WhatsAppConversationMode.Assistant && row.LinkedUserId!=null));
     }
@@ -32,8 +33,8 @@ internal sealed class WhatsAppAudioReader(ApplicationDbContext db,WhatsAppConten
         message.AudioFirstFailureAtUtc==null || message.AudioFirstFailureAtUtc.Value.AddSeconds(
             message.AudioFailureCount<=1?30:message.AudioFailureCount==2?90:message.AudioFailureCount==3?210:message.AudioFailureCount==4?450:message.AudioFailureCount==5?930:message.AudioFailureCount==6?1890:message.AudioFailureCount==7?3810:3810+(message.AudioFailureCount-7)*3600)<=nowUtc;
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
-        await Pending(nowUtc).Where(row=>!excluded.Contains(row.ContactId)).Select(row=>row.ContactId).Distinct().OrderBy(id=>id).Take(limit).ToListAsync(ct);
-    public Task<WhatsAppAudioSourceRow?> FindPendingAsync(Guid contactId,DateTime nowUtc,CancellationToken ct)=>Pending(nowUtc).Where(row=>row.ContactId==contactId)
+        await Pending(nowUtc,await RetentionDaysAsync(ct)).Where(row=>!excluded.Contains(row.ContactId)).Select(row=>row.ContactId).Distinct().OrderBy(id=>id).Take(limit).ToListAsync(ct);
+    public async Task<WhatsAppAudioSourceRow?> FindPendingAsync(Guid contactId,DateTime nowUtc,CancellationToken ct)=>await Pending(nowUtc,await RetentionDaysAsync(ct)).Where(row=>row.ContactId==contactId)
         .OrderBy(row=>row.OccurredAtUtc).ThenBy(row=>row.MessageId).FirstOrDefaultAsync(ct);
     public Task<WhatsAppAudioSourceRow?> FindAsync(Guid contactId,Guid messageId,CancellationToken ct)=>Rows().SingleOrDefaultAsync(row=>row.ContactId==contactId && row.MessageId==messageId,ct);
     public async Task<IReadOnlyList<string>> ListReferencedKeysAsync(IReadOnlyList<string> storageKeys,DateTime cutoffUtc,CancellationToken ct)
