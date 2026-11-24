@@ -88,7 +88,7 @@ Salen de las rutas del front (`src/app/routes.tsx`) y de las reglas de `docs/fea
 
 - R7. Dar de alta a un usuario con invitación; la persona entra con su código y queda verificada. [correo]
 - R8. Reenviar la invitación antes del minuto avisa cuánto falta. [correo]
-- R9. Crear un rol y asignarlo: con el permiso aparece el menú; sin él, `/sin-permiso`.
+- R9. Crear un rol y asignarlo: con el permiso aparece el menú; sin él, la pantalla dice «No tenés permiso» en su dirección.
 - R10. Quien administra usuarios no puede dar un rol que no tiene ni desactivar al último administrador.
 - R11. Editar el mismo rol en dos pestañas: la segunda recibe el conflicto, relee y conserva su borrador.
 - R12. Cambiar el modo de registro y la apariencia, y ver el efecto en `/registro`.
