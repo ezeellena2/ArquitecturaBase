@@ -44,8 +44,10 @@ El usuario pidió arrancar el backend durante la prueba integral, y quedó compl
 ## 2. La pieza única para elegir: aplicada en el front
 
 Programada en copias fuera del front y aplicada en cortes el 22/11, cuando el usuario dijo «Sí, aplicá ya»: la pieza, sus
-pantallas y la extensión del 22/11 (las opciones fijas en toda la app, la carga, los filtros sin cantidades, «Ingresar con»
-y lo que se elige en WhatsApp). Se retiraron las piezas viejas, y una regla de arquitectura impide volver a usarlas: el select
+pantallas y la extensión del 22/11 (las opciones fijas en toda la app, la carga, los filtros sin cantidades y lo que se
+elige en WhatsApp). «Ingresar con» también había pasado a la pieza, pero el 24/11, en la prueba a mano, el usuario pidió volver
+a la elección con subrayado de antes: es una excepción escrita en la regla (front `cf60c593` y `3ec57019`), y en el
+multitenant tiene que quedar con subrayado. Se retiraron las piezas viejas, y una regla de arquitectura impide volver a usarlas: el select
 del navegador queda sólo en la vista previa que imita WhatsApp, y el autocompletar, sólo en el buscador de lugares.
 
 Lo que se aprendió al programarla:
