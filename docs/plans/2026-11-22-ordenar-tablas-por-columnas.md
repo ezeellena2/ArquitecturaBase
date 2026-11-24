@@ -9,7 +9,10 @@ con PostgreSQL ya corrieron en verde; el resto de BusinessForms va al cierre. El
 el primer toque parte del orden que se ve y Personas conserva su región con teclado; y el ajuste a la entrada única de
 Formularios de FU1-B) entró al main del front el 2026-11-23, a pedido del usuario («Que entre ya» y, antes de las capturas,
 «Sí, entrá antes»): 18 commits de `05da1d16` a `031877df` sobre `8db195cd`, con `tsc`, `oxlint` y los 45 archivos de tests
-que lo cubren en verde (1227 tests). Faltan las capturas de las escenas visuales, la corrida completa y la prueba manual.
+que lo cubren en verde (1227 tests). El 2026-11-24 entraron el arreglo del encabezado (`7ecea6ee`: el título queda con el
+margen y el alto de cualquier encabezado y una capa del botón cubre la celda) y las capturas de las escenas visuales
+(`a314e255` y `aaad8b79`), con todas las escenas en verde salvo una ajena ya conocida. Faltan la corrida completa y la
+prueba manual.
 «Ordenar por» todavía arma su propia lista: pasarlo a la
 [pieza única para elegir](../../../ArquitecturaBaseFront/docs/plans/2026-11-19-una-sola-pieza-para-elegir.md) pide que esa
 pieza acepte dos grupos (Columna y Orden).**
