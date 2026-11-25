@@ -19,6 +19,13 @@ Estado: **programado entre el 2026-11-22 y el 2026-11-24 y verificado**, a pedid
 - De la prueba integral, en el front: O52, el 409 al guardar vuelve a la lectura con «Ver la actual», que abre la versión
   actual (`8d9bc33d` y `2c15cdb1`), y O56, lo que se hizo al recibir la respuesta va después de ella en la actividad
   (`c7923674` y `5c086c02`).
+- Para la corrida del cierre de la prueba integral queda preparado, sin aplicar, el plazo de los tests en riesgo del front,
+  en `.artifacts/pruebas/plazos-tests-en-riesgo/` (fuera de Git, con cómo aplicarlo):
+  - el primer test de cada pantalla diferida espera hasta 10 s su primera aparición y tiene 20 s, como `1e877620` y
+    `97117768`;
+  - seis archivos con varios tests lentos tienen 20 s por archivo, como `f027d83f`;
+  - son 72 archivos de test, elegidos midiendo solo cada uno de los 94 que pagan una carga diferida y verificados en una
+    copia de `97117768`.
 - Falta terminar la prueba a mano, que va dentro de la prueba integral. Después se retira el plan.
 
 Tableros: lienzo aparte
