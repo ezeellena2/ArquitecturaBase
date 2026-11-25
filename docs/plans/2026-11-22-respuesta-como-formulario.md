@@ -1,14 +1,25 @@
 # La respuesta como el formulario (VF1-A) y la actividad fila por fila (VF2-A)
 
-Estado: **programado entre el 2026-11-22 y el 2026-11-23**, a pedido del usuario («Sí, arrancá» y «Sí, con R2-A»).
+Estado: **programado entre el 2026-11-22 y el 2026-11-24 y verificado**, a pedido del usuario («Sí, arrancá» y «Sí, con R2-A»).
 - Hechas las tareas 1 a 8:
   - la regla y el diseño (front `6908c39b`), el detalle con la forma de su versión (`b857e1d6`) y la lectura (`559759a6`);
   - las dos pantallas y corregir en el lugar (front `d3eab5d7` a `3df8d92d`);
   - la actividad (front `3b977974`, `d092a78f` y `427c4250`; backend `06df1a4b`);
   - el barrido VF3 con R2-A (front `6c760450` y `d4a83756`; backend `e8f503e9`) y las docs (`208d1ad0`, front `01082c5d`);
   - las escenas visuales (front `caa7caf9` y `13467d38`), y el texto largo respondido y el visor de cada pregunta (`563f716f`).
-- Falta la tarea 9: exportar los ejemplos HTTP y pasar `entry` a obligatorio en el front, rehacer las referencias que cambia
-  `563f716f`, la corrida completa del front y la prueba a mano. Después se retira el plan.
+- Tarea 9, la verificación (2026-11-24):
+  - el exportador, con la suite completa del backend en verde sobre `2366fccc` (antes, `ded021a7` y `2366fccc` arreglaron dos
+    tests que fallaban sólo con todos juntos), y las 25 cohortes de esa corrida en el front (`0546084e`), con `entry`
+    obligatorio (`f569d3e2` y `c0cc3f3f`);
+  - las referencias visuales no cambian: el bloque usa `Input answered` y `563f716f` queda dentro de la tolerancia;
+  - la corrida completa del front en una copia de `97117768`, con cuatro tests ajenos ajustados (`b434c463`, `54a2e0ef` y
+    `97117768`, los plazos de borrar una opción del catálogo, del editor en el idioma del menú y de abrir un formulario
+    desde «Formularios que faltan», y `a1e3499b`, el correo del editor de usuarios después de O2): en verde, con build,
+    lint, 6.432 tests de vitest en 10 tandas y 1.395 visuales.
+- De la prueba integral, en el front: O52, el 409 al guardar vuelve a la lectura con «Ver la actual», que abre la versión
+  actual (`8d9bc33d` y `2c15cdb1`), y O56, lo que se hizo al recibir la respuesta va después de ella en la actividad
+  (`c7923674` y `5c086c02`).
+- Falta terminar la prueba a mano, que va dentro de la prueba integral. Después se retira el plan.
 
 Tableros: lienzo aparte
 [Respuesta como formulario](https://claude.ai/artifact/2vnLgSq6xxdoz9LjAdNmaN), versión 15. Este plan congela lo elegido;
