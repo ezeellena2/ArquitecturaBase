@@ -30,7 +30,8 @@ vino de tres prácticas que ninguna fuente prohibía:
 2. **Verificación por paso.** En cada corte: build y los tests del área afectada (`--filter-class`, o los del proyecto
    tocado; en el front, `tsc`, `lint` y los tests de la feature). Al cerrar un paso o un desarrollo: la suite completa
    con Docker, `npm run build`, `lint` y `test` completos y, si hay cambios visuales, el recorrido en el navegador.
-   Enmendado el 2026-11-13: la suite completa va una sola vez, al cerrar el desarrollo (ver [Enmiendas](#enmiendas)).
+   Enmendado el 2026-11-13: la suite completa va una sola vez, al cerrar el desarrollo; y el 2026-11-25: cada tarea
+   corre solo los tests que su cambio afecta, y la suite completa va una vez por día (ver [Enmiendas](#enmiendas)).
 3. **El contrato es el código.** Entre backend y front, el contrato son los DTO, el OpenAPI y los ejemplos de respuesta
    que exporta el backend para el front; no se escriben contratos en Markdown antes del código. Planes, arranques y
    revisiones se actualizan al cerrar cada paso, con un resumen corto: qué quedó, cómo se probó y qué falta.
@@ -64,3 +65,12 @@ enteros y los tests de integración de lo que cambió; el detalle está en
 la suite pasó de 2.605 tests y 22 minutos a unos 10.600 casos y más de una hora por corrida, y con muchos chats a la vez
 cada corrida compite por la misma PC. Lo que una tarea rompa en otra área lo detecta la corrida del cierre, que sigue
 siendo obligatoria para dar el desarrollo por cerrado.
+
+**Enmienda (2026-11-25, a pedido del usuario):** cada tarea corre solo los tests que su cambio afecta, y la corrida
+completa va una vez por día, o antes de publicar, para todo lo que entró. En el front, `vitest related` elige los
+tests que importan, directa o indirectamente, los archivos tocados, y las escenas visuales son las de las pantallas
+tocadas; tocar la configuración de los tests o una pieza compartida pide la suite entera de eso en la misma tarea. Lo
+que va al terminar una tarea en el backend no cambia. Un desarrollo se cierra cuando lo incluye una corrida completa en
+verde; el detalle está en [validar un cambio](../guides/validar-un-cambio.md#verificación-y-cierre). El motivo: la
+suite del front pasó de 1.542 tests a 6.436 y corre en serie, unos 100 minutos solo en Vitest, más 1.395 capturas;
+con una corrida completa por desarrollo, cada cambio esperaba horas en el carril.

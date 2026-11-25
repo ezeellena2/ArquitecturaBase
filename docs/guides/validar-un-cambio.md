@@ -85,8 +85,14 @@ En cada corte, alcanza con el build y los tests rápidos del área afectada (en 
 arquitectura con `--filter-class`, sin los de integración con Docker; en front, `tsc`, `lint` y los tests
 de la feature, sin `test:visual`). Al terminar una tarea o una etapa: el build sin advertencias, los
 proyectos unitarios y `ArchitectureTests` enteros (hay controles que recorren todos los módulos) y los
-tests de integración de lo que cambió, con `--filter-class`; en front, `tsc`, `lint`, los tests del área
-y, si cambió una pantalla, sus pruebas visuales.
+tests de integración de lo que cambió, con `--filter-class`. En front, `tsc`, `lint` y solo los tests que
+el cambio afecta: `npx vitest related --run <archivos tocados>` elige los que importan esos archivos,
+directa o indirectamente. Si cambió una pantalla, sus escenas visuales (`npx playwright test <spec>`), con
+revisión de capturas y recorrido en el navegador. Dos casos piden la suite entera en la misma tarea: si
+se tocó la configuración o el arnés de los tests (`vite.config.ts`, `src/test/setup.ts`, `src/test/mocks`,
+`package.json`), `npm run test`; si se tocó una pieza compartida (`src/shared/ui`, `src/index.css`),
+`npm run test:visual`, porque cambia capturas de muchas pantallas. Lo que toca `src/shared` hace que
+`related` elija buena parte de la suite: eso va por el carril.
 
 **Con varias sesiones a la vez, lo pesado va por el [carril](../../harnesses/carril/README.md)**, de a una
 corrida por vez en toda la PC y en segundo plano: compilar la solución, `dotnet test` de un proyecto entero,
@@ -94,17 +100,17 @@ la integración, `vitest` y Playwright completos, los arneses y las bisecciones,
 `pwsh -NoProfile -File harnesses/carril/carril.ps1 -- <comando>`. Lo liviano va libre: una clase, un archivo,
 `tsc`, `oxlint`.
 
-La corrida completa va una sola vez, al cerrar el desarrollo
+La corrida completa va una vez por día, o antes de publicar, para todo lo que entró
 ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): build sin advertencias y `dotnet test`
-completo para backend, con integración Docker; `npm run build`, `npm run lint` y `npm run test` para
-front. Los cambios visuales también requieren navegador, `npm run test:visual` y revisión de capturas.
-Cuando varios chats trabajan a la vez, no se corre una por chat ni por etapa: la corre una sola sesión,
-con la PC quieta, cuando terminan todos. Lo que se usa desde el celular (cámara, toque, fotos sobre una
-red lenta) se prueba además una vez en un teléfono real, con [probar en el celular](probar-en-el-celular.md).
-Si levantaste Aspire, terminá con `aspire stop`; los servidores de pruebas también deben cerrarse.
+completo para backend, con integración Docker; `npm run build`, `npm run lint`, `npm run test` y
+`npm run test:visual` para front. No se corre una por chat, por tarea ni por desarrollo: la corre una sola
+sesión, por el carril y con la PC quieta. Un desarrollo se cierra cuando lo incluye una corrida completa en
+verde. Lo que se usa desde el celular (cámara, toque, fotos sobre una red lenta) se prueba además una vez
+en un teléfono real, con [probar en el celular](probar-en-el-celular.md). Si levantaste Aspire, terminá con
+`aspire stop`; los servidores de pruebas también deben cerrarse.
 
-**Si la corrida final falla:** se corrige y se repite solo lo que falló, con `--filter-class` o el
-test del front; después, una corrida completa más. Vale la última corrida completa en verde. Las
+**Si la corrida completa falla:** se corrige y se repite solo lo que falló, con `--filter-class` o el
+test del front, y lo confirma la corrida completa siguiente. Vale la última corrida completa en verde. Las
 corridas intermedias no se registran, no se nombran («adicional», «única») ni se discuten entre chats.
 Un test que falla solo junto con los demás es un problema de aislamiento de datos del test, no de la app.
 
