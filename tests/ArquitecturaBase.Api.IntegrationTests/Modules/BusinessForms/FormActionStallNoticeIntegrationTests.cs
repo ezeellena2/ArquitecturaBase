@@ -44,17 +44,20 @@ public sealed partial class FormDraftEndpointsTests
             Assert.True(run.RecordOutcome(fence,now,FormActionRunState.Failed,FormActionErrors.EffectUnconfirmed.Code,true).IsSuccess);
             await db.SaveChangesAsync(Ct);return run.Id;
         });
-        async Task<T> Dispatch<T>(Func<IFormActionDispatchService,Task<T>> call){await using var scope=host.Services.CreateAsyncScope();return await call(scope.ServiceProvider.GetRequiredService<IFormActionDispatchService>());}
         async Task Poll()
         {
             using var worker=new FormActionBackgroundService(host.Services.GetRequiredService<IServiceScopeFactory>(),TimeProvider.System,
                 Options.Create(new FormActionWorkerOptions{ProcessInBackground=false}),NullLogger<FormActionBackgroundService>.Instance);
             await worker.ProcessNextAsync(runId,Ct);
         }
-        Assert.Contains(runId,await Dispatch(service=>service.ListDueIdsAsync(Ct)));
+        // The shared database keeps more than 100 due runs from other tests, and the worker's list fills with them before the
+        // stalled ones (FormActionRunReader.ListDueIdsAsync): this run is checked against the same filter the list applies.
+        Task<bool> NeedsNotice()=>factory.ExecuteDbContextAsync(db=>db.Set<BusinessFormActionRun>().AsNoTracking()
+            .Where(BusinessFormActionRun.UnnoticedStall).AnyAsync(run=>run.Id==runId,Ct));
+        Assert.True(await NeedsNotice());
         await Poll();
         var message=Assert.Single(channel.Messages);Assert.Equal(author,message.RecipientUserId);
-        Assert.DoesNotContain(runId,await Dispatch(service=>service.ListDueIdsAsync(Ct)));
+        Assert.False(await NeedsNotice());
         await Poll();
         Assert.Single(channel.Messages);
         Assert.NotNull(await factory.ExecuteDbContextAsync(db=>db.Set<BusinessFormActionRun>().AsNoTracking().Where(run=>run.Id==runId).Select(run=>run.StallNoticedAtUtc).SingleAsync(Ct)));
