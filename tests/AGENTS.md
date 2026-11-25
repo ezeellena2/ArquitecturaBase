@@ -8,7 +8,7 @@ Domain.UnitTests prueba reglas puras; Application.UnitTests, validación y coord
 - TDD cuando hay lógica. Los nombres describen el comportamiento en inglés y los relojes controlados usan `FakeTimeProvider`.
 - Se usa xUnit v3 con Microsoft Testing Platform: para un proyecto, `dotnet test --project <ruta>.csproj`; para una clase agregá `-- --filter-class "<Namespace.Clase>"`.
 - Domain, Application y Architecture corren sin servicios externos. La integración requiere Docker con PostgreSQL y Redis; compilarla no equivale a ejecutarla.
-- Al terminar una tarea: build sin advertencias, los proyectos unitarios y `ArchitectureTests` enteros y la integración de lo que cambió. La suite completa va una vez por día, o antes de publicar, y cierra todo lo que entró. Si falla, se corrige, se repite solo lo que falló y lo confirma la corrida completa siguiente; las intermedias no se registran. Un test que falla solo junto con los demás tiene datos mal aislados. Si levantaste Aspire, apagalo al terminar.
+- La suite completa va una vez por día y cierra lo que entró. Si falla, se repite solo lo que falló y la siguiente lo confirma; las intermedias no se registran. Un test que falla solo junto con los demás tiene datos mal aislados. Si levantaste Aspire, apagalo al terminar.
 
 ## Referencias
 
