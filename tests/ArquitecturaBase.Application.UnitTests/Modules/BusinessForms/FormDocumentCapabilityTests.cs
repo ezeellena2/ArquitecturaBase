@@ -131,7 +131,6 @@ public sealed class FormDocumentCapabilityTests
     [InlineData("unknown-with-one", "candidates", FormDocumentEntryIssue.Count)]
     [InlineData("unobserved", "candidates[0]", FormDocumentEntryIssue.NotObserved)]
     [InlineData("unknown-question", "candidates[0].values[0].fieldId", FormDocumentEntryIssue.UnknownQuestion)]
-    [InlineData("catalog", "candidates[0].values[0].value", FormDocumentEntryIssue.FilledByServer)]
     [InlineData("decimal", "candidates[0].values[0].value", FormDocumentEntryIssue.Invalid)]
     [InlineData("choice", "candidates[0].values[0].value", FormDocumentEntryIssue.NotOffered)]
     [InlineData("personal", "documentType", FormDocumentEntryIssue.PersonalData)]
@@ -147,7 +146,6 @@ public sealed class FormDocumentCapabilityTests
             "unknown-with-one" => ("unknown", [candidate], "recibo"),
             "unobserved" => ("sure", [candidate with { DefinitionId = Guid.NewGuid() }], "recibo"),
             "unknown-question" => ("sure", [candidate with { Values = [new(Guid.NewGuid(), "x", false)] }], "recibo"),
-            "catalog" => ("sure", [f.Candidate(("Banco", "Galicia", false))], "recibo"),
             "decimal" => ("sure", [f.Candidate(("Monto", "150.000,50", false))], "recibo"),
             "choice" => ("sure", [f.Candidate(("Moneda", Guid.NewGuid().ToString("D"), false))], "recibo"),
             "personal" => ("sure", [candidate], "transferencia de 20123456786"),
@@ -159,6 +157,21 @@ public sealed class FormDocumentCapabilityTests
         Assert.Contains(rejection.Issues, issue => issue.Path == path && issue.Code == code);
         var parsed = f.Source.ParseOutput(new(BusinessFormDocumentAssistantCapabilitySource.ProposeEntryId, 1), JsonSerializer.Serialize(rejection, JsonSerializerOptions.Web));
         Assert.IsType<FormDocumentEntryRejection>(parsed.Value);
+    }
+
+    // O45: a catalog question takes only the name the document shows (a bank by its logo); the owner finds its option, or leaves it unread.
+    [Fact]
+    public async Task A_catalog_question_takes_the_name_the_document_shows_as_it_comes()
+    {
+        var f = new Fixture();
+        var read = await f.ReadAsync();
+        var result = await f.Source.ExecuteAsync(f.Propose(read, "sure", [f.Candidate(("Banco", " Santander ", true))]), Ct);
+        var proposal = Assert.IsType<FormDocumentEntryProposal>(result.Value.Payload);
+        var value = Assert.Single(Assert.Single(proposal.Candidates).Values);
+        Assert.Equal(("choice", "Santander", true), (value.Type, value.Value, value.Doubtful));
+        var tooLong = await f.Source.ExecuteAsync(f.Propose(read, "sure", [f.Candidate(("Banco", new string('S', 161), false))]), Ct);
+        Assert.Contains(Assert.IsType<FormDocumentEntryRejection>(tooLong.Value.Payload).Issues,
+            issue => issue is { Path: "candidates[0].values[0].value", Code: FormDocumentEntryIssue.Invalid });
     }
 
     [Fact]

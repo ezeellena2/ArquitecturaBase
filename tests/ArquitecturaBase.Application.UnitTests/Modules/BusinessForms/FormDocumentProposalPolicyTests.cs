@@ -54,6 +54,54 @@ public sealed class FormDocumentProposalPolicyTests
     }
 
     [Fact]
+    public async Task Without_an_entity_code_in_the_account_the_bank_comes_from_the_name_the_document_shows()
+    {
+        // O45: a Santander receipt names the debit account by the bank's own number, without an entity code, and shows the bank by its logo.
+        var f = new Fixture();
+        var prepared = await f.Policy.PrepareAsync(f.Proposal(("account", "CTA $ 123-456789/0", false), ("bank", "Santander", false)), Sha, null, Ct);
+        var bank = Assert.Single(prepared.Candidates).Values.Single(value => value.FieldId == f.Ids["bank"]);
+        Assert.Equal((f.SantanderId.ToString("D"), FormDocumentMarks.Completed, "Banco Santander"), (bank.Value, bank.Mark, bank.Text!["es"]));
+    }
+
+    [Fact]
+    public async Task The_entity_code_of_the_account_wins_over_the_name_and_a_doubtful_name_keeps_its_mark()
+    {
+        var f = new Fixture();
+        var byAccount = await f.Policy.PrepareAsync(f.Proposal(("account", ValidAccount, false), ("bank", "Santander", false)), Sha, null, Ct);
+        Assert.Equal(f.BbvaId.ToString("D"), Assert.Single(byAccount.Candidates).Values.Single(value => value.FieldId == f.Ids["bank"]).Value);
+        var doubtful = await f.Policy.PrepareAsync(f.Proposal(("bank", "BANCO SANTANDER ARGENTINA S.A.", true)), Sha, null, Ct);
+        var bank = Assert.Single(doubtful.Candidates).Values.Single(value => value.FieldId == f.Ids["bank"]);
+        Assert.Equal((f.SantanderId.ToString("D"), FormDocumentMarks.Doubtful), (bank.Value, bank.Mark));
+    }
+
+    [Theory]
+    [InlineData("Banco")]
+    [InlineData("Santander Río")]
+    [InlineData("Banco Macro")]
+    public async Task A_name_that_is_not_one_entity_of_the_catalog_leaves_the_bank_unread(string name)
+    {
+        // «Banco Macro» is an entity, but not an option of this catalog.
+        var f = new Fixture();
+        var prepared = await f.Policy.PrepareAsync(f.Proposal(("bank", name, false)), Sha, null, Ct);
+        var bank = Assert.Single(prepared.Candidates).Values.Single(value => value.FieldId == f.Ids["bank"]);
+        Assert.Equal(((string?)null, FormDocumentMarks.NotRead), (bank.Value, bank.Mark));
+    }
+
+    [Theory]
+    [InlineData("Santander", "072")]
+    [InlineData("BANCO SANTANDER ARGENTINA S.A.", "072")]
+    [InlineData("Banco de la Nación Argentina", "011")]
+    [InlineData("Nación", "011")]
+    [InlineData("Galicia", "007")]
+    [InlineData("Provincia", "014")]
+    [InlineData("icbc", "015")]
+    [InlineData("Banco", null)]
+    [InlineData("Santander Río", null)]
+    [InlineData("", null)]
+    public void A_bank_name_is_found_in_the_entity_table_without_its_generic_words(string name, string? code) =>
+        Assert.Equal(code, FormDocumentProposalPolicy.BankCode(name));
+
+    [Fact]
     public async Task A_lookup_fills_an_empty_catalog_question_by_code_or_text_with_what_another_question_read()
     {
         var f = new Fixture(lookups: true);
@@ -95,6 +143,7 @@ public sealed class FormDocumentProposalPolicyTests
         public Dictionary<string, Guid> Ids { get; } = [];
         public FormDocumentFormRow Form { get; }
         public Guid BbvaId { get; } = Guid.CreateVersion7();
+        public Guid SantanderId { get; } = Guid.CreateVersion7();
         public Guid ClientId { get; } = Guid.CreateVersion7();
         public Guid SupplierId { get; } = Guid.CreateVersion7();
         public IReadOnlyList<StructuredFormStandard> Standards { get; }
@@ -117,6 +166,7 @@ public sealed class FormDocumentProposalPolicyTests
                 Add("supplier", FormReceivedDocumentFixture.Question("choice", "Proveedor", catalog: suppliers)),
             };
             Documents.Items.Add((banks, new(BbvaId, "017", "Banco BBVA", null), new Dictionary<string, string>()));
+            Documents.Items.Add((banks, new(SantanderId, "072", "Banco Santander", null), new Dictionary<string, string>()));
             Documents.Items.Add((clients, new(ClientId, "20123456786", "Cliente uno", null), new Dictionary<string, string>()));
             Documents.Items.Add((suppliers, new(SupplierId, "S1", "ACME SA", null), new Dictionary<string, string>()));
             Form = Documents.AddForm(questions, standardKey: "test.transfer", bindings: Ids,

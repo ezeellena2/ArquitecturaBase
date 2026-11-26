@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -87,25 +88,62 @@ internal sealed class FormDocumentProposalPolicy(IFormReceivedDocumentReader rea
                     || question.Type is "shortText" or "longText" && operations.Contains(question.FieldId)),
             };
         }
-        await FillBanksAsync(row, schema, standard, values, ct);
+        await FillBanksAsync(row, schema, standard, values, given, ct);
         await FillLookupsAsync(row, schema, values, ct);
         return new(row.DefinitionId, row.VersionId, row.DefinitionRevision, questions.Select(question => values[question.FieldId]).ToArray());
     }
 
     // The bank or wallet a standard pairs with an account: its catalog option by the account's entity code, only when the account passes.
+    // Without one (the bank's own number of an account, O44), by the name the document shows that the proposal gave in the bank's catalog
+    // question (O45), read with doubts when the proposal said so.
     private async Task FillBanksAsync(FormDocumentFormRow row, FormVersionSchema schema, StructuredFormStandard? standard,
-        Dictionary<Guid, FormDocumentPreparedValue> values, CancellationToken ct)
+        Dictionary<Guid, FormDocumentPreparedValue> values, Dictionary<Guid, FormDocumentEntryValue> given, CancellationToken ct)
     {
         if (standard?.Reading?.Banks is not { Count: > 0 } banks || Bindings(row) is not { } bound) return;
         foreach (var (accountKey, bankKey) in banks)
         {
-            if (!bound.TryGetValue(accountKey, out var accountId) || !bound.TryGetValue(bankKey, out var bankId)
-                || !values.TryGetValue(accountId, out var account) || !values.TryGetValue(bankId, out var bank) || bank.Value is not null
-                || account is not { Value: { } text, Mark: not FormDocumentMarks.Invalid } || BankAccountKey.Parse(text)?.EntityCode is not { } code
+            if (!bound.TryGetValue(bankKey, out var bankId) || !values.TryGetValue(bankId, out var bank) || bank.Value is not null
                 || schema.Questions.SingleOrDefault(question => question.FieldId == bankId)?.Source?.Catalog is not { } catalogId) continue;
+            var fromAccount = bound.TryGetValue(accountKey, out var accountId) && values.TryGetValue(accountId, out var account)
+                && account is { Value: { } text, Mark: not FormDocumentMarks.Invalid } ? BankAccountKey.Parse(text)?.EntityCode : null;
+            var named = fromAccount is null && given.TryGetValue(bankId, out var read) && read.Value is { } name ? (Code: BankCode(name), read.Doubtful) : default;
+            if ((fromAccount ?? named.Code) is not { } code) continue;
             var found = await codes.ListActiveAsync(catalogId, [code], ct);
-            if (found.TryGetValue(code, out var itemId)) values[bankId] = await CompletedAsync(bank, itemId, ct);
+            if (!found.TryGetValue(code, out var itemId)) continue;
+            var completed = await CompletedAsync(bank, itemId, ct);
+            values[bankId] = named.Doubtful ? completed with { Mark = FormDocumentMarks.Doubtful } : completed;
         }
+    }
+
+    // O45: the words every entity shares, left out to compare a name as a receipt shows it («Santander») with the table's short name («Banco
+    // Santander») or its denomination («BANCO SANTANDER ARGENTINA S.A.»).
+    private static readonly HashSet<string> GenericBankWords = new(StringComparer.Ordinal)
+    {
+        "banco", "bank", "de", "del", "la", "las", "los", "el", "y", "of", "the", "s", "a", "sa", "sau", "argentina", "argentino", "cooperativo", "limitado", "ltda",
+    };
+
+    /// <summary>
+    /// O45: the entity code of the only bank or wallet of the BCRA table whose short name or denomination has the same words as the given
+    /// name, without accents, case, punctuation or the words every entity shares; null for none or more than one.
+    /// </summary>
+    internal static string? BankCode(string name)
+    {
+        var words = BankWords(name);
+        if (words.Count == 0) return null;
+        var table = FormStandardResources.BankEntities;
+        var matches = table.Banks.Concat(table.PaymentProviders)
+            .Where(entity => words.SetEquals(BankWords(entity.Name)) || words.SetEquals(BankWords(entity.OfficialName)))
+            .Select(entity => entity.Code).Distinct(StringComparer.Ordinal).ToArray();
+        return matches is [var code] ? code : null;
+    }
+
+    private static HashSet<string> BankWords(string text)
+    {
+        var plain = new StringBuilder(text.Length);
+        foreach (var character in text.Normalize(NormalizationForm.FormD))
+            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+                plain.Append(char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : ' ');
+        return plain.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(word => !GenericBankWords.Contains(word)).ToHashSet(StringComparer.Ordinal);
     }
 
     // DOC1: each lookup fills an empty catalog question with the option whose code, text or field matches what another question read.

@@ -1463,7 +1463,13 @@ bandeja, en [su sección](#la-bandeja-documentos-recibidos--doc5-a-2026-11-12).
   que deja afuera a los bancos digitales que no compensan cheques; los proveedores
   de CVU los asigna COELSA y no se pudo leer una lista oficial, así que no se cargó ninguno. El estándar suma `Reading`: «Cómo
   reconocerlo» y el resumen para WhatsApp por idioma (con datos entre llaves, `{amount}`), los datos que marcan un repetido
-  (operación, monto y fecha) y la moneda de cada monto (`amount → currency`). «Agregar» deja la copia leyendo documentos, con
+  (operación, monto y fecha), la moneda de cada monto (`amount → currency`) y el banco de cada cuenta (`banks`). El banco sale
+  del código de entidad de la cuenta; si la cuenta no lo da (el número propio de la cuenta en su banco, O44), sale del nombre que
+  muestra el comprobante, por su logo o su texto (O45, 2026-11-25). La propuesta puede dar ese nombre en la pregunta de catálogo,
+  la única que deja de ir en blanco, y se busca en la tabla de entidades: el nombre corto o la denominación con las mismas
+  palabras, sin tildes, signos ni las que comparten todas («Banco», «de la», «S.A.», «Argentina»). Sólo vale si coincide con una
+  única entidad y la copia tiene su opción; si no, queda sin leer. «Santander» da «Banco Santander»; «Santander Río», nada.
+  El nombre leído con dudas queda marcado. «Agregar» deja la copia leyendo documentos, con
   «Cómo reconocerlo» en el idioma de la copia y las validaciones en sus preguntas.
 - **La biblioteca** suma `reads` (`[{ key, name }]`: cada dato que lee un estándar con lectura, en el orden del estándar, por la
   clave del mapa `standard.bound` de su copia y con el nombre de su pregunta en el idioma del menú) y `validations`

@@ -12,14 +12,16 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// <summary>
 /// The exact schemas and the closed codec of the documents capabilities (decision 8): the two reads (candidates in a channel, the fixed
 /// form in the inbox) and propose-entry. A proposal is normalized against the latest read of the turn that showed its forms; a problem
-/// goes back to the model as a rejection with its paths, never trimmed: unknown ids, questions or types, options not offered, a value
-/// for a catalog question (the server fills them), a second candidate on «sure» or a type of document with personal data.
+/// goes back to the model as a rejection with its paths, never trimmed: unknown ids, questions or types, options not offered, a second
+/// candidate on «sure» or a type of document with personal data. A catalog question takes only a name as the document shows it (O45: a
+/// bank or wallet by its logo or its name); the server finds its option or leaves it unread.
 /// </summary>
 internal static class FormDocumentCapabilityCodec
 {
     public const int ResponseBudget = 16384;
     public const int MaxForms = 100;
     public const int MaxQuestions = 40;
+    public const int MaxCatalogNameLength = 160;
     internal static readonly string[] QuestionTypes = ["shortText", "longText", "decimal", "date", "boolean", "choice"];
     private static readonly string[] Outcomes = [FormDocumentEntryProposal.Sure, FormDocumentEntryProposal.Doubt, FormDocumentEntryProposal.Unknown];
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
@@ -34,7 +36,7 @@ internal static class FormDocumentCapabilityCodec
     private static readonly object ArgumentValueSchema = Obj(("fieldId", Str()), ("value", new
     {
         type = new[] { "string", "null" },
-        description = "Exactly as read, within the question limit; null when it was not read. Decimal: invariant digits with an optional minus sign and dot, for example 150000.50, no grouping separators. Date: yyyy-MM-dd. Boolean: true or false. Choice with options: the exact observed option GUID in D format. A catalog question is always null: the server fills it.",
+        description = "Exactly as read, within the question limit; null when it was not read. Decimal: invariant digits with an optional minus sign and dot, for example 150000.50, no grouping separators. Date: yyyy-MM-dd. Boolean: true or false. Choice with options: the exact observed option GUID in D format. A catalog question: null, except a bank or wallet the document names by its name or its logo, given as the document shows it; the server finds its option.",
     }), ("doubtful", Bool()));
     public static string EntryInputSchemaJson { get; } = JsonSerializer.Serialize(Obj(("outcome", Str(Outcomes)),
         ("candidates", Arr(Obj(("definitionId", Str()), ("versionId", Str()), ("values", Arr(ArgumentValueSchema, MaxQuestions))), 3)),
@@ -129,7 +131,11 @@ internal static class FormDocumentCapabilityCodec
                 }
                 if (question.Catalog is not null)
                 {
-                    issues.Add(new(valuePath + ".value", FormDocumentEntryIssue.FilledByServer));
+                    // O45: only the name as the document shows it; the owner finds its option, or leaves the question unread.
+                    var name = value.Value.Trim();
+                    if (FormAssistantCapabilityCodec.Text(name, MaxCatalogNameLength, graphemes: true))
+                        values.Add(new(question.FieldId, question.Type, name, value.Doubtful));
+                    else issues.Add(new(valuePath + ".value", FormDocumentEntryIssue.Invalid));
                     continue;
                 }
                 var canonical = Canonical(question, value.Value);
