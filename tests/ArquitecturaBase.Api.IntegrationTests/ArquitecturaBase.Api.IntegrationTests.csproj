@@ -16,6 +16,8 @@
   <ItemGroup>
     <!-- Cuántas colecciones corren a la vez (ApiTestCollectionFactory). -->
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Lo que tardó cada clase en la última medición: las colecciones más lentas arrancan primero. -->
+    <EmbeddedResource Include="Support\api-test-durations.json" LogicalName="ApiTestDurations.json" />
   </ItemGroup>
 
   <ItemGroup>
