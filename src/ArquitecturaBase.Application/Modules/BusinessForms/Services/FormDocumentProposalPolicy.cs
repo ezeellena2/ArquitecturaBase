@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -137,14 +136,7 @@ internal sealed class FormDocumentProposalPolicy(IFormReceivedDocumentReader rea
         return matches is [var code] ? code : null;
     }
 
-    private static HashSet<string> BankWords(string text)
-    {
-        var plain = new StringBuilder(text.Length);
-        foreach (var character in text.Normalize(NormalizationForm.FormD))
-            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
-                plain.Append(char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : ' ');
-        return plain.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(word => !GenericBankWords.Contains(word)).ToHashSet(StringComparer.Ordinal);
-    }
+    private static HashSet<string> BankWords(string text) => FormNameWords.Of(text, GenericBankWords);
 
     // DOC1: each lookup fills an empty catalog question with the option whose code, text or field matches what another question read.
     private async Task FillLookupsAsync(FormDocumentFormRow row, FormVersionSchema schema, Dictionary<Guid, FormDocumentPreparedValue> values, CancellationToken ct)

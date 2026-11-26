@@ -5,6 +5,8 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="MissingFormRequested" xml:space="preserve"><value>There is no form for that. We recorded the request for review.</value></data>
+  <data name="MissingFormInApp" xml:space="preserve"><value>The form “{0}” already exists and is filled in from the app: {1}</value></data>
+  <data name="MissingFormInAppWithoutLink" xml:space="preserve"><value>The form “{0}” already exists and is filled in from the app.</value></data>
   <data name="AuthoringFormIntro" xml:space="preserve"><value>I propose this form:</value></data>
   <data name="AuthoringMoreOne" xml:space="preserve"><value>and 1 more question</value></data>
   <data name="AuthoringMoreMany" xml:space="preserve"><value>and {0} more questions</value></data>

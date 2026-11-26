@@ -34,11 +34,12 @@ internal sealed class FormMissingRequestFixture : IFormMissingRequestRepository,
         Service = new(this,this,Assistant.Users,Assistant.Permissions,Current,Uow,Time,
             RequestValidators.For(new ListMissingFormTopicsRequestValidator()));
     }
-    public StructuredMissingFormRequestCaptureRequest Request(Guid? source = null, Guid? subject = null, BusinessFormMissingTopic? existing = null)
+    public StructuredMissingFormRequestCaptureRequest Request(Guid? source = null, Guid? subject = null, BusinessFormMissingTopic? existing = null,
+        string name = "Registrar mantenimiento")
     {
         var user = subject ?? Assistant.UserId; var turn = Guid.CreateVersion7();
         var metadata = Topics.Select(topic => new FormMissingTopicRow(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArray();
-        var payload = new MissingFormRequestProposalPayload("proposed",1,existing?.Id,existing is null ? "Registrar mantenimiento" : null,
+        var payload = new MissingFormRequestProposalPayload("proposed",1,existing?.Id,existing is null ? name : null,
             existing is null ? "Piden registrar tareas de mantenimiento." : null);
         var observed = new AssistantObservedRead(turn,1,new(BusinessFormAssistantCapabilitySource.CandidatesId,1),
             Assistant.ReadPayload(user) with { Forms = [], Topics = metadata });
@@ -58,6 +59,10 @@ internal sealed class FormMissingRequestFixture : IFormMissingRequestRepository,
     public Task<BusinessFormMissingTopic?> GetByNameAsync(string name,CancellationToken ct) => Task.FromResult(Topics.SingleOrDefault(topic => topic.NormalizedName == name));
     public void Add(BusinessFormMissingTopic topic) { TransactionGuard.Require(() => Uow.InTransaction); Topics.Add(topic); }
     public void Add(BusinessFormMissingRequest request) { TransactionGuard.Require(() => Uow.InTransaction); Requests.Add(request); }
+    /// <summary>O55: the active forms completed only in the app, as the reader lists them.</summary>
+    public List<FormAppOnlyRow> AppOnlyForms { get; } = [];
+    public Guid AddAppOnly(string nameJson, string culture = "es") { var id = Guid.CreateVersion7(); AppOnlyForms.Add(new(id,nameJson,culture)); return id; }
+    public Task<IReadOnlyList<FormAppOnlyRow>> ListAppOnlyFormsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormAppOnlyRow>>(AppOnlyForms.ToArray());
     public Task<IReadOnlyList<FormMissingTopicRow>> ListAssistantTopicsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormMissingTopicRow>>(
         Topics.Select(topic => new FormMissingTopicRow(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArray());
     public Task<MissingFormTopicResponse?> FindAsync(Guid id,CancellationToken ct)

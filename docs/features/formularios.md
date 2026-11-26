@@ -1665,8 +1665,9 @@ Están el backend (2026-11-09) y el front (2026-11-11). Los ejemplos HTTP de un 
 - **Los canales no la ofrecen.** `FormOfferableVersionQuery.ChannelVersions` deja afuera las versiones de la app en «Enviar
   formulario», el asistente (candidatos, prellenado y aclaración) y los destinos de una sugerencia; un destino que pasó a la
   app figura en las opciones como no disponible (`AppOnly`): «Qué sugerir después» lo muestra «Sólo en la app» y, como uno dado
-  de baja, pide quitar la sugerencia para guardar. La carga desde la app no cambia. Un pedido por WhatsApp de un
-  formulario de la app va a «Formularios que faltan». Una versión de la app no sella la lectura de documentos
+  de baja, pide quitar la sugerencia para guardar. La carga desde la app no cambia. Un pedido por WhatsApp que nombra un formulario de la app
+  no va a «Formularios que faltan»: el asistente contesta que existe y se completa desde la app, con el enlace a su carga (O55,
+  2026-11-25; el detalle, en los [servicios](formularios-servicios.md#formularios-que-faltan)). Una versión de la app no sella la lectura de documentos
   ([DOC1](#lectura-de-documentos-y-validaciones-fijas--doc1-2026-11-11)): los documentos que llegan por el canal (DOC5-A) no
   van a ella, y la relectura al publicar un borrador armado con documentos
   ([DOC6](#armar-formulario-con-la-ia-desde-la-bandeja--doc6-2026-11-12)) espera una versión publicada en un canal.

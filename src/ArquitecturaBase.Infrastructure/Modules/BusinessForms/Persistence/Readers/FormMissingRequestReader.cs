@@ -33,6 +33,13 @@ internal sealed class FormMissingRequestReader(ApplicationDbContext dbContext) :
         await dbContext.Set<BusinessFormMissingTopic>().AsNoTracking().Where(topic => topic.State == BusinessFormMissingTopicState.Pending && topic.ReviewedAtUtc != null).OrderBy(topic => topic.Id).Take(101)
             .Select(topic => new FormMissingTopicRow(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArrayAsync(ct);
 
+    // O55: the most app-only forms a request for a missing form is compared with; ordered by id, so the cut is stable.
+    public const int AppOnlyLimit = 200;
+    public async Task<IReadOnlyList<FormAppOnlyRow>> ListAppOnlyFormsAsync(CancellationToken ct) =>
+        await FormOfferableVersionQuery.Versions(dbContext).Where(version => version.AppOnly)
+            .OrderBy(version => version.DefinitionId).Take(AppOnlyLimit)
+            .Select(version => new FormAppOnlyRow(version.DefinitionId,version.NameJson!,version.Culture!)).ToArrayAsync(ct);
+
     public async Task<MissingFormTopicsPageResponse> FindPageAsync(ListMissingFormTopicsRequest request,CancellationToken ct)
     {
         var query = Aggregates();

@@ -5,6 +5,8 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="MissingFormRequested" xml:space="preserve"><value>No hay un formulario para eso. Registramos el pedido para que lo revisen.</value></data>
+  <data name="MissingFormInApp" xml:space="preserve"><value>El formulario «{0}» ya existe y se completa desde la app: {1}</value></data>
+  <data name="MissingFormInAppWithoutLink" xml:space="preserve"><value>El formulario «{0}» ya existe y se completa desde la app.</value></data>
   <data name="AuthoringFormIntro" xml:space="preserve"><value>Te propongo este formulario:</value></data>
   <data name="AuthoringMoreOne" xml:space="preserve"><value>y 1 pregunta más</value></data>
   <data name="AuthoringMoreMany" xml:space="preserve"><value>y {0} preguntas más</value></data>

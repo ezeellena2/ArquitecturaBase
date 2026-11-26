@@ -53,6 +53,7 @@ internal sealed class FormAssistantFixture : IFormSelectionReader, IFormMissingR
     public Task<IReadOnlyList<FormMissingTopicRow>> ListAssistantTopicsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormMissingTopicRow>>(Topics.ToArray());
     public Task<MissingFormTopicsPageResponse> FindPageAsync(ListMissingFormTopicsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<MissingFormTopicResponse?> FindAsync(Guid topicId, CancellationToken ct) => throw new NotSupportedException();
+    public Task<IReadOnlyList<FormAppOnlyRow>> ListAppOnlyFormsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormAppOnlyRow>>([]);
     public Action? OnRead { get; set; }
     public int Reads { get; private set; }
     public Task<IReadOnlyList<FormAssistantCandidateRow>> ListSuggestionTargetsAsync(IReadOnlyCollection<Guid> definitionIds, CancellationToken ct)

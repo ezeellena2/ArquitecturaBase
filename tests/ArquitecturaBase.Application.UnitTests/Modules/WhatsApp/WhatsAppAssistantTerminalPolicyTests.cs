@@ -177,6 +177,20 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
         Assert.Equal(host.SubjectId, host.MissingRequest.Context.SubjectUserId); Assert.Equal((0, 1), (host.SummaryCalls, host.MissingCalls));
     }
 
+    // O55 (2026-11-25): the form exists and is completed only in the app: it says so, with the page to load it, and nothing was recorded.
+    [Theory]
+    [InlineData("es", true, "El formulario «Pedido de prueba» ya existe y se completa desde la app: https://business.example.test/formularios/0193f2c4-7a1e-7c10-9d4e-2b1f3a4c5d6f/cargar")]
+    [InlineData("en", true, "The form “Pedido de prueba” already exists and is filled in from the app: https://business.example.test/formularios/0193f2c4-7a1e-7c10-9d4e-2b1f3a4c5d6f/cargar")]
+    [InlineData("es", false, "El formulario «Pedido de prueba» ya existe y se completa desde la app.")]
+    public async Task A_missing_request_for_a_form_of_the_app_says_it_exists_and_where_to_load_it(string culture, bool origin, string expected)
+    {
+        var form = Guid.Parse("0193f2c4-7a1e-7c10-9d4e-2b1f3a4c5d6f");
+        var host = new WhatsAppAssistantTerminalFixture { Culture = culture, Value = origin ? new("https://business.example.test/") : null };
+        host.MissingResult = Result.Success(StructuredMissingFormRequestCaptureResponse.ForAppOnly(new(form, "Pedido de prueba", $"/formularios/{form:D}/cargar")));
+        var response = Assert.IsType<WhatsAppAssistantTerminalResponse>((await host.Policy.ApplyAsync(host.Reference, host.Source, host.Operation, Ct)).Value);
+        Assert.Equal((expected, 1), (response.Body, host.MissingCalls));
+    }
+
     [Theory]
     [InlineData("forms.catalog-filters.propose")]
     [InlineData("forms.missing-request.propose")]

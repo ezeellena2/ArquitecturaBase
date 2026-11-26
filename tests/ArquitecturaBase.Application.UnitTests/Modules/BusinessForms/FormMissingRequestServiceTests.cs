@@ -15,6 +15,34 @@ public sealed class FormMissingRequestServiceTests
         Assert.Equal(Assert.Single(f.Topics).Id,Assert.Single(f.Requests).TopicId);
         Assert.Equal(1,f.Uow.Transactions); Assert.Equal(1,f.Uow.Commits); Assert.Equal(1,f.Locks);
     }
+    // O55 (2026-11-25): a request that names a form completed only in the app records nothing and says where it is.
+    [Theory]
+    [InlineData("Pedido de prueba")]
+    [InlineData("cargar el pedido de prueba")]
+    [InlineData("PEDIDO DE PRUEBA")]
+    public async Task A_request_that_names_a_form_completed_only_in_the_app_records_nothing_and_says_where_it_is(string name)
+    {
+        var f = new FormMissingRequestFixture();
+        var form = f.AddAppOnly("{\"es\":\"Pedido de prueba\",\"en\":\"Test order\"}");
+        var result = await f.Service.CaptureAsync(f.Request(name: name),Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal((form, "Pedido de prueba", $"/formularios/{form:D}/cargar"),
+            (result.Value.AppOnlyForm!.DefinitionId, result.Value.AppOnlyForm.Name, result.Value.AppOnlyForm.AppPath));
+        Assert.Empty(f.Topics); Assert.Empty(f.Requests);
+    }
+    [Theory]
+    [InlineData("Pedido")]
+    [InlineData("Registrar mantenimiento")]
+    public async Task A_request_that_is_not_exactly_one_app_form_is_recorded_as_missing(string name)
+    {
+        // «Pedido» is in both forms' names: it does not tell which one.
+        var f = new FormMissingRequestFixture();
+        f.AddAppOnly("{\"es\":\"Pedido de prueba\"}");
+        f.AddAppOnly("{\"es\":\"Pedido a proveedores\"}");
+        var result = await f.Service.CaptureAsync(f.Request(name: name),Ct);
+        Assert.True(result.IsSuccess); Assert.Null(result.Value.AppOnlyForm);
+        Assert.Single(f.Requests);
+    }
     [Fact]
     public async Task Reinterpreting_the_same_inbound_does_not_count_a_second_request()
     {

@@ -153,6 +153,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 ## Formularios que faltan
 
 - Sólo una lectura completa justifica un pedido. La privacidad se revisa al proponer y al capturar, antes y bajo el lock.
+- Un pedido que nombra un formulario activo que sólo se completa en la app no falta (O55, 2026-11-25): bajo el lock, si el mensaje no tiene ya un pedido, `FormAppOnlyMatchPolicy` compara el nombre del pedido (o el del tema observado que reusa) con los nombres de esos formularios en sus idiomas (`IFormMissingRequestReader.ListAppOnlyFormsAsync`, hasta 200): las mismas palabras, o el nombre más corto, de dos palabras o más, dentro del otro, sin tildes, mayúsculas ni artículos. Con uno solo no registra nada y devuelve `AppOnlyForm` (su nombre en el idioma de la persona y `/formularios/{id}/cargar`), que el canal dice; con ninguno o con varios, el pedido queda como siempre.
 - Captura por `SourceReceiptId` opaco y modo neutral Assistant o Manual; Assistant exige Actor igual a Subject. ChannelId conserva procedencia opaca, sin interpretar IDs de otro módulo. El replay no suma ni reabre. Tablero, revisión y descarte: Manage y revisión esperada.
 - Un tema nuevo, o uno descartado que reabre otro pedido, queda sin revisar hasta que alguien con «Diseñar formularios» lo revisa (`POST …/{id}/review`, F7). La lectura del asistente (hasta 101 temas) y los grupos de la bandeja de documentos sólo toman temas revisados, y el asistente recibe sólo el nombre, sin la descripción (F14).
 

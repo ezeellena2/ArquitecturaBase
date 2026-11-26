@@ -10,6 +10,12 @@ public sealed record FormAssistantCandidateRow(Guid DefinitionId, Guid VersionId
     public override string ToString() => "FormAssistantCandidateRow { Content = [REDACTED] }";
 }
 
+/// <summary>O55: an active form completed only in the app, with the sealed name of its active version and the version's culture.</summary>
+public sealed record FormAppOnlyRow(Guid DefinitionId, string NameJson, string Culture)
+{
+    public override string ToString() => "FormAppOnlyRow { Content = [REDACTED] }";
+}
+
 public sealed record FormAssistantChoice(Guid Id, string Text)
 { public override string ToString() => "FormAssistantChoice { Content = [REDACTED] }"; }
 public sealed record FormAssistantQuestion(Guid FieldId, string Type, string Label, int? MaxLength,

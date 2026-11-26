@@ -89,6 +89,11 @@ public sealed partial class FormDraftEndpointsTests
         });
         Assert.Null(offered.Item1);
         Assert.Empty(offered.Item2);
+        // O55: what a request for a missing form names among these is answered with where it is, instead of being recorded.
+        var appOnly = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IFormMissingRequestReader>().ListAppOnlyFormsAsync(Ct));
+        var listed = Assert.Single(appOnly, item => item.DefinitionId == id);
+        Assert.Equal(("es", saved.GetProperty("definition").GetProperty("name").GetProperty("es").GetString()),
+            (listed.Culture, JsonSerializer.Deserialize<Dictionary<string, string>>(listed.NameJson)!["es"]));
     }
 
     // SA4-A: a form that another one suggests and that moves to the app is no longer offered by WhatsApp. The suggestion stays,

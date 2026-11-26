@@ -78,8 +78,17 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringPropos
         }
         var captured = await missing.CaptureAsync(new StructuredMissingFormRequestCaptureRequest(source.Id, source.OccurredAtUtc, context, proposal, provenance), ct);
         if (captured.IsFailure) return captured.Error;
+        // O55: the form exists and is completed only in the app: nothing was recorded, and the reply says where to load it.
+        if (captured.Value.AppOnlyForm is { } appOnly)
+            return new WhatsAppAssistantTerminalResponse(proposal.Id, automatic ? AppOnlyText(appOnly, context.Culture) : null, context.Culture);
         return new WhatsAppAssistantTerminalResponse(proposal.Id, automatic ? AssistantTerminalTexts.Get("MissingFormRequested", context.Culture) : null, context.Culture);
     }
+
+    // «El formulario «…» ya existe y se completa desde la app: <link>», or without the link when the app has no public origin.
+    private string AppOnlyText(StructuredAppOnlyForm form, string culture) => origin.Value is { } publicOrigin
+        ? string.Format(System.Globalization.CultureInfo.InvariantCulture, AssistantTerminalTexts.Get("MissingFormInApp", culture), form.Name,
+            new Uri(publicOrigin, form.AppPath.TrimStart('/')).AbsoluteUri)
+        : string.Format(System.Globalization.CultureInfo.InvariantCulture, AssistantTerminalTexts.Get("MissingFormInAppWithoutLink", culture), form.Name);
 
     /// <summary>VC1-A (task 29): a spreadsheet to load over the day's quota, outside any transaction.</summary>
     public Task<Result<WhatsAppAssistantTerminalResponse?>> RegisterSpreadsheetOverQuotaAsync(WhatsAppAssistantReferenceRow reference,

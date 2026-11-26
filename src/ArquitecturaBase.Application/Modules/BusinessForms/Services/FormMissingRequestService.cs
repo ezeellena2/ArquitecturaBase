@@ -30,9 +30,20 @@ internal sealed class FormMissingRequestService(IFormMissingRequestRepository re
             var current = await CheckCaptureAsync(request,inner);
             if (current.IsFailure) return current.Error;
             var value = proposal.Value;
+            // O55: a form that exists and is completed only in the app is not missing: nothing is recorded and the channel says where
+            // it is. A request already recorded for this message answers as recorded.
+            if (await repository.GetRequestAsync(request.SourceReceiptId,inner) is null && await AppOnlyAsync(value,request.Context.Culture,inner) is { } appOnly)
+                return StructuredMissingFormRequestCaptureResponse.ForAppOnly(appOnly);
             return await FormMissingRequestRecorder.RecordAsync(repository,request.SourceReceiptId,value.ExistingTopicId,value.Name,value.Description,
                 request.Context.Culture,request.Context.SubjectUserId!.Value,request.RequestedAtUtc,inner);
         },CommitPolicy.OnSuccess,ct);
+    }
+
+    // The name the request gives, or the observed topic's it reuses, against the forms completed only in the app.
+    private async Task<StructuredAppOnlyForm?> AppOnlyAsync(MissingFormRequestProposalPayload value,string culture,CancellationToken ct)
+    {
+        var name = value.Name ?? (value.ExistingTopicId is { } id ? (await repository.GetAsync(id,ct))?.Name : null);
+        return string.IsNullOrWhiteSpace(name) ? null : FormAppOnlyMatchPolicy.Find(name,await reader.ListAppOnlyFormsAsync(ct),culture);
     }
 
     public async Task<Result<MissingFormTopicsPageResponse>> ListAsync(ListMissingFormTopicsRequest request,CancellationToken ct)
