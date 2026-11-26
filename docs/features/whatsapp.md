@@ -236,14 +236,34 @@ En lugar de la respuesta, Meta mandó a los segundos sólo un estado `failed` co
 Su documentación describe ese código, pero no que llegue como estado de un mensaje entrante. Otras respuestas con archivos
 desde WhatsApp Web llegaron bien (21/11), así que no es una falla fija de Web.
 
-Qué hace la app cuando una respuesta no llega:
+Qué hace la app cuando una respuesta no llega (desde el 2026-11-26, a pedido del usuario):
 - El webhook guarda ese estado como cualquier recibo, por wamid (`WhatsAppDeliveryReceipts`, `Failed` y el código), aunque
-  ningún envío tenga ese id. No contesta nada ni toca la sesión.
-- La sesión queda Pending. Pasado su plazo (el de Configuración › WhatsApp) ya no captura, como cualquier formulario sin
-  contestar.
-- El documento que propuso el formulario sigue «Propuesto» en la bandeja de documentos, y el equipo lo puede cargar desde la
-  app. Pasado el plazo, un toque en su pregunta contesta que quedó para el equipo.
-- Nadie recibe un aviso: la persona cree que la mandó, y el chat sólo muestra el Flow entregado, sin respuesta.
+  ningún envío tenga ese id. Es la única huella de la pérdida: los logs del panel duran menos.
+- Un `failed` con 131052 de un mensaje que no es nuestro es una respuesta perdida. En la misma transacción, la app busca a la
+  persona por el BSUID (`recipient_user_id`) o el número (`recipient_id`) del estado y le reenvía cada formulario abierto que
+  pide un archivo (una foto o un documento), porque sólo una respuesta con archivos se pierde así. Es el reenvío del mismo
+  envío, como el de W3: del mismo remitente, con su sello y su prellenado, marcado como reenvío y con el mensaje «No me llegó
+  tu respuesta al formulario «Registrar visita». Completalo de nuevo, por favor.». Sale sólo si su remitente todavía puede
+  mandarlo: el operador con el chat en Atención manual, el asistente en Asistente, con la misma revisión y la ventana de 24 h
+  abierta según lo que la app recibió.
+- No se reenvía un formulario mandado después de la pérdida, que no pudo perder esa respuesta, ni uno cuyo reenvío espera en la
+  salida o se pidió después de la pérdida (de W3 o de otra pérdida), que ya le da a la persona uno nuevo. Uno que tomó algo
+  compartido se reenvía sólo mientras conserva lo escrito, porque sin eso su reenvío no saldría.
+- Un reintento de Meta con el mismo estado no reenvía otra vez, porque su recibo ya existe; otra respuesta perdida, con otro
+  wamid, sí, una vez que el reenvío anterior salió. Si la respuesta llega igual, la captura toma la primera y el reenvío ya no
+  sale (A7).
+- Sin un formulario abierto con archivos, o sin la persona, no pasa nada más: la sesión queda Pending hasta su plazo y el
+  documento que propuso el formulario sigue «Propuesto» en la bandeja de documentos, para el equipo.
+- Que `recipient_id` sea el número de la persona en el estado de un mensaje entrante es lo que Meta documenta para los
+  salientes; no se probó con un evento real, porque del 22/11 sólo quedó el recibo.
+
+`WhatsAppLostReplyIntegrationTests` lo prueba con PostgreSQL, del webhook firmado al reenvío que sale una sola vez, con la
+persona por su número o por su BSUID, otra pérdida mientras el reenvío espera y después de que salió, y que un formulario sin
+archivos, uno mandado después de la pérdida u otro error no reenvían; `WhatsAppWebhookPersistenceTests`, que la persona se
+bloquea con los contactos antes de los mensajes; `WhatsAppFlowLostReplyPolicyTests`, qué estado es una respuesta perdida, qué
+envío se reenvía y el texto es/en; `WhatsAppWebhookReaderTests`, que el estado conserva el número y el BSUID;
+`WhatsAppProposedFlowDispatchTests`, que el reenvío de un envío que no tomó nada sale con su prellenado, y
+`WhatsAppChatPersistenceTests`, que el lock del contacto recarga el que se leyó antes y no cambió.
 
 Ese recibo es la huella para diagnosticar otra pérdida, y dura más que los logs del panel: un `Failed` cuyo wamid no es de
 ningún mensaje guardado.
@@ -444,7 +464,8 @@ Cada envío que tomó algo encola un solo reenvío por vuelta, también si en la
 (`WhatsAppFlowLocationPolicy.Resend`). Su mensaje nombra lo que se completó en esa vuelta y el formulario («Puse tu ubicación en
 «Dirección de entrega». Revisá el formulario «Registrar entrega» y confirmalo.»; con el contacto, «Puse el contacto en «Recibió» y
 «Teléfono de quien recibe».» o sólo la pregunta que completó). Al despacharlo, el verificador descifra lo compartido y
-`WhatsAppFormDispatchPolicy` lo pone sobre el prellenado; otro Flow del envío no lo lleva y un reenvío sin él no sale. La reserva
+`WhatsAppFormDispatchPolicy` lo pone sobre el prellenado; otro Flow del envío no lo lleva y el reenvío de un envío que tomó algo no
+sale sin él (el de una respuesta que Meta no entregó, O49, sale con lo que el envío haya tomado, o sólo con su prellenado). La reserva
 lo frena como a cualquier mensaje de su remitente (si una persona tomó la conversación, el del asistente queda Failed) y también
 cuando el envío ya tiene su respuesta, capturada o adjuntada. La marca pasa al mensaje que deja al salir y lo deja afuera de «Por qué lo mandó» y de
 `ListOffersAsync`; `CountOffersAsync` ya contaba por la referencia del asistente. El origen de la respuesta, en el detalle, la lista y

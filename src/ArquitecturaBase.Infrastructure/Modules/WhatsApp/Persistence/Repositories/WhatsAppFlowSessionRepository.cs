@@ -42,7 +42,17 @@ internal sealed class WhatsAppFlowSessionRepository(ApplicationDbContext dbConte
                     .OrderBy(outgoing => outgoing.RequestedAtUtc).ThenBy(outgoing => outgoing.Id).FirstOrDefault()
                 where first != null
                 orderby session.CreatedAtUtc, session.Id
-                select new { session, first, binding.OperationId, binding.ProtectedProjection }).Take(50).ToListAsync(cancellationToken))
-        .Select(row => new WhatsAppFlowOpenSend(row.session, row.first!, row.OperationId, row.ProtectedProjection)).ToArray();
+                select new
+                {
+                    session, first, binding.OperationId, binding.ProtectedProjection,
+                    // O49: what the resend of a lost reply skips, a resend on its way or one requested after the loss.
+                    ResendWaiting = dbContext.Set<WhatsAppOutgoingMessage>().Any(resend => resend.FlowSessionId == session.Id && resend.IsResend
+                        && (resend.State == WhatsAppOutgoingMessageState.Pending || resend.State == WhatsAppOutgoingMessageState.Sending
+                            || resend.State == WhatsAppOutgoingMessageState.Uncertain)),
+                    LastResendAtUtc = dbContext.Set<WhatsAppOutgoingMessage>().Where(resend => resend.FlowSessionId == session.Id && resend.IsResend
+                        && resend.State != WhatsAppOutgoingMessageState.Failed).Max(resend => (DateTime?)resend.RequestedAtUtc),
+                }).Take(50).ToListAsync(cancellationToken))
+        .Select(row => new WhatsAppFlowOpenSend(row.session, row.first!, row.OperationId, row.ProtectedProjection)
+            { ResendWaiting = row.ResendWaiting, LastResendAtUtc = row.LastResendAtUtc }).ToArray();
     public void Add(WhatsAppFlowSession session) => dbContext.Set<WhatsAppFlowSession>().Add(session);
 }

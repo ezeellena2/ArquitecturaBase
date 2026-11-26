@@ -20,6 +20,8 @@ public sealed class WhatsAppWebhookReaderTests
 {
     private const string WaId = "5493413654813";
     private const string Bsuid = "AR.1102953142229032";
+    // The number MetaWebhook.Status puts in recipient_id unless a test gives another.
+    private const string StatusRecipient = "5493415550000";
     private const string WaMessageId = "wamid.HBgNNTQ5MzQxMzY1NDgxMxUCABIYFDNBMzQ2RkY5MkJCMUM3RkUzQTg0AA==";
 
     private static readonly DateTime SentAtUtc = new(2026, 9, 22, 18, 30, 15, DateTimeKind.Utc);
@@ -338,12 +340,32 @@ public sealed class WhatsAppWebhookReaderTests
         Assert.Empty(batch.Messages);
         Assert.Equal(
             [
-                new WhatsAppWebhookStatus("wamid.a", WhatsAppMessageStatus.Sent, SentAtUtc, null),
-                new WhatsAppWebhookStatus("wamid.a", WhatsAppMessageStatus.Delivered, SentAtUtc.AddSeconds(2), null),
-                new WhatsAppWebhookStatus("wamid.a", WhatsAppMessageStatus.Read, SentAtUtc.AddSeconds(9), null),
-                new WhatsAppWebhookStatus("wamid.b", WhatsAppMessageStatus.Failed, SentAtUtc.AddSeconds(3), 131026),
+                new WhatsAppWebhookStatus("wamid.a", WhatsAppMessageStatus.Sent, SentAtUtc, null, StatusRecipient),
+                new WhatsAppWebhookStatus("wamid.a", WhatsAppMessageStatus.Delivered, SentAtUtc.AddSeconds(2), null, StatusRecipient),
+                new WhatsAppWebhookStatus("wamid.a", WhatsAppMessageStatus.Read, SentAtUtc.AddSeconds(9), null, StatusRecipient),
+                new WhatsAppWebhookStatus("wamid.b", WhatsAppMessageStatus.Failed, SentAtUtc.AddSeconds(3), 131026, StatusRecipient),
             ],
             batch.Statuses);
+    }
+
+    // O49: a status brings the number and the BSUID of its person, which a reply Meta could not deliver needs to send its form again.
+    // What does not read as a number or a BSUID is left out, as in the messages.
+    [Fact]
+    public void A_status_keeps_the_number_and_the_bsuid_of_its_person()
+    {
+        var batch = Read(MetaWebhook.Build(statuses:
+        [
+            MetaWebhook.Status("wamid.lost", "failed", SentAtUtc, WaId, errorCode: 131052, recipientUserIdentifier: Bsuid),
+            MetaWebhook.Status("wamid.bad", "failed", SentAtUtc, "54 9 341", errorCode: 131052, recipientUserIdentifier: "AR 1"),
+        ]));
+
+        Assert.Equal(
+            [
+                new WhatsAppWebhookStatus("wamid.lost", WhatsAppMessageStatus.Failed, SentAtUtc, 131052, WaId, Bsuid),
+                new WhatsAppWebhookStatus("wamid.bad", WhatsAppMessageStatus.Failed, SentAtUtc, 131052),
+            ],
+            batch.Statuses);
+        Assert.DoesNotContain(WaId, batch.ToString(), StringComparison.Ordinal);
     }
 
     /// <summary>"played" es de los mensajes de voz, que el bot no manda.</summary>
@@ -510,7 +532,7 @@ public sealed class WhatsAppWebhookReaderTests
                 new WhatsAppWebhookMessage("wamid.2", from, WhatsAppMessageKind.ButtonReply, "Crear cuenta", "CREATE_ACCOUNT", SentAtUtc),
             ],
             batch.Messages);
-        Assert.Equal([new WhatsAppWebhookStatus("wamid.3", WhatsAppMessageStatus.Failed, SentAtUtc, 131026)], batch.Statuses);
+        Assert.Equal([new WhatsAppWebhookStatus("wamid.3", WhatsAppMessageStatus.Failed, SentAtUtc, 131026, StatusRecipient)], batch.Statuses);
     }
 
     /// <summary>

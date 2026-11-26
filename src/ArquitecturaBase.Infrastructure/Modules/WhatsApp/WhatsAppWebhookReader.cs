@@ -16,7 +16,7 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 /// <c>field</c> "messages" y, en <c>value</c>, <c>metadata.phone_number_id</c>, <c>contacts</c> (<c>wa_id</c>,
 /// <c>user_id</c> y <c>profile.name</c>), <c>messages</c> (<c>from</c>, <c>from_user_id</c>, <c>id</c>,
 /// <c>timestamp</c> en segundos Unix y el contenido según <c>type</c>) y <c>statuses</c> (<c>id</c>, <c>status</c>,
-/// <c>timestamp</c> y <c>errors</c>). Lo que no es de este número o no se entiende se deja afuera sin frenar el resto:
+/// <c>timestamp</c>, <c>errors</c>, <c>recipient_id</c> y <c>recipient_user_id</c>). Lo que no es de este número o no se entiende se deja afuera sin frenar el resto:
 /// un error haría que Meta reintente durante días algo que nunca se va a poder leer.
 /// </summary>
 internal sealed partial class WhatsAppWebhookReader(
@@ -535,7 +535,9 @@ internal sealed partial class WhatsAppWebhookReader(
             return null;
         }
 
-        return new WhatsAppWebhookStatus(waMessageId!, value.Value, occurredAtUtc, ErrorCodeOf(status));
+        // O49: the person's number and BSUID, which a reply Meta could not deliver needs to find who sent it.
+        return new WhatsAppWebhookStatus(waMessageId!, value.Value, occurredAtUtc, ErrorCodeOf(status),
+            WaIdOrNull(StringOf(status, "recipient_id")), UserIdentifierOrNull(StringOf(status, "recipient_user_id")));
     }
 
     private static int? ErrorCodeOf(JsonElement status)

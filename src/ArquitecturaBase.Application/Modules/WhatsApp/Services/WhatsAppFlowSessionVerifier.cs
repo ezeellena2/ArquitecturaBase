@@ -28,13 +28,15 @@ internal sealed class WhatsAppFlowSessionVerifier(IWhatsAppFlowSessionProtector 
     }
 
     /// <summary>
-    /// W3: what was shared, decrypted for the resend that carries it over the prefill; any other Flow carries nothing of it, and a resend
-    /// without it does not go out.
+    /// W3: what was shared, decrypted for the resend that carries it over the prefill; any other Flow carries nothing of it, and the resend
+    /// of a send that took something does not go out without it. O49: the resend of a send that took nothing (its form again after a reply
+    /// Meta could not deliver) carries only its prefill.
     /// </summary>
     public Result<WhatsAppFlowSharedValues?> ReadShared(WhatsAppFormDispatchRow row)
     {
         if (!row.IsResend) return Result.Success<WhatsAppFlowSharedValues?>(null);
-        if (row.ProtectedSharedValues is not { Length: > 0 } values) return FlowErrors.StateConflict;
+        if (row.ProtectedSharedValues is not { Length: > 0 } values)
+            return row.TookShared ? FlowErrors.StateConflict : Result.Success<WhatsAppFlowSharedValues?>(null);
         try { return protector.ReadShared(row.SessionId, row.ContactId, row.UserId, row.VersionId, values); }
         catch (Exception exception) when (exception is CryptographicException or InvalidOperationException or JsonException) { return FlowErrors.StateConflict; }
     }

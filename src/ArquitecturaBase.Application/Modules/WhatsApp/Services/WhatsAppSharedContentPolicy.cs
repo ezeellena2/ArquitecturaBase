@@ -67,8 +67,9 @@ internal static class WhatsAppSharedContentPolicy
 
     // A6: the resend goes out as any message of its sender, so a send whose sender can no longer send takes nothing: the operator's while
     // the conversation is in Atención manual with the revision its send sealed; the assistant's while it is in Asistente with the revision,
-    // link and number it sealed. A send of an account the number no longer has is not open (A2).
-    private static bool CanSend(WhatsAppSharedContentSend send, WhatsAppContact contact) =>
+    // link and number it sealed. A send of an account the number no longer has is not open (A2). The resend of a lost reply checks the same
+    // (O49, WhatsAppFlowLostReplyPolicy).
+    public static bool CanSend(WhatsAppSharedContentSend send, WhatsAppContact contact) =>
         contact.UserId == send.Session.UserId && contact.LinkRevision == send.Session.LinkRevision && contact.ModeRevision == send.ModeRevision
         && (send.First.Origin == WhatsAppMessageOrigin.Assistant
             ? contact.Mode == WhatsAppConversationMode.Assistant && send.First.AssistantModeRevision == send.ModeRevision

@@ -1,6 +1,9 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -70,5 +73,45 @@ public sealed class WhatsAppChatPersistenceTests(ApiFactory factory)
         await firstCache.ReleaseExclusiveLeaseAsync(key, "first", TimeSpan.Zero, Ct);
         Assert.True(await secondCache.RenewExclusiveLeaseAsync(key, "second", TimeSpan.FromSeconds(30), Ct));
         await secondCache.ReleaseExclusiveLeaseAsync(key, "second", TimeSpan.Zero, Ct);
+    }
+
+    // A row lock gives back the contact the scope already read without refreshing it (EF): one read before the lock and unchanged since is
+    // reloaded, so a conversation taken in between is seen; one this unit of work already changed keeps its change (O49 review).
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_lock_of_a_contact_read_before_reloads_it_unless_this_unit_of_work_changed_it(bool changed)
+    {
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var created = WhatsAppContact.Create(MetaWebhook.UniqueWaId(), MetaWebhook.UniqueBsuid(), "Persona", now);
+        created.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
+        await InTransactionAsync(services => { services.GetRequiredService<ApplicationDbContext>().Add(created); return Task.CompletedTask; });
+
+        WhatsAppContact? locked = null;
+        await InTransactionAsync(async services =>
+        {
+            var read = (await services.GetRequiredService<IWhatsAppContactRepository>().GetByUserIdentifierAsync(created.UserIdentifier!, Ct))!;
+            if (changed) read.RecordInbound(read.WaId, read.UserIdentifier, "Otro nombre", now);
+            // Someone takes the conversation and saves before this unit of work takes the row.
+            await InTransactionAsync(async other => (await other.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>()
+                .SingleAsync(item => item.Id == created.Id, Ct)).ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch));
+            locked = await services.GetRequiredService<IWhatsAppConversationRepository>().GetForUpdateAsync(created.Id, Ct);
+            Assert.Same(read, locked);
+        });
+
+        Assert.Equal(changed ? (WhatsAppConversationMode.Assistant, "Otro nombre") : (WhatsAppConversationMode.Manual, "Persona"),
+            (locked!.Mode, locked.ProfileName));
+    }
+
+    private async Task InTransactionAsync(Func<IServiceProvider, Task> work)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var result = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async ct =>
+        {
+            ct.ThrowIfCancellationRequested();
+            await work(scope.ServiceProvider);
+            return Result.Success();
+        }, CommitPolicy.OnSuccess, Ct);
+        Assert.True(result.IsSuccess);
     }
 }

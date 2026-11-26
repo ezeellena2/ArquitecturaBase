@@ -13,7 +13,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// a value. Its first message passes the reservation's own checks (<see cref="WhatsAppOutgoingSendGuard"/>), since the resend continues
 /// it from the same sender and with its seal (A6): an operator who is inactive or lost whatsapp.read or whatsapp.send, or an assistant
 /// whose context no longer holds, leaves the send out, so what was shared goes to the next one or stays in the chat instead of a resend
-/// that would fail. It also seals what a send took, protected for it.
+/// that would fail. It also seals what a send took, protected for it. The resend of a reply Meta could not deliver lists its sends here
+/// too (O49, <see cref="WhatsAppFlowLostReplyPolicy"/>).
 /// </summary>
 internal sealed partial class WhatsAppSharedContentGuard(IWhatsAppFlowProtector projections, IWhatsAppFlowSessionProtector protector,
     WhatsAppOutgoingSendGuard reservation, ILogger<WhatsAppSharedContentGuard> logger)

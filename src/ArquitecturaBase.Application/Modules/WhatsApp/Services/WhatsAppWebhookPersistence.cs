@@ -16,6 +16,11 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// mensaje que no se guardó se ignora. Siempre termina bien: nada de lo que trae un webhook firmado es un error de
 /// quien lo manda, y un error haría que Meta lo reintente durante días.
 /// <para>
+/// O49: un "failed" con 131052 de un mensaje que no es nuestro es una respuesta de la persona que Meta no pudo entregar. La
+/// primera vez que se guarda su recibo, <see cref="WhatsAppFlowLostReplyPolicy"/> reenvía en esta misma transacción los
+/// formularios abiertos con archivos de esa persona; un reintento de Meta encuentra el recibo y no reenvía otra vez.
+/// </para>
+/// <para>
 /// Es una excepción al patrón, no el ejemplo a copiar: un servicio al que llama otro servicio (WhatsAppWebhookService),
 /// porque es la unidad que se reintenta. Después de un 23505, WhatsAppWebhookRetry la vuelve a correr en un scope
 /// nuevo, con su propio límite.
@@ -26,6 +31,7 @@ internal sealed partial class WhatsAppWebhookPersistence(
     IWhatsAppMessageRepository messages,
     IWhatsAppFlowReplyProtector flowReplies,
     IUnitOfWork unitOfWork,
+    WhatsAppFlowLostReplyPolicy lostReplies,
     ILogger<WhatsAppWebhookPersistence> logger)
     : IWhatsAppWebhookPersistence
 {
@@ -53,15 +59,21 @@ internal sealed partial class WhatsAppWebhookPersistence(
     {
         // Antes de mirar nada: dos webhooks simultáneos de la misma persona (un reintento de Meta que se cruza con el
         // original) esperan acá, y el segundo ve lo que guardó el primero. Primero los contactos y después los
-        // mensajes, en dos llamadas, como todo el que tome los dos.
+        // mensajes, en dos llamadas, como todo el que tome los dos. La persona de una respuesta que Meta no entregó (O49) va con
+        // los contactos, porque abajo se le reenvían sus formularios.
+        var lost = batch.Statuses.Where(WhatsAppFlowLostReplyPolicy.IsLost).ToArray();
         await contacts.LockAsync(
-            Distinct(batch.Messages.Select(message => message.From.UserIdentifier)),
-            Distinct(batch.Messages.Select(message => message.From.WaId)),
+            Distinct(batch.Messages.Select(message => message.From.UserIdentifier).Concat(lost.Select(status => status.RecipientUserIdentifier))),
+            Distinct(batch.Messages.Select(message => message.From.WaId).Concat(lost.Select(status => status.RecipientWaId))),
             cancellationToken);
         await messages.LockAsync(Distinct(batch.Statuses.Select(status => status.WaMessageId)), cancellationToken);
 
         var (saved, repeated) = await SaveInboundAsync(batch.Messages, cancellationToken);
-        var (applied, ignored) = await ApplyStatusesAsync(batch.Statuses, cancellationToken);
+        var (applied, ignored, newlyLost) = await ApplyStatusesAsync(batch.Statuses, cancellationToken);
+        if (newlyLost.Count > 0)
+        {
+            await lostReplies.QueueAsync(newlyLost, cancellationToken);
+        }
 
         // Todo lo repetido se saltea y un estado viejo se ignora: siempre termina bien.
         return new WebhookCounts(saved, repeated, applied, ignored);
@@ -170,13 +182,13 @@ internal sealed partial class WhatsAppWebhookPersistence(
         return contact;
     }
 
-    private async Task<(int Applied, int Ignored)> ApplyStatusesAsync(
+    private async Task<(int Applied, int Ignored, IReadOnlyList<WhatsAppWebhookStatus> Lost)> ApplyStatusesAsync(
         IReadOnlyList<WhatsAppWebhookStatus> statuses,
         CancellationToken cancellationToken)
     {
         if (statuses.Count == 0)
         {
-            return (0, 0);
+            return (0, 0, []);
         }
 
         var outbound = (await messages.ListOutboundAsync(
@@ -184,6 +196,7 @@ internal sealed partial class WhatsAppWebhookPersistence(
             .ToDictionary(message => message.WaMessageId, StringComparer.Ordinal);
         var applied = 0;
         var receipts = new Dictionary<string, WhatsAppDeliveryReceipt>(StringComparer.Ordinal);
+        var lost = new List<WhatsAppWebhookStatus>();
 
         // El orden no importa: cada mensaje se queda con el estado más nuevo, lleguen como lleguen.
         foreach (var status in statuses)
@@ -195,6 +208,12 @@ internal sealed partial class WhatsAppWebhookPersistence(
                 {
                     receipt = WhatsAppDeliveryReceipt.Create(status.WaMessageId, status.Status, status.OccurredAtUtc, status.ErrorCode);
                     messages.Add(receipt);
+
+                    // O49: sólo cuando se guarda su recibo, así un reintento de Meta no reenvía los formularios otra vez.
+                    if (WhatsAppFlowLostReplyPolicy.IsLost(status) && !outbound.ContainsKey(status.WaMessageId))
+                    {
+                        lost.Add(status);
+                    }
                 }
                 receipts.Add(status.WaMessageId, receipt);
             }
@@ -206,7 +225,7 @@ internal sealed partial class WhatsAppWebhookPersistence(
             }
         }
 
-        return (applied, statuses.Count - applied);
+        return (applied, statuses.Count - applied, lost);
     }
 
     private static string[] Distinct(IEnumerable<string?> values) =>

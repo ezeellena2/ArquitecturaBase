@@ -161,7 +161,8 @@ internal static class MetaWebhook
             ["emoji"] = "👍",
         });
 
-    public static JsonObject Status(string waMessageId, string status, DateTime atUtc, string? recipientWaId = null, int? errorCode = null)
+    public static JsonObject Status(string waMessageId, string status, DateTime atUtc, string? recipientWaId = null, int? errorCode = null,
+        string? recipientUserIdentifier = null)
     {
         var json = new JsonObject
         {
@@ -177,6 +178,11 @@ internal static class MetaWebhook
                 ["category"] = "service",
             },
         };
+
+        if (recipientUserIdentifier is not null)
+        {
+            json["recipient_user_id"] = recipientUserIdentifier;
+        }
 
         if (errorCode is not null)
         {

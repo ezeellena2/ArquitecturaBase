@@ -67,8 +67,13 @@ public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, st
     public DateTime? AssistantContentExpiresAtUtc { get; init; }
     public Guid BindingOperationId { get; init; }
     public byte[]? ProtectedProjection { get; init; }
-    /// <summary>W3: a resend of the send, which goes out with what was shared over its prefill, and only while the send has no reply.</summary>
+    /// <summary>
+    /// W3: a resend of the send, which goes out with what was shared over its prefill, and only while the send has no reply. O49: also the
+    /// form again after a reply Meta could not deliver, which carries what the send took, if anything.
+    /// </summary>
     public bool IsResend { get; init; }
+    /// <summary>W3: the send took something shared (<c>SharedContentJson</c>), so its resend goes out only with what was written.</summary>
+    public bool TookShared { get; init; }
     /// <summary>VC1-A (task 29): the footer of the Flow of a load, only for Meta.</summary>
     public string? Footer { get; init; }
     public byte[]? ProtectedSharedValues { get; init; }

@@ -318,6 +318,26 @@ public sealed class WhatsAppWebhookPersistenceTests
         Assert.True(lastLock < firstRead, "The handler read before taking every lock: " + string.Join(", ", _locks.Events));
     }
 
+    /// <summary>
+    /// O49: una respuesta que Meta no pudo entregar llega sólo como un estado "failed" con 131052 de un mensaje que no es nuestro,
+    /// con el número o el BSUID de quien la mandó. Como sus formularios abiertos se reenvían en la misma transacción, su persona se
+    /// bloquea con los demás contactos, antes de los mensajes; otro error no bloquea a nadie más. El recibo queda como huella.
+    /// </summary>
+    [Fact]
+    public async Task A_reply_meta_could_not_deliver_locks_its_person_with_the_contacts_and_keeps_its_receipt()
+    {
+        await HandleAsync(Batch(
+            new WhatsAppWebhookStatus("wamid.lost", WhatsAppMessageStatus.Failed, Now, 131052, WaId, Bsuid),
+            new WhatsAppWebhookStatus("wamid.out", WhatsAppMessageStatus.Failed, Now, 131026, "5493415550000", "AR.777")));
+
+        Assert.Equal(["user:" + Bsuid, "wa:" + WaId, "message:wamid.lost", "message:wamid.out"], _locks.Keys);
+        var firstRead = _locks.Events.FindIndex(LockLog.IsRead);
+        Assert.True(firstRead > _locks.Events.FindLastIndex(entry => !LockLog.IsRead(entry)), string.Join(", ", _locks.Events));
+        var receipt = await _messages.GetReceiptAsync("wamid.lost", Ct);
+        Assert.Equal((WhatsAppMessageStatus.Failed, 131052), (receipt!.Status, receipt.ErrorCode));
+        Assert.Empty(_contacts.Added);
+    }
+
     [Fact]
     public async Task An_empty_webhook_takes_no_locks_and_opens_no_transaction()
     {
@@ -349,8 +369,11 @@ public sealed class WhatsAppWebhookPersistenceTests
         Assert.DoesNotContain(WaId, printed, StringComparison.Ordinal);
     }
 
+    // Nobody here has an open send: the lost reply policy looks for its person among the contacts and stops there, before the
+    // conversations, the sends and the reservation, which PostgreSQL proves (WhatsAppLostReplyIntegrationTests).
     private Task HandleAsync(WhatsAppWebhookBatch batch) =>
         new WhatsAppWebhookPersistence(_contacts, _messages, _flowReplies, _unitOfWork,
+                new WhatsAppFlowLostReplyPolicy(_contacts, null!, null!, null!, TimeProvider.System, NullLogger<WhatsAppFlowLostReplyPolicy>.Instance),
                 NullLogger<WhatsAppWebhookPersistence>.Instance)
             .PersistAsync(batch, Ct);
 

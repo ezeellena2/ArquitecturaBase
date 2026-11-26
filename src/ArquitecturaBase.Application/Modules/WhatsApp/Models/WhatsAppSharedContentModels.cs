@@ -8,6 +8,10 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
 /// </summary>
 public sealed record WhatsAppFlowOpenSend(WhatsAppFlowSession Session, WhatsAppOutgoingMessage First, Guid BindingOperationId, byte[] ProtectedProjection)
 {
+    /// <summary>O49: a resend of the send waits in the outgoing (Pending, Sending or Uncertain).</summary>
+    public bool ResendWaiting { get; init; }
+    /// <summary>O49: when the last resend of the send that did not fail was requested, if any.</summary>
+    public DateTime? LastResendAtUtc { get; init; }
     public override string ToString() => "WhatsAppFlowOpenSend { Content = [REDACTED] }";
 }
 

@@ -27,18 +27,21 @@ public sealed class WhatsAppProposedFlowDispatchTests
         Assert.False(fields.ContainsKey(host.Forms.Prefill.Value.Fields[1].Key));
     }
     // W3: the resend carries what the person shared over the prefill, in its question; another Flow of the send carries none of it,
-    // and a resend without it does not go out.
+    // and the resend of a send that took something does not go out without it. O49: the resend of a send that took nothing (its form
+    // again after a reply Meta could not deliver) carries only its prefill.
     [Fact]
     public async Task A_resend_carries_what_was_shared_over_the_prefill_and_no_other_flow_does()
     {
         var host=await QueuedAsync();var fields=host.Forms.Prefill.Value.Fields;var row=WhatsAppAssistantAcceptanceFixture.DispatchRow(host);
         host.Protector.Shared=new(1,[new(fields[0].FieldId,"Lugar","Av. Pellegrini 1200")]);
-        var first=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row with {ProtectedSharedValues=[3]}).PrepareAsync(row.OutgoingId,Ct);
-        var resend=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row with {IsResend=true,ProtectedSharedValues=[3]}).PrepareAsync(row.OutgoingId,Ct);
-        var empty=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row with {IsResend=true}).PrepareAsync(row.OutgoingId,Ct);
+        var first=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row with {ProtectedSharedValues=[3],TookShared=true}).PrepareAsync(row.OutgoingId,Ct);
+        var resend=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row with {IsResend=true,ProtectedSharedValues=[3],TookShared=true}).PrepareAsync(row.OutgoingId,Ct);
+        var empty=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row with {IsResend=true,TookShared=true}).PrepareAsync(row.OutgoingId,Ct);
+        var lost=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row with {IsResend=true}).PrepareAsync(row.OutgoingId,Ct);
         Assert.Equal("valor privado",first.Value.InitialValues["prefill_FORM"][fields[0].Key]);
         Assert.Equal("Av. Pellegrini 1200",Assert.Single(resend.Value.InitialValues["prefill_FORM"]).Value);
         Assert.Equal(FlowErrors.StateConflict,empty.Error);
+        Assert.Equal("valor privado",Assert.Single(lost.Value.InitialValues["prefill_FORM"]).Value);
     }
     // Task 9c of the documents: the new send after a fixed validation opens with what the person sent, over what was proposed.
     [Fact]

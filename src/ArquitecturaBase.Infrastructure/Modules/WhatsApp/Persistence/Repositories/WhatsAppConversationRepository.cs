@@ -12,9 +12,13 @@ internal sealed class WhatsAppConversationRepository(ApplicationDbContext dbCont
     public async Task<WhatsAppContact?> GetForUpdateAsync(Guid contactId, CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();
+        // EF hands back the instance this scope already read, without refreshing it: one read before the lock and unchanged since is
+        // reloaded, so the caller sees what the lock protects; one this unit of work already changed keeps its changes.
+        var seen = dbContext.ChangeTracker.Entries<WhatsAppContact>().FirstOrDefault(entry => entry.Entity.Id == contactId);
         var rows = await dbContext.Set<WhatsAppContact>()
             .FromSql($"""SELECT * FROM "WhatsAppContacts" WHERE "Id" = {contactId} FOR NO KEY UPDATE""")
             .ToListAsync(cancellationToken);
+        if (seen is { State: EntityState.Unchanged }) await seen.ReloadAsync(cancellationToken);
         return rows.SingleOrDefault();
     }
 

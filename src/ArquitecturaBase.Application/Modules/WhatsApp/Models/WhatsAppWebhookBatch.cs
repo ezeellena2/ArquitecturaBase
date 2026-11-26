@@ -75,12 +75,18 @@ public sealed record WhatsAppWebhookSharedContact(string? Name, IReadOnlyList<st
     public override string ToString() => "WhatsAppWebhookSharedContact { Content = [REDACTED] }";
 }
 
-/// <summary>Un aviso de Meta sobre un mensaje que mandó el bot, con el código de error si falló.</summary>
+/// <summary>
+/// Un aviso de Meta sobre un mensaje que mandó el bot, con el código de error si falló y el número y el BSUID de la persona
+/// (<c>recipient_id</c> y <c>recipient_user_id</c>, cuando vienen y se leen). O49: también llega así, con 131052, una respuesta de la
+/// persona que Meta no pudo entregar.
+/// </summary>
 public sealed record WhatsAppWebhookStatus(
     string WaMessageId,
     WhatsAppMessageStatus Status,
     DateTime OccurredAtUtc,
-    int? ErrorCode)
+    int? ErrorCode,
+    string? RecipientWaId = null,
+    string? RecipientUserIdentifier = null)
 {
     public sealed override string ToString() => $"{nameof(WhatsAppWebhookStatus)} ({Status})";
 }

@@ -73,6 +73,9 @@ internal sealed class WhatsAppAssistantFormSource : IStructuredFormSource
     public bool SharedQuestions { get; set; }
     public Guid AddressFieldId { get; } = Guid.NewGuid();
     public Guid ReceiverFieldId { get; } = Guid.NewGuid();
+    /// <summary>O49: the form also asks for an optional photo, so a reply Meta could not download may be its reply.</summary>
+    public bool FileQuestion { get; set; }
+    public Guid PhotoFieldId { get; } = Guid.NewGuid();
     public StructuredFormCheckRequest Snapshot => SnapshotFor(Form);
     public StructuredFormCheckRequest SnapshotFor(StructuredFormSelectionRow form) => new(1, "es", form.Name, form.SubmitLabel,
         [new(form.DefinitionId == AlternativeForm.DefinitionId ? AlternativeFieldId : FieldId, "field_" + (form.DefinitionId == AlternativeForm.DefinitionId ? AlternativeFieldId : FieldId).ToString("N"), "shortText", new Dictionary<string,string> { ["es"] = "Lugar", ["en"] = "Place" }, null, false, 80, null, null),
@@ -82,6 +85,9 @@ internal sealed class WhatsAppAssistantFormSource : IStructuredFormSource
             .. SharedQuestions && form.DefinitionId == Form.DefinitionId
                 ? [new(AddressFieldId, "field_" + AddressFieldId.ToString("N"), "shortText", new Dictionary<string,string> { ["es"] = "Dirección de entrega", ["en"] = "Delivery address" }, null, false, 120, null, Receives: "location"),
                     new StructuredFormQuestion(ReceiverFieldId, "field_" + ReceiverFieldId.ToString("N"), "shortText", new Dictionary<string,string> { ["es"] = "Recibió", ["en"] = "Received by" }, null, false, 60, null, Receives: "contactName")]
+                : Array.Empty<StructuredFormQuestion>(),
+            .. FileQuestion && form.DefinitionId == Form.DefinitionId
+                ? [new StructuredFormQuestion(PhotoFieldId, "field_" + PhotoFieldId.ToString("N"), "photo", new Dictionary<string,string> { ["es"] = "Foto del lugar", ["en"] = "Photo of the place" }, null, false, null, null, Files: new(0, 1, "cameraOrGallery"))]
                 : Array.Empty<StructuredFormQuestion>()], ["es", "en"]);
     public AssistantObservedProposal Proposal(Guid recipient) => ObservedProposal(recipient, "forms.propose-registration");
     public AssistantObservedProposal ClarificationProposal(Guid recipient) => ObservedProposal(recipient, "forms.clarify-registration");
