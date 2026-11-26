@@ -18,7 +18,8 @@ prueba integral hasta el 23/11.
   como formulario, más Formularios en una sola entrada, elegida el 23/11 (02); la prueba integral, con WhatsApp probado entero
   y las observaciones O31 a O49 (03); y la forma de trabajo con varias sesiones a la vez (04).
 - **El estado** al 23/11 (05) y **seis preguntas** nuevas, de la 79 a la 84 (06).
-- **Sigue parcial.** La prueba integral no cerró: faltan los pasos a mano y el cierre. Lo que cambie va al traspaso 19.
+- **Sigue parcial.** La prueba integral no cerró: faltan los pasos a mano y el cierre. Lo que cambie va al
+  [traspaso 19](../2026-11-26-traspaso-multitenant/README.md), que trae el cierre del 26/11.
 - **No es código para copiar** (tu decisión 18) y tus tableros son tuyos (tu decisión 108).
 
 ## Dónde está ArquitecturaBase
