@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Widgets;
 using ArquitecturaBase.Application;
@@ -16,7 +18,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.IdentityModel.Tokens;
 using Npgsql;
+using OpenIddict.Server;
 using OpenIddict.Validation.AspNetCore;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
@@ -53,6 +57,13 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     // La misma imagen que usa Aspire 13.6.5.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
     private readonly RedisContainer _redis = new RedisBuilder("redis:8.6").Build();
+
+    // Las claves de un despliegue, una vez por proceso. En «Testing» cada host generaba tres RSA (las dos efímeras de
+    // OpenIddict, en su primer pedido, y el certificado de Data Protection): eran casi los 3 s de CPU de levantar un host, y
+    // la corrida levanta cientos. Además, un host no podía leer las claves de Data Protection que otro guardó en la base.
+    private static readonly Lazy<RsaSecurityKey> TokenEncryptionKey = new(CreateRsaKey);
+    private static readonly Lazy<RsaSecurityKey> TokenSigningKey = new(CreateRsaKey);
+    private static readonly Lazy<string> DataProtectionCertificate = new(CreateCertificate);
 
     /// <summary>Raíz web de los tests: un SPA de mentira, para probar el fallback sin el build del front.</summary>
     private readonly string _webRoot = Directory.CreateTempSubdirectory("arquitecturabase-wwwroot").FullName;
@@ -198,6 +209,9 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
 
         builder.UseSetting("Authentication:LoginCode:HashKey", TestHashKey);
 
+        // Data Protection cifra sus claves con el certificado de un despliegue, el mismo para todos los hosts del proceso.
+        builder.UseSetting("Authentication:Certificates:DataProtection:Base64", DataProtectionCertificate.Value);
+
         // Sin espera entre pedidos ni límite por email: muchos tests piden códigos seguidos para el mismo email.
         // LoginCodeEndpointsTests prueba esos límites con una Api aparte (WithWebHostBuilder).
         builder.UseSetting("Authentication:LoginCode:ResendCooldownSeconds", "0");
@@ -255,6 +269,14 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
 
+            // Las claves de OpenIddict del proceso en lugar de las efímeras de cada host, que así nunca llegan a generarse.
+            services.Configure<OpenIddictServerOptions>(options =>
+            {
+                options.EncryptionCredentials.Clear();
+                options.SigningCredentials.Clear();
+            });
+            services.AddOpenIddict().AddServer(server => server.AddEncryptionKey(TokenEncryptionKey.Value).AddSigningKey(TokenSigningKey.Value));
+
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(EmailSender);
 
@@ -295,6 +317,23 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     private void ConfigureModuleServices(IServiceCollection services)
     {
         foreach (var module in ApiTestModules.All) module.ConfigureServices(this, services);
+    }
+
+    private static RsaSecurityKey CreateRsaKey()
+    {
+        var rsa = RSA.Create(2048);
+        // RSA genera la clave recién cuando se usa por primera vez: acá, una sola vez por proceso.
+        _ = rsa.ExportParameters(includePrivateParameters: true);
+        return new RsaSecurityKey(rsa);
+    }
+
+    private static string CreateCertificate()
+    {
+        using var rsa = RSA.Create(2048);
+        var now = TimeProvider.System.GetUtcNow();
+        var request = new CertificateRequest("CN=ArquitecturaBase tests", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var certificate = request.CreateSelfSigned(now.AddDays(-1), now.AddYears(1));
+        return Convert.ToBase64String(certificate.Export(X509ContentType.Pfx));
     }
 
     private static DateTimeOffset StartOfTestClock()

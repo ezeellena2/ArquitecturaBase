@@ -11,6 +11,7 @@ Contiene `ApiFactory`, helpers de autenticación y scopes de prueba. Configura p
 - `CacheTestHost` permite scopes y procesos lógicos independientes sobre Redis real; no reemplazarlo por un diccionario.
 - Un test que mide todo el proceso (`GC.GetTotalAllocatedBytes`) va en `AloneTestGroup`, que corre solo después de las colecciones en paralelo; si lo medido es del hilo propio, alcanza con `GC.GetAllocatedBytesForCurrentThread`.
 - `ApiTestCollectionFactory` reparte las clases de `ApiTestGroup` en 32 colecciones, cada una con su `ApiFactory`, y `ApiTestCollectionOrderer` larga primero las que más tardaron en la última medición (`api-test-durations.json`; una clase que no figura pesa sus casos al promedio); corren a la vez la mitad de los hilos de la máquina (`xunit.runner.json`). Si los tiempos cambian mucho, `update-api-test-durations.ps1` regenera la medición desde el informe de una corrida entera (`-result-xml`). Las colecciones no comparten datos, pero sí el proceso: una escucha de trazas o métricas oye a todos los hosts y elige lo suyo por un identificador del escenario (traza, operación) o por el alcance del medidor.
+- Las claves de OpenIddict y el certificado de Data Protection son uno por proceso (`ApiFactory`): generar claves RSA en cada host era casi toda la CPU de levantarlo, y la corrida levanta cientos (`WithWebHostBuilder`).
 - Los helpers no deben ocultar assertions importantes ni convertir una falla del producto en éxito del test.
 
 ## Referencias
