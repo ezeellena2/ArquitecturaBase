@@ -494,7 +494,9 @@ Quien puede diseñar formularios (`formtemplates.read` y `formtemplates.manage`)
 `formcatalogs.manage`) le pide al asistente, por escrito o con un audio, que arme un formulario o un catálogo Manual sin planilla,
 en Inicio (IA1-A) y por WhatsApp (IA3-A). El asistente lee los nombres y campos de lo que existe (`forms.authoring.forms` y
 `forms.authoring.catalogs`, cada uno con su permiso de leer y en 16 KiB) en el idioma de la conversación, o en el original si no
-tienen traducción: es el mismo nombre que compara crear. Propone con `forms.authoring.propose-form` o
+tienen traducción: es el mismo nombre que compara crear. Si no entran todos, la lectura vuelve con `isComplete` en false y su
+descripción le pide al modelo que pregunte cuál, por nombre o prefijo, o que acote, sin hablar de la lectura ni de una lista parcial
+(O59, 2026-11-25: «La consulta devolvió una lista parcial de formularios.» le llegó a la persona). Propone con `forms.authoring.propose-form` o
 `forms.authoring.propose-catalog`. BusinessForms valida la propuesta: el formulario, con `SaveFormDraftRequestValidator` y sólo con
 catálogos activos que la persona puede leer; el catálogo, con `FormAuthoringProposalPolicy`. Un dato inválido vuelve al modelo como
 `rejected` con las rutas de sus argumentos para que lo corrija; nunca se elige ni se recorta. Un prefijo pedido que no cumple el formato

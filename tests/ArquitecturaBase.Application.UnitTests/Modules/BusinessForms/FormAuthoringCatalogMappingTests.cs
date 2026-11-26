@@ -225,6 +225,18 @@ public sealed class FormAuthoringCatalogMappingTests
         Assert.Contains("propose importing", definitions.Single(definition => definition.Id == Decline).Description, StringComparison.Ordinal);
     }
 
+    // O59 (2026-11-25): «La consulta devolvió una lista parcial de formularios.» reached the person. A read that did not fit asks which
+    // one they mean instead, and never names the read.
+    [Theory]
+    [InlineData(BusinessFormAuthoringAssistantCapabilitySource.FormsId, "ask which form they mean")]
+    [InlineData(BusinessFormAuthoringAssistantCapabilitySource.CatalogsId, "ask which catalog they mean")]
+    public void A_read_that_did_not_fit_asks_which_one_and_never_names_the_read(string id, string ask)
+    {
+        var read = new AuthoringAssistantFixture().Source.Definitions.Single(definition => definition.Id == id);
+        Assert.Contains("never tell the person about the read, a query or a partial list", read.Description, StringComparison.Ordinal);
+        Assert.Contains(ask, read.Description, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void The_catalog_and_the_import_replace_each_other() =>
         Assert.Equal([ProposeCatalog, ProposeImport], BusinessFormAuthoringAssistantCapabilitySource.CatalogGroup);
