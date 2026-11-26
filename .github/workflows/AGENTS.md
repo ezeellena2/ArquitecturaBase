@@ -4,7 +4,7 @@ El workflow obtiene ambos repositorios, verifica React y .NET, genera una imagen
 
 ## Al modificar
 
-- Playwright corre primero en Windows con Chromium y referencias del mismo sistema; conserva diagnósticos al fallar. El build exige el mismo commit del front que pasó el navegador, además de lint, unitarios y arquitectura.
+- Las pruebas corren en shards paralelos: Playwright en Windows con referencias del mismo sistema, vitest y .NET por módulo; cada artefacto lleva su shard. El build exige el mismo commit del front en todos, además de lint.
 
 - Conservá el orden migración antes de revisión nueva: una migración fallida no debe publicar código contra un esquema incompatible.
 - Incluí todo dist en wwwroot, verificá la integridad del publicado y registrá ambos commits. Un paquete superado por main se omite; no uses latest para elegir la revisión.

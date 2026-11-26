@@ -32,10 +32,11 @@ El workflow descarga ambos repositorios, verifica y compila React y copia **todo
 
 ## El orden: bundle, después imagen
 
-El pipeline es [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml), con dos jobs:
+El pipeline es [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml), con estos jobs:
 
-1. **`build`:** verifica React y .NET, incluyendo integración con Docker; produce una imagen Linux en archivo, el bundle EF y un manifest con los dos commits. No se autentica en Azure. La etiqueta es única por ejecución/intento, sin `latest`.
-2. **`deploy`:** solo en `main` y con la variable de repositorio `DEV_DEPLOY_ENABLED=true`, usa el environment `dev`. Omite el paquete si cualquiera de sus commits fue superado por `main`. Se autentica con OIDC, corta si la Container App no tiene sus [probes](../deploy/azure-setup.md#probes), sube la imagen, abre acceso temporal para el bundle, aplica migraciones y cierra el acceso incluso ante fallas. **Recién después** actualiza la Container App en modo Single. Espera la revisión concreta lista y comprueba `/health`, `/`, `/silent-renew.html` y el discovery de OpenIddict.
+1. **`browser`, `front` y `backend`:** prueban en paralelo, partidos con `--shard` o por módulo para entrar en el tope de cada job: Playwright en 4 partes sobre Windows, vitest en 6 y .NET en 3 (la integración de WhatsApp, la de Formularios y el resto, con Docker). Cada parte del front guarda el commit que probó y, si falla, sus diagnósticos con el número de la parte.
+2. **`build`:** exige que todas las partes del front hayan probado el commit que empaqueta, revisa el lint y compila React; produce una imagen Linux en archivo, el bundle EF y un manifest con los dos commits. No se autentica en Azure. La etiqueta es única por ejecución/intento, sin `latest`.
+3. **`deploy`:** solo en `main` y con la variable de repositorio `DEV_DEPLOY_ENABLED=true`, usa el environment `dev`. Omite el paquete si cualquiera de sus commits fue superado por `main`. Se autentica con OIDC, corta si la Container App no tiene sus [probes](../deploy/azure-setup.md#probes), sube la imagen, abre acceso temporal para el bundle, aplica migraciones y cierra el acceso incluso ante fallas. **Recién después** actualiza la Container App en modo Single. Espera la revisión concreta lista y comprueba `/health`, `/`, `/silent-renew.html` y el discovery de OpenIddict.
 
 Los despliegues se serializan; GitHub conserva solo el último pendiente. Un push del front solicita esta pipeline del backend con un token limitado. Variables, secrets e identidades: [azure-dev.md](../deploy/azure-dev.md). No se resetea la base ni se crean recursos desde el workflow. Una falla posterior a migrar no revierte el esquema; una falla de la comprobación pública tampoco hace rollback automático.
 

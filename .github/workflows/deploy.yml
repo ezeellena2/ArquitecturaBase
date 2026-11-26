@@ -17,16 +17,24 @@ env:
   FRONTEND_REPOSITORY: ezeellena2/ArquitecturaBaseFront
   IMAGE_REPOSITORY: arquitecturabase/app
   IMAGE_TAG: dev-${{ github.run_id }}-${{ github.run_attempt }}
+  # Partes de las matrices del front (iguales a sus listas `shard`); el paquete exige el mismo commit en todas.
+  BROWSER_SHARDS: 4
+  FRONT_UNIT_SHARDS: 6
 
 defaults:
   run:
     shell: bash
 
 jobs:
+  # Las capturas enteras tardan ~25 min en el runner: cada parte hace una porción con los mismos 3 workers.
   browser:
-    name: Probar recorridos y capturas en Chromium
+    name: Probar recorridos y capturas en Chromium (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: windows-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Descargar front
         uses: actions/checkout@v6
@@ -38,7 +46,7 @@ jobs:
           persist-credentials: false
       - name: Registrar el front verificado
         working-directory: frontend
-        run: git rev-parse HEAD > ../browser-frontend-sha.txt
+        run: git rev-parse HEAD > ../tested-frontend-sha.txt
       - name: Instalar Node
         uses: actions/setup-node@v6
         with:
@@ -52,28 +60,123 @@ jobs:
           npx playwright install chromium
       - name: Probar navegador real
         working-directory: frontend
-        run: npm run test:visual
+        run: npm run test:visual -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - name: Guardar la revisión probada
         uses: actions/upload-artifact@v4
         with:
-          name: browser-frontend-sha
-          path: browser-frontend-sha.txt
+          name: tested-frontend-browser-${{ matrix.shard }}
+          path: tested-frontend-sha.txt
           if-no-files-found: error
       - name: Guardar diagnóstico de fallas
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-diagnostics
+          name: browser-diagnostics-${{ matrix.shard }}
           path: |
             frontend/test-results/
             frontend/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+  # vitest usa la mitad de los núcleos (2 en el runner): entero pasaría la hora, partido queda en minutos.
+  front:
+    name: Probar el front (${{ matrix.shard }}/${{ strategy.job-total }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - name: Descargar front
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.FRONTEND_REPOSITORY }}
+          ref: main
+          path: frontend
+          token: ${{ secrets.FRONTEND_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - name: Registrar el front verificado
+        working-directory: frontend
+        run: git rev-parse HEAD > ../tested-frontend-sha.txt
+      - name: Instalar Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias del front
+        working-directory: frontend
+        run: npm ci
+      - name: Probar el front
+        working-directory: frontend
+        run: npm run test -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      - name: Guardar la revisión probada
+        uses: actions/upload-artifact@v4
+        with:
+          name: tested-frontend-unit-${{ matrix.shard }}
+          path: tested-frontend-sha.txt
+          if-no-files-found: error
+
+  # La integración (un Postgres y un Redis por colección, 2 hilos en el runner) se parte por módulo: WhatsApp y
+  # Formularios son casi tres cuartos del tiempo. «resto» excluye exactamente lo que corren las otras dos.
+  backend:
+    name: Probar .NET con PostgreSQL y Redis reales (${{ matrix.part }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: WhatsApp
+            tests: >-
+              --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj
+              --configuration Release --no-build
+              -- --filter-namespace 'ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp*'
+          - part: Formularios
+            tests: >-
+              --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj
+              --configuration Release --no-build
+              -- --filter-namespace 'ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms*'
+          - part: resto
+            tests: >-
+              --solution ArquitecturaBase.slnx --configuration Release --no-build
+              -- --filter-not-namespace 'ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp*'
+              --filter-not-namespace 'ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms*'
+    steps:
+      - name: Descargar backend
+        uses: actions/checkout@v6
+        with:
+          path: backend
+          persist-credentials: false
+
+      - name: Instalar .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: backend/global.json
+
+      - name: Restaurar .NET
+        working-directory: backend
+        run: dotnet restore ArquitecturaBase.slnx
+
+      - name: Compilar .NET
+        working-directory: backend
+        run: dotnet build ArquitecturaBase.slnx --configuration Release --no-restore
+
+      # Las pruebas del robot de ARCA (ADR 0026) recorren páginas simuladas con Chromium, en la versión que pide Playwright.
+      - name: Instalar Chromium para el robot de ARCA
+        working-directory: backend
+        run: pwsh tests/ArquitecturaBase.Api.IntegrationTests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Probar .NET
+        working-directory: backend
+        run: dotnet test ${{ matrix.tests }}
+
   build:
     name: Verificar y preparar el paquete
     runs-on: ubuntu-latest
-    needs: browser
-    timeout-minutes: 30
+    needs: [browser, front, backend]
+    timeout-minutes: 20
     steps:
       - name: Descargar backend
         uses: actions/checkout@v6
@@ -95,17 +198,23 @@ jobs:
         with:
           global-json-file: backend/global.json
 
-      - name: Recuperar la revisión probada en el navegador
+      - name: Recuperar las revisiones probadas del front
         uses: actions/download-artifact@v4
         with:
-          name: browser-frontend-sha
-          path: browser-verification
+          pattern: tested-frontend-*
+          path: tested-frontend
 
       - name: Exigir el mismo front para pruebas y paquete
         run: |
-          tested=$(tr -d '\r\n' < browser-verification/browser-frontend-sha.txt)
           packaged=$(git -C frontend rev-parse HEAD)
-          [[ "$tested" == "$packaged" ]] || { echo "::error::El front cambió entre sus pruebas de navegador y el paquete; repetir la ejecución."; exit 1; }
+          shopt -s nullglob
+          files=(tested-frontend/*/tested-frontend-sha.txt)
+          expected=$((BROWSER_SHARDS + FRONT_UNIT_SHARDS))
+          [[ ${#files[@]} -eq $expected ]] || { echo "::error::Se esperaban $expected revisiones probadas del front y llegaron ${#files[@]}."; exit 1; }
+          for file in "${files[@]}"; do
+            tested=$(tr -d '\r\n' < "$file")
+            [[ "$tested" == "$packaged" ]] || { echo "::error::El front cambió entre sus pruebas (${file%/*}) y el paquete; repetir la ejecución."; exit 1; }
+          done
 
       - name: Instalar Node
         uses: actions/setup-node@v6
@@ -122,10 +231,6 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
-      - name: Probar el front
-        working-directory: frontend
-        run: npm run test
-
       - name: Compilar React
         working-directory: frontend
         run: npm run build
@@ -136,23 +241,6 @@ jobs:
           test -s frontend/dist/silent-renew.html
           mkdir -p backend/src/ArquitecturaBase.Api/wwwroot
           cp -a frontend/dist/. backend/src/ArquitecturaBase.Api/wwwroot/
-
-      - name: Restaurar .NET
-        working-directory: backend
-        run: dotnet restore ArquitecturaBase.slnx
-
-      - name: Compilar .NET
-        working-directory: backend
-        run: dotnet build ArquitecturaBase.slnx --configuration Release --no-restore
-
-      # Las pruebas del robot de ARCA (ADR 0026) recorren páginas simuladas con Chromium, en la versión que pide Playwright.
-      - name: Instalar Chromium para el robot de ARCA
-        working-directory: backend
-        run: pwsh tests/ArquitecturaBase.Api.IntegrationTests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
-
-      - name: Probar .NET con PostgreSQL y Redis reales
-        working-directory: backend
-        run: dotnet test --solution ArquitecturaBase.slnx --configuration Release --no-build
 
       - name: Crear imagen sin conectarse a Azure
         working-directory: backend
