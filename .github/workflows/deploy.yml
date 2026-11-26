@@ -58,9 +58,11 @@ jobs:
         run: |
           npm ci
           npx playwright install chromium
+      # Windows corta a veces una navegación suelta con net::ERR_NO_BUFFER_SPACE: el reintento la repite, el informe la
+      # marca «flaky» y una captura distinta falla igual en los dos intentos.
       - name: Probar navegador real
         working-directory: frontend
-        run: npm run test:visual -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+        run: npm run test:visual -- --shard=${{ matrix.shard }}/${{ strategy.job-total }} --retries=1
       - name: Guardar la revisión probada
         uses: actions/upload-artifact@v4
         with:
@@ -154,6 +156,11 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: backend/global.json
+
+      # La imagen de la Api (aspnet:10.0, Ubuntu 24.04) trae los nombres viejos de zona, como America/Buenos_Aires, que es
+      # lo que ICU da para «Argentina Standard Time»; el runner de Ubuntu los tiene aparte, en tzdata-legacy.
+      - name: Instalar las zonas horarias de la imagen
+        run: sudo apt-get update -q && sudo apt-get install -y -q tzdata-legacy
 
       - name: Restaurar .NET
         working-directory: backend
