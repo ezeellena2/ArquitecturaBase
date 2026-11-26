@@ -532,7 +532,7 @@ La mediana local por caso fue de 11,30 s en `home-documents`, 12,23 s en `home-a
 
 El primer intento (`ia3_home_documents_20261112_01`) pasó los dos comprobantes y se cortó en la planilla en papel por un falso fallo del oráculo: pedía la etiqueta exacta de cada columna y el modelo repitió la tabla por renglón, con su número (`e70542a3`). No cuenta. El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 
-El `2026-11-13` y el `2026-11-14` se calificaron con la misma conexión guardada y `gpt-6.1-sol-candidate-1@1` los dos sets de [documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md) y las mitades automáticas que la tarea 12 dejó con `propose-form@2`. Cada corrida salió de una copia limpia de HEAD, con su base vacía, y cada documento se leyó antes con `openai-document-candidate@1`, como lo lee WhatsApp:
+El `2026-11-13` y el `2026-11-14` se calificaron con la misma conexión guardada y `gpt-6.1-sol-candidate-1@1` los dos sets de [documentos por WhatsApp](../decisions/0022-lectura-de-documentos-con-ia.md) y las mitades automáticas que la tarea 12 dejó con `propose-form@2`. Cada corrida salió de una copia limpia de HEAD, con su base vacía, y cada documento se leyó antes con `openai-document-candidate@1`, como lo lee WhatsApp:
 
 | Corrida | Resultado |
 | --- | --- |

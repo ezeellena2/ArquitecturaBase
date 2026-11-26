@@ -4,7 +4,7 @@
 
 **Aceptada**, 2026-11-09, con las decisiones del usuario de ese día. Es la decisión estructural de la etapa 5 de la
 [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md), con su
-[plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md). Extiende el [ADR 0023](0023-arca-como-modulo-opcional.md) a los
+[plan](../features/arca.md#delegación-guiada-etapa-5). Extiende el [ADR 0023](0023-arca-como-modulo-opcional.md) a los
 modos de delegación, sin cambiar el anillo ni el ticket compartido.
 
 ## Contexto

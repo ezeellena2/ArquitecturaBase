@@ -181,7 +181,7 @@ cambiarla lo decidís vos.
   `ArcaVoucherOrderPolicyTests.cs:121-128`). Las reglas esperan lo contrario: el ejemplo de [formularios](../features/formularios.md)
   («$ 1.210,00 (Importe neto gravado: $ 1.000,00; IVA 21%: $ 210,00)»), la decisión 7 del
   [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) y la prueba a mano del
-  [plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md).
+  [plan de la etapa 4](../history/README.md#cierre-del-2026-11-26).
 - **Arreglo:** comparar el total esperado con la suma de los importes de los renglones, que es lo que calcula el formulario en
   cualquier clase; corregir las dos pruebas que fijan el total con IVA y sumar una del emisor con una empresa responsable
   inscripta y el estándar, para una A y una B. Chico.
@@ -356,7 +356,7 @@ cambiarla lo decidís vos.
 - **Evidencia:** agregar pide sólo ver y administrar formularios (`FormLibraryController.cs:17,28`, `FormLibraryService.cs:66`)
   y deja activas las reglas del estándar (`FormLibraryService.cs:104-109`, `FormStandardRuleRecorder.cs:39-46`,
   `ArcaInvoiceStandardSource.cs:105-121`); cargar pide sólo «Completar formularios» (`FormEntriesController.cs:17`); anular sí
-  pide el permiso del emisor (`FormIssueReversalRecorder.cs:28`). El [plan de la etapa 3](../plans/2026-11-09-arca-etapa-3-factura-c.md)
+  pide el permiso del emisor (`FormIssueReversalRecorder.cs:28`). El [plan de la etapa 3](../history/README.md#cierre-del-2026-11-26)
   acepta que cargar la «Factura» no pida `arca.issue`, pero exige `formrules.manage` para configurar la acción, y la biblioteca
   la configura sin él.
 - **Arreglo:** pedir `formrules.manage` y el permiso del emisor (`arca.issue`) a quien agrega un estándar con reglas que emiten o
@@ -1003,7 +1003,7 @@ reescribe ([índice de ADR](../decisions/README.md)).
    cambia un dato legal sin que lo vea una persona.
 3. **H6: poner a emitir pide `formrules.manage` y `arca.issue`.** Agregar de la biblioteca un estándar con reglas que emiten pide
    los dos, y guardar una regla así suma `arca.issue` al `formrules.manage` que ya pide. Cargar la «Factura» sigue sin pedir
-   `arca.issue`, como acepta el [plan de la etapa 3](../plans/2026-11-09-arca-etapa-3-factura-c.md), así que la carga por
+   `arca.issue`, como acepta el [plan de la etapa 3](../history/README.md#cierre-del-2026-11-26), así que la carga por
    WhatsApp no cambia. Se descartó dejar esas reglas apagadas al copiar, pedir `arca.issue` a cada persona que carga, que
    frenaría la carga por WhatsApp, y dejarlo como está.
 4. **H3: lo que ARCA tiene y la base no conoce va a revisión.** Al numerar, si ARCA tiene un último autorizado mayor que el último
@@ -1039,12 +1039,17 @@ reescribe ([índice de ADR](../decisions/README.md)).
   [ADR 0031](../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md).
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
 - **El plan de «Hoy»:** B1 a B5, H1 a H31, la documentación de H32, el índice de H34 y la pausa de H33, con esas decisiones, en
-  ocho etapas de la [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura),
+  ocho etapas de la hoja de ruta de ARCA (se recupera desde la [procedencia](../history/README.md#cierre-del-2026-11-26)),
   programadas el 2026-11-14 y el 15: la etapa 1 en 829ed447, 0385b59b y 473f7d9d; la 2 en ba9dba84; la 3 en 960d1c48, 78dc2114 y
   e6974cf3; la 4 en 6ee20368, 27469add y 8ac6588b; la 5 en adaf6d6b, 0b42d899, 945513cf, 5537d08b y e9a2e280; la 6 en
   e283a29f, 66ee7c63, fc24b0d3 y 936b3b0c; la 7 en 237ea6df, 3c0b4d3a, f4e5a372, 8749f436, 51bfc96a, e322d9b5 y 02029be2, y la 8
   en 74d86581, e3e582c4, 5a9ffb1f, 3ac32991, 3cd27c01 y c6890b3f. El front, en 018caf37, d518f018, 80281db9, ba0761e4, 341cea32
-  y 57021f72. La nota de cada etapa en el plan dice qué commit arregló cada hallazgo. H11 va con F2 de la
+  y 57021f72. Por hallazgo: B1 829ed447; H1 y B2 0385b59b; H3 (la retención), H10, H12, H16, H23, H24, H32 y la pausa de H33 ba9dba84;
+  H9, H27 y H34 960d1c48; H6 78dc2114; H2 e6974cf3; H3 6ee20368; H7 27469add; H17 8ac6588b; B4 adaf6d6b; H4 0b42d899; H8
+  945513cf; H15 5537d08b; H30 e9a2e280; B3 e283a29f; H13 y H14 66ee7c63; H25 y H31 fc24b0d3; B5 936b3b0c; H5 237ea6df; H18
+  3c0b4d3a; H19 f4e5a372; H20 8749f436; H21 51bfc96a; H22 e322d9b5, sin la medición; O10 y la espera de O9 02029be2; H28
+  74d86581; H29 e3e582c4; H26 5a9ffb1f, 3ac32991, 3cd27c01 y c6890b3f; H11, con F2 de formularios, 63edb23e y f4041e4e. Lo
+  hecho distinto de lo previsto quedó en la regla de [ARCA](../features/arca.md). H11 va con F2 de la
   [revisión de formularios](2026-11-14-arquitectura-formularios.md). El resto de gran escala espera a que haya volumen real
   que medir.
 - **La corrida completa:** la del 17/11, sobre `02c60e91` (11.656/11.656), ya incluye todo el código de ARCA; después sólo

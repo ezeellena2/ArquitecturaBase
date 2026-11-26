@@ -2,7 +2,7 @@
 
 Lo pidió el usuario el 20/11, durante la prueba integral; aprobó los tableros y se programó el mismo día. Backend `5969a47c`
 (el plan) y `a7cee7cf`; front `76d6d722` (el diseño) y `d0cb2c9c`. Fuentes: la sección «Las carpetas son menús» del
-[plan de carpetas](../2026-11-03-carpetas-de-formularios-y-catalogos.md#las-carpetas-son-menús-cm1-a-cm6-2026-11-20), la
+[plan de carpetas](../../history/README.md#cierre-del-2026-11-26), la
 regla «Carpetas» de `docs/features/formularios.md` y `ArquitecturaBaseFront/docs/design/carpetas.md`. Cae en la tanda 2 del
 15.
 

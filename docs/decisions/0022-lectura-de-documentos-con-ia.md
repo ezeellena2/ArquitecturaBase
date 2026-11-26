@@ -2,7 +2,7 @@
 
 ## Estado
 
-**Aceptada**, 2026-10-22, por decisión del usuario. Rige desde [Documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md). Amplía el motor de IA del [ADR 0020](0020-motor-unico-de-ia-con-capacidades.md) a imágenes y documentos. Mantiene que la IA propone y una persona confirma.
+**Aceptada**, 2026-10-22, por decisión del usuario. Rige desde Documentos por WhatsApp ([lectura de documentos](../features/formularios.md#lectura-de-documentos-y-validaciones-fijas--doc1-2026-11-11)). Amplía el motor de IA del [ADR 0020](0020-motor-unico-de-ia-con-capacidades.md) a imágenes y documentos. Mantiene que la IA propone y una persona confirma.
 
 ## Contexto
 

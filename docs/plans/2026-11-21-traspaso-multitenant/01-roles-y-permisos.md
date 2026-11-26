@@ -2,7 +2,7 @@
 
 Decidido y programado el 19/11, durante la prueba integral, y en la app ese mismo día. Backend `cbd5ed08`, `39ed143b` y
 `9f74a236`; front `68fa867b` a `61364814` (siete commits). Fuentes: el
-[plan](../2026-11-19-roles-areas-plegables-y-permisos-que-incluyen.md), la regla «Un permiso incluye a otro» de
+[plan](../../history/README.md#cierre-del-2026-11-26), la regla «Un permiso incluye a otro» de
 `docs/features/administracion.md` y el diseño `ArquitecturaBaseFront/docs/design/roles-y-permisos.md`, con su prueba manual.
 Cae en la tanda 1 del 15 (el núcleo).
 

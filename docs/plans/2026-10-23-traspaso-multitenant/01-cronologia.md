@@ -81,7 +81,7 @@ Cronología de ArquitecturaBase desde el traspaso anterior. Cada punto remite a 
 
   Se corrigió el mismo día. Un corte de luz interrumpió el cierre y se repitió.
 - **Maqueta viva:** el chat de diseño armó un repo con el front real en modo demostración, con un backend falso, selector de persona e idioma y un celular simulado. El usuario quiere navegar, no solo ver tableros.
-- **Documentos por WhatsApp,** la parte 1 de tres ([plan](../2026-10-22-documentos-por-whatsapp.md), [ADR 0022](../../decisions/0022-lectura-de-documentos-con-ia.md)):
+- **Documentos por WhatsApp,** la parte 1 de tres ([plan](../../history/README.md#cierre-del-2026-11-26), [ADR 0022](../../decisions/0022-lectura-de-documentos-con-ia.md)):
   - **biblioteca de formularios estándar,** empezando por el comprobante de transferencia;
   - **lectura con IA,** que propone el formulario prellenado con el documento adjunto;
   - **validaciones fijas:** CBU/CVU con la entidad, CUIT/CUIL y duplicados;

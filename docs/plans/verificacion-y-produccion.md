@@ -1,7 +1,8 @@
 # Verificaciones y preparación de producción pendientes
 
 Estado: **abierto**. Reconciliado el 2026-10-02 con el código, la documentación y las revisiones locales; lo del núcleo y lo
-que quedó fuera de los arreglos de Formularios, otra vez el 2026-11-18.
+que quedó fuera de los arreglos de Formularios, otra vez el 2026-11-18. El 2026-11-26, al cerrar el proyecto sin los pasos a
+mano, sumó lo que les quedaba a los planes retirados: ARCA real, las pruebas a mano de Formularios, del front y de IA.
 Conserva información pendiente de los planes retirados; no autoriza un despliegue ni nuevas
 funciones. Las pruebas automáticas y capturas con datos simulados no cierran los recorridos
 manuales con proveedores reales. La [procedencia](../history/README.md) permite consultar los originales.
@@ -29,10 +30,17 @@ acredita el refactor con Meta simulado; no reemplaza la prueba con teléfono.
 - [ ] Comprobar el arranque real con una base nueva aislada, migraciones, seed e ingreso del
   administrador inicial. Las pruebas automáticas de bases vacías y el bundle ya pasaron;
   queda la experiencia de la aplicación levantada, sin borrar la base habitual.
-- [ ] Completar en roles los caminos de salida con cambios todavía no individualizados en la
-  evidencia (migas, menú, Atrás y recarga) y los escenarios responsive/teclado pendientes.
+- [x] Completar en roles los caminos de salida con cambios (migas, menú, Atrás y recarga) y los escenarios
+  responsive/teclado: en la prueba integral, con RO3-D, las migas, el menú lateral, Atrás, el teclado y 390/320 px el
+  2026-11-19, y la recarga con el aviso del navegador el 2026-11-24.
   Alta/edición, Admin protegido, User inmutable, rol inexistente, rechazos de permisos y
   Cancelar/volver tienen evidencia con API real en la revisión del 2026-10-01.
+
+- [ ] **Reglas a Configuración** ([regla](../architecture/backend.md#reglas-de-negocio-en-configuración-2026-11-22)): con un
+  nombre de la aplicación y un remitente nuevos en Apariencia › «Nombre y correos», entrar con un código por correo y ver
+  los dos en el correo que llega; con la conexión de ARCA activa (después de la homologación), el renglón «Aviso de
+  vencimiento» de «Certificado», su diálogo (de 1 a 365) y que con sólo «Ver conexión» no tiene lápiz; opcional, «Páginas
+  de un PDF» en 2 y un PDF de tres páginas desde el celular: la respuesta dice «más de 2 páginas», una sola vez.
 
 Si se inicia Aspire, terminar con `aspire stop`. No enviar mensajes de prueba a terceros sin
 la autorización correspondiente al recorrido.
@@ -115,13 +123,22 @@ la revocación de todas las sesiones al desactivar o borrar una cuenta, que ya e
 
 ## Adopción visual y mensajes
 
-- [ ] Completar la [unificación transversal de mensajes](../../../ArquitecturaBaseFront/docs/plans/2026-09-30-unificacion-mensajes.md).
-  Configuración y el mecanismo común ya existen; quedan otros consumidores, 429 centralizado,
-  recuperación y límites de imports. El adaptador sin props de apariencia y su montaje único
-  ya están resueltos; no se vuelven a abrir como pendientes.
+- [ ] Completar la [unificación transversal de mensajes](../../../ArquitecturaBaseFront/docs/plans/2026-09-30-unificacion-mensajes.md):
+  falta revisar la recuperación de un resultado incierto en los flujos de código y de redirects (ingreso y registro con
+  código, el regreso de Google y `VerifyDestinationDialog`). El emisor en todos los consumidores, el límite de imports de
+  Sonner, la espera de un 429 y la cancelación en el clasificador, el adaptador sin props y su montaje único ya están
+  (2026-10-03); no se vuelven a abrir.
 - [ ] Sincronizar biblioteca y lienzo externos según el [fundamento visual](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md), incluidos los tableros de Inicio (2026-10-04) y del panel (2026-10-05).
   Incluye las piezas de WhatsApp que quedaron atrás, los tokens Campo y roles de Apariencia, filtros, layout y editor
   de roles; corregir el texto de invitación y notas antiguas del lienzo. Esta auditoría no accedió a esos artefactos.
+  También los tableros de los lienzos provisorios y apartes del [mapa](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md),
+  ya congelados en `docs/design` del front porque el Sistema visual es de otra cuenta: los de Formularios (CW, LD y CP;
+  SA; CM; EX, DL y XL), roles (RO3-D), el motivo de lo apagado, un dato por columna, las acciones de un encabezado,
+  desplegables, información del negocio, sin permiso, ordenar por columnas y tarjetas del chat.
+- [ ] **«Ordenar por» con la pieza única para elegir** ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#ordenar-por-columnas--2026-11-22)):
+  `SortMenu` arma su lista con `Dialog` y las piezas de menú de antes, y OT1-C lo dibuja con el botón de barra y la lista
+  de `Picker` (DS1-A). Se cierra cuando `Picker` acepta dos grupos («Columna» y «Orden») y `SortMenu` lo usa, con sus
+  escenas a 1440, 390 y 320.
 - [ ] Completar los tableros responsive y estados que todavía enumera el fundamento. Roles,
   Configuración y acceso público ya tienen evidencia local a 320 px; no declarar todos los
   tableros móviles ausentes ni todos los recorridos verificados.
@@ -137,6 +154,44 @@ la revocación de todas las sesiones al desactivar o borrar una cuenta, que ya e
 - [ ] Confirmar con el diseño las decisiones heredadas por omisión: rol User preseleccionado,
   invitación inicialmente marcada, verificación de medios y formato visible del número.
   Selección masiva, marca y pantallas nuevas requieren su propio contrato y elección.
+
+### Pruebas a mano del front: el criterio
+
+El código y la corrida completa del 2026-11-26 están en verde; queda mirarlos a mano. Los tableros se pasan al lienzo con el
+ítem de la biblioteca, arriba.
+
+- [ ] **Las acciones de un encabezado** ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#íconos-y-acciones)): con una conexión de ARCA
+  activa (después de la homologación), «Acciones de la conexión» › «Desconectar» va al final, en rojo y después de una
+  línea; abrir la confirmación y cancelarla devuelve el foco al ⋮.
+- [ ] **Diálogos con la lista de chequeo** ([regla](../../../ArquitecturaBaseFront/docs/design/dialogos-con-la-lista-de-chequeo.md#cómo-quedó-2026-11-11)): en
+  inglés y a 390 px, «Exportar respuestas a Excel», «Dar de baja», «Eliminar» y «Publicar en WhatsApp»: los datos en
+  `DataList`, un solo aviso y nada suelto; con el teclado, el foco vuelve a quien abrió cada uno. La prueba integral los
+  recorrió en español en la compu.
+- [ ] **El motivo de lo apagado** ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#el-motivo-de-lo-apagado--2026-11-09)): en un celular
+  real, tocar «Permitir elegir varias» de una pregunta del bloque y una (i): el motivo se abre arriba y la casilla no se
+  marca. Con el Narrador, Tab hasta un botón apagado: dice el nombre, «no disponible» y el motivo. El 24/11 se vieron el
+  toque a 390 px y el árbol de accesibilidad.
+- [ ] **Un dato por columna** ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#un-dato-por-columna--2026-11-09)): un dato por celda en un
+  catálogo sin permiso de edición y a 390 px («Texto» y «Código» aparte, «Se elimina al guardar» en «Estado»), en la
+  planilla de un formulario con bloque, documentos y una pregunta nueva («Corregida», «3 ítems», «2 documentos», sin «(desde
+  v3)»), en Usuarios («Correo», «WhatsApp», «Verificado»), en Datos de las personas («Estado», «Catálogo») y en Formularios
+  que faltan › Descartados («Descartó», «Descartado»).
+- [ ] **Una sola pieza para elegir** ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#elegir-de-una-lista)): en un celular real, la
+  pregunta de catálogo de la carga abre a pantalla completa con su nombre, la ×, el buscador (más de diez) y renglones de
+  56 px; al reabrirla, la elegida lleva su tilde; en una de elegir varias, marcar no cierra y «Listo (2)» deja los nombres o
+  «y N más». Opcional, con el Narrador: Roles nombra todas las elegidas y cada opción se lee con su descripción.
+- [ ] **Información del negocio** ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#información-del-negocio)): una franja que cierra pasada
+  la medianoche dice «del día siguiente»; dos días que se pisan se marcan al guardar, debajo de la semana; en un celular
+  real, una zona debajo de la otra en el orden de siempre, sin desplazar la página de costado. IN1-C, IN2, IN3, la sólo
+  lectura y la falta de permiso se probaron el 24/11.
+- [ ] **La falta de permiso** ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#la-falta-de-permiso--2026-11-24)): en un celular real, con la
+  cuenta sin «Información del negocio», `/configuracion/negocio` escrito a mano queda en su dirección, con su nombre en la
+  banda, «No tenés permiso» y «Volver al inicio». La compu y la 404 se probaron el 24/11.
+- [ ] **Tarjetas del chat** ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#tarjetas-con-datos-del-chat-y-datos-de-etiqueta-y-valor--2026-11-25)):
+  en el chat de Inicio, a 1440 y 390 px, una propuesta de catálogo desde una planilla (la ficha en `DataList`, la muestra con
+  «A · CUIT» y el pie «Primeras 3 de N filas»), una de formulario (las preguntas en una tabla) y una respuesta con fuentes
+  («Fuente verificada», «Abrir fuente» y «Consultado …» al pie); y «Enviar un formulario» del chat de WhatsApp con `DataList`
+  en su recuadro. La tarjeta de importación se vio el 25/11.
 
 ## Despliegue y operación
 
@@ -217,9 +272,19 @@ distinto de lo previsto. Esto quedó afuera. Contrastado con el código el 2026-
   - La tarea 10, el PDF: un snapshot sin `TimeZoneId` sale en UTC (`SkiaFormPdfRenderer.cs:507-508`), y un `WriteOnce` con un
     `Uncertain` pendiente podría ver otra hora que el original. Sin producción, sólo toca datos de desarrollo.
   - F6-4: el escáner de PDF no ve variantes raras de la sintaxis de `stream` ni un `/Filter` por referencia (anotado en F6).
+- [ ] **De los planes retirados el 2026-11-26, sin decisión nueva:**
+  - La zona del Excel (XL2): sin una zona legible en el perfil, «Recibida» cae directo a UTC
+    (`FormExportResponsePolicy.ZoneAsync`); tiene que pasar antes por la del negocio, como `FormDashboardZonePolicy` y el
+    PDF. Se cierra con su test y las dos reglas que hoy dicen UTC.
+  - El retiro de Flows al pasar a la app: ninguna prueba cruza `AppOnly` con `IFormUnusedVersionReader`
+    (`FormRetirementSourceIntegrationTests` publica sólo por el canal). Se cierra con una de integración que publique por
+    WhatsApp, pase a la app y vea la versión de WhatsApp entre las no usadas (`ListUnusedAsync`).
+  - Los lectores del contrato en el front: `httpContract.test.ts` sólo comprueba que estén los cuerpos de
+    `forms-http/app-only` y `forms-http/folders`. Se cierra cuando los lean `api/response.ts` (con `appOnly`) y
+    `api/folders.ts` (árbol, menú y formularios de una carpeta).
 - [ ] **El segundo despliegue de las carpetas como menús (CM1 a CM6).** `FoldersAsMenus` es el primero de dos: deja
   `MenuPlacement` y `CK_FormFolders_MenuPlacement` para la versión anterior, con el default `None`, y no agrega el CHECK del
-  ícono ([plan](2026-11-03-carpetas-de-formularios-y-catalogos.md), «La migración, en dos despliegues»). El segundo va en otra
+  ícono ([regla](../features/formularios.md#carpetas--cp1-a-a-cp5-a-2026-11-09), «Dos despliegues»). El segundo va en otra
   migración y otro despliegue, sólo cuando `FoldersAsMenus` ya esté desplegada en todos los ambientes. Esa migración:
   - repite los pasos 1 a 4 de `FoldersAsMenus` para lo que haya escrito la versión anterior: pasa lo del tercer nivel o más
     abajo a su antecesora del segundo, con la clave del sistema que le falte, borra esas carpetas y pone `folder` en el
@@ -252,16 +317,37 @@ distinto de lo previsto. Esto quedó afuera. Contrastado con el código el 2026-
 
 Van en la prueba integral; lo que quede abierto después se anota acá.
 
-- [ ] **Carpetas** ([regla](../features/formularios.md#carpetas--cp1-a-a-cp5-a-2026-11-09)): crear una carpeta y una
-  subcarpeta; poner un formulario y un catálogo en dos carpetas y verlos una sola vez en «Todos»; mover una carpeta y ver que
-  no pasa del quinto nivel; borrar una con subcarpetas y comprobar que los elementos quedan en sus otras carpetas o en «Sin
-  carpeta»; poner una carpeta en un menú propio y otra en «Administración»; entrar como alguien que sólo carga y ver sólo las
-  carpetas y los formularios que puede abrir, y que el menú le abre la carga.
-- [ ] **Sólo en la app** ([regla](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09)): crear un
-  formulario de la app, publicarlo, cargarlo, pasarlo a WhatsApp con Meta y volverlo a la app. Mirar «Publicamos la versión
-  N.» sin pasar por «Publicación aceptada», la columna «Dónde se completa» en el listado, que «Enviar formulario» no lo lista,
-  el aviso «Deja de completarse por WhatsApp…» al volver a la app y que un envío abierto de la versión anterior se sigue
-  respondiendo.
+- [ ] **Carga desde la app en un celular real** ([regla](../features/formularios.md#carga-desde-la-app--etapa-1-2026-10-30)): por
+  USB con [probar en el celular](../guides/probar-en-el-celular.md#abrir-la-app-en-el-celular) (Android; el túnel no publica
+  la app). «Cargar» abre a pantalla completa; «Tomar foto» abre la cámara trasera (2 o 3 fotos) y una foto «solo cámara» no
+  ofrece la galería; en «3G», «Enviando… NN %»; sin conexión mientras envía, «No se pudo enviar», y al reenviar no se
+  duplica el número; el teclado no tapa «Enviar». Con quien sólo carga, el detalle de una respuesta suya rechazada (el
+  motivo) y de una con PDF. Anotá el modelo.
+- [ ] **Elegir primero por un campo** ([regla](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07)): en
+  el celular, con un formulario de WhatsApp que lo tenga en el bloque (como «Pedido por WhatsApp»), cambiar el valor limpia
+  la opción elegida, también en un ítem (en WhatsApp Web ya filtró, el 21/11). En la app, un campo con un solo valor viene
+  elegido y una lista dependiente dentro del bloque usa la respuesta de su mismo ítem (LD3-A).
+- [ ] **Sólo en la app** ([regla](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09)): publicar al
+  instante, «Dónde se completa», volver a WhatsApp con Meta, la baja y que «Enviar formulario» no lo liste pasaron en la
+  prueba integral (20 y 21/11). Falta: con un envío abierto de la versión de WhatsApp, pasarlo a la app y responder ese
+  envío antes de que venza; que el asistente no lo ofrezca, y que un pedido por WhatsApp que lo nombra reciba que se
+  completa en la app, con el enlace a su carga (O55). Sin el módulo (SA5), con «Quitar WhatsApp» en una copia.
+- [ ] **El Excel en una hoja** ([regla](../features/formularios.md#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07)):
+  abrir en Excel el archivo de un formulario con bloque (como «Remito de prueba»), filtrar por una pregunta del ítem y armar
+  una tabla dinámica. La hoja única, las filas por ítem, las fechas y el inglés ya se vieron en la prueba integral.
+- [ ] **La respuesta como el formulario** ([regla](../features/formularios.md#la-respuesta-como-el-formulario--vf1-a-y-vf2-a-2026-11-22)):
+  a 390 px, abrir una respuesta desde la planilla: va a la pantalla completa, con la actividad en recuadros y un recuadro
+  por ítem del bloque. Aprobar con otra cuenta una respuesta con datos de catálogo y abrir el PDF nuevo: cada dato de la
+  opción en su renglón, no debajo del valor (R4). Con una cuenta que ve todas las respuestas sin «Corregir y anular
+  respuestas», una ajena no muestra «Corregir» ni «Anular», ni apagados. Opcional: lo que propuso el asistente lleva su
+  marca y sus datos en renglones propios (R1).
+- [ ] **Documentos por WhatsApp** ([regla](../features/formularios.md#la-bandeja-documentos-recibidos--doc5-a-2026-11-12)): lo
+  que no recorrió la prueba integral. Con Meta: comprobantes reales de varios bancos y billeteras (seguro, con duda y sin
+  reconocer), la vista oficial del Flow r14 y el pie «{formulario} · prellenado» de una carga por fila; calibrar los cupos
+  de lectura (10 por persona y 50 por instalación) y el tope de 50 filas, después de revisar la retención del proveedor
+  (abajo, en IA). En la app: el tablero de un formulario (períodos, reparto por banco, «Ver como tabla», quien sólo carga,
+  celular), DOC6 con tres sin clasificar parecidos, «Cómo viene leyendo» con sus ejemplos, y en Inicio una foto, un PDF y un
+  Word con el clip.
 - [ ] **Acciones por resolver, F2** ([regla](../features/formularios.md#motor-de-acciones-y-aprobación--etapa-4-g5-y-g3g4)):
   con una regla cuya acción falla sin reintento (por ejemplo, «Pedir aprobación» a un rol sin miembros), la columna «Reglas»
   dice «Por resolver» para todo el que ve la planilla, y quien administra reglas y ve todas las respuestas tiene la pestaña
@@ -279,6 +365,63 @@ Van en la prueba integral; lo que quede abierto después se anota acá.
   los máximos de texto, una pregunta opcional sin responder frente a false y una sesión abierta de una versión anterior. Los
   decimales (12,50 y 12.50): hasta r15 WhatsApp rechazaba la coma (O29); con r16 pasa en WhatsApp Web y falta el celular
   ([WhatsApp](../features/whatsapp.md#piloto-de-formularios)).
+
+## ARCA: homologación y cuentas reales
+
+Lo programado de las seis etapas de ARCA está en [ARCA](../features/arca.md); estas comprobaciones necesitan ARCA real
+(homologación con una CUIT del usuario, la clave fiscal de la plataforma o la imagen publicada). Las familias que siguen
+están en la [hoja de ruta](2026-10-31-arca-formularios-estandar.md#lo-que-sigue).
+
+- [ ] **Conexión en homologación** ([regla](../features/arca.md#la-prueba)): con un certificado de WSASS para una CUIT del
+  usuario y `wsfe` y la constancia autorizados, «Probar» responde, la empresa trae su condición frente al IVA real,
+  aparecen los puntos de venta y «Activar la conexión» la deja activa. Mirar el CN del emisor de cada ambiente
+  (`IssuerCommonName`), los controles apagados («Primero probá la conexión.», «Elegí el punto de venta.»), ingresos brutos e
+  inicio de actividades con el 409 en dos pestañas y «Desconectar» en el ⋮ con su log. Si homologación no devuelve puntos
+  de venta, anotarlo.
+- [ ] **Factura C** ([regla](../features/arca.md#emisión-de-comprobantes-etapas-3-y-4)): agregar «Factura» de la biblioteca
+  (las cinco tablas en Catálogos › «ARCA»; los candados, la subcarpeta y las preguntas atadas de BI1-A), completar
+  «Clientes» con «Completar con ARCA» (una CUIT mal, una razón social larga y siete CUIT en un minuto, para ver el cupo) y
+  emitir desde la app y por WhatsApp. Probar «¿La emito?», «No emitir», un cliente escrito por su CUIT, «ARCA no responde»,
+  la copia por correo y anular con la nota de crédito. Mirar la zona «Comprobante», el número en la planilla y el Excel, el
+  PDF fiscal con su QR, las fallas («Todavía no puedo emitirla», un rechazo 10015 con «Volver a probar» y «No emitir») y que
+  un botón viejo de WhatsApp no decida nada.
+- [ ] **Factura A y B** ([regla](../features/arca.md#emisión-de-comprobantes-etapas-3-y-4)): en homologación, con la CUIT
+  responsable inscripta del usuario y sin piloto en producción, emitir cuatro facturas y anular cada una con su nota de
+  crédito: una A a un responsable inscripto con ítems al 21 %, al 10,5 % y exento, con los precios sin IVA (el total de la
+  factura supera al del formulario, B1); una A a un monotributista, con la leyenda de la RG 5003; una B a consumidor final
+  con «El precio incluye IVA» y el recuadro de la RG 5614, y una B por WhatsApp, con el IVA entre paréntesis. Mirar
+  «Factura A» o «B» y lo que discrimina «¿La emito?», y los importes con la región del idioma («$ 1.210», «IVA 10,5%»). En la
+  primera factura real, mirar lo que homologación no muestra: si ARCA autoriza al emisor a la A o le pide la A con leyenda,
+  y si cruza la condición informada con la del padrón.
+- [ ] **Delegación guiada** ([regla](../features/arca.md#delegación-guiada-etapa-5)): en homologación, con una autorización de
+  WSASS con «CUIT representado»; en producción, con la clave fiscal de la plataforma y la de una empresa real, siguiendo
+  [configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación). Mirar las dos listas de la guía, «Verificar la
+  delegación» en verde y el punto de venta. Confirmar el formato de `relations` del token, que un ticket nuevo traiga a la
+  empresa después de aceptar y qué pasa con el ticket vigente al revocar.
+- [ ] **Robot de delegación** ([regla](../features/arca.md#delegación-con-robot-modo-3)): hacer la
+  [corrida real](../guides/robot-arca.md#la-corrida-real) con las cuentas del usuario, sobre la imagen con Chromium
+  publicada por primera vez ([receta](../guides/robot-arca.md#despliegue)). Mirar las tres opciones del modo a 390 px,
+  «Volver a probar la clave de la plataforma» (H5), ARCA lenta frente a pantalla cambiada (H18), el correo cuando la
+  plataforma se rinde (H19), el punto de venta propio sin repetirlo (O10) y los menores de O9. Medir memoria y CPU de una
+  pasada de cada lado y de las dos juntas (H22) y anotarlo en [la guía](../guides/robot-arca.md#memoria-y-cpu-de-una-pasada);
+  si no entran en el despliegue, correr un lado por vez por host.
+- [ ] **Arreglos de la revisión de ARCA** ([regla](../features/arca.md#emisión-de-comprobantes-etapas-3-y-4)): una venta con
+  fecha anterior a la del último comprobante (el aviso en «¿La emito?» y la revisión con «Emitir con la fecha de hoy», H1 y
+  B2), la «Factura» v2 que elige el cliente por inicial en WhatsApp (B5), «Factura C» en español con la cuenta en inglés
+  (H28), el total con dos decimales (H29) y la métrica `ArquitecturaBase.Arca.Invoicing` (H26). Con la homologación,
+  confirmar lo que hoy sale del manual: el 10016 por fecha, los errores de la constancia y la ventana del WSAA
+  ([revisión](../reviews/2026-11-14-arquitectura-arca.md#cómo-seguir)).
+
+## ARCA: lo que quedó fuera de los arreglos del 2026-11-14
+
+- [ ] **Con volumen real que medir:** más puntos de venta o lotes en la cola (lo que queda de H33, que pide revisar el
+  [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)), la limpieza que lista todo el almacén en cada copia (H35,
+  del núcleo, junto con N28), leer sin lock el ticket vigente (H36) y sumar un cliente nuevo sin cargar todo «Clientes» bajo
+  su lock (H37). Los escenarios están en la [revisión](../reviews/2026-11-14-arquitectura-arca.md#a-gran-escala).
+- [ ] **Observaciones menores, heredadas por confirmar** ([revisión](../reviews/2026-11-14-arquitectura-arca.md#observaciones-menores)):
+  O1 a O3, O5 a O8, O11, O12, lo que queda de O9 (que confirma la corrida real) y el aviso de O13 sobre el `Down` de
+  `AddArcaVouchers`. O4, O10, la espera de O9 y «siete tablas» ya están. Se contrastan con el código al tomarlas; O5 sigue
+  abierta: `catalogPartyLookup.ts` deja pasar once ceros.
 
 ## Inteligencia artificial
 
@@ -298,6 +441,13 @@ La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-pe
   dice la [guía](../guides/despliegue.md#logs-trazas-y-alertas) (la consola ya escribe JSON con el `TraceId` y el
   `UserId`, N10), dos réplicas reales y apagado con turnos en curso (deben quedar Uncertain o Expired, sin reenviarse).
 
+- [ ] **Casos del asistente** ([regla](../features/whatsapp.md#casos-del-asistente--2026-11-11)): por WhatsApp, «Hola, ¿a qué
+  hora abren?» tiene que salir en dos acciones en orden («1 de 2» y «2 de 2»); en la prueba integral salió sólo el horario.
+  Si el usuario pide la mezcla, también un formulario con un texto en la misma respuesta.
+- [ ] **Planillas desde el celular** ([regla](../features/whatsapp.md#planilla-recibida--ia-etapa-2-2026-11-10)): mandar un
+  .xlsx y un .csv desde un celular y no desde WhatsApp Web, y ver que se bajan y proponen (que el tipo y el SHA-256 de Meta
+  coincidan con los del webhook).
+
 ## Privacidad de la instalación de prueba
 
 El plan de WhatsApp registró una política publicada en el repo `ezeellena2/privacidad`, para
@@ -315,8 +465,12 @@ Se conservan estos pendientes del registro original para revisar antes de incorp
   plazo; la purga al vencer queda para después.
 - [ ] Plazos y retención de los contactos y de las cuentas borradas; reflejar en la política y el procedimiento los que
   ya rigen. Los de `LoginCodes`, `LoginLinks`, `LoginAudits` (IP, navegador y lo escrito en un fallido), `UserInvitations` y los tokens de
-  OpenIddict los aplica la retención de N16 ([identidad](../features/identidad.md#retención-de-los-datos-del-ingreso-n16-2026-11-16)).
-  El cuerpo de mensajes ya se limpia a los 90 días mientras la Api corre; ninguna de las dos limpia con la Api apagada.
+  OpenIddict los aplica la retención de N16 con los plazos que elige el administrador en Configuración general ›
+  «Privacidad y retención» ([administración](../features/administracion.md#privacidad-y-retención-rc1-a-2026-11-22)). El
+  contenido de los mensajes y del asistente se limpia a los días de Configuración › WhatsApp (90 por defecto), las
+  conversaciones de Inicio a los de Configuración › IA (30) y los documentos recibidos a los de Configuración › Formularios
+  (90), mientras la Api corre; ninguna limpia con la Api apagada. La política publicada tiene que prometer los valores
+  configurados (P1-A).
 - [ ] Revisión profesional de transferencias internacionales, registro de la base, domicilio del
   responsable y plazos prometidos. Es una consulta pendiente heredada, no asesoramiento jurídico.
 - [ ] Alinear nombre del negocio en web/correos/orientación de acceso y política; enlazarla desde

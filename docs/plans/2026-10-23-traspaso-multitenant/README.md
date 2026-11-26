@@ -54,6 +54,6 @@ Del 17 al 23 de octubre en ArquitecturaBase pasó mucho:
 
 - **Reglas implementadas:** [formularios](../../features/formularios.md), [WhatsApp](../../features/whatsapp.md) e [inteligencia artificial](../../features/inteligencia-artificial.md).
 - **Decisiones:** [ADR](../../decisions/README.md). Las nuevas desde el 17/10 son la 0021 (respuestas redactadas por el asistente) y la 0022 (lectura de documentos con IA).
-- **Planes vigentes:** el [índice](../README.md), [verificación y producción](../verificacion-y-produccion.md), la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md), [Casos del asistente](../2026-10-21-casos-del-asistente.md), [Documentos por WhatsApp](../2026-10-22-documentos-por-whatsapp.md) y el [estudio de integraciones](../integraciones/estudio-2026-10-22.md).
+- **Planes vigentes:** el [índice](../README.md), [verificación y producción](../verificacion-y-produccion.md), la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md), [Casos del asistente](../2026-10-21-casos-del-asistente.md), [Documentos por WhatsApp](../../history/README.md#cierre-del-2026-11-26) y el [estudio de integraciones](../integraciones/estudio-2026-10-22.md).
 - **Code reviews:** [`docs/reviews/`](../../reviews/).
 - **Reglas de diseño:** [visual-baseline del front](../../../../ArquitecturaBaseFront/docs/design/visual-baseline.md), con las reglas del 2026-10-23.

@@ -135,7 +135,7 @@ producción es desconectar y empezar de nuevo, con otro certificado y otro punto
 
 La empresa no genera un certificado propio: delega sus servicios en la CUIT de la plataforma, que firma con un certificado
 suyo generado en esta instalación. Hacen falta dos personas con dos claves fiscales: alguien de la empresa y alguien de la
-plataforma. La pantalla sigue el diseño DG1-A y DG2-A del [plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md). Los pasos en ARCA, confirmados el
+plataforma. La pantalla sigue el diseño DG1-A y DG2-A del [front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md). Los pasos en ARCA, confirmados el
 2026-11-09 con sus guías oficiales ([delegar un web service](https://www.arca.gob.ar/ws/WSAA/ADMINREL.DelegarWS.pdf),
 [delegar y aceptar](https://www.afip.gob.ar/guias/paso-a-paso/Como-delego-servicios-para-que-utilicen-en-mi-nombre-como-se-acepta-delegacion.pdf),
 los manuales del [WSAA](https://www.afip.gob.ar/ws/WSAA/WSAAmanualDev.pdf) y de
@@ -170,7 +170,9 @@ los manuales del [WSAA](https://www.afip.gob.ar/ws/WSAA/WSAAmanualDev.pdf) y de
 5. **Punto de venta,** como en el modo 1.
 
 Para revocarla, la empresa va a «Administrador de Relaciones de Clave Fiscal» › «Consultar» › «Representantes del
-Usuario» › «Revocar». La próxima prueba deja la conexión en «Requiere atención».
+Usuario» › «Revocar». ARCA no dice qué pasa con un ticket vigente: lo esperable es que el siguiente ya no traiga a la
+empresa, y la primera prueba con un ticket nuevo deja la conexión en «Requiere atención». Tampoco documenta un tope de
+empresas representadas ni que una relación venza, y un mismo alias sirve para todos los web services.
 
 ## Conectar con el robot
 

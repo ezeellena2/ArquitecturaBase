@@ -4,7 +4,7 @@
 
 **Aceptada**, 2026-11-09, con el diseño de la etapa 6. Recoge las decisiones 2 y 3 de la
 [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md) y las del
-[plan de la etapa 6](../plans/2026-11-09-arca-etapa-6-robot.md). Extiende el [ADR 0023](0023-arca-como-modulo-opcional.md),
+[plan de la etapa 6](../features/arca.md#delegación-con-robot-modo-3). Extiende el [ADR 0023](0023-arca-como-modulo-opcional.md),
 que pidió este ADR antes de programar el robot, y se apoya en el [ADR 0027](0027-delegacion-guiada-arca.md) de la delegación
 guiada.
 

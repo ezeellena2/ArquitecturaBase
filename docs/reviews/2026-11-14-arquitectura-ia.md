@@ -112,7 +112,7 @@ Confirmada por el usuario el 2026-11-14, sin cambios.
 [quitar IA](../guides/quitar-ia.md) y [configurar Google Places](../guides/configurar-google-places.md); los planes del
 [panel de conversaciones](../plans/2026-10-04-panel-conversaciones-inicio.md), los
 [casos del asistente](../plans/2026-10-21-casos-del-asistente.md),
-[la IA arma formularios](../plans/2026-11-04-ia-arma-formularios-y-catalogos.md) y el piloto de
+[la IA arma formularios](../history/README.md#cierre-del-2026-11-26) y el piloto de
 [verificación y producción](../plans/verificacion-y-produccion.md); y los `AGENTS.md` del módulo.
 
 **Pruebas:** integración en `tests/ArquitecturaBase.Api.IntegrationTests/Modules/ArtificialIntelligence` (49 archivos, más 17

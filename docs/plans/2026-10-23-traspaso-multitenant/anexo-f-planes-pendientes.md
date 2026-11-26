@@ -303,7 +303,7 @@ Sin tableros ni criterio de cierre. Depende de Casos. El cierre seguiría el de 
 
 ## F3 · Documentos por WhatsApp
 
-Fuentes: [plan](../2026-10-22-documentos-por-whatsapp.md), [ADR 0022](../../decisions/0022-lectura-de-documentos-con-ia.md), [tableros elegidos](../../../../ArquitecturaBaseFront/docs/design/documentos.md) y la [maqueta viva](https://claude.ai/artifact/CM56W2Yc4VVzwMmxCKFpdP), con el circuito DOC en «Recorridos».
+Fuentes: [plan](../../history/README.md#cierre-del-2026-11-26), [ADR 0022](../../decisions/0022-lectura-de-documentos-con-ia.md), [tableros elegidos](../../../../ArquitecturaBaseFront/docs/design/documentos.md) y la [maqueta viva](https://claude.ai/artifact/CM56W2Yc4VVzwMmxCKFpdP), con el circuito DOC en «Recorridos».
 
 ### Problema y objetivo
 

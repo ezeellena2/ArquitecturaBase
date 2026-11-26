@@ -118,6 +118,25 @@ La única excepción, que no se copia, es un servicio sin límite que llama al p
 
 La regla está en AGENTS.md ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): la configuración interna (borradores, catálogos, reglas, diseños, ajustes, y también las cuentas, los roles y el perfil, N2) usa este patrón con revisión y 409; lo durable se reserva para efectos externos, mensajes a personas y efectos que dispara una regla. Si un plan pide más para algo interno, prevalece esta regla salvo que el cambio justifique el riesgo. `RevisionContractTests` exige `expectedRevision` en la edición de usuarios, roles, perfil y configuración.
 
+### Reglas de negocio en Configuración (2026-11-22)
+
+Una regla de negocio que un administrador querría ajustar en su instalación (un tope, un plazo, un cupo, una espera o un
+valor por defecto) no queda fija en el código ni en `appsettings`: va a la configuración de su dueño, con su valor por
+defecto, su mínimo y su máximo. El núcleo no nombra los módulos, así que cada módulo la guarda en la suya. Quedan en el
+código lo que fija un proveedor o una norma (Meta, ARCA, OpenAI, el correo) y lo técnico (leases, lotes, polling,
+timeouts, reintentos, presupuestos de bytes o del motor, topes de capacidad); quedan en `appsettings` los límites de
+seguridad, costo o abuso (el código de ingreso, los cupos de códigos, los rate limits), y un valor de ahí puede ser el
+techo de lo configurable (los días de Inicio de la IA).
+
+- Se guarda como la configuración interna: una fila con revisión, lock y 409 ([robustez](#robustez-proporcional-al-efecto)).
+- Se lee de la base en cada uso o en cada corrida, no al arrancar.
+- Sin fila, o guardada antes del cambio, vale el valor por defecto; también lo que escriba la versión anterior mientras
+  conviven.
+- Un texto que nombra el número lo recibe como parámetro.
+- La política de privacidad es un sitio aparte: la (i) de cada plazo de retención avisa que tiene que prometer el mismo
+  valor (P1-A).
+- Lo que todavía queda por decidir está en el [plan de reglas a Configuración](../plans/2026-11-22-reglas-a-configuracion.md).
+
 ## Caché compartido en Redis
 
 Redis directo es el único caché de datos ([ADR 0009](../decisions/0009-redis-como-unico-cache-de-datos.md)). `Program.cs` llama a `AddRedisCaching` (un `IConnectionMultiplexer` por proceso) y `AddInfrastructure` registra el adaptador. Application y Domain no conocen el cliente. Una lectura nueva sigue [agregar-cache.md](../guides/agregar-cache.md).
@@ -243,7 +262,7 @@ El contrato está en [administracion.md](../features/administracion.md#configura
 - **Fechas para una persona (2026-11-10):** siempre con números, `dd/MM/yyyy` en español y `MM/dd/yyyy` en inglés (`03/11/2026`), con `InvariantCulture`: nunca el mes en letras ni `"d"`/`"D"` de la cultura, que no pone el cero ([regla del front](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#fechas-sólo-con-números--2026-11-10)). **Excepción (O48, decisión del usuario del 2026-11-25):** la pregunta de fecha de un formulario de WhatsApp queda como la dibuja el selector de fecha de WhatsApp («22 Nov. 2026» en el formulario, «Nov 22 2026» en su resumen). El formato lo pone Meta y no se elige; no se cambia por un texto con números ni se deja el calendario de WhatsApp. Lo que la app escribe de esa fecha (avisos, planilla, PDF) sigue con números.
 - **Números para una persona (2026-11-12):** el estándar CLDR de la región de cada idioma, es-AR (`1.210`, `1.234,5`) y en-US (`1,210`, `1,234.5`), el mismo de Intl en el front. `DisplayNumbers` es la única pieza: `Culture` da la región, `Number` escribe un entero o un decimal con los decimales pedidos, y `Format` arma un texto con un `ICustomFormatter` que escribe con sus miles todo número sin formato propio y conserva el que lo trae (`{0:0.##}`). Un porcentaje sale de `Percent`, o de `{0:percent}` en un texto, con el signo pegado en las dos regiones («21%», «10,5%»), como Intl: el patrón de porcentaje que .NET toma del ICU de Windows todavía pone un espacio para es-AR, así que la pieza escribe el signo. Una alícuota que llega como dato de ARCA va como viene. Por ella pasan el PDF de las respuestas y el fiscal, los avisos, WhatsApp, los correos y los textos del Excel; las celdas numéricas del Excel siguen siendo números. Los mensajes de validación ponen `:N0` a sus marcadores y FluentValidation los escribe en el idioma del pedido. Los identificadores van como texto y los formatos de máquina (JSON, valores canónicos, los servicios de ARCA) siguen en `InvariantCulture`. `NumberFormattingTests` impide un formato propio fuera de la pieza ([regla del front](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#números-con-la-región-de-cada-idioma--2026-11-12)).
 - **Tamaño de página:** si el listado paginado de usuarios o de roles lo omite, el controller lo resuelve con el servicio de configuración; uno explícito se valida entre 1 y 100. Una consulta que lee menos filas por vez le pasa su tope a `PagedRequestValidator`, nunca mayor que 100 (las opciones de una pregunta, 50): el error es uno solo y dice ese tope.
-- **Orden de un listado (OT1-C, 2026-11-22):** toda columna con un dato figura en `SortableFields` y en el mapa de su lector, con el `id` de la columna del front como nombre. `ApplySort` deja lo vacío al final en los dos sentidos (en un `ASC` ya lo hace PostgreSQL; en un `DESC` agrega un término «es nulo» antes de la clave), ordena un enum por su orden de declaración con un `CASE` aunque se guarde como texto, acepta un campo de varias claves declarado con un tipo anónimo y desempata por el orden de siempre de la lista y después por la clave única. Un orden de siempre de varias claves (Formularios) usa `ApplySortWithDefaultOrder` ([plan](../plans/2026-11-22-ordenar-tablas-por-columnas.md)).
+- **Orden de un listado (OT1-C, 2026-11-22):** toda columna con un dato figura en `SortableFields` y en el mapa de su lector, con el `id` de la columna del front como nombre. `ApplySort` deja lo vacío al final en los dos sentidos (en un `ASC` ya lo hace PostgreSQL; en un `DESC` agrega un término «es nulo» antes de la clave), ordena un enum por su orden de declaración con un `CASE` aunque se guarde como texto, acepta un campo de varias claves declarado con un tipo anónimo y desempata por el orden de siempre de la lista y después por la clave única. Un orden de siempre de varias claves (Formularios) usa `ApplySortWithDefaultOrder` ([regla](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#ordenar-por-columnas--2026-11-22)).
 
 ## Formularios estructurados (módulo BusinessForms)
 

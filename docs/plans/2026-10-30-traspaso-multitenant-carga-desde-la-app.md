@@ -170,7 +170,7 @@ El autor decide el contenido y la app decide la forma, con una tabla fija por ti
 
 ## 6. Dónde está cada cosa en ArquitecturaBase
 
-- **Plan,** con las decisiones, el análisis y las etapas: [cargar formularios desde la app](2026-10-29-cargar-formularios-desde-la-app.md).
+- **Plan,** con las decisiones, el análisis y las etapas: [cargar formularios desde la app](../history/README.md#cierre-del-2026-11-26).
 - **Reglas implementadas:** [formularios](../features/formularios.md#carga-desde-la-app--etapa-1-2026-10-30).
 - **Diseño elegido,** con las reglas de armado y la correspondencia con `shared/ui`: `ArquitecturaBaseFront/docs/design/carga-desde-la-app.md`.
 - **Tableros:** el lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), de CW0 a CW16. Los

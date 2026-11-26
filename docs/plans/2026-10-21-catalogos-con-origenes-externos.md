@@ -43,7 +43,7 @@ Sigue la regla de siempre: **la IA propone, una persona aprueba y el sistema eje
   - la importación la hace el sistema, por el [recorrido de E1-A](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22).
 - **Desde la sección Catálogos:** una entrada del tipo «Pasale tu Excel al asistente».
 
-**Implementado** en las etapas 1 y 2 de [la IA arma formularios y catálogos](2026-11-04-ia-arma-formularios-y-catalogos.md): la
+**Implementado** en las etapas 1 y 2 de [la IA arma formularios y catálogos](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04): la
 propuesta en una tarjeta en el chat de Inicio (IA1-A), por WhatsApp un resumen con «Crear catálogo» y «Cambiar algo» (IA3-A),
 el catálogo creado inactivo con la importación pendiente desde la copia de la planilla y «Armar con la IA» en Catálogos. Las
 reglas vigentes están en [formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-2-planillas-2026-11-09-a-2026-11-11).

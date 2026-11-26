@@ -6,7 +6,7 @@ Quedaron afuera la medición de memoria y CPU de H22 y el resto de gran escala (
 acá: lo resolvió Formularios (F2, ver el 06). Todo está commiteado, pero **no pasó la prueba integral, la homologación con ARCA real ni la corrida real del robot**. Lo que
 ARCA devuelva de verdad puede corregir lo que hoy sale del manual.
 
-Fuentes: el plan [`2026-10-31-arca-formularios-estandar.md`](../2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura) (sección «Arreglos de la
+Fuentes: el plan [`2026-10-31-arca-formularios-estandar.md`](../../history/README.md#cierre-del-2026-11-26) (sección «Arreglos de la
 revisión de arquitectura»); la [revisión](../../reviews/2026-11-14-arquitectura-arca.md) y sus
 [decisiones](../../reviews/2026-11-14-arquitectura-arca.md#decisiones-del-2026-11-14); el [ADR 0031](../../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md)
 (nuevo) y los cambios al 0028; la regla en `docs/features/arca.md` y las guías `configurar-arca.md`, `robot-arca.md` y `quitar-arca.md`. Las tareas se citan como «tarea

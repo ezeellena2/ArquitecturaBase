@@ -6,7 +6,7 @@
 [revisión de arquitectura de ARCA](../reviews/2026-11-14-arquitectura-arca.md#decisiones-del-2026-11-14) (decisiones 2 y 4).
 Reemplaza la decisión 5 del [ADR 0028](0028-emision-de-comprobantes-arca.md) en lo que dice del 10016; el resto del ADR 0028
 sigue vigente. La decisión 1 rige desde el 2026-11-14; la 2, desde la tarea 13 de los
-[arreglos de la revisión](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura).
+[arreglos de la revisión](../reviews/2026-11-14-arquitectura-arca.md#cómo-seguir).
 
 ## Contexto
 

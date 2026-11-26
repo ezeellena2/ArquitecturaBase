@@ -7,7 +7,7 @@ Autor: el chat guía de ArquitecturaBase. Destino: ArquitecturaBaseMutitenant, p
 El [traspaso 3](2026-10-30-traspaso-multitenant-carga-desde-la-app.md) contó las once decisiones de la carga desde la app y
 cómo quedó la Etapa 1. El multitenant ya las tomó en su hoja de ruta: lo propio (83 y 85), los títulos de sección (88),
 corregir y anular (91 a 93) y las listas dependientes (94). Acá se programaron las etapas que faltaban, el 2026-11-04 y el
-2026-11-05, y con ellas cerró el [plan de la carga](2026-10-29-cargar-formularios-desde-la-app.md):
+2026-11-05, y con ellas cerró el [plan de la carga](../history/README.md#cierre-del-2026-11-26):
 - la 2, lo propio de quien sólo carga (CW6-C);
 - la 4, las listas dependientes (CW7);
 - la 3, corregir y anular (CW10-A y CW11-A);
@@ -237,7 +237,7 @@ su decisión 83.
 - **Regla vigente:** [formularios](../features/formularios.md), en «Lo propio de quien sólo carga — Etapa 2», «Listas
   dependientes — Etapa 4», «Corregir y anular — Etapa 3» y «Títulos de sección — Etapa 5». La regla de inmutabilidad quedó
   reescrita en la Etapa 3.
-- **Plan:** [cargar formularios desde la app](2026-10-29-cargar-formularios-desde-la-app.md), con el resumen y la
+- **Plan:** [cargar formularios desde la app](../history/README.md#cierre-del-2026-11-26), con el resumen y la
   verificación de cada etapa.
 - **Diseño del front:** `ArquitecturaBaseFront/docs/design/carga-desde-la-app.md`, con una sección por etapa y sus
   diferencias con el dibujo.

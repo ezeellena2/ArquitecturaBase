@@ -369,7 +369,7 @@ sume a su hoja de ruta, donde habrá que decidir de quién es la conexión.
 
 ### Carpetas para formularios y catálogos (CP1-A a CP3-A, 2026-11-03)
 
-El mismo día quedó decidido, sin programar, el [plan de carpetas](2026-11-03-carpetas-de-formularios-y-catalogos.md):
+El mismo día quedó decidido, sin programar, el [plan de carpetas](../history/README.md#cierre-del-2026-11-26):
 - un solo árbol de carpetas por tema para formularios y catálogos, con subcarpetas, y un mismo elemento en varias;
 - las carpetas sólo ordenan: no dan ni quitan acceso;
 - el árbol va en un panel a la izquierda de cada listado (CP1-A), «Carpetas…» abre un diálogo con el árbol y casillas
@@ -460,7 +460,7 @@ de los choques son con esas reglas y no con decisiones numeradas.
   - `carga-desde-la-app.md`: AR1-A y AR2-A.
 - **Las reglas y sus piezas:** `ArquitecturaBaseFront/docs/guides/premisas-de-desarrollo.md` y `estandar-visual.md`.
 - **Planes sin programar:** renglones en los formularios (programado después: [traspaso 12](2026-11-11-traspaso-multitenant-renglones.md)),
-  [ARCA · etapa 1](../history/README.md#barrido-documental-del-2026-11-18) y [carpetas](2026-11-03-carpetas-de-formularios-y-catalogos.md).
+  [ARCA · etapa 1](../history/README.md#barrido-documental-del-2026-11-18) y [carpetas](../history/README.md#cierre-del-2026-11-26).
 - **Tableros:** el lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en estas filas:
   - «Formularios · respuestas · dos solapas y un solo «Filtros»» y «el filtro de una pregunta con opciones: un combo
     simple»;

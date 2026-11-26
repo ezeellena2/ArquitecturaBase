@@ -642,9 +642,9 @@ En ArquitecturaBase hay una instalación por negocio: estas cosas son globales. 
 [cat]: ../2026-10-21-catalogos-con-origenes-externos.md
 [cat-conectividad]: ../2026-10-21-catalogos-con-origenes-externos.md#conectividad-el-servidor-del-cliente-o-azure
 [casos]: ../2026-10-21-casos-del-asistente.md
-[docs]: ../2026-10-22-documentos-por-whatsapp.md
-[docs-bandeja]: ../2026-10-22-documentos-por-whatsapp.md#la-bandeja-documentos-recibidos
-[docs-tableros]: ../2026-10-22-documentos-por-whatsapp.md#tableros-por-formulario
+[docs]: ../../history/README.md#cierre-del-2026-11-26
+[docs-bandeja]: ../../history/README.md#cierre-del-2026-11-26
+[docs-tableros]: ../../history/README.md#cierre-del-2026-11-26
 [int]: ../integraciones/estudio-2026-10-22.md
 [int-e1]: ../integraciones/estudio-2026-10-22.md#e1-arquitectura
 [int-e4]: ../integraciones/estudio-2026-10-22.md#e4-decisiones-que-tendría-que-tomar-el-usuario

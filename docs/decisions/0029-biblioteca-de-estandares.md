@@ -3,7 +3,7 @@
 ## Estado
 
 **Aceptada**, 2026-11-09, con la decisión BI1-A del usuario en la etapa 2 de ARCA ([regla](../features/formularios.md#biblioteca-de-estándares--bi1-a-2026-11-09))
-y la del [plan de documentos](../plans/2026-10-22-documentos-por-whatsapp.md) (la biblioteca son datos de inicio y «Agregar»
+y la del [plan de documentos](0022-lectura-de-documentos-con-ia.md) (la biblioteca son datos de inicio y «Agregar»
 crea una copia editable que recuerda de qué estándar viene). Programada en e2cb8606.
 
 ## Contexto

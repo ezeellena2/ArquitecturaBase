@@ -7,8 +7,8 @@ crédito, y desde la etapa 4 la A y la B (ver [Emisión de comprobantes](#emisi�
 legal en producción; hasta homologar con la CUIT del usuario se prueba contra el ARCA simulado. Las decisiones están en el [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) (módulo y credenciales), el
 [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) (familias) y el
 [ADR 0027](../decisions/0027-delegacion-guiada-arca.md) (delegación guiada); la operación, en
-[configurar ARCA](../guides/configurar-arca.md), y la retirada, en [quitar ARCA](../guides/quitar-arca.md). Las etapas
-que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-estandar.md).
+[configurar ARCA](../guides/configurar-arca.md), y la retirada, en [quitar ARCA](../guides/quitar-arca.md). Las familias
+que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-estandar.md#lo-que-sigue).
 
 ## Módulo y familias
 
@@ -168,10 +168,8 @@ cambiaron), y el estado se recalcula en el mismo guardado.
 
 La cola del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) está programada y la pide la acción de
 formularios «Emitir comprobante», con el estándar «Factura» y la anulación con nota de crédito, en backend y front
-(2026-11-09 a 2026-11-11). Faltan la prueba integral y la de homologación, en el
-[plan](../plans/2026-11-09-arca-etapa-3-factura-c.md). La A y la B siguen el
-[plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md), programada en backend y front (2026-11-11); faltan
-la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp está en el
+(2026-11-09 a 2026-11-11). La A y la B, programadas en backend y front el 2026-11-11, usan la
+misma cola. Lo que falta probar con ARCA real está en [verificación y producción](../plans/verificacion-y-produccion.md#arca-homologación-y-cuentas-reales). Lo que se ve en la app y en WhatsApp está en el
 [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-factura-a-y-b.md).
 
 - **Las tablas como catálogos** (`ArcaStructuredCatalogFeed`): condición frente al IVA, tipos de documento, conceptos (con el
@@ -279,6 +277,12 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   IVA, lo que falta. Al pedido van `ImpNeto`, `ImpIVA`, `ImpOpEx` (exento), `ImpTotConc` (no gravado) y el array `Iva`,
   una entrada por alícuota. La A exige CUIT; un renglón sin IVA en la A o la B no se encola (`Arca.Invoicing.ItemsInvalid`).
   La C descarta el IVA que llegue.
+- **Normas (manuales de WSFEv1 4.7 y 4.8, confirmadas el 2026-11-09):** la condición frente al IVA del receptor va en
+  todo comprobante, también en la C y en las notas de crédito, porque desde el 1/12/2026 ARCA rechaza el pedido sin ella
+  (RG 5616) y ya rechaza un código que no existe o que no es de la clase (10242 y 10243). Un consumidor final sin
+  identificar (`DocTipo` 99) vale hasta $10.000.000 (RG 5866/2026): más, lo rechaza ARCA y vuelve con su código, porque
+  la app no lo controla antes. La A con leyenda (tipos 51 a 54, RG 5762/2025) la decide ARCA por los datos del emisor: si
+  no lo autoriza a la A, rechaza con el 10000.
 - **Seguimiento (H26):** los logs del worker llevan el id del comprobante, su clave de pedido y el código de cada espera,
   también las que antes esperaban calladas (el ticket, la numeración y la conciliación sin respuesta), y el PDF fiscal que
   espera dice su código. De una excepción propia va el mensaje, que está en inglés y sin datos personales; de una ajena, sólo
@@ -307,7 +311,7 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   el número: puede ser nuestro, autorizado tarde y todavía sin mostrarse. Un número tomado con otros datos o que falta va a
   revisión humana y frena su secuencia.
 - **Espera creciente:** 30 s, 1, 2, 5, 10 y 30 minutos y después cada hora, sin tope; sin ticket o sin conexión, espera sin
-  número. Una fecha que salió de la ventana (5 días con productos, 10 con servicios, en hora de la Argentina), o que ARCA
+  número. Una fecha que salió de la ventana (con productos, 5 días y sin pasar al mes siguiente; con servicios, 10; en hora de la Argentina), o que ARCA
   rechazó por anterior a la del último comprobante, va a revisión: «Emitir con la fecha de hoy» o «No emitir». Emitir toma la
   de hoy o, si el último comprobante que conoce la base es posterior, la suya, y corre a esa fecha un vencimiento del pago
   anterior. Revisar exige la revisión esperada; cancelar, que no tenga número. Límites conocidos (ADR 0031): después de un
@@ -329,6 +333,11 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   alícuota y lo exento o no gravado; a un monotributista (6, 13 y 16) lleva la leyenda del art. 20 de la RG 5003. La B
   muestra los precios con el IVA incluido; a un exento, un no alcanzado o un consumidor final (4, 15 y 5) lleva abajo a la
   izquierda el recuadro de la RG 5614 con el IVA contenido y los otros impuestos nacionales indirectos en 0.
+- **Fuera de alcance:** la A con leyenda, la factura de crédito MiPyME, los tributos (`ImpTrib` y «Otros impuestos
+  nacionales indirectos» van en 0), otras monedas que no sean pesos, la B a clientes del exterior y la exportación, la B
+  al no categorizado con la CUIT genérica, las notas de débito, la nota de crédito parcial y el CAEA
+  ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)). Cada una pide su diseño
+  ([lo que sigue](../plans/2026-10-31-arca-formularios-estandar.md#lo-que-sigue)).
 - **Desconectar no borra comprobantes ni secuencias:** son registros con valor legal y no tienen clave foránea a la
   conexión. El worker sólo trabaja los del ambiente y la CUIT de la conexión activa.
 
@@ -337,7 +346,7 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
 La empresa delega sus servicios en la CUIT de la plataforma, que firma con su certificado y opera en su nombre. Está
 programada: el backend el 2026-11-09 y la pantalla el 2026-11-11, con los tableros elegidos (DG1-A y DG2-A) registrados en
 el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md); las fuentes oficiales de ARCA están en
-[configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación) y en el [plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md).
+[configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación).
 
 - **La plataforma es configuración de la instalación:** `Arca:Platform:Cuit` y `Arca:Platform:Name` (el nombre de la guía),
   las dos o ninguna. Sin ellas, el alta en delegación da `Arca.Connection.PlatformNotConfigured`.
@@ -354,6 +363,8 @@ el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacio
 - **Un token que no se puede leer no frena:** queda un log de advertencia y decide ARCA.
 - **La app no pide ninguna clave fiscal:** la empresa delega y da de alta el punto de venta con la suya; la plataforma
   acepta y asigna con la suya. Los pasos están en [configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación).
+- **La app no revoca una delegación:** la empresa la revoca en ARCA ([configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación)),
+  y la prueba lo ve cuando el ticket ya no la incluye.
 
 ## Delegación con robot (modo 3)
 
@@ -410,6 +421,7 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
   respuestas, logs, excepciones ni filas: lo verifica una prueba que la busca. Se entrega una sola vez, al llenar el campo, y
   queda vacía: ni la cola ni el bucle la retienen (H21). Playwright corre sin trazas, HAR, video ni
   capturas, y la Api no arranca con su depuración encendida ni sin Chromium.
+- **Fuera de alcance:** el robot no crea el certificado de la empresa (modo 1) ni revoca una delegación.
 
 ## Robustez y privacidad
 
@@ -422,14 +434,5 @@ registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design
 
 ## Pendiente
 
-- **Homologación real** con un certificado de WSASS para una CUIT del usuario: confirmar los CN de los emisores de cada
-  ambiente y la condición frente al IVA con CUIT reales. Se cierra cuando la conexión, los datos de la empresa y los
-  puntos de venta respondan contra ARCA.
-- **La delegación de verdad:** en homologación, con una autorización de WSASS con «CUIT representado»; en producción, con
-  la clave fiscal de la plataforma y la de una empresa. Confirma el formato del token y que un ticket nuevo traiga la CUIT
-  después de aceptar.
-- **La factura en homologación:** la C con su nota de crédito y la prueba a mano de la A y la B
-  ([etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md#prueba-a-mano-en-la-prueba-integral)).
-- **La corrida real del robot** con las cuentas del usuario ([guía](../guides/robot-arca.md#la-corrida-real)), con la imagen
-  de Chromium publicada por primera vez. Trae la medición de memoria y CPU de H22: si los dos lados juntos no entran en el
-  despliegue, cada host corre un lado por vez.
+Lo que falta probar con ARCA real (la homologación, la delegación de verdad, la factura y la corrida del robot con
+la medición de H22) está en [verificación y producción](../plans/verificacion-y-produccion.md#arca-homologación-y-cuentas-reales).
