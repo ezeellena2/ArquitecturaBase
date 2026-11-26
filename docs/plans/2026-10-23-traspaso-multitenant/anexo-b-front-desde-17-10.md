@@ -19,7 +19,7 @@ HTTP exportados y sus manifiestos, en `src/test/fixtures`, y 55 son escenas, dob
 B2B + B2C. Se describe qué hay en cada zona, en qué orden, qué estados existen y qué textos se ven. No se describen
 colores ni componentes concretos. El vocabulario de disposición (`Page`, `Surface`, `FilterBar`, `DataTable`, diálogo,
 panel lateral, `ConfirmDialog`, toast) es el del apartado 2 del
-[anexo B del traspaso 1](../../../../ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/anexo-b-front.md).
+anexo B del traspaso 1 (`ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/anexo-b-front.md`, en el repo del multitenant).
 
 **Qué ya se contó:** el anexo B del traspaso 1 relevó el front en `f8212b2` más el trabajo sin commit de ese momento:
 la revisión de envío por destinatario de G5, que entró en `9261e3d`. Este anexo cuenta solo el delta. Igual, cada

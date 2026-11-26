@@ -2,7 +2,7 @@
 
 # Formularios por WhatsApp: lo que cambió en el backend desde el 17-10
 
-**Línea de base:** `9575269d` («fix(formularios): completar la vista previa de fotos y el idioma del PDF», 2026-10-17 12:43 -0300). Es el commit en el que se verificó el [traspaso del 17-10](../../../../ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/README.md), cuyo [anexo A](../../../../ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/anexo-a-backend.md) es la referencia de todo lo anterior.
+**Línea de base:** `9575269d` («fix(formularios): completar la vista previa de fotos y el idioma del PDF», 2026-10-17 12:43 -0300). Es el commit en el que se verificó el traspaso del 17-10 (`ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/README.md`, en el repo del multitenant), cuyo anexo A (`ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/anexo-a-backend.md`, en el repo del multitenant) es la referencia de todo lo anterior.
 
 **Corte:** `6023f7d7` («fix(formularios): tratar como dato faltante un valor que no es opción de la fuente del dato», 2026-10-23 20:22 -0300). Entre la base y el corte hay **526 commits** y **686 archivos de `src`** (113.635 líneas agregadas y 1.854 quitadas). Todo se leyó del estado commiteado (`git show <commit>:<archivo>`, `git diff 9575269d..6023f7d7`), sin compilar ni correr pruebas.
 
@@ -4233,7 +4233,7 @@ No hay claves nuevas bajo `WhatsApp:` ni bajo `BusinessForms:`:
 
 ## 11. Qué conviene revisar al adaptarlo a multitenant
 
-Junta las notas de cada sección (1.12 a 9.13), ordenadas por tema. Sale de leer el código de una sola instalación: dice qué asume una sola empresa, no cómo resolverlo en el otro proyecto. Las equivalencias generales (organización, plataforma y persona) están en el [README del traspaso del 17-10](../../../../ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/README.md#equivalencias-para-adaptar).
+Junta las notas de cada sección (1.12 a 9.13), ordenadas por tema. Sale de leer el código de una sola instalación: dice qué asume una sola empresa, no cómo resolverlo en el otro proyecto. Las equivalencias generales (organización, plataforma y persona) están en el README del traspaso del 17-10 (`ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/README.md#equivalencias-para-adaptar`, en el repo del multitenant).
 
 ### 11.1 Datos y unicidad de toda la instalación
 

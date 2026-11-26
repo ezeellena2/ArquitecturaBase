@@ -7,7 +7,7 @@ Contiene migraciones EF, sus metadatos y el snapshot. Representa la secuencia qu
 - Seguí la guía de migración para generar, revisar y comprobar cambios pendientes. Revisá pérdidas de datos, índices, filtros y `Up`/`Down`.
 - No cambiar una migración ya aplicada para resolver un cambio nuevo; creá la siguiente. Un ajuste manual del SQL generado debe quedar coherente con el modelo y el snapshot.
 - Portabilidad: filtros del modelo en una sola línea; SQL multilínea de migraciones usa `.ReplaceLineEndings("\n")` en el argumento. `MigrationSqlPortabilityTests` inspecciona valores efectivos del snapshot, Designers y operaciones Up/Down, y compara el modelo sin conectarse a la base.
-- Convivencia con la versión anterior ([regla](../../../docs/guides/migracion.md#convivencia-de-versiones)): `MigrationCoexistenceTests` rechaza, en las migraciones posteriores a `20261116130834`, un CHECK sobre una tabla existente que mencione una columna ya escrita por la versión vieja, una columna que pasa a aceptar nulos, un borrado junto con su reemplazo y un renombre; una excepción se anota con su motivo.
+- Convivencia con la versión anterior ([regla](../../../../docs/guides/migracion.md#convivencia-de-versiones)): `MigrationCoexistenceTests` rechaza, en las migraciones posteriores a `20261116130834`, un CHECK sobre una tabla existente que mencione una columna ya escrita por la versión vieja, una columna que pasa a aceptar nulos, un borrado junto con su reemplazo y un renombre; una excepción se anota con su motivo.
 - EF construye el host de diseño: necesita configuración de `appdb` y `cache`; crear el bundle no requiere conectarse a Redis.
 - Production aplica el bundle antes de la imagen y la Api valida el estado; no habilitar migraciones automáticas en producción.
 

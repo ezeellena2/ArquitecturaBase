@@ -1,6 +1,6 @@
 # Anexo D del traspaso 2: los tableros desde el 2026-10-17
 
-Fecha: 2026-10-23. Este anexo sigue al [anexo D del traspaso del 2026-10-17](../../../../ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/anexo-d-tableros.md).
+Fecha: 2026-10-23. Este anexo sigue al anexo D del traspaso del 2026-10-17 (`ArquitecturaBaseMutitenant/docs/plans/2026-10-17-formularios-traspaso/anexo-d-tableros.md`, en el repo del multitenant).
 
 Junta todos los tableros de la página «Formularios por WhatsApp» del lienzo que se dibujaron o se eligieron desde el 2026-10-17.
 
@@ -1956,7 +1956,7 @@ Dibujados el 2026-10-22, en la versión 116 del lienzo. Se eligieron DOC5-A y DO
 
 DOC5-B y DOC7-B se retiraron el 2026-10-22, en la versión 119.
 
-**Por programar:** el [plan](../2026-10-22-documentos-por-whatsapp.md) dice «sin empezar». Las reglas de lectura están en el [ADR 0022](../../decisions/0022-lectura-de-documentos-con-ia.md).
+**Por programar:** el [plan](../../history/README.md#cierre-del-2026-11-26) dice «sin empezar». Las reglas de lectura están en el [ADR 0022](../../decisions/0022-lectura-de-documentos-con-ia.md).
 
 **Multitenant:** la nota 2 de DOC1 dice que la biblioteca es la misma para todas las organizaciones.
 
