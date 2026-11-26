@@ -1471,7 +1471,9 @@ bandeja, en [su sección](#la-bandeja-documentos-recibidos--doc5-a-2026-11-12).
   la única que deja de ir en blanco, y se busca en la tabla de entidades: el nombre corto o la denominación con las mismas
   palabras, sin tildes, signos ni las que comparten todas («Banco», «de la», «S.A.», «Argentina»). Sólo vale si coincide con una
   única entidad y la copia tiene su opción; si no, queda sin leer. «Santander» da «Banco Santander»; «Santander Río», nada.
-  El nombre leído con dudas queda marcado. «Agregar» deja la copia leyendo documentos, con
+  El nombre leído con dudas queda marcado. Un importe que el comprobante muestra con signo («Importe -4.800,00», un débito)
+  se lee y se guarda negativo, como lo muestra: la lectura no le saca el signo y quien lo ve lo corrige a mano (O47, decisión
+  del usuario del 2026-11-25). «Agregar» deja la copia leyendo documentos, con
   «Cómo reconocerlo» en el idioma de la copia y las validaciones en sus preguntas.
 - **La biblioteca** suma `reads` (`[{ key, name }]`: cada dato que lee un estándar con lectura, en el orden del estándar, por la
   clave del mapa `standard.bound` de su copia y con el nombre de su pregunta en el idioma del menú) y `validations`
