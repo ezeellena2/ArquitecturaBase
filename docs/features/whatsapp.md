@@ -229,6 +229,25 @@ línea («1. GLIFOSATO 64% · 200 · Litros · Sí»), con las respuestas en el 
 responder, como «Así llega» (RG4-A). Viene por la lectura neutral, sin campos del catálogo, y el bloque cuenta como un dato
 más para plegar la tarjeta. Sin ítems dice «Sin respuesta».
 
+**Una respuesta que Meta no entrega (O49 de la prueba integral, 2026-11-22).** A la persona le figura «Respuesta enviada»
+y el `nfm_reply` no llega nunca. Pasó con un Flow de comprobante contestado desde WhatsApp Web, con el comprobante adjunto.
+En lugar de la respuesta, Meta mandó a los segundos sólo un estado `failed` con el wamid de ese mensaje entrante y el código
+131052, que Meta describe como «Unable to download the media sent by the user»: no pudo bajar el archivo de la respuesta.
+Su documentación describe ese código, pero no que llegue como estado de un mensaje entrante. Otras respuestas con archivos
+desde WhatsApp Web llegaron bien (21/11), así que no es una falla fija de Web.
+
+Qué hace la app cuando una respuesta no llega:
+- El webhook guarda ese estado como cualquier recibo, por wamid (`WhatsAppDeliveryReceipts`, `Failed` y el código), aunque
+  ningún envío tenga ese id. No contesta nada ni toca la sesión.
+- La sesión queda Pending. Pasado su plazo (el de Configuración › WhatsApp) ya no captura, como cualquier formulario sin
+  contestar.
+- El documento que propuso el formulario sigue «Propuesto» en la bandeja de documentos, y el equipo lo puede cargar desde la
+  app. Pasado el plazo, un toque en su pregunta contesta que quedó para el equipo.
+- Nadie recibe un aviso: la persona cree que la mandó, y el chat sólo muestra el Flow entregado, sin respuesta.
+
+Ese recibo es la huella para diagnosticar otra pérdida, y dura más que los logs del panel: un `Failed` cuyo wamid no es de
+ningún mensaje guardado.
+
 ## La ubicación antes del Flow — W1-A, 2026-11-11
 
 Un Flow no puede pedir la ubicación, así que la pregunta «Ubicación» de un formulario se pide antes, con un mensaje aparte
