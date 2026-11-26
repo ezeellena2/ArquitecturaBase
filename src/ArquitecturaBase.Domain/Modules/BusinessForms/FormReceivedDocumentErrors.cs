@@ -24,6 +24,8 @@ public static class FormReceivedDocumentErrors
     // DOC6, «Armar formulario con la IA»: a proposal built from one unclassified document or from a group of similar ones.
     public static readonly Error ProposalNotFound = Error.NotFound("Forms.ReceivedDocument.ProposalNotFound", "The form proposal was not found.");
     public static readonly Error ProposalUnavailable = Error.Failure("Forms.ReceivedDocument.ProposalUnavailable", "The form proposal could not be asked for or read.");
+    /// <summary>The failureCode of a request the assistant finished without proposing a form; it is read, never answered as an error.</summary>
+    public static readonly Error NoFormProposal = Error.Failure("Forms.ReceivedDocument.NoFormProposal", "The assistant finished without proposing a form.");
     public static readonly Error GroupUnavailable = Error.Conflict("Forms.ReceivedDocument.GroupUnavailable", "No unclassified document of the group can be read.");
     // DOC6, the re-reading after publishing: the assistant paused, not configured or not qualified for now; the server tries again.
     public static readonly Error AssistantUnavailable = Error.Conflict("Forms.ReceivedDocument.AssistantUnavailable",

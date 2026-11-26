@@ -27,8 +27,6 @@ internal sealed class FormDocumentAuthoringPolicy(FormReceivedDocumentAccessGuar
     public const int ContentDays = FormReceivedDocumentExtractionPolicy.ContentDays;
     /// <summary>The readings that go to the assistant: the first one and up to four more.</summary>
     public const int MaxReadings = 1 + AssistantAttachmentInput.MaximumMoreDocuments;
-    /// <summary>The assistant finished without proposing a form.</summary>
-    public const string NoProposal = "Forms.ReceivedDocument.NoFormProposal";
     // Its answers carry the inbox's documents and what the assistant read in them: seeing and reviewing the inbox, and designing forms.
     private static readonly string[] Required = [BusinessFormsPermissions.DocumentsRead, BusinessFormsPermissions.DocumentsReview,
         BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage];

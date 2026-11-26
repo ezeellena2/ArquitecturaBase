@@ -507,6 +507,9 @@
   <data name="Forms.ReceivedDocument.ProposalUnavailable" xml:space="preserve">
     <value>We could not build the proposal. Try again in a moment; the documents are still in the inbox.</value>
   </data>
+  <data name="Forms.ReceivedDocument.NoFormProposal" xml:space="preserve">
+    <value>The AI did not propose any form.</value>
+  </data>
   <data name="Forms.ReceivedDocument.GroupUnavailable" xml:space="preserve">
     <value>No unclassified documents of that topic are left to build the form.</value>
   </data>

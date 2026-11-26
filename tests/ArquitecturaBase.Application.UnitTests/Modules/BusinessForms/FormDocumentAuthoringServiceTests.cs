@@ -199,7 +199,7 @@ public sealed class FormDocumentAuthoringServiceTests
         var noProposal = await f.Authoring().GetAsync(finished, Ct);
         var unknown = await f.Authoring().GetAsync(forgotten, Ct);
 
-        Assert.Equal(("failed", FormDocumentAuthoringPolicy.NoProposal, (FormDocumentProposalContentResponse?)null),
+        Assert.Equal(("failed", FormReceivedDocumentErrors.NoFormProposal.Code, (FormDocumentProposalContentResponse?)null),
             (noProposal.Value.State, noProposal.Value.FailureCode, noProposal.Value.Proposal));
         Assert.Equal(("failed", FormReceivedDocumentErrors.ProposalNotFound.Code), (unknown.Value.State, unknown.Value.FailureCode));
         Assert.Single(unknown.Value.Documents);

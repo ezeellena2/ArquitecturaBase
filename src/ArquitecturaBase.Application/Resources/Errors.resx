@@ -507,6 +507,9 @@
   <data name="Forms.ReceivedDocument.ProposalUnavailable" xml:space="preserve">
     <value>No pudimos armar la propuesta. Probá de nuevo en un momento; los documentos siguen en la bandeja.</value>
   </data>
+  <data name="Forms.ReceivedDocument.NoFormProposal" xml:space="preserve">
+    <value>La IA no propuso ningún formulario.</value>
+  </data>
   <data name="Forms.ReceivedDocument.GroupUnavailable" xml:space="preserve">
     <value>Ya no quedan documentos sin clasificar de ese tema para armar el formulario.</value>
   </data>

@@ -118,8 +118,8 @@ internal sealed class FormDocumentAuthoringService(FormDocumentAuthoringPolicy p
             null => ("failed", FormReceivedDocumentErrors.ProposalNotFound.Code),
             { State: "pending" or "running" } => ("pending", null),
             { State: "completed" } when proposal is not null => ("completed", null),
-            { State: "completed" } => ("failed", FormDocumentAuthoringPolicy.NoProposal),
-            _ => ("failed", operation.FailureCode ?? FormDocumentAuthoringPolicy.NoProposal),
+            { State: "completed" } => ("failed", FormReceivedDocumentErrors.NoFormProposal.Code),
+            _ => ("failed", operation.FailureCode ?? FormReceivedDocumentErrors.NoFormProposal.Code),
         };
         return await RespondAsync(actorUserId, row, outcome.State, outcome.Failure, proposal, clock.GetUtcNow().UtcDateTime, ct);
     }
