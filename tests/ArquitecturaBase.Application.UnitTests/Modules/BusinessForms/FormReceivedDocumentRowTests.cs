@@ -320,7 +320,7 @@ public sealed class FormReceivedDocumentRowTests
         var sender = users.AddUser("carga@example.test").Id;
         permissions.Permissions[sender] = [BusinessFormsPermissions.RecordsCreate];
         var contents = new FormReceivedDocumentContentPolicy(inbox);
-        var replies = new FormReceivedDocumentReplyPolicy(inbox, new FormDocumentProposalPolicy(inbox, inbox, []), null!, contents);
+        var replies = new FormReceivedDocumentReplyPolicy(inbox, new FormDocumentProposalPolicy(inbox, inbox, []), null!, contents, inbox.Clock);
         var unitOfWork = new FakeUnitOfWork();
         var service = new FormReceivedDocumentRowService(inbox, inbox, new FormReceivedDocumentRowPolicy(inbox, null!, null!, null!, null!, replies, contents),
             null!, new FormReceivedDocumentAccessGuard(new FakeCurrentUser(), users, permissions, inbox), inbox.Recorder(), unitOfWork);

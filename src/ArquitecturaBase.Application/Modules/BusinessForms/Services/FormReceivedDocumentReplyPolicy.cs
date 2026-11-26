@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// person (CE4-A); «doubt», proposed with its candidates. The texts are the channel's: this gives their data, in the person's language.
 /// </summary>
 internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocumentReader reader, FormDocumentProposalPolicy proposals,
-    FormCatalogOptionsPolicy options, FormReceivedDocumentContentPolicy contents)
+    FormCatalogOptionsPolicy options, FormReceivedDocumentContentPolicy contents, TimeProvider clock)
 {
     public const int MaxForms = 9;
     public const string Quota = "quota";
@@ -66,7 +66,7 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
             reply = row.ReasonCode == Quota ? new(row.Id, StructuredDocumentReplyKind.Quota)
                 : new(row.Id, StructuredDocumentReplyKind.Unknown) { Forms = await FormsAsync(culture, ct) };
         else if (row is { State: FormReceivedDocumentState.Discarded, ReasonCode: Duplicate } && proposal?.Repetition is { } repetition)
-            reply = new(row.Id, StructuredDocumentReplyKind.Duplicate) { Duplicate = new(repetition.AtUtc, repetition.RecordNumber) };
+            reply = new(row.Id, StructuredDocumentReplyKind.Duplicate) { Duplicate = DuplicateOf(repetition) };
         else if (row is { State: FormReceivedDocumentState.Discarded, ReasonCode: Unreadable } && reading is not null)
             reply = new(row.Id, StructuredDocumentReplyKind.Unreadable)
             {
@@ -125,8 +125,16 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
             return new(FormReceivedDocumentState.Discarded, Unreadable, prepared, false,
                 new(null, StructuredDocumentReplyKind.Unreadable) { MissingDatum = missing, Problem = reading.Problem });
         if (prepared.Repetition is { } repetition)
+        {
+            // O46: the first one was never loaded and still waits for this same person; kept in the proposal, so a replay says the same.
+            if (await WaitsForSenderAsync(repetition, sender, ct))
+            {
+                repetition = repetition with { WaitingForSender = true };
+                prepared = prepared with { Repetition = repetition };
+            }
             return new(FormReceivedDocumentState.Discarded, Duplicate, prepared, false,
-                new(null, StructuredDocumentReplyKind.Duplicate) { Duplicate = new(repetition.AtUtc, repetition.RecordNumber) });
+                new(null, StructuredDocumentReplyKind.Duplicate) { Duplicate = DuplicateOf(repetition) });
+        }
         if (prepared.Outcome == FormDocumentEntryProposal.Doubt)
         {
             var forms = new List<StructuredDocumentFormChoice>();
@@ -143,6 +151,15 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
                 Forms = [choice], Summary = Summary(row, first, culture),
             });
     }
+
+    private static StructuredDocumentDuplicate DuplicateOf(FormDocumentRepetition repetition) =>
+        new(repetition.AtUtc, repetition.RecordNumber) { WaitingForSender = repetition.WaitingForSender == true };
+
+    // A document of the inbox, not loaded, of the same person, whose form can go to them and whose deadline has not passed (PrepareSendAsync's).
+    private async Task<bool> WaitsForSenderAsync(FormDocumentRepetition repetition, Guid sender, CancellationToken ct) =>
+        repetition is { DocumentId: { } earlierId, RecordId: null }
+        && await reader.FindAsync(earlierId, ct) is { State: FormReceivedDocumentState.Proposed, NotSendable: false, ReplyExpiresAtUtc: { } deadline } earlier
+        && earlier.SenderUserId == sender && deadline > clock.GetUtcNow().UtcDateTime;
 
     // The forms with reading on the person can complete, by name: the list of «no lo reconoce».
     public async Task<IReadOnlyList<StructuredDocumentFormChoice>> FormsAsync(string culture, CancellationToken ct) =>

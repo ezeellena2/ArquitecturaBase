@@ -117,6 +117,40 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
         Assert.Equal((repeated.Id, StructuredDocumentReplyKind.Duplicate, true), (replayed.DocumentId!.Value, replayed.Kind, replayed.WasAlreadyRegistered));
     }
 
+    // O46 (2026-11-25): a repetition of a document whose form still waits for the same person says so, so the channel asks to complete that
+    // form instead of saying it was loaded; another person's, or after the deadline, is a plain repetition.
+    [Fact]
+    public async Task A_repetition_of_a_document_that_still_waits_for_the_same_person_says_so()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var first = await scenario.SendAsync(Ct, replyExpiresAtUtc: now.AddHours(24));
+        var marta = await scenario.PersonAsync("Marta Repetida", [BusinessFormsPermissions.RecordsCreate], Ct);
+
+        var again = await scenario.SendAsync(Ct, content: first.Content, replyExpiresAtUtc: now.AddHours(24));
+        var fromMarta = await scenario.SendAsync(Ct, content: first.Content, sender: marta, replyExpiresAtUtc: now.AddHours(24));
+        var replayed = await scenario.PortAsync(port => port.RegisterAsync(again.Request, Ct));
+
+        Assert.Equal((StructuredDocumentReplyKind.Duplicate, now, (string?)null, true),
+            (again.Reply.Kind, again.Reply.Duplicate!.AtUtc, again.Reply.Duplicate.RecordNumber, again.Reply.Duplicate.WaitingForSender));
+        Assert.Equal((StructuredDocumentReplyKind.Duplicate, false), (fromMarta.Reply.Kind, fromMarta.Reply.Duplicate!.WaitingForSender));
+        // A repeated registration answers what was decided.
+        Assert.Equal((true, true), (replayed.WasAlreadyRegistered, replayed.Duplicate!.WaitingForSender));
+    }
+
+    [Fact]
+    public async Task A_repetition_after_the_deadline_of_the_first_is_a_plain_repetition()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        // Its person is no longer waited for: the first one is for the team.
+        var first = await scenario.SendAsync(Ct, replyExpiresAtUtc: now.AddSeconds(-1), receivedAtUtc: now.AddDays(-1));
+
+        var again = await scenario.SendAsync(Ct, content: first.Content);
+
+        Assert.Equal((StructuredDocumentReplyKind.Duplicate, false), (again.Reply.Kind, again.Reply.Duplicate!.WaitingForSender));
+    }
+
     [Fact]
     public async Task A_chosen_form_is_prepared_to_send_and_another_one_notes_the_missing_form_once()
     {

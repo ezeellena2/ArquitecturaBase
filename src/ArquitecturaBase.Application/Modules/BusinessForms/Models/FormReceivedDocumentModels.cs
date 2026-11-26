@@ -39,6 +39,8 @@ public sealed record FormDocumentPreparedValue(Guid FieldId, string Type, string
 public sealed record FormDocumentRepetition(DateTime AtUtc, Guid? RecordId, string? RecordNumber, Guid? DocumentId)
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<Guid>? FieldIds { get; init; }
+    /// <summary>O46: the repeated document is the same person's, never loaded, and still waits for them; kept so a replay says the same.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? WaitingForSender { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? RowSheet { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? RowNumber { get; init; }
     public override string ToString() => "FormDocumentRepetition { Content = [REDACTED] }";

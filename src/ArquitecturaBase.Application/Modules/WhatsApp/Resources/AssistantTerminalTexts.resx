@@ -62,6 +62,7 @@
   <data name="DocumentNotLegible" xml:space="preserve"><value>No se lee el documento. ¿Me lo reenviás? Sacale otra foto con buena luz, sin mover el celular.</value></data>
   <data name="DocumentDuplicate" xml:space="preserve"><value>Este comprobante ya se cargó el {0} en {1}. No lo cargo de nuevo.</value></data>
   <data name="DocumentDuplicateDate" xml:space="preserve"><value>Este comprobante ya se cargó el {0}. No lo cargo de nuevo.</value></data>
+  <data name="DocumentDuplicateWaiting" xml:space="preserve"><value>Ya me lo mandaste el {0}: completá el formulario que te mandé.</value></data>
   <data name="DocumentNotSendable" xml:space="preserve"><value>Gracias, recibí tu documento para «{0}». No lo puedo cargar desde acá: se lo pasé a una persona del equipo para que lo revise.</value></data>
   <data name="DocumentNotSendableReason" xml:space="preserve"><value>Mandó un documento de «{0}» y no se le puede mandar ese formulario.</value></data>
   <data name="DocumentQuota" xml:space="preserve"><value>Por hoy llegué al tope de documentos que puedo leer. Lo dejé para que lo revise el equipo.</value></data>

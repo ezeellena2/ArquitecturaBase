@@ -194,6 +194,19 @@ public sealed class WhatsAppAssistantDocumentTests
         Assert.Equal(text, Assert.Single(a.Host.Conversation.Outgoing).Body);
     }
 
+    // O46 (2026-11-25): the first one was never loaded, its form still waits for the person: it asks to complete it.
+    [Theory]
+    [InlineData("es", "Ya me lo mandaste el 20/10/2026: completá el formulario que te mandé.")]
+    [InlineData("en", "You already sent it to me on 10/20/2026: fill in the form I sent you.")]
+    public async Task A_repeated_document_whose_form_still_waits_for_the_person_asks_to_complete_it(string culture, string text)
+    {
+        var a = await ArrangeAsync(culture: culture);
+        a.Documents.Registration = new(Guid.NewGuid(), StructuredDocumentReplyKind.Duplicate)
+            { Duplicate = new(new DateTime(2026, 10, 21, 1, 30, 0, DateTimeKind.Utc), null) { WaitingForSender = true } };
+        await InterpretAsync(a);
+        Assert.Equal(text, Assert.Single(a.Host.Conversation.Outgoing).Body);
+    }
+
     // CE4-A: it is said and the conversation goes to a person, marked with the reason; the inbox keeps it proposed for the team.
     [Fact]
     public async Task A_form_that_cannot_be_sent_is_said_and_hands_the_conversation_to_a_person()

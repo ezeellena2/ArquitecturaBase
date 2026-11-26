@@ -147,8 +147,10 @@ internal sealed class WhatsAppAssistantDocumentPolicy(IStructuredDocumentChannel
                     ? Text("DocumentUnreadableDatum", culture, datum) : Text("DocumentNotLegible", culture), culture);
             case StructuredDocumentReplyKind.Duplicate when registration.Duplicate is { } duplicate:
                 var date = Date(duplicate.AtUtc, context.TimeZoneId, culture);
-                return new WhatsAppAssistantTerminalResponse(proposalId, duplicate.RecordNumber is { Length: > 0 } number
-                    ? Text("DocumentDuplicate", culture, date, number) : Text("DocumentDuplicateDate", culture, date), culture);
+                // O46: the first one was never loaded and its form still waits for the person.
+                return new WhatsAppAssistantTerminalResponse(proposalId, duplicate.WaitingForSender ? Text("DocumentDuplicateWaiting", culture, date)
+                    : duplicate.RecordNumber is { Length: > 0 } number ? Text("DocumentDuplicate", culture, date, number)
+                    : Text("DocumentDuplicateDate", culture, date), culture);
             case StructuredDocumentReplyKind.NotSendable when registration.Forms is [var form]:
                 return NotSendable(proposalId, form, culture);
             case StructuredDocumentReplyKind.Quota:

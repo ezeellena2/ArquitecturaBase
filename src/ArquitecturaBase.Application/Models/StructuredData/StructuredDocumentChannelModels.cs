@@ -92,9 +92,14 @@ public sealed record StructuredDocumentFormChoice(Guid DefinitionId, Guid Versio
     public override string ToString() => "StructuredDocumentFormChoice { Content = [REDACTED] }";
 }
 
-/// <summary>Where the repeated document already is: when it was loaded (or received) and the response's number, when it is one.</summary>
+/// <summary>
+/// Where the repeated document already is: when it was loaded (or received) and the response's number, when it is one. O46: true in
+/// <see cref="WaitingForSender"/> when it is a document of the same person that was never loaded and still waits for them (its deadline has
+/// not passed), so the channel asks them to complete the form it sent instead of saying it was loaded.
+/// </summary>
 public sealed record StructuredDocumentDuplicate(DateTime AtUtc, string? RecordNumber)
 {
+    public bool WaitingForSender { get; init; }
     public override string ToString() => "StructuredDocumentDuplicate { Content = [REDACTED] }";
 }
 

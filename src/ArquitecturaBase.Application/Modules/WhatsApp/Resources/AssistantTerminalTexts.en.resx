@@ -62,6 +62,7 @@
   <data name="DocumentNotLegible" xml:space="preserve"><value>The document can't be read. Can you send it again? Take another photo with good light, without moving the phone.</value></data>
   <data name="DocumentDuplicate" xml:space="preserve"><value>This receipt was already loaded on {0} in {1}. I won't load it again.</value></data>
   <data name="DocumentDuplicateDate" xml:space="preserve"><value>This receipt was already loaded on {0}. I won't load it again.</value></data>
+  <data name="DocumentDuplicateWaiting" xml:space="preserve"><value>You already sent it to me on {0}: fill in the form I sent you.</value></data>
   <data name="DocumentNotSendable" xml:space="preserve"><value>Thanks, I got your document for “{0}”. I can't load it from here: I passed it to someone on the team to review.</value></data>
   <data name="DocumentNotSendableReason" xml:space="preserve"><value>Sent a document of “{0}” and that form can't be sent to them.</value></data>
   <data name="DocumentQuota" xml:space="preserve"><value>I reached today's limit of documents I can read. I left it for the team to review.</value></data>
