@@ -140,8 +140,10 @@ public sealed class ProfileEmailServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Occupied_email_is_revealed_only_after_a_correct_code_and_the_code_is_saved_as_spent(bool deleted)
+    public async Task The_email_of_another_account_is_refused_on_its_field_before_issuing_any_code(bool deleted)
     {
+        // O28 (decisión del 2026-11-25): el aviso sale al pedir el código, aunque así se pueda averiguar si un correo
+        // tiene cuenta.
         var fixture = new Fixture();
         var requester = fixture.Accounts.AddUser(email: null);
         if (deleted)
@@ -153,15 +155,53 @@ public sealed class ProfileEmailServiceTests
             fixture.Accounts.AddUser(Email);
         }
 
-        var request = await fixture.Service(requester.Id).RequestEmailCodeAsync(new RequestEmailCodeRequest(Email), Ct);
-        Assert.True(request.IsSuccess);
-        var issued = Assert.Single(fixture.Codes.Codes);
+        var result = await fixture.Service(requester.Id).RequestEmailCodeAsync(new RequestEmailCodeRequest(Email), Ct);
+
+        var error = Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal(UserErrors.AlreadyExistsCode, error.Code);
+        Assert.Equal(ErrorType.Conflict, error.Type);
+        Assert.Contains("email", error.Errors.Keys);
+        Assert.Empty(fixture.Codes.Codes);
+        Assert.Empty(fixture.Queue.Messages);
+        Assert.Equal(0, fixture.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task The_own_unverified_email_still_gets_its_code()
+    {
+        var fixture = new Fixture();
+        var user = fixture.Accounts.AddUser(email: null);
+        await fixture.Accounts.ArrangeAsync(accounts =>
+            accounts.SetEmailAsync(user.Id, ArquitecturaBase.Domain.ValueObjects.Email.Create(Email).Value, confirmed: false, Ct));
+
+        var result = await fixture.Service(user.Id).RequestEmailCodeAsync(new RequestEmailCodeRequest(Email), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Email, Assert.Single(fixture.Codes.Codes).Destination);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_email_taken_after_its_code_was_sent_is_refused_only_with_the_correct_code_and_the_code_is_spent(bool deleted)
+    {
+        var fixture = new Fixture();
+        var requester = fixture.Accounts.AddUser(email: null);
+        var issued = fixture.Issue(Email, LoginCodePurpose.VerifyDestination, requester.Id);
+        if (deleted)
+        {
+            fixture.Accounts.DeletedEmails.Add(Email);
+        }
+        else
+        {
+            fixture.Accounts.AddUser(Email);
+        }
 
         var result = await fixture.Service(requester.Id).ConfirmEmailAsync(new ConfirmEmailRequest(Email, Code), Ct);
 
         Assert.Equal(UserErrors.AlreadyExistsCode, result.Error.Code);
         Assert.NotNull(issued.ConsumedAtUtc);
-        Assert.Equal(2, fixture.UnitOfWork.Commits);
+        Assert.Equal(1, fixture.UnitOfWork.Commits);
         Assert.Equal(CommitPolicy.OnAnyResult, fixture.UnitOfWork.LastPolicy);
         Assert.True(fixture.CodeConsumedAtCommit);
         Assert.Null((await fixture.Accounts.FindByIdAsync(requester.Id, Ct))!.Email);

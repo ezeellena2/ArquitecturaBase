@@ -107,9 +107,8 @@ internal sealed class ProfileEmailLinker(
         // la pide: lo confirma el código.
         await userRepository.LockAsync(user.Id, cancellationToken);
 
-        // El índice único conserva también los correos de cuentas borradas.
-        var owner = await users.FindByEmailAsync(email, cancellationToken);
-        if (owner is null ? await users.ExistsDeletedByEmailAsync(email, cancellationToken) : owner.Id != user.Id)
+        // El pedido del código ya lo miró (O28), pero otra cuenta pudo tomarlo después.
+        if (await IsTakenAsync(user.Id, email, cancellationToken))
         {
             return UserErrors.AlreadyExists;
         }
@@ -125,6 +124,17 @@ internal sealed class ProfileEmailLinker(
         }
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// El correo es de otra cuenta, activa o borrada: el índice único conserva también los correos de cuentas borradas. El
+    /// propio sin verificar (lo cargó un administrador) no cuenta.
+    /// </summary>
+    public async Task<bool> IsTakenAsync(Guid userId, Email email, CancellationToken cancellationToken)
+    {
+        var owner = await users.FindByEmailAsync(email, cancellationToken);
+
+        return owner is null ? await users.ExistsDeletedByEmailAsync(email, cancellationToken) : owner.Id != userId;
     }
 
     private static PhoneNumber? VerifiedPhoneOf(UserAccount user) =>

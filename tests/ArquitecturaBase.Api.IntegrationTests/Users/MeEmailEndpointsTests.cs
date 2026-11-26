@@ -18,8 +18,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.Users;
 
 /// <summary>
 /// Agregar un correo desde el perfil (sección 12 del spec del ingreso con WhatsApp): las mismas reglas que vincular el
-/// número, con el código por correo. "Ya existe una cuenta con ese correo" se dice recién después de un código
-/// correcto. Los correos quedan en <see cref="ApiFactory.EmailSender"/>.
+/// número, con el código por correo. "Ya existe una cuenta con ese correo" se dice al pedir el código (O28, 2026-11-25), y
+/// otra vez después de un código correcto si otra cuenta lo tomó en el medio. Los correos quedan en
+/// <see cref="ApiFactory.EmailSender"/>.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class MeEmailEndpointsTests(ApiFactory factory)
@@ -100,39 +101,47 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
         Assert.Equal(0, factory.EmailSender.CountFor(other));
     }
 
-    [Fact]
-    public async Task Asking_for_the_email_of_another_account_answers_the_same_202_and_sends_the_code_the_same()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Asking_for_the_email_of_another_account_answers_409_on_the_email_field_and_sends_no_code(bool deleted)
     {
+        // O28 (decisión del 2026-11-25): se dice antes de mandar el código, aunque así se pueda averiguar si un correo
+        // tiene cuenta.
         using var client = factory.CreateClient();
-        var taken = TestEmails.Unique("tomado");
-        var free = TestEmails.Unique("libre");
-        await CreateAccountAsync(email: taken);
+        var taken = TestEmails.Unique(deleted ? "borrado" : "tomado");
+        var owner = await CreateAccountAsync(email: taken);
+        if (deleted)
+        {
+            await factory.InTransactionAsync(async services =>
+            {
+                await services.GetRequiredService<IUserRepository>().DeleteAsync(owner.Id, Ct);
+            });
+        }
+
         var requester = await CreateAccountAsync(phone: TestPhones.Unique());
 
-        using var takenResponse = await AskCodeAsync(client, requester, taken);
-        using var freeResponse = await AskCodeAsync(client, requester, free);
-        var takenMessage = await factory.EmailSender.WaitForAsync(taken);
-        var freeMessage = await factory.EmailSender.WaitForAsync(free);
+        using var response = await AskCodeAsync(client, requester, taken, language: "es");
+        var problem = await response.ReadJsonAsync();
 
-        // Nada distingue al correo que ya tiene cuenta: la respuesta, el código y el envío son los mismos.
-        Assert.Equal(HttpStatusCode.Accepted, takenResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.Accepted, freeResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(UserErrors.AlreadyExistsCode, problem.GetProperty("code").GetString());
         Assert.Equal(
-            (await freeResponse.ReadJsonAsync()).GetRawText(),
-            (await takenResponse.ReadJsonAsync()).GetRawText());
-        Assert.Equal(
-            freeMessage.Subject.Replace(CapturingEmailSender.CodeOf(freeMessage), "{code}", StringComparison.Ordinal),
-            takenMessage.Subject.Replace(CapturingEmailSender.CodeOf(takenMessage), "{code}", StringComparison.Ordinal));
+            ["Ya existe una cuenta con ese correo."],
+            problem.GetProperty("errors").GetProperty("email").EnumerateArray().Select(message => message.GetString()));
+        Assert.Equal(0, factory.EmailSender.CountFor(taken));
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(
+            stored => stored.Destination == taken && stored.RequestedByUserId == requester.Id, Ct)));
     }
 
     [Fact]
-    public async Task The_email_of_another_account_answers_409_only_after_the_right_code_and_the_code_is_spent()
+    public async Task An_email_taken_after_its_code_was_sent_answers_409_only_after_the_right_code_and_the_code_is_spent()
     {
         using var client = factory.CreateClient();
         var email = TestEmails.Unique("ajeno");
-        var owner = await CreateAccountAsync(email: email);
         var requester = await CreateAccountAsync(phone: TestPhones.Unique());
         var code = await RequestCodeAsync(client, requester, email);
+        var owner = await CreateAccountAsync(email: email);
 
         using var wrong = await ConfirmAsync(client, requester, email, WrongCodeFor(code), language: "es");
         using var right = await ConfirmAsync(client, requester, email, code, language: "es");
@@ -152,17 +161,17 @@ public sealed class MeEmailEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task The_email_of_a_deleted_account_also_answers_409_after_the_right_code()
+    public async Task The_email_of_an_account_deleted_after_the_code_was_sent_also_answers_409_after_the_right_code()
     {
         using var client = factory.CreateClient();
         var email = TestEmails.Unique("eliminado");
+        var requester = await CreateAccountAsync(phone: TestPhones.Unique());
+        var code = await RequestCodeAsync(client, requester, email);
         var deleted = await CreateAccountAsync(email: email);
         await factory.InTransactionAsync(async services =>
         {
             await services.GetRequiredService<IUserRepository>().DeleteAsync(deleted.Id, Ct);
         });
-        var requester = await CreateAccountAsync(phone: TestPhones.Unique());
-        var code = await RequestCodeAsync(client, requester, email);
 
         using var response = await ConfirmAsync(client, requester, email, code);
 

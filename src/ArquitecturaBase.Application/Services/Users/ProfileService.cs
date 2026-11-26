@@ -149,6 +149,14 @@ internal sealed class ProfileService(
             return UserErrors.EmailAlreadySet;
         }
 
+        // El correo de otra cuenta se dice acá, debajo del campo, antes de mandar ningún código (O28, decisión del
+        // 2026-11-25): así se puede averiguar si un correo tiene cuenta, un costo aceptado (identidad.md).
+        if (Email.Create(request.Email) is { IsSuccess: true } email
+            && await emailLinker.IsTakenAsync(user.Id, email.Value, cancellationToken))
+        {
+            return FieldErrors.OnWithMetadata(UserErrors.AlreadyExists, "email");
+        }
+
         return await issuer.RequestEmailCodeAsync(user, request, cancellationToken);
     }
 

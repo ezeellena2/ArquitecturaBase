@@ -40,7 +40,8 @@ public sealed class MeController(
     [HttpPost("email/code")]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]
     [ProducesResponseType<RequestEmailCodeResponse>(StatusCodes.Status202Accepted)]
-    // La cuenta ya tiene un correo verificado, que desde el perfil no se cambia.
+    // La cuenta ya tiene un correo verificado, que desde el perfil no se cambia, o el correo es de otra cuenta (en
+    // errors.email, antes de mandar el código).
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RequestEmailCode(
         [FromBody] RequestEmailCodeHttpRequest request,
@@ -51,7 +52,7 @@ public sealed class MeController(
     [HttpPut("email")]
     [EnableRateLimiting(RateLimitingExtensions.LoginVerifyPolicy)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    // El correo ya es de otra cuenta, y se dice recién después de un código correcto.
+    // Otra cuenta tomó el correo después de pedir el código: se dice después de un código correcto.
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ConfirmEmail(
         [FromBody] ConfirmEmailHttpRequest request,
