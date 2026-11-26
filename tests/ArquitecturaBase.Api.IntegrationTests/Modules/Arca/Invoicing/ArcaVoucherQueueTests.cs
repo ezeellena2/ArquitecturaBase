@@ -369,6 +369,9 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
     public async Task Issuing_with_todays_date_takes_the_date_of_the_last_voucher_when_it_is_later()
     {
         var ct = TestContext.Current.CancellationToken;
+        // The collection shares its clock and other tests move it ahead. Products cannot be dated in the next month
+        // (ArcaIssueDateWindow), so the voucher dated two days ahead, six days later, needs that much room left in the month.
+        if (Today.Day > 10) factory.Clock.Advance(TimeSpan.FromDays(DateTime.DaysInMonth(Today.Year, Today.Month) - Today.Day + 1));
         Arca();
         await ArcaVoucherScenario.ConnectAsync(factory, authority);
         try
