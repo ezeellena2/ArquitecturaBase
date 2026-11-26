@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -219,7 +220,7 @@ public sealed class AiAssistantUploadConcurrencyTests(ApiFactory factory)
         // Cut by the server on the clock, long before the client's own timeout of 100 seconds.
         Assert.True(cut.IsCompleted);
         await Assert.ThrowsAnyAsync<Exception>(() => cut);
-        await AssertFreeAsync(scenario.Client);
+        await AssertFreedSoonAsync(scenario.Client);
         using var accepted = await scenario.Client.PostAsync(Documents, Document(Pdf), Ct);
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
     }
@@ -230,6 +231,26 @@ public sealed class AiAssistantUploadConcurrencyTests(ApiFactory factory)
         using var response = await client.PostAsync(Documents, Document(Refused), Ct).WaitAsync(Soon, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("Ai.Assistant.AttachmentProtectedPdf", (await response.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+
+    // The server frees the slots of a cut upload as it finishes the request, a moment after the client sees the cut: with the machine
+    // busy, the next upload can still find them taken. They have to be free before Soon: a try every 250 ms is at most 60 tries, within
+    // the 100 sends of the scenario.
+    private static async Task AssertFreedSoonAsync(HttpClient client)
+    {
+        var waited = Stopwatch.StartNew();
+        while (true)
+        {
+            using var response = await client.PostAsync(Documents, Document(Refused), Ct).WaitAsync(Soon, Ct);
+            if (response.StatusCode != HttpStatusCode.TooManyRequests || waited.Elapsed > Soon)
+            {
+                Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+                Assert.Equal("Ai.Assistant.AttachmentProtectedPdf", (await response.ReadJsonAsync()).GetProperty("code").GetString());
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250), Ct);
+        }
     }
 
     private static async Task AssertWaitAsync(HttpResponseMessage response)

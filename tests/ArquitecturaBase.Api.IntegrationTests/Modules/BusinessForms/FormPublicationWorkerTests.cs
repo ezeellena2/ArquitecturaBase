@@ -98,8 +98,9 @@ public sealed class FormPublicationWorkerTests(ApiFactory factory)
 
         await host.Services.GetRequiredService<FormPublicationBackgroundService>().ProcessNextAsync(operationId, Ct);
 
-        var dispatch = Assert.Single(stopped, activity => activity.OperationName == "forms.publication");
-        Assert.Equal(operationId.ToString(), dispatch.GetTagItem("forms.publication.id"));
+        // The listener hears every host of the process, and other collections publish at the same time: the span is this operation's.
+        var dispatch = Assert.Single(stopped, activity => activity.OperationName == "forms.publication"
+            && Equals(activity.GetTagItem("forms.publication.id"), operationId.ToString()));
         // The server's span of the request continues the caller's trace; the worker continues that one.
         Assert.StartsWith($"00-{trace.ToHexString()}-", stored, StringComparison.Ordinal);
         Assert.Equal(trace, dispatch.TraceId);

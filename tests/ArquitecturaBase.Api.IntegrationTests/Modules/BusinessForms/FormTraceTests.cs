@@ -44,11 +44,10 @@ public sealed partial class FormDraftEndpointsTests
             await worker(runId);
         }
 
-        var dispatch = Assert.Single(stopped, activity => activity.OperationName == "forms.action");
+        var dispatch = Assert.Single(stopped, activity => IsRun(activity, runId));
         Assert.Equal(trace, dispatch.TraceId);
         Assert.Equal(parent!.Split('-')[2], dispatch.ParentSpanId.ToHexString());
         Assert.Equal("NotifyAuthor", dispatch.GetTagItem("forms.action.kind"));
-        Assert.Equal(runId.ToString(), dispatch.GetTagItem("forms.run.id"));
     }
 
     [Fact]
@@ -64,7 +63,7 @@ public sealed partial class FormDraftEndpointsTests
             Assert.Null(await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().Where(run => run.Id == runId)
                 .Select(run => run.TraceParent).SingleAsync(Ct)));
             await worker(runId);
-            var dispatch = Assert.Single(stopped, activity => activity.OperationName == "forms.action");
+            var dispatch = Assert.Single(stopped, activity => IsRun(activity, runId));
             Assert.Equal(default, dispatch.ParentSpanId);
         }
         finally
@@ -72,6 +71,10 @@ public sealed partial class FormDraftEndpointsTests
             Activity.Current = previous;
         }
     }
+
+    // The listener hears every host of the process, and other collections run actions at the same time: the span is this run's.
+    private static bool IsRun(Activity activity, Guid runId) =>
+        activity.OperationName == "forms.action" && Equals(activity.GetTagItem("forms.run.id"), runId.ToString());
 
     private static ActivityListener Listen(ConcurrentBag<Activity> stopped)
     {
