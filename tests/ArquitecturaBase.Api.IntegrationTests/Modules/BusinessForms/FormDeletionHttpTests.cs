@@ -266,11 +266,4 @@ public sealed partial class FormDraftEndpointsTests
         using var deleted = await DeleteDefinitionAsync(client, form.Id, 1);
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
     }
-
-    private static async Task<HttpResponseMessage> DeleteDefinitionAsync(HttpClient client, Guid definitionId, long expectedRevision)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Delete, $"/api/forms/definitions/{definitionId}")
-        { Content = JsonContent.Create(new { expectedRevision }) };
-        return await client.SendAsync(request, Ct);
-    }
 }

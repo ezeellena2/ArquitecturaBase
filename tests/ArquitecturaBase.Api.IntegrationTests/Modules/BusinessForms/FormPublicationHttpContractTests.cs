@@ -5,7 +5,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Publication_acceptance_returns_202_without_location_and_keeps_recovery_path_in_the_body()

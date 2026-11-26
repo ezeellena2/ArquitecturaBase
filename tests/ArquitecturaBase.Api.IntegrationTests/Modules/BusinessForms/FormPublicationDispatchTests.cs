@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Version_readers_execute_as_server_queries()

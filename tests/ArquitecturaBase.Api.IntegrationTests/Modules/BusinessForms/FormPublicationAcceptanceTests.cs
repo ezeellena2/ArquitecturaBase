@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json.Nodes;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
@@ -14,7 +13,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Accepted_publication_seals_fields_version_prefix_and_receipt_and_replays_after_edit_and_expiry()
@@ -172,20 +171,5 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.Conflict, another.StatusCode);
         Assert.Equal("Forms.Publication.InProgress", (await another.ReadJsonAsync()).GetProperty("code").GetString());
         Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormVersion>().CountAsync(x => x.DefinitionId == id, Ct)));
-    }
-
-    private Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> PublicationHost(TimeProvider? clock = null) =>
-        factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-        {
-            services.RemoveAll<IStructuredFormChannel>(); services.AddSingleton<IStructuredFormChannel, ReadyStructuredFormChannel>();
-            if (clock is not null) { services.RemoveAll<TimeProvider>(); services.AddSingleton(clock); }
-        }));
-    private static async Task<JsonObject> PublicationAttemptAsync(HttpClient client, Guid id, System.Text.Json.JsonElement saved)
-    {
-        using var check = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
-        Assert.Equal(HttpStatusCode.OK, check.StatusCode);
-        var checkedResult = await check.ReadJsonAsync(); Assert.True(checkedResult.GetProperty("canAccept").GetBoolean());
-        var attempt = CheckPayload(saved); attempt["requestId"] = Guid.NewGuid().ToString();
-        attempt["checkToken"] = checkedResult.GetProperty("checkToken").GetString(); return attempt;
     }
 }

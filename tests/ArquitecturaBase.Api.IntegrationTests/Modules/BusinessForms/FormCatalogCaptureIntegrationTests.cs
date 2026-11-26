@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task Catalog_capture_preserves_the_offer_after_rename_and_rejects_deactivation_without_numbering()

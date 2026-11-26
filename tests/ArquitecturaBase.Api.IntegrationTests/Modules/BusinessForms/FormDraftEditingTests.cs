@@ -1,41 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Domain.Authorization;
-using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed partial class FormDraftEndpointsTests
 {
-    private Task<HttpClient> AdminAsync() => OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage,
-        BusinessFormsPermissions.Publish, Permissions.Roles.Manage]);
-    private static JsonObject Payload(string name = "Draft") => new()
-    {
-        ["requestId"] = Guid.NewGuid().ToString(), ["name"] = new JsonObject { ["es"] = name, ["en"] = name }, ["prefix"] = "T" + Guid.NewGuid().ToString("N")[..10],
-        ["draft"] = new JsonObject { ["format"] = 1, ["culture"] = "es", ["submitLabel"] = new JsonObject { ["es"] = "Enviar", ["en"] = "Submit" },
-            ["fields"] = new JsonArray(new JsonObject { ["localId"] = "first", ["type"] = "shortText", ["label"] = new JsonObject { ["es"] = "Nombre", ["en"] = "Name" },
-                ["help"] = new JsonObject { ["es"] = "Tu nombre", ["en"] = "Your name" } }) },
-    };
-    private static async Task<JsonElement> CreateAsync(HttpClient client, JsonObject payload)
-    {
-        using var response = await client.PostAsJsonAsync("/api/forms/definitions", payload, Ct);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode); return await response.ReadJsonAsync();
-    }
-    private static JsonObject EditPayload(JsonElement saved)
-    {
-        var definition = saved.GetProperty("definition"); var payload = JsonNode.Parse(definition.GetRawText())!.AsObject();
-        payload.Remove("id"); payload.Remove("prefixLocked"); payload.Remove("revision");
-        payload["requestId"] = Guid.NewGuid().ToString(); payload["expectedRevision"] = definition.GetProperty("revision").GetInt64();
-        var fields = payload["draft"]!["fields"]!.AsArray();
-        for (var i = 0; i < fields.Count; i++)
-        {
-            fields[i]!["localId"] = "f" + i; fields[i]!.AsObject().Remove("key"); fields[i]!.AsObject().Remove("replacesFieldId");
-            if (fields[i]!["options"] is JsonArray options)
-                for (var j = 0; j < options.Count; j++) options[j]!["localId"] = "o" + j;
-        }
-        return payload;
-    }
     [Fact]
     public async Task Recovery_preserves_the_original_snapshot_after_later_saves_and_rejects_uuid_reuse()
     {

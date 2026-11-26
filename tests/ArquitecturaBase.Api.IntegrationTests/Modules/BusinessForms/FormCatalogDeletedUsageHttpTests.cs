@@ -6,7 +6,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task Catalog_usage_excludes_deleted_forms_but_keeps_deactivated_forms_and_counts_each_definition_once()

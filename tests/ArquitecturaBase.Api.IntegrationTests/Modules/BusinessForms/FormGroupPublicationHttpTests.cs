@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // Publishing the block of rows over HTTP: the empty block blocks, a maximum over the channel rows warns and the published
 // questions that entered the block come back in diff.movedToRows («Pasan al bloque»).
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Checking_a_block_of_rows_blocks_it_empty_warns_over_the_channel_rows_and_names_the_questions_that_enter_it()

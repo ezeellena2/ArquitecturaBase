@@ -16,7 +16,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Lost_completion_after_channel_acceptance_reconciles_when_publication_permission_is_revoked()

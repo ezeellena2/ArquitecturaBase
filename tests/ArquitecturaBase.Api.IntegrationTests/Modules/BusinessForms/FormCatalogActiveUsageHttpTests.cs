@@ -6,7 +6,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task Catalog_usage_keeps_the_active_version_when_the_draft_changes_its_catalog()

@@ -16,7 +16,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task A_pdf_uploaded_before_a_crash_survives_cleanup_without_metadata_and_reconciles_its_original_bytes()

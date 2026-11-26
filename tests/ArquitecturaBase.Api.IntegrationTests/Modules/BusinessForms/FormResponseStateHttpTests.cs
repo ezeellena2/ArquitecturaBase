@@ -14,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Theory]
     [InlineData("Received", "1")]

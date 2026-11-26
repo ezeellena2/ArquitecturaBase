@@ -5,6 +5,7 @@ Pruebas del módulo Formularios con HTTP, PostgreSQL, Redis, archivos, Excel y P
 ## Al modificar
 
 - Usar ApiFactory, PostgreSQL/Redis y scopes propios. Actores propios por escenario, sin subir cuotas ni quitar el rate limit para lograr verde.
+- Las pruebas HTTP del módulo son cuatro clases parciales por tema, cada una en su colección para que corran a la vez: `FormDraftEndpointsTests` (borradores, chequeo, baja, eliminación, retiro y biblioteca), `FormPublicationEndpointsTests` (publicación, vista previa y listado), `FormResponseEndpointsTests` (respuestas, catálogos, documentos, asistente y sugerencias) y `FormRuleEndpointsTests` (reglas, acciones y aprobaciones). Un archivo nuevo va a la clase de su tema; la ayuda que usan dos clases, a `FormEndpointsTestBase`.
 - La base de `ApiFactory` sale de `EnsureCreated`, que no instala lo que una migración agrega a mano en SQL: eso y los Up/Down/Up de las migraciones se prueban en una base propia migrada.
 - Las pruebas con DB y sus exportaciones se ejecutan sólo en el cierre conjunto; por corte se compilan y corren contratos puros.
 - Código sólo para pruebas en TestFeatures, sin proveedores externos.

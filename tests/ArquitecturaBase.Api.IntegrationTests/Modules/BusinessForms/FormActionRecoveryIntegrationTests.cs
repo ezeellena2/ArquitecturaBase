@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Fact]
     public async Task Two_hosts_reconcile_an_effect_after_a_crash_without_resending_and_then_release_the_dependency()
@@ -68,6 +68,4 @@ public sealed partial class FormDraftEndpointsTests
         Assert.True((await InActionScopeAsync(second.Services,scope=>scope.GetRequiredService<IFormActionDispatchService>().CompleteAsync(next,nextOutcome,Ct))).IsSuccess);
         Assert.Equal(2,channel.Messages.Count);
     }
-    private static async Task<T> InActionScopeAsync<T>(IServiceProvider services,Func<IServiceProvider,Task<T>> action)
-    {await using var scope=services.CreateAsyncScope();return await action(scope.ServiceProvider);}
 }

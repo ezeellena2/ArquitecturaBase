@@ -336,8 +336,6 @@ public sealed partial class FormDraftEndpointsTests
         Assert.StartsWith("RTP", second, StringComparison.Ordinal);
     }
 
-    private static object Add(Guid requestId, string prefix) => new { requestId, name = new { es = "Remito propio " + prefix }, prefix };
-
     // The saved questions as the draft's input: their identity as both local id and field id, and what the editor sends back.
     private static JsonArray Inputs(JsonElement fields) => new(fields.EnumerateArray().Select(field =>
     {

@@ -1,13 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task Suggestion_routes_require_only_suggestion_management_and_an_authenticated_session()
@@ -75,11 +74,5 @@ public sealed partial class FormDraftEndpointsTests
         using var save=await manager.PostAsJsonAsync(route,new{expectedRevision=0,suggestions=Array.Empty<object>()},Ct);Assert.Equal(HttpStatusCode.Conflict,save.StatusCode);
         using var unknown=await manager.PostAsJsonAsync(route,new{expectedRevision=0,suggestions=Array.Empty<object>(),workflow="inventado"},Ct);Assert.Equal(HttpStatusCode.BadRequest,unknown.StatusCode);
         Assert.Equal(0,await factory.ExecuteDbContextAsync(db=>db.Set<BusinessFormSuggestionSet>().CountAsync(value=>value.DefinitionId==id,Ct)));
-    }
-    private static async Task<(Guid Id,Guid VersionId,JsonElement Saved)> PublishSuggestionFormAsync(Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> host,HttpClient client,string name)
-    {
-        var saved=await CreateAsync(client,Payload(name));var id=saved.GetProperty("definition").GetProperty("id").GetGuid();var attempt=await PublicationAttemptAsync(client,id,saved);
-        using var accepted=await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publications",attempt,Ct);Assert.Equal(HttpStatusCode.Accepted,accepted.StatusCode);
-        var version=await CompletePublicationAsync(host,(await accepted.ReadJsonAsync()).GetProperty("operationId").GetGuid(),id);return(id,version,saved);
     }
 }

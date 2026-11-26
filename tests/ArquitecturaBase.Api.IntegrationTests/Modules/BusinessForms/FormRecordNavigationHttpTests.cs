@@ -2,13 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Theory]
     [InlineData("es")]
@@ -158,27 +157,5 @@ public sealed partial class FormDraftEndpointsTests
             $"/api/forms/definitions/{seeded.Id}/records/{seeded.RecordIds[0]}/navigation", new { sort }, Ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
-    }
-
-    private static async Task<JsonElement> ReadRecordNavigationAsync(HttpClient reader, Guid definitionId,
-        Guid recordId, object filter, string? captureName = null)
-    {
-        using var response = await reader.PostAsJsonAsync(
-            $"/api/forms/definitions/{definitionId}/records/{recordId}/navigation", filter, Ct);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        if (captureName is not null) await ResponseContractCapture.WriteAsync(response, captureName, Ct);
-        return await response.ReadJsonAsync();
-    }
-
-    private static void AssertRecordNavigation(JsonElement response, Guid recordId, Guid? previousId,
-        Guid? nextId, int position, int totalCount)
-    {
-        Assert.Equal(new[] { "nextId", "position", "previousId", "recordId", "totalCount" },
-            response.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
-        Assert.Equal(recordId, response.GetProperty("recordId").GetGuid());
-        Assert.Equal(previousId, response.GetProperty("previousId").ValueKind == JsonValueKind.Null ? (Guid?)null : response.GetProperty("previousId").GetGuid());
-        Assert.Equal(nextId, response.GetProperty("nextId").ValueKind == JsonValueKind.Null ? (Guid?)null : response.GetProperty("nextId").GetGuid());
-        Assert.Equal(position, response.GetProperty("position").GetInt32());
-        Assert.Equal(totalCount, response.GetProperty("totalCount").GetInt32());
     }
 }

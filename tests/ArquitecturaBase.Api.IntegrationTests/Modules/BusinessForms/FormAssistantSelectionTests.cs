@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task Assistant_discovery_uses_current_instructions_and_the_published_schema_without_capturing_a_response()

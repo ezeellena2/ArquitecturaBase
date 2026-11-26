@@ -303,28 +303,6 @@ public sealed partial class FormDraftEndpointsTests
     private static Guid DeactivationActorId(HttpClient client) =>
         Guid.Parse(client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
 
-    private static HttpClient DeactivationClient(WebApplicationFactory<Program> host, HttpClient actor, string culture)
-    {
-        var client = host.CreateClient();
-        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
-        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
-        return client;
-    }
-
-    private static object DeactivationSuggestion(Guid destinationId, Guid fieldId, bool isActive = true) => new
-    {
-        id = Guid.NewGuid(), destinationDefinitionId = destinationId, mode = "Always", when = (string?)null, isActive,
-        conditions = Array.Empty<object>(), mappings = new[] { new { source = new { kind = "RecordNumber" }, destinationFieldId = fieldId } }
-    };
-
-    private static async Task<JsonElement> SaveDeactivationSuggestionsAsync(HttpClient client, Guid definitionId,
-        long expectedRevision, params object[] suggestions)
-    {
-        using var saved = await client.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/suggestions", new { expectedRevision, suggestions }, Ct);
-        Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
-        return await saved.ReadJsonAsync();
-    }
-
     private static async Task<StructuredRecordCaptureResponse> CaptureDeactivationRecordAsync(WebApplicationFactory<Program> host,
         Guid definitionId, Guid versionId, string key, Guid recipientId, string culture)
     {

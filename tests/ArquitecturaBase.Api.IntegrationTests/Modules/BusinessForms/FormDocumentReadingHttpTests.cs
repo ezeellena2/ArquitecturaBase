@@ -22,7 +22,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // until the field is inactive or cannot be compared; only in the app documents are not read, so neither is checked nor sealed. A
 // capture or a correction with an account or a CUIT whose digits do not add up is rejected at its question, and «Cómo viene leyendo»
 // answers its numbers (examples only with «Ver respuestas»). The intact bodies go to forms-http/document-reading.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     private const string TransferReceipt = "forms.transfer-receipt";
 

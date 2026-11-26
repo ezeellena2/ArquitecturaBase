@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // «Completar con ARCA» (CA1): the catalog a registry completes, by its Key, says so and fills an option from a tax id, without saving.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task A_catalog_a_registry_completes_fills_an_option_from_its_tax_id_and_others_do_not_offer_it()

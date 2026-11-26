@@ -15,7 +15,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Fact]
     public async Task Workflow_routes_require_record_read_and_controls_also_require_rule_management()

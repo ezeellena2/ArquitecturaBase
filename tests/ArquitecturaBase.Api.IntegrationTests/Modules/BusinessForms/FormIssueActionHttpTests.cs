@@ -5,21 +5,18 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // The «IssueDocument» action with PostgreSQL and the worker run by hand: it is queued once, asked again on the schedule of its
 // issuer, keeps the result in the response and waits for a person with the permission of its issuer when it is in review.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Fact]
     public async Task An_issuance_is_queued_once_asked_again_when_its_issuer_says_and_its_result_stays_in_the_response()
@@ -574,73 +571,10 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal((HttpStatusCode.NotFound, FormEntryErrors.NoIssuance.Code), (none.StatusCode, (await none.ReadJsonAsync()).GetProperty("code").GetString()));
     }
 
-    private WebApplicationFactory<Program> IssuerHost(TestRecordIssuer issuer) => factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-    {
-        services.RemoveAll<IStructuredRecordIssuer>();
-        services.AddSingleton<IStructuredRecordIssuer>(issuer);
-    }));
-
-    private static HttpClient InHost(WebApplicationFactory<Program> host, HttpClient source)
-    {
-        var client = host.CreateClient();
-        foreach (var header in source.DefaultRequestHeaders)
-            client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
-        return client;
-    }
-
     private static async Task<System.Text.Json.JsonElement> WorkflowActionAsync(HttpClient client, Guid recordId)
     {
         using var workflow = await client.GetAsync($"/api/forms/records/{recordId}/workflow", Ct);
         Assert.Equal(HttpStatusCode.OK, workflow.StatusCode);
         return Assert.Single((await workflow.ReadJsonAsync()).GetProperty("actions").EnumerateArray());
-    }
-
-    // A form copied from the standard of the issuer (its first question, a decimal, holds «first») with an «IssueDocument» rule.
-    private async Task<(Guid DefinitionId, Guid VersionId, Guid FieldId)> SeedIssueFormAsync(HttpClient actorClient)
-    {
-        var sheet = await SeedSheetAsync(actorClient, 0);
-        return await factory.ExecuteDbContextAsync(async db =>
-        {
-            var definition = await db.Set<BusinessFormDefinition>().SingleAsync(item => item.Id == sheet.Id, Ct);
-            var version = await db.Set<BusinessFormVersion>().SingleAsync(item => item.Id == definition.ActiveVersionId, Ct);
-            definition.RecordStandard(TestRecordIssuer.Key, 1, FormDraftPolicy.Serialize(new Dictionary<string, Guid> { ["first"] = sheet.Fields[0].FieldId }));
-            var action = new FormRuleAction(Guid.NewGuid(), "IssueDocument", null, null, false, TestRecordIssuer.Key);
-            var rule = new FormRule(Guid.NewGuid(), "Received", [], [action]);
-            var ruleSet = BusinessFormRuleSet.Create(definition.Id, 1, "es", FormDraftPolicy.Serialize(new[] { rule }), false, version.SchemaJson);
-            db.Set<BusinessFormRuleSet>().Add(ruleSet);
-            await db.SaveChangesAsync(Ct);
-            definition.SetActiveRuleSetId(ruleSet.Id);
-            await db.SaveChangesAsync(Ct);
-            return (definition.Id, version.Id, sheet.Fields[0].FieldId);
-        });
-    }
-
-    private Task<BusinessFormActionRun> RunAsync(Guid runId) =>
-        factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().AsNoTracking().SingleAsync(run => run.Id == runId, Ct));
-
-    // A form copied from the issuer's standard, with an «IssueDocument» rule, a response and its run waiting.
-    // Loaded in the app by default (it was confirmed before sending); one from a channel waits for «¿La emito?».
-    private async Task<(Guid RecordId, Guid RunId)> SeedIssueRunAsync(HttpClient actorClient, bool enteredInApp = true)
-    {
-        var (definitionId, _, _) = await SeedIssueFormAsync(actorClient);
-        var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        return await factory.ExecuteDbContextAsync(async db =>
-        {
-            var definition = await db.Set<BusinessFormDefinition>().SingleAsync(item => item.Id == definitionId, Ct);
-            var version = await db.Set<BusinessFormVersion>().SingleAsync(item => item.Id == definition.ActiveVersionId, Ct);
-            var ruleSet = await db.Set<BusinessFormRuleSet>().SingleAsync(item => item.Id == definition.ActiveRuleSetId, Ct);
-            var rule = FormDraftPolicy.Read<FormRule[]>(ruleSet.RulesJson).Single();
-            var action = rule.Actions.Single();
-            var now = factory.Clock.GetUtcNow().UtcDateTime;
-            var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, Guid.NewGuid(), now, "[]", ruleSet.Id,
-                "es", enteredInApp);
-            db.Set<BusinessFormRecord>().Add(record);
-            db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-issue", record.Id, record.Number, now));
-            var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, rule.Id, action.Id, "Received", "IssueDocument", 0, null,
-                FormDraftPolicy.Serialize(new FormActionSnapshot(null, null, null, [], IssuerId: TestRecordIssuer.Key)), true, now);
-            db.Set<BusinessFormActionRun>().Add(run);
-            await db.SaveChangesAsync(Ct);
-            return (record.Id, run.Id);
-        });
     }
 }

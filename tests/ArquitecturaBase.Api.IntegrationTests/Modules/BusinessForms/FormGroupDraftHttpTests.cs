@@ -8,13 +8,6 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // The block of rows over HTTP (RG1-A, RG6-A): a "group" question and, right after it, its questions with "repeated".
 public sealed partial class FormDraftEndpointsTests
 {
-    private static JsonObject RowsBlock(int minimum = 1, int maximum = 20) => new()
-    {
-        ["localId"] = "articulos", ["type"] = "group", ["required"] = minimum > 0,
-        ["label"] = new JsonObject { ["es"] = "Artículos", ["en"] = "Items" },
-        ["rows"] = new JsonObject { ["minRows"] = minimum, ["maxRows"] = maximum },
-    };
-
     private static JsonObject RowQuestion(string localId, string type, string spanish, string english) => new()
     {
         ["localId"] = localId, ["type"] = type, ["repeated"] = true,

@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // «Emitir» with a customer written by its tax id, with PostgreSQL and the worker run by hand: the party the issuer completed
 // when it queued joins the catalog its standard brings, once, with its fields and a new revision; a name longer than the text
 // of an option is kept whole in its text field.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task A_customer_written_by_its_tax_id_joins_the_catalog_of_its_standard_once_when_it_is_issued()

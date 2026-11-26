@@ -3,15 +3,13 @@ using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.BusinessForms.Models;
-using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Fact]
     public async Task Approval_routes_require_decide_and_an_authenticated_session_without_record_read()
@@ -229,31 +227,5 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(FormApprovalErrors.ReasonRequired.Code, problem.GetProperty("code").GetString());
         Assert.True(problem.GetProperty("errors").TryGetProperty("reason", out _));
         Assert.Equal(FormTaskState.Open, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormTask>().Where(value => value.Id == seeded.TaskId).Select(value => value.State).SingleAsync(Ct)));
-    }
-
-    private async Task<(Guid TaskId, Guid RecordId, Guid DefinitionId, Guid RuleSetId, Guid DeciderId)> SeedApprovalAsync(HttpClient author, HttpClient decider, int hour, TimeSpan? approvalDelay = null, string? originalCulture = null, bool secondaryButtonMissing = false,
-        bool authorMayDecide = false, bool reasonOptional = false)
-    {
-        var sheet = await SeedSheetCoreAsync(author, 0, null, [], originalCulture, secondaryButtonMissing);
-        var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var deciderId = Guid.Parse(decider.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        return await factory.ExecuteDbContextAsync(async db =>
-        {
-            var roleId = await db.UserRoles.Where(link => link.UserId == deciderId).Select(link => link.RoleId).SingleAsync(Ct);
-            var definition = await db.Set<BusinessFormDefinition>().SingleAsync(value => value.Id == sheet.Id, Ct);
-            var version = await db.Set<BusinessFormVersion>().SingleAsync(value => value.Id == definition.ActiveVersionId, Ct);
-            var approval = new FormRuleAction(Guid.NewGuid(), "RequestApproval", roleId, null, false, AuthorMayDecide: authorMayDecide, ReasonOptional: reasonOptional);
-            var received = new FormRule(Guid.NewGuid(), "Received", [], [approval]);
-            var notify = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null, new Dictionary<string, string> { { version.Culture!, version.Culture == "en" ? "Response {número}: {motivo}" : "Respuesta {número}: {motivo}" } }, false);
-            var rules = new[] { received, new FormRule(Guid.NewGuid(), "Approved", [], [notify]), new FormRule(Guid.NewGuid(), "Rejected", [], [notify with { Id = Guid.NewGuid() }]) };
-            var ruleSet = BusinessFormRuleSet.Create(definition.Id, 1, version.Culture!, FormDraftPolicy.Serialize(rules), true, version.SchemaJson); db.Set<BusinessFormRuleSet>().Add(ruleSet); await db.SaveChangesAsync(Ct); definition.SetActiveRuleSetId(ruleSet.Id);
-            var at = new DateTime(2026, 10, 16, hour, 0, 0, DateTimeKind.Utc);
-            var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), authorId, Guid.NewGuid(), at, "[]", ruleSet.Id); record.MarkPendingApproval(); db.Set<BusinessFormRecord>().Add(record);
-            db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-approval", record.Id, record.Number, at));
-            var config = new FormActionSnapshot(approval.RoleId, null, null, [], ApprovalAuthorMayDecide: authorMayDecide, ApprovalReasonOptional: reasonOptional);
-            var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, received.Id, approval.Id, "Received", "RequestApproval", 0, null, FormDraftPolicy.Serialize(config), true, at); db.Set<BusinessFormActionRun>().Add(run);
-            var task = BusinessFormTask.Open(definition.Id, record.Id, ruleSet.Id, run.Id, roleId, authorId, at.Add(approvalDelay ?? TimeSpan.Zero), authorMayDecide, reasonOptional); db.Set<BusinessFormTask>().Add(task); await db.SaveChangesAsync(Ct);
-            return (task.Id, record.Id, definition.Id, ruleSet.Id, deciderId);
-        });
     }
 }

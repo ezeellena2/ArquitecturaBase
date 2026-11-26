@@ -9,7 +9,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Fact]
     public async Task Rule_conditions_and_sheet_SQL_agree_for_accents_literal_patterns_typed_values_and_historical_presence()

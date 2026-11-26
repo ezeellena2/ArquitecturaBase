@@ -13,7 +13,7 @@ using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Fact]
     public async Task A_notice_that_cites_the_answer_of_a_question_also_needs_to_view_responses_and_one_without_data_does_not()

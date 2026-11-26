@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers;
 using ArquitecturaBase.Application.Models.StructuredData;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     // F2 (ARCA H11): an action that stopped its rule comes back to the worker until whoever loaded the response is told, once.
     [Fact]

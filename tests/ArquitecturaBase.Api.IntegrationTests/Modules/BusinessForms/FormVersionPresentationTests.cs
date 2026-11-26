@@ -11,7 +11,7 @@ using ArquitecturaBase.Infrastructure.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Repeated_module_registration_keeps_one_technical_presentation_seed_participant()

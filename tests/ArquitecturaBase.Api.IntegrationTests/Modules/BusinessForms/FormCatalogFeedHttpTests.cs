@@ -16,7 +16,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // An External catalog with PostgreSQL and the worker run by hand: it is created only when its source answers, in its system
 // folder; it is not read again until the next day; what stops coming is deactivated; a failure keeps what it had and says why;
 // and nobody edits it by hand.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task A_fed_catalog_is_created_when_its_source_answers_and_then_refreshes_once_a_day()

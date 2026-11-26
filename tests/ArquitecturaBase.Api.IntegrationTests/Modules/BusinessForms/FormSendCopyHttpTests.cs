@@ -20,7 +20,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // «SendCopy» with PostgreSQL, the worker run by hand and the app's durable mail queue: after the issuance, the copy goes by email to
 // the receiver its issuer reads from the response, with the fiscal PDF attached and the datum of the result in its text; without a
 // receiver it does not apply and nothing is queued.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task A_copy_goes_by_the_mail_queue_to_the_receiver_of_the_issuance_with_its_pdf_and_without_one_it_does_not_apply()

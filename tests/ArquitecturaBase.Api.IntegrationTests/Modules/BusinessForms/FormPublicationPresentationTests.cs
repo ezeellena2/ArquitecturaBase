@@ -12,7 +12,7 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Reload_recovers_publication_state_and_discloses_an_open_request_only_to_whoever_can_publish()

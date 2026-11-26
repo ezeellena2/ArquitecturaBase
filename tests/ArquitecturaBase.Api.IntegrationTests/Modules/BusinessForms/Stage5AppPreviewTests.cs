@@ -25,7 +25,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Serve_stage_five_app_with_one_real_database_private_documents_and_controlled_channels()

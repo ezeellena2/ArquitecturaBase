@@ -2,17 +2,15 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task Real_capture_keeps_the_items_of_a_block_and_replays_the_item_of_a_retired_option()
@@ -97,29 +95,5 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(1, rejected.RejectedRow);
         Assert.Equal(rejected, replay);
         Assert.Equal(rejected, await replayScope.ServiceProvider.GetRequiredService<IStructuredRecordSink>().FindExistingReceiptAsync(rejectedRequest, Ct));
-    }
-
-    private async Task<(Guid DefinitionId, Guid VersionId)> SeedVersionAsync(Guid actor, IReadOnlyList<CanonicalFormField> fields)
-    {
-        var definition = BusinessFormDefinition.Create();
-        Assert.True(definition.SetDraft(1, "Renglones", "{\"es\":\"Renglones\",\"en\":\"Rows\"}", "G" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(), "es",
-            "{\"es\":\"Enviar\",\"en\":\"Submit\"}", JsonSerializer.Serialize(new FormQuestionSchema(1, fields), SerializerOptions),
-            fields.Count(field => field.Type != "group"), true).IsSuccess);
-        var version = BusinessFormVersion.Create(definition.Id, 1, new string('a', 64));
-        version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, fields), SerializerOptions));
-        version.SealPresentation("{\"es\":\"Renglones\",\"en\":\"Rows\"}", "{\"es\":\"Enviar\",\"en\":\"Submit\"}", "es", fields.Count(field => field.Type != "group"));
-        var operation = FormPublishedVersionFixture.Create(factory, definition, version, actor, ["es", "en"]);
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            db.Set<BusinessFormDefinition>().Add(definition);
-            foreach (var field in fields) db.Set<BusinessFormField>().Add(BusinessFormField.Register(field.FieldId, definition.Id, field.Key, field.Type));
-            await db.SaveChangesAsync(Ct);
-            db.Set<BusinessFormVersion>().Add(version);
-            db.Set<BusinessFormPublicationOperation>().Add(operation);
-            await db.SaveChangesAsync(Ct);
-            Assert.True(definition.ActivateVersion(null, version.Id).IsSuccess);
-            await db.SaveChangesAsync(Ct);
-        });
-        return (definition.Id, version.Id);
     }
 }

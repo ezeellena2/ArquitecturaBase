@@ -6,10 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
+/// <summary>Borradores y chequeo, baja, eliminación, retiro y biblioteca. La ayuda común está en <see cref="FormEndpointsTestBase"/>.</summary>
 [Collection(ApiTestGroup.Name)]
-public sealed partial class FormDraftEndpointsTests(ApiFactory factory)
+public sealed partial class FormDraftEndpointsTests(ApiFactory factory) : FormEndpointsTestBase
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    private protected override ApiFactory Factory => factory;
 
     [Fact]
     public async Task Complete_creation_replays_the_same_snapshot_and_identity_map_across_hosts()

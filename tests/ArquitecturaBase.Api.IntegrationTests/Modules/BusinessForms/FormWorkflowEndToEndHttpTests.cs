@@ -25,7 +25,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Theory]
     [InlineData(false, false, false, "en")]

@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // F2, «Por resolver»: a response has actions to resolve while one of them failed or is in doubt waiting for a person. Every reader of
 // the sheet sees the mark and can filter by it; only whoever manages rules and sees every response gets the count.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task The_sheet_marks_filters_and_counts_the_responses_with_actions_to_resolve()

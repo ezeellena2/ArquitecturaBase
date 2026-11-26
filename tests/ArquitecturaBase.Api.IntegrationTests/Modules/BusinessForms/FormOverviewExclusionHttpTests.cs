@@ -13,7 +13,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Overview_excludes_an_unpublished_draft_from_rows_and_facets()

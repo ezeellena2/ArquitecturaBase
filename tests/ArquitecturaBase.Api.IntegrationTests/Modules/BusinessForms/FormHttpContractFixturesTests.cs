@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -12,7 +11,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     // Optional export contains raw API response bodies for the SPA contract tests, not reconstructed DTOs.
     // Only synthetic actors/content are used. Check tickets, request headers and preview URLs are never exported.
@@ -99,22 +98,5 @@ public sealed partial class FormDraftEndpointsTests
         var checkedNext = await CaptureContractAsync(nextCheck, HttpStatusCode.OK, scenario, "check-next-unavailable");
         Assert.False(checkedNext.GetProperty("canAccept").GetBoolean());
         Assert.Equal(2, checkedNext.GetProperty("nextVersionNumber").GetInt64());
-    }
-
-    private static async Task<JsonElement> CaptureContractAsync(HttpResponseMessage response, HttpStatusCode expected, string scenario, string name)
-    {
-        Assert.Equal(expected, response.StatusCode);
-        var body = await response.Content.ReadAsByteArrayAsync(Ct);
-        using var parsed = JsonDocument.Parse(body);
-        var json = parsed.RootElement.Clone();
-        Assert.True(!json.TryGetProperty("checkToken", out var ticket) || ticket.ValueKind == JsonValueKind.Null);
-        var output = Environment.GetEnvironmentVariable("FORMS_HTTP_CONTRACT_OUTPUT");
-        if (!string.IsNullOrWhiteSpace(output))
-        {
-            var directory = Path.Combine(output, scenario);
-            Directory.CreateDirectory(directory);
-            await File.WriteAllBytesAsync(Path.Combine(directory, name + ".json"), body, Ct);
-        }
-        return json;
     }
 }

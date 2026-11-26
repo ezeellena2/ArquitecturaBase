@@ -5,7 +5,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     // OT1-C: «Diseñar formularios» sorts in PostgreSQL by every column with a datum. A form never published has no active version
     // and a form nobody changed in the app has no author: both go last in both directions. Equal values keep the usual order of

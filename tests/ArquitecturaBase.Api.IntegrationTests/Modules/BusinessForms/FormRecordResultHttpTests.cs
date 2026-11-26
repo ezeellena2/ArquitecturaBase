@@ -14,7 +14,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // RE1-A with PostgreSQL: the result of an external action is kept once per run in the response, sealed with its names, and the
 // detail and the sheet show it in the display language; a second result for the same run is refused by the unique index. The
 // Excel of «Solo las visibles» takes only the result data the request names.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Fact]
     public async Task The_result_of_an_external_action_is_kept_once_per_run_and_read_in_the_detail_and_the_sheet()

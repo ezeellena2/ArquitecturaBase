@@ -2,10 +2,8 @@ using System.Text.Json.Nodes;
 using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
-using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
-using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,18 +13,6 @@ using Npgsql;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed partial class FormDraftEndpointsTests
 {
-    private async Task<HttpClient> OperatorAsync(IReadOnlyCollection<string> codes, string? displayName = null)
-    {
-        var actor = await factory.InTransactionAsync(async services =>
-        {
-            var roles = services.GetRequiredService<IRoleRepository>(); var name = "forms-" + Guid.NewGuid().ToString("N");
-            await roles.CreateAsync(name, null, codes, Ct);
-            var users = services.GetRequiredService<IUserRepository>();
-            var user = await users.CreateAsync(Email.Create(TestEmails.Unique("forms-operator")).Value, null, false, displayName, "es", Ct);
-            await users.SetRolesAsync(user.Id, [name], Ct); return user.Id;
-        });
-        var client = factory.CreateClient(); client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.ToString()); return client;
-    }
     [Fact]
     public async Task Read_and_manage_permissions_and_own_attempt_isolation_are_enforced()
     {

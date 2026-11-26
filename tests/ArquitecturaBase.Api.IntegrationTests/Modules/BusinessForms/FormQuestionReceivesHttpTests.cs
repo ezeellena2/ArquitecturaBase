@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // It comes back in the draft and the detail, the app's WhatsApp channel checks the form without an issue, the publication snapshot
 // carries it to the channel and the version seals it; a question without it keeps its bytes. A question that cannot receive it is
 // refused at its path with its text. The intact draft and detail go to forms-http/location-contact.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     private static JsonObject ReceivingQuestion(string localId, string type, string spanish, string english, string? receives = null)
     {
@@ -117,8 +117,4 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(onlyText, errors.GetProperty("draft.fields[7].receives")[0].GetString());
         Assert.Equal(onlyText, errors.GetProperty("draft.fields[8].receives")[0].GetString());
     }
-
-    // What each question receives, null where the key is absent; a key with a null value would not be the same bytes.
-    private static string?[] Received(JsonElement questions) => questions.EnumerateArray()
-        .Select(question => question.TryGetProperty("receives", out var receives) ? receives.GetString() ?? "null" : null).ToArray();
 }

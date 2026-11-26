@@ -12,7 +12,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task Response_routes_require_record_read_instead_of_template_read()
@@ -475,12 +475,6 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("TABCDEFAB", prefix);
     }
 
-    private Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, params CanonicalFormField[] extra) =>
-        SeedSheetAsync(reader, count, null, extra);
-
-    private Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetAsync(HttpClient reader, int count, Guid? prefixIdentity, params CanonicalFormField[] extra) =>
-        SeedSheetCoreAsync(reader, count, prefixIdentity, extra);
-
     // OT1-C: a result column sorts the sheet by the latest value of its datum, a number as a number (9 before 12); a response without
     // results goes last also in a DESC, the navigation follows that order and a result sort without its column is a bad request.
     [Fact]
@@ -520,57 +514,5 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(seeded.RecordIds[2], neighbors.GetProperty("nextId").GetGuid());
         using var missing = await reader.PostAsJsonAsync(path + "/search", new { sort = "result" }, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
-    }
-    private async Task<(Guid Id, string Prefix, CanonicalFormField[] Fields, IReadOnlyList<Guid> RecordIds)> SeedSheetCoreAsync(HttpClient reader, int count, Guid? prefixIdentity, CanonicalFormField[] extra, string? onlyCulture = null, bool secondaryButtonMissing = false)
-    {
-        var actor = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var prefix = "T" + (prefixIdentity ?? Guid.NewGuid()).ToString("N")[..8].ToUpperInvariant();
-        var fields = new[] { Field("decimal", false), Field("longText", false), Field("boolean", false), Field("date", false) };
-        if (extra.Length != 0) fields = [..fields, ..extra];
-        var definition = BusinessFormDefinition.Create();
-        var version = BusinessFormVersion.Create(definition.Id, 1, "test-sheet");
-        var culture = onlyCulture ?? "es";
-        var names = new Dictionary<string, string> { ["es"] = prefix + " Planilla", ["en"] = prefix + " Sheet" };
-        var buttons = new Dictionary<string, string> { ["es"] = "Enviar", ["en"] = "Submit" };
-        if (onlyCulture is not null && !secondaryButtonMissing)
-        {
-            names = names.Where(pair => pair.Key == culture).ToDictionary(pair => pair.Key, pair => pair.Value);
-            buttons = buttons.Where(pair => pair.Key == culture).ToDictionary(pair => pair.Key, pair => pair.Value);
-            fields = fields.Select(field => field with
-            {
-                Label = new Dictionary<string, string> { [culture] = field.Label[culture] }
-            }).ToArray();
-        }
-        if (secondaryButtonMissing) buttons = new Dictionary<string, string> { [culture] = buttons[culture] };
-        var name = JsonSerializer.Serialize(names);
-        var submit = JsonSerializer.Serialize(buttons);
-        Assert.True(definition.SetDraft(1, names[culture], name, prefix, culture, submit, JsonSerializer.Serialize(new FormQuestionSchema(1, fields), SerializerOptions), fields.Length, true).IsSuccess);
-        version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, fields), SerializerOptions));
-        version.SealPresentation(name, submit, culture, fields.Length);
-        var ids = new List<Guid>();
-        await factory.ExecuteDbContextAsync(async db =>
-        {
-            db.Set<BusinessFormDefinition>().Add(definition);
-            foreach (var field in fields) db.Set<BusinessFormField>().Add(BusinessFormField.Register(field.FieldId, definition.Id, field.Key, field.Type));
-            await db.SaveChangesAsync(Ct);
-            db.Set<BusinessFormVersion>().Add(version);
-            db.Set<BusinessFormPublicationOperation>().Add(FormPublishedVersionFixture.Create(factory, definition, version, actor, onlyCulture is null ? ["es", "en"] : [culture]));
-            Assert.True(definition.ActivateVersion(null, version.Id).IsSuccess); await db.SaveChangesAsync(Ct);
-            var now = DateTime.SpecifyKind(new DateTime(2026, 10, 16, 12, 0, 0), DateTimeKind.Utc);
-            for (var index = 0; index < count; index++)
-            {
-                var receiptId = Guid.NewGuid();
-                var values = JsonSerializer.Serialize(new object[] { new { fieldId = fields[0].FieldId, value = index }, new { fieldId = fields[1].FieldId, value = "private " + index.ToString(System.Globalization.CultureInfo.InvariantCulture) }, new { fieldId = fields[2].FieldId, value = index % 2 == 0 }, new { fieldId = fields[3].FieldId, value = "2026-10-16" } }, SerializerOptions);
-                var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, receiptId, now, values);
-                db.Set<BusinessFormRecord>().Add(record); ids.Add(record.Id);
-                db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(receiptId, definition.Id, version.Id, "test", record.Id, record.Number, now));
-                db.Set<BusinessFormRecordValue>().AddRange(BusinessFormRecordValue.Create(record.Id, definition.Id, fields[0].FieldId, "decimal", decimalValue: index),
-                    BusinessFormRecordValue.Create(record.Id, definition.Id, fields[1].FieldId, "longText", textValue: "private " + index.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                    BusinessFormRecordValue.Create(record.Id, definition.Id, fields[2].FieldId, "boolean", booleanValue: index % 2 == 0),
-                    BusinessFormRecordValue.Create(record.Id, definition.Id, fields[3].FieldId, "date", dateValue: new DateOnly(2026, 10, 16)));
-            }
-            await db.SaveChangesAsync(Ct);
-        });
-        return (definition.Id, prefix, fields, ids);
     }
 }

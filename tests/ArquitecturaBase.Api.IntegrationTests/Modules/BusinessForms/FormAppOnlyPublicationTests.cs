@@ -19,7 +19,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // SA1-A to SA5 (2026-11-09): a form completed only in the app publishes at once, without asking a channel, and the
 // channels do not offer it. What existed keeps its exact responses: the new values are omitted unless they are true.
 // Its intact bodies go to forms-http/app-only for the front; the check is not exported because it carries a ticket.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task A_form_completed_only_in_the_app_publishes_at_once_and_the_channels_do_not_offer_it()

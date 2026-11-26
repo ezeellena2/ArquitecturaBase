@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
     [Fact]
     public async Task Suggested_capture_keeps_real_lineage_mapping_changes_and_historical_mode_in_postgres_and_http()

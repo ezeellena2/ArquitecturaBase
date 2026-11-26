@@ -10,10 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormResponseEndpointsTests
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
-
     [Fact]
     public async Task Real_capture_is_typed_idempotent_and_readable_from_postgres()
     {
@@ -104,13 +102,5 @@ public sealed partial class FormDraftEndpointsTests
             db.Set<BusinessFormRecordValue>().Add(BusinessFormRecordValue.Create(record.Id, definitionId, Guid.NewGuid(), "shortText", "x"));
             await db.SaveChangesAsync(Ct);
         }));
-    }
-
-    private static CanonicalFormField Field(string type, bool required, IReadOnlyList<CanonicalFormChoice>? options = null)
-    {
-        var id = Guid.NewGuid();
-        return new(id, "field_" + id.ToString("N"), type,
-            new Dictionary<string, string> { ["es"] = type, ["en"] = type }, null, required,
-            type == "shortText" ? 80 : type == "longText" ? 600 : null, options);
     }
 }

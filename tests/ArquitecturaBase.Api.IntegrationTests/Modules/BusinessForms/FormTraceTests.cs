@@ -20,7 +20,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // F18: an action run keeps the trace context where it was created and its worker continues it, so a response can be followed from the
 // capture to the notice; without a trace in progress the run keeps none and the worker starts its own.
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     private static readonly ActivitySource TestSource = new("ArquitecturaBase.Tests.FormTrace");
 

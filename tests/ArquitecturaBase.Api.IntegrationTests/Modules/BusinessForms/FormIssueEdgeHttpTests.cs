@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // «¿La emito?» at the HTTP edge: confirming needs a session and «Ver respuestas» or «Completar formularios» (whoever loaded the
 // response decides, also with only the second), and the issue preview of a load needs «Completar formularios».
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormRuleEndpointsTests
 {
     [Fact]
     public async Task Confirming_an_issuance_and_previewing_one_need_a_session_and_their_permissions()

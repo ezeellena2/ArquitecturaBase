@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
-public sealed partial class FormDraftEndpointsTests
+public sealed partial class FormPublicationEndpointsTests
 {
     [Fact]
     public async Task Accepted_session_can_resolve_its_published_version_after_a_newer_version_becomes_active()
@@ -51,18 +51,6 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Historical accepted form", accepted.Name["es"]);
         Assert.Null(await source.FindAcceptedSessionAsync(Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single()),
             "es", definitionId, firstVersionId, Ct));
-    }
-
-    private static async Task<Guid> CompletePublicationAsync(Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> host,
-        Guid operationId, Guid definitionId)
-    {
-        using var scope = host.Services.CreateScope();
-        var dispatch = scope.ServiceProvider.GetRequiredService<IFormPublicationDispatchService>();
-        var work = (await dispatch.ReserveAsync(operationId, Ct)).Value!;
-        var published = new StructuredFormPublicationResponse(work.OperationId, definitionId, work.VersionId,
-            work.Manifest.PublicationFingerprint, "Published", "Verify", [], null, false);
-        Assert.True((await dispatch.CompleteAsync(work, [new("test", published)], Ct)).IsSuccess);
-        return work.VersionId;
     }
 
     [Fact]
