@@ -40,7 +40,7 @@ jobs:
           TARGET_ENVIRONMENT: ${{ inputs.environment }}
           REQUESTED_RUN: ${{ inputs.package-run-id }}
         run: |
-          [[ "$TARGET_ENVIRONMENT" =~ ^prod-[a-z][a-z0-9]{1,8}$ ]] ||
+          [[ "$TARGET_ENVIRONMENT" =~ ^prod-[a-z][a-z0-9]{1,11}$ ]] ||
             { echo "::error::El environment de un cliente es prod-<cliente>, como lo crea provision-azure.sh."; exit 1; }
           run_id=$REQUESTED_RUN
           if [[ -z "$run_id" ]]; then

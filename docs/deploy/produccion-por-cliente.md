@@ -19,7 +19,7 @@ los mensajes de WhatsApp que cobre Meta. El script deja un presupuesto mensual d
 
 | Dato | Para qué |
 |---|---|
-| Nombre corto, de 2 a 9 minúsculas y dígitos (por ejemplo `ocha`) | Los nombres de los recursos y el environment `prod-<cliente>` |
+| Nombre corto, de 2 a 12 minúsculas y dígitos (por ejemplo `clementina`) | Los nombres de los recursos y el environment `prod-<cliente>` |
 | Subdominio (por ejemplo `ocha.midominio.com`) | El origen público; opcional al principio |
 | Correo del administrador del cliente | `SEED_ADMIN_EMAIL`: la única cuenta que se puede crear al empezar (InviteOnly); desde ahí invita al resto |
 | Cuenta SMTP | Por defecto la Gmail del titular; con varias instalaciones comparte el cupo de unos 500 por día, y conviene `EMAIL_DAILY_LIMIT` (más de 50, por la reserva de invitaciones) |
@@ -37,8 +37,14 @@ AZURE_SUBSCRIPTION_ID=<id> GITHUB_REPOSITORY=ezeellena2/ArquitecturaBase \
 SEED_ADMIN_EMAIL=admin@cliente.com SMTP_USERNAME=... SMTP_PASSWORD=... SMTP_FROM_ADDRESS=... EMAIL_DAILY_LIMIT=150 \
 WHATSAPP_PHONE_NUMBER_ID=... WHATSAPP_ACCESS_TOKEN=... WHATSAPP_APP_SECRET=... WHATSAPP_VERIFY_TOKEN=... \
 WHATSAPP_WABA_ID=... WHATSAPP_DISPLAY_PHONE_NUMBER=... WHATSAPP_SEND_ARGENTINE_MOBILES_WITHOUT_NINE=true \
+GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... GOOGLE_PLACES_API_KEY=... EXTRA_SETTINGS_FILE=ia-perfiles.txt \
 LOCATION=centralus bash docs/deploy/provision-azure.sh
 ```
+
+`EXTRA_SETTINGS_FILE` lleva una configuración no secreta por línea (`Clave__Anidada=valor`). Sirve para los perfiles
+calificados del asistente (`ArtificialIntelligence__Assistant__…`): sin ellos el asistente no anda aunque se cargue la
+clave del proveedor. Esa clave se carga después en Configuración › Inteligencia artificial de la instalación, porque se
+guarda cifrada en su base.
 
 Lo mismo que en dev ([etapa 2](azure-dev.md#etapa-2-elegir-y-crear-los-recursos)): se corre en Cloud Shell o en Git Bash
 con `az login`, genera dentro de Azure las contraseñas, los PFX y los anillos con un `InstallationId` propio, y se puede

@@ -8,7 +8,7 @@
 #
 # Datos de entrada, como variables de entorno:
 #   AZURE_SUBSCRIPTION_ID    obligatoria.
-#   INSTALLATION             «dev» (por defecto) o el nombre corto del cliente: de 2 a 9 minúsculas y dígitos, empezando
+#   INSTALLATION             «dev» (por defecto) o el nombre corto del cliente: de 2 a 12 minúsculas y dígitos, empezando
 #                            con una letra. De él salen los nombres de los recursos y el environment de GitHub
 #                            («dev» o «prod-<cliente>», que pide la aprobación del titular).
 #   GITHUB_REPOSITORY        owner/repo del backend. Con `gh` autenticado crea el environment y sus variables, y deduce
@@ -20,6 +20,9 @@
 #   ALERT_EMAIL, BUDGET_USD  opcionales: el correo de las alertas de errores 5xx y de presupuesto, y el presupuesto
 #                            mensual del grupo en dólares (70 por defecto).
 #   EMAIL_DAILY_LIMIT        opcional: el tope diario de correos de la instalación, si comparte la cuenta de Gmail.
+#   GOOGLE_PLACES_API_KEY    opcional: la clave de Google Places de la pregunta de ubicación (configurar-google-places.md).
+#   EXTRA_SETTINGS_FILE      opcional: un archivo con una configuración no secreta por línea, `Clave__Anidada=valor`;
+#                            por ejemplo, los perfiles calificados del asistente (ArtificialIntelligence__Assistant__*).
 #   SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_ADDRESS
 #                            obligatorias la primera vez: sin SMTP la Api no arranca en Production. La contraseña es
 #                            una contraseña de aplicación de Gmail.
@@ -40,8 +43,9 @@ export MSYS_NO_PATHCONV=1
 
 : "${AZURE_SUBSCRIPTION_ID:?Falta AZURE_SUBSCRIPTION_ID}"
 INSTALLATION=${INSTALLATION:-dev}
-if [[ ! "$INSTALLATION" =~ ^[a-z][a-z0-9]{1,8}$ ]]; then
-  echo "INSTALLATION va en minúsculas y dígitos, de 2 a 9, empezando con una letra (entra en el nombre del Storage)." >&2
+if [[ ! "$INSTALLATION" =~ ^[a-z][a-z0-9]{1,11}$ ]]; then
+  # El tope sale del nombre de la Container App (32): ca-arquitecturabase-<instalación>.
+  echo "INSTALLATION va en minúsculas y dígitos, de 2 a 12, empezando con una letra." >&2
   exit 1
 fi
 if [[ "$INSTALLATION" == dev ]]; then default_environment=dev default_backup_days=7; else
@@ -60,7 +64,10 @@ PG_ADMIN=${PG_ADMIN:-pgadmin}
 # PostgreSQL puede ir en otra región cercana si la del resto no tiene el tamaño B1ms para la suscripción (SkuNotAvailable).
 PG_LOCATION=${PG_LOCATION:-$LOCATION}
 PG_BACKUP_DAYS=${PG_BACKUP_DAYS:-$default_backup_days}
-ST=${ST:-starqbase$INSTALLATION$suffix}
+# El Storage admite 24 caracteres: con un nombre largo se acorta el prefijo (dev conserva el suyo).
+default_storage="starqbase$INSTALLATION$suffix"
+(( ${#default_storage} <= 24 )) || default_storage="st$INSTALLATION$suffix"
+ST=${ST:-$default_storage}
 ACA_ENV=${ACA_ENV:-cae-arquitecturabase-$INSTALLATION}
 APP=${APP:-ca-arquitecturabase-$INSTALLATION}
 REDIS_APP=${REDIS_APP:-ca-redis-$INSTALLATION}
@@ -352,6 +359,7 @@ elif ! has_secret smtp-password; then
   exit 1
 fi
 [[ -n "${GOOGLE_CLIENT_SECRET:-}" ]] && new_secrets+=("google-client-secret=$GOOGLE_CLIENT_SECRET")
+[[ -n "${GOOGLE_PLACES_API_KEY:-}" ]] && new_secrets+=("google-places-api-key=$GOOGLE_PLACES_API_KEY")
 if [[ -n "${WHATSAPP_PHONE_NUMBER_ID:-}" ]]; then
   : "${WHATSAPP_ACCESS_TOKEN:?Con WHATSAPP_PHONE_NUMBER_ID hace falta WHATSAPP_ACCESS_TOKEN}"
   : "${WHATSAPP_APP_SECRET:?El webhook necesita WHATSAPP_APP_SECRET}"
@@ -399,6 +407,13 @@ settings=(
 [[ -n "${SEED_ADMIN_EMAIL:-}" ]] && settings+=("Seed__AdminEmail=$SEED_ADMIN_EMAIL")
 # Varias instalaciones con la misma cuenta de Gmail comparten su cupo: cada una cuenta sólo lo suyo (despliegue.md).
 [[ -n "${EMAIL_DAILY_LIMIT:-}" ]] && settings+=("Email__DailyLimit=$EMAIL_DAILY_LIMIT")
+[[ -n "${GOOGLE_PLACES_API_KEY:-}" ]] && settings+=(ArtificialIntelligence__GooglePlaces__ApiKey=secretref:google-places-api-key)
+if [[ -n "${EXTRA_SETTINGS_FILE:-}" ]]; then
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line=${line%$'\r'}
+    [[ "$line" == *=* && "$line" != \#* ]] && settings+=("$line")
+  done < "$EXTRA_SETTINGS_FILE"
+fi
 if [[ -n "${GOOGLE_CLIENT_ID:-}" ]]; then
   settings+=("Authentication__Google__ClientId=$GOOGLE_CLIENT_ID" Authentication__Google__ClientSecret=secretref:google-client-secret)
 fi
@@ -469,7 +484,7 @@ fi
 if [[ -n "${ALERT_EMAIL:-}" ]]; then
   log "Alertas de errores y de presupuesto a $ALERT_EMAIL"
   action_group="ag-arquitecturabase-$INSTALLATION"
-  az monitor action-group create --resource-group "$RG" --name "$action_group" --short-name "ab-$INSTALLATION" \
+  az monitor action-group create --resource-group "$RG" --name "$action_group" --short-name "$(printf %.12s "ab-$INSTALLATION")" \
     --action email titular "$ALERT_EMAIL" --output none
   if ! exists az monitor metrics alert show --resource-group "$RG" --name api-5xx; then
     az monitor metrics alert create --resource-group "$RG" --name api-5xx \
