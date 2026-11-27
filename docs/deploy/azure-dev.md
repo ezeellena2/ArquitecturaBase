@@ -109,7 +109,7 @@ Corre en Cloud Shell o en Git Bash con Azure CLI y `az login`. Los valores del t
 | Resource Group | Agrupa los recursos del ambiente | `rg-arquitecturabase-dev`. |
 | Container Registry | Guarda imágenes, también la de Redis | Basic, sin usuario administrador; las apps leen con su identidad (AcrPull). |
 | Container Apps Environment | Entorno de ejecución y red | `cae-arquitecturabase-dev-cus`, plan de consumo, logs a Log Analytics. |
-| Container App | API y React | `ca-arquitecturabase-dev`: ingress HTTPS externo al 8080, revisiones Single, una réplica de 0,5 vCPU y 1 GiB (la Api arranca con unos 170 MB), probes y apagado de 60 s. |
+| Container App | API y React | `ca-arquitecturabase-dev`: ingress HTTPS externo al 8080, revisiones Single, una réplica de 0,25 vCPU y 0,5 GiB (achicada el 2026-11-27 para gastar menos: la Api arranca con unos 170 MB; los clientes quedan en 0,5 vCPU y 1 GiB), probes y apagado de 60 s. |
 | Redis | Caché obligatorio y coordinación | `ca-redis-dev`: Redis 8.6 en otra Container App, con ingress TCP interno (sin puerto en Internet), contraseña, 256 MB y `noeviction`, sin persistencia. Es el mismo servidor que en local y lo comparten todas las revisiones de la Api. |
 | PostgreSQL Flexible Server | Base appdb | B1ms, 32 GB, versión 18, respaldos de 7 días, TLS y regla para servicios de Azure. |
 | Storage Account GPv2 | Archivos privados | `files-content` privado, sin claves compartidas, con borrado temporal, versiones y restauración; la Api entra con su identidad. |
