@@ -75,7 +75,7 @@ tenga los datos del primero.
 
 ## Marca por empresa (ME)
 
-Estado: **tableros publicados el 2026-11-27; faltan las elecciones ME1 y ME3 del titular.** Lienzo:
+Estado: **el titular eligió ME1-A y ME3-B el 2026-11-27; T9 a T13 en programación.** Lienzo:
 [Marca por empresa](https://claude.ai/artifact/YKWuNW5xwL4EfSgstiMWrn).
 
 El titular quiere que cada empresa vea el producto con su logo, sus colores y su letra. Preguntó si convenía una rama
@@ -90,18 +90,14 @@ los correos ([Apariencia](../features/administracion.md#apariencia-global-2026-1
 app, subirlo como archivo, el ícono de la pestaña y la letra. La prueba es La Clementina: su logo y su paleta (azul
 pizarra `#2B4150`, crema `#F6F2E9`) cargados en su instalación, sin código propio.
 
-**Para elegir** (la recomendada primero):
+**Elegidas por el titular el 2026-11-27:**
 
-| # | Opción | Tablero |
+| # | Decisión | Tablero |
 |---|---|---|
 | ME1-A | El logo va en la banda de arriba del menú, que hoy está vacía, y lleva al inicio. Con el menú contraído va el ícono | ME1-A · El logo arriba del menú |
-| ME1-B | El logo va en la barra superior, a la izquierda de las migas; la banda del menú sigue vacía | ME1-B · El logo en la barra superior |
-| ME3-A | Los cuatro colores de hoy alcanzan: el amarillo de La Clementina queda en su logo | ME3 · ¿Alcanzan los cuatro colores? |
-| ME3-B | Un quinto color, «Acento del menú», para la barra y el texto del ítem activo, con 3:1 contra el menú | ME3 · ¿Alcanzan los cuatro colores? |
+| ME3-B | Un quinto color, «Acento del menú», reemplaza al acento que hoy el front deriva del color del menú (`--color-nav-accent`: la barra del ítem activo, el foco y el avatar del menú principal) y además pinta el texto del ítem activo, también contraído. Tiene que dar 4,5:1 contra el color del menú, porque pinta texto: el dominio lo valida y el `PATCH` responde 400 en `appearance.menuAccentColor`. La columna admite vacío, que significa «el derivado del menú», como hoy: así ninguna instalación cambia con la migración, y la API siempre responde el color efectivo. «Restaurar los iniciales» lo vuelve a `#D3D7D5` (el de Campo) y la comparación de un conflicto lo incluye | ME3 · ¿Alcanzan los cuatro colores? (columna B) |
 
-Por qué las recomendadas: con ME1-A, la marca es lo primero que se ve, en un lugar que hoy no tiene nada; ME1-B compite
-con las migas y, en el teléfono, con el ☰. Con ME3-A no hay datos nuevos y se mantiene que la marca de la interfaz
-significa acción ([fundamento visual](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#principios-del-sistema)).
+Se descartaron ME1-B (el logo en la barra superior) y ME3-A (sólo los cuatro colores).
 
 **Fijadas por el plan**, con la opción más simple que cumple las reglas:
 
@@ -123,9 +119,9 @@ significa acción ([fundamento visual](../../../ArquitecturaBaseFront/docs/desig
 | # | Qué | Dónde |
 |---|---|---|
 | T9 | Logo e ícono: dominio, almacén, fuente de retención, `PUT`, `DELETE` y `GET` anónimos, `brand` en la presentación, correos y PDF con el logo, migración que quita `EmailLogoUrl`; con sus pruebas de ruta, de 409 y de archivo inválido | Back (Domain, Application, Infrastructure, Api) y `ExplicitRouteInventoryTests` |
-| T10 | Letra (y el acento, si va ME3-B) en `SystemSettings`, el `PATCH` y la presentación | Back |
-| T11 | Apariencia igual al tablero ME2, con los estados del tablero «Estados y recorrido» | Front, registrado en `docs/design` |
-| T12 | Caparazón igual al tablero elegido de ME1, el ingreso, la pestaña y la letra aplicada, según «Dónde más aparece»; escenas visuales con logo y sin logo | Front (`layouts`, `AuthLayout`, `shared/lib/appearance`) |
+| T10 | La letra y el acento del menú (ME3-B) en `SystemSettings`, el `PATCH` y la presentación | Back |
+| T11 | Apariencia igual al tablero ME2, con el acento como quinto color y los estados del tablero «Estados y recorrido» | Front, registrado en `docs/design` |
+| T12 | Caparazón igual al tablero ME1-A, con el acento de la columna B de ME3, el ingreso, la pestaña y la letra aplicada, según «Dónde más aparece»; escenas visuales con logo y sin logo | Front (`layouts`, `AuthLayout`, `shared/lib/appearance`) |
 | T13 | El fundamento visual cambia «Quitados: cuadrado de logo» por la regla de ME1 y ME6; Apariencia en `administracion.md`; publicar en La Clementina y cargar su marca desde la pantalla | Docs de los dos repos, Azure |
 
 T9 y T10 van primero porque fijan el contrato; T11 y T12 después, en paralelo. Nada de esto entra en código propio de
