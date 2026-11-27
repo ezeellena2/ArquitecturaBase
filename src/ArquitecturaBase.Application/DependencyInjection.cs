@@ -94,6 +94,8 @@ public static class DependencyInjection
         services.AddScoped<IExternalLoginService, ExternalLoginService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
+        services.AddScoped<IBrandImageService, BrandImageService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, BrandImageRetentionSource>());
         services.AddScoped<IUserQueryService, UserQueryService>();
         services.AddScoped<IUserAdministrationService, UserAdministrationService>();
         services.AddScoped<IUserAccessService, UserAccessService>();

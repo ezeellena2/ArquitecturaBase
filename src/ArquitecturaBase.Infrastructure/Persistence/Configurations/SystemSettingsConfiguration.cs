@@ -28,10 +28,15 @@ internal sealed class SystemSettingsConfiguration : IEntityTypeConfiguration<Sys
         builder.Property(settings => settings.MenuColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialMenuColor);
         builder.Property(settings => settings.HeaderColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialHeaderColor);
         builder.Property(settings => settings.AlternateRowColor).HasMaxLength(AppearancePalette.ColorLength).HasDefaultValue(AppearancePalette.InitialAlternateRowColor);
+        // ME3-B: null until the appearance is saved again, so an installation keeps the accent it had (derived from the menu).
+        builder.Property(settings => settings.MenuAccentColor).HasMaxLength(AppearancePalette.ColorLength);
+        builder.Property(settings => settings.Font).HasMaxLength(AppearanceFont.MaxLength).HasDefaultValue(AppearanceFont.Initial);
+        builder.Ignore(settings => settings.EffectiveMenuAccentColor);
         // RC6-B and RC1-A: the row saved before reads the values the installation had in its configuration.
         builder.Property(settings => settings.AppName).HasMaxLength(SystemBranding.MaxNameLength).HasDefaultValue(SystemBranding.InitialAppName);
         builder.Property(settings => settings.EmailSenderName).HasMaxLength(SystemBranding.MaxNameLength).HasDefaultValue(SystemBranding.InitialEmailSenderName);
-        builder.Property(settings => settings.EmailLogoUrl).HasMaxLength(SystemBranding.MaxLogoUrlLength);
+        builder.Property(settings => settings.LogoFileKey).HasMaxLength(BrandImage.MaxKeyLength);
+        builder.Property(settings => settings.IconFileKey).HasMaxLength(BrandImage.MaxKeyLength);
         builder.Property(settings => settings.LoginAuditRetentionMonths).HasDefaultValue(IdentityRetentionPeriods.InitialLoginAuditMonths);
         builder.Property(settings => settings.LoginCodeRetentionDays).HasDefaultValue(IdentityRetentionPeriods.InitialLoginCodeDays);
         builder.Property(settings => settings.InvitationRetentionDays).HasDefaultValue(IdentityRetentionPeriods.InitialInvitationDays);

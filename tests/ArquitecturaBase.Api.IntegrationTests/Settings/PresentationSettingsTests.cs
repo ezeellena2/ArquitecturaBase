@@ -21,7 +21,11 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
         var before = await ReadAsync(client, tokens.AccessToken);
         using var warmed = await other.GetAsync("/api/settings/presentation", Ct);
-        var appearance = new { primaryColor = "#335F85", menuColor = "#243B53", headerColor = "#D9E8F5", alternateRowColor = "#EEF4FA" };
+        var appearance = new
+        {
+            primaryColor = "#335F85", menuColor = "#243B53", headerColor = "#D9E8F5", alternateRowColor = "#EEF4FA",
+            menuAccentColor = "#FFC10E", font = "inter",
+        };
         try
         {
             var revision = before.GetProperty("revision").GetInt64();
@@ -55,7 +59,7 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
         using var response = await client.GetAsync("/api/settings/presentation", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var data = await response.ReadJsonAsync();
-        Assert.Equal(["appearance", "defaultCulture", "defaultPageSize", "defaultTimeZoneId", "installedFeatures"],
+        Assert.Equal(["appearance", "brand", "defaultCulture", "defaultPageSize", "defaultTimeZoneId", "installedFeatures"],
             data.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         var capabilities = data.GetProperty("installedFeatures");
         Assert.Equal(JsonValueKind.Array, capabilities.ValueKind);
@@ -116,8 +120,8 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
     [InlineData("{\"expectedRevision\":1,\"defaultCulture\":\"en\",\"defaultPageSize\":25}")]
     [InlineData("{\"expectedRevision\":1,\"appearance\":null}")]
     [InlineData("{\"expectedRevision\":1,\"appearance\":{\"primaryColor\":\"#FFFFFF\"}}")]
-    [InlineData("{\"expectedRevision\":1,\"appearance\":{\"primaryColor\":\"#FFFFFF\",\"menuColor\":null,\"headerColor\":\"#FFFFFF\",\"alternateRowColor\":\"#FFFFFF\"}}")]
-    [InlineData("{\"expectedRevision\":1,\"appearance\":{\"primaryColor\":\"#FFFFFF\",\"menuColor\":\"#FFFFFF\",\"headerColor\":\"#FFFFFF\",\"alternateRowColor\":\"#FFFFFF\",\"extra\":true}}")]
+    [InlineData("{\"expectedRevision\":1,\"appearance\":{\"primaryColor\":\"#FFFFFF\",\"menuColor\":null,\"headerColor\":\"#FFFFFF\",\"alternateRowColor\":\"#FFFFFF\",\"menuAccentColor\":\"#000000\",\"font\":\"inter\"}}")]
+    [InlineData("{\"expectedRevision\":1,\"appearance\":{\"primaryColor\":\"#FFFFFF\",\"menuColor\":\"#FFFFFF\",\"headerColor\":\"#FFFFFF\",\"alternateRowColor\":\"#FFFFFF\",\"menuAccentColor\":\"#000000\",\"font\":\"inter\",\"extra\":true}}")]
     public async Task Patch_rejects_invalid_changes(string json)
     {
         using var client = factory.CreateClient();
@@ -140,7 +144,7 @@ public sealed class PresentationSettingsTests(ApiFactory factory)
         using var response = await PatchAsync(client, tokens.AccessToken, new
         {
             expectedRevision = before.GetProperty("revision").GetInt64(), defaultCulture = "en",
-            appearance = new { primaryColor = "#FFFFFF", menuColor = "url(invalid)", headerColor = "#000000", alternateRowColor = "#FFFFFF" },
+            appearance = new { primaryColor = "#FFFFFF", menuColor = "url(invalid)", headerColor = "#000000", alternateRowColor = "#FFFFFF", menuAccentColor = "#000000", font = "inter" },
         });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.ReadJsonAsync();

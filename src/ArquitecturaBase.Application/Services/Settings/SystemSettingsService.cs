@@ -32,8 +32,9 @@ internal sealed class SystemSettingsService(
                 ? SettingsErrors.NotFound
                 : new SystemSettingsResponse(settings.RegistrationMode, settings.DefaultCulture,
                     settings.DefaultTimeZoneId, settings.DefaultPageSize, settings.Revision,
-                    new SystemAppearanceResponse(settings.PrimaryColor, settings.MenuColor, settings.HeaderColor, settings.AlternateRowColor),
-                    new SystemBrandingResponse(settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl),
+                    new SystemAppearanceResponse(settings.PrimaryColor, settings.MenuColor, settings.HeaderColor, settings.AlternateRowColor,
+                        settings.EffectiveMenuAccentColor, settings.Font),
+                    SystemBrandingResponse.Of(settings.AppName, settings.EmailSenderName, settings.LogoFileKey, settings.IconFileKey),
                     new IdentityRetentionResponse(settings.LoginAuditRetentionMonths, settings.LoginCodeRetentionDays,
                         settings.InvitationRetentionDays));
         });
@@ -77,10 +78,11 @@ internal sealed class SystemSettingsService(
                 }
 
                 var appearance = request.Appearance is { } colors
-                    ? new AppearancePalette(colors.PrimaryColor, colors.MenuColor, colors.HeaderColor, colors.AlternateRowColor)
+                    ? new AppearancePalette(colors.PrimaryColor, colors.MenuColor, colors.HeaderColor, colors.AlternateRowColor,
+                        colors.MenuAccentColor)
                     : null;
                 var branding = request.Branding is { } presented
-                    ? new SystemBranding(presented.AppName, presented.EmailSenderName, presented.EmailLogoUrl)
+                    ? new SystemBranding(presented.AppName, presented.EmailSenderName)
                     : null;
                 var retention = request.Retention is { } periods
                     ? new IdentityRetentionPeriods(periods.LoginAuditMonths, periods.LoginCodeDays, periods.InvitationDays)
@@ -88,7 +90,7 @@ internal sealed class SystemSettingsService(
                 // El modo de registro deja su historia en el mismo límite, sólo si el cambio pasó (N13).
                 var modeBefore = settings.RegistrationMode;
                 var updated = settings.Update(request.DefaultCulture, request.DefaultTimeZoneId,
-                    request.DefaultPageSize, request.RegistrationMode, appearance, branding, retention);
+                    request.DefaultPageSize, request.RegistrationMode, appearance, branding, retention, request.Appearance?.Font);
                 if (updated.IsSuccess)
                 {
                     changes.RegistrationModeChanged(settings.Id, modeBefore, settings.RegistrationMode);

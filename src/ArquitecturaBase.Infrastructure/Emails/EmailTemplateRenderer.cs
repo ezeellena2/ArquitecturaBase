@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.Settings;
@@ -13,9 +14,10 @@ namespace ArquitecturaBase.Infrastructure.Emails;
 /// <summary>
 /// Arma los emails con las plantillas embebidas: cada {{Marcador}} se reemplaza por un valor ya escapado.
 /// Un marcador sin valor es un error de programación y lanza. El nombre de la aplicación y el logo son los de Configuración ›
-/// Apariencia, leídos para cada correo (RC6-B).
+/// Apariencia, leídos para cada correo (RC6-B); el logo es el archivo subido, servido por la dirección pública de la
+/// instalación con su versión (ME2e).
 /// </summary>
-internal sealed partial class EmailTemplateRenderer(ISystemSettingsReader settings) : IEmailTemplateRenderer
+internal sealed partial class EmailTemplateRenderer(ISystemSettingsReader settings, IPublicOrigin publicOrigin) : IEmailTemplateRenderer
 {
     private const string LayoutTemplate = "_Layout.html";
     private const string LoginCodeTemplate = "LoginCode.html";
@@ -85,7 +87,7 @@ internal sealed partial class EmailTemplateRenderer(ISystemSettingsReader settin
     /// Los dos correos con un código comparten la plantilla y cambian los textos, que en Emails.resx llevan el prefijo
     /// <paramref name="textsPrefix"/>: Subject, Title, Intro y Expiry.
     /// </summary>
-    private static EmailMessage RenderCode(SystemBrandingResponse branding, string textsPrefix, string to, string code, int lifetimeMinutes,
+    private EmailMessage RenderCode(SystemBrandingResponse branding, string textsPrefix, string to, string code, int lifetimeMinutes,
         CultureInfo culture)
     {
         var appName = branding.AppName;
@@ -117,11 +119,15 @@ internal sealed partial class EmailTemplateRenderer(ISystemSettingsReader settin
         return new EmailMessage(to, EmailTexts.Format(textsPrefix + ".Subject", culture, code, appName), html, text);
     }
 
-    // Sin logo, el encabezado lleva el nombre: Gmail no muestra SVG y un logo se pide con https (SystemBranding).
-    private static string HeaderHtml(SystemBrandingResponse branding) =>
-        string.IsNullOrWhiteSpace(branding.EmailLogoUrl)
+    // Sin logo, el encabezado lleva el nombre. El logo es PNG o JPG (Gmail no muestra SVG) y va con su versión: un correo
+    // nuevo nunca muestra el logo anterior desde una caché.
+    private string HeaderHtml(SystemBrandingResponse branding) =>
+        branding.LogoVersion is not { } version || publicOrigin.Value is not { } origin
             ? Encode(branding.AppName)
-            : $"<img src=\"{Encode(branding.EmailLogoUrl)}\" alt=\"{Encode(branding.AppName)}\" height=\"32\" style=\"display:block;border:0;height:32px;\">";
+            : $"<img src=\"{Encode(LogoAddress(origin, version))}\" alt=\"{Encode(branding.AppName)}\" height=\"32\" style=\"display:block;border:0;height:32px;\">";
+
+    internal static string LogoAddress(Uri origin, string version) =>
+        new Uri(origin, "api/settings/brand/logo?v=" + Uri.EscapeDataString(version)).AbsoluteUri;
 
     private static string Fill(string templateName, Dictionary<string, string> values) =>
         PlaceholderPattern().Replace(Load(templateName), match =>

@@ -81,8 +81,10 @@
   <data name="Settings.System.RevisionConflict" xml:space="preserve"><value>The settings have changed. Review the current values before saving.</value></data>
   <data name="Settings.System.CultureInvalid" xml:space="preserve"><value>The default language is not valid.</value></data>
   <data name="Settings.System.PageSizeInvalid" xml:space="preserve"><value>Choose 10, 20, 50 or 100 rows per page.</value></data>
-  <data name="Settings.System.AppearanceInvalid" xml:space="preserve"><value>Review the colors: they must use #RRGGBB format.</value></data>
-  <data name="Settings.System.BrandingInvalid" xml:space="preserve"><value>Review the application name, the sender name and the email logo.</value></data>
+  <data name="Settings.System.AppearanceInvalid" xml:space="preserve"><value>Review the colors and the font: colors use #RRGGBB format and the accent must read on the menu.</value></data>
+  <data name="Settings.System.BrandingInvalid" xml:space="preserve"><value>Review the application name and the sender name.</value></data>
+  <data name="Settings.System.LogoInvalid" xml:space="preserve"><value>The logo must be a PNG or JPG up to 1 MB, at least as wide as it is tall.</value></data>
+  <data name="Settings.System.IconInvalid" xml:space="preserve"><value>The icon must be a square PNG from 64 to 1024 pixels, up to 1 MB.</value></data>
   <data name="Settings.System.RetentionInvalid" xml:space="preserve"><value>Review the retention periods: one is out of its range.</value></data>
   <data name="WhatsApp.Chat.NotFound" xml:space="preserve"><value>The conversation was not found.</value></data>
   <data name="WhatsApp.Chat.ManualRequired" xml:space="preserve"><value>Switch to manual attention before replying.</value></data>

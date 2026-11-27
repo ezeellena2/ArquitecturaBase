@@ -46,9 +46,20 @@ public sealed class SystemSettings : Entity, IAuditable
     public string HeaderColor { get; private set; } = AppearancePalette.InitialHeaderColor;
     public string AlternateRowColor { get; private set; } = AppearancePalette.InitialAlternateRowColor;
 
+    /// <summary>ME3-B: null until the administrator saves the appearance; meanwhile the accent derives from the menu.</summary>
+    public string? MenuAccentColor { get; private set; }
+
+    /// <summary>The accent the application paints: the saved one or, without it, the one derived from the menu.</summary>
+    public string EffectiveMenuAccentColor => MenuAccentColor ?? AppearancePalette.DeriveMenuAccent(MenuColor);
+
+    public string Font { get; private set; } = AppearanceFont.Initial;
+
     public string AppName { get; private set; } = SystemBranding.InitialAppName;
     public string EmailSenderName { get; private set; } = SystemBranding.InitialEmailSenderName;
-    public string? EmailLogoUrl { get; private set; }
+
+    /// <summary>ME2: the private files of the logo and the icon, or null without them.</summary>
+    public string? LogoFileKey { get; private set; }
+    public string? IconFileKey { get; private set; }
 
     public int LoginAuditRetentionMonths { get; private set; } = IdentityRetentionPeriods.InitialLoginAuditMonths;
     public int LoginCodeRetentionDays { get; private set; } = IdentityRetentionPeriods.InitialLoginCodeDays;
@@ -105,7 +116,8 @@ public sealed class SystemSettings : Entity, IAuditable
     /// <summary>Validates the pure rules before applying a group of settings with one revision.
     /// The application validates the IANA identifier and registration enum before calling this method.</summary>
     public Result Update(string? culture, string? timeZoneId, int? pageSize, RegistrationMode? registrationMode,
-        AppearancePalette? appearance = null, SystemBranding? branding = null, IdentityRetentionPeriods? retention = null)
+        AppearancePalette? appearance = null, SystemBranding? branding = null, IdentityRetentionPeriods? retention = null,
+        string? font = null)
     {
         if (culture is not null && !IsSupportedCulture(culture))
         {
@@ -117,7 +129,7 @@ public sealed class SystemSettings : Entity, IAuditable
             return SettingsErrors.PageSizeInvalid;
         }
 
-        if (appearance is { IsValid: false })
+        if (appearance is { IsValid: false } || (font is not null && !AppearanceFont.IsSupported(font)))
         {
             return SettingsErrors.AppearanceInvalid;
         }
@@ -138,13 +150,15 @@ public sealed class SystemSettings : Entity, IAuditable
             MenuColor = appearance.MenuColor.ToUpperInvariant();
             HeaderColor = appearance.HeaderColor.ToUpperInvariant();
             AlternateRowColor = appearance.AlternateRowColor.ToUpperInvariant();
+            MenuAccentColor = appearance.MenuAccentColor.ToUpperInvariant();
         }
+
+        if (font is not null) Font = font;
 
         if (branding?.Normalized() is { } presented)
         {
             AppName = presented.AppName;
             EmailSenderName = presented.EmailSenderName;
-            EmailLogoUrl = presented.EmailLogoUrl;
         }
 
         if (retention is not null)
@@ -158,6 +172,20 @@ public sealed class SystemSettings : Entity, IAuditable
         if (timeZoneId is not null) DefaultTimeZoneId = timeZoneId;
         if (pageSize is { } validSize) DefaultPageSize = validSize;
         if (registrationMode is { } mode) RegistrationMode = mode;
+        Revision++;
+        return Result.Success();
+    }
+
+    /// <summary>ME2b: points the logo or the icon to a new file, or clears it with null; one revision each time.</summary>
+    public Result SetBrandImage(BrandImageKind kind, string? key)
+    {
+        if (key is not null && !BrandImage.IsKey(kind, key))
+        {
+            return kind == BrandImageKind.Logo ? SettingsErrors.LogoInvalid : SettingsErrors.IconInvalid;
+        }
+
+        if (kind == BrandImageKind.Logo) LogoFileKey = key;
+        else IconFileKey = key;
         Revision++;
         return Result.Success();
     }

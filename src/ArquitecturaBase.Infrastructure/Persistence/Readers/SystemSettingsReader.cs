@@ -80,14 +80,28 @@ internal sealed partial class SystemSettingsReader(RedisCache cache, Application
 
     private static async Task<SystemBrandingResponse> ReadBrandingAsync(ApplicationDbContext db, CancellationToken cancellationToken) =>
         await db.SystemSettings.AsNoTracking()
-            .Select(settings => new SystemBrandingResponse(settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl))
-            .FirstOrDefaultAsync(cancellationToken) ?? SystemBrandingResponse.Defaults;
+            .Select(settings => new { settings.AppName, settings.EmailSenderName, settings.LogoFileKey, settings.IconFileKey })
+            .FirstOrDefaultAsync(cancellationToken) is { } row
+            ? SystemBrandingResponse.Of(row.AppName, row.EmailSenderName, row.LogoFileKey, row.IconFileKey)
+            : SystemBrandingResponse.Defaults;
 
-    private static async Task<SystemPresentationResponse> ReadPresentationAsync(ApplicationDbContext db, CancellationToken cancellationToken) =>
-        await db.SystemSettings.AsNoTracking()
-            .Select(settings => new SystemPresentationResponse(settings.DefaultCulture, settings.DefaultTimeZoneId, settings.DefaultPageSize,
-                new SystemAppearanceResponse(settings.PrimaryColor, settings.MenuColor, settings.HeaderColor, settings.AlternateRowColor)))
-            .FirstOrDefaultAsync(cancellationToken) ?? SystemPresentationResponse.Defaults;
+    // ME7: the sign-in and the shell paint the name, the logo and the icon before the session, like the colors.
+    private static async Task<SystemPresentationResponse> ReadPresentationAsync(ApplicationDbContext db, CancellationToken cancellationToken)
+    {
+        var row = await db.SystemSettings.AsNoTracking()
+            .Select(settings => new
+            {
+                settings.DefaultCulture, settings.DefaultTimeZoneId, settings.DefaultPageSize, settings.PrimaryColor, settings.MenuColor,
+                settings.HeaderColor, settings.AlternateRowColor, settings.MenuAccentColor, settings.Font, settings.AppName,
+                settings.LogoFileKey, settings.IconFileKey,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (row is null) return SystemPresentationResponse.Defaults;
+        var brand = SystemBrandingResponse.Of(row.AppName, string.Empty, row.LogoFileKey, row.IconFileKey);
+        return new SystemPresentationResponse(row.DefaultCulture, row.DefaultTimeZoneId, row.DefaultPageSize,
+            SystemAppearanceResponse.Of(row.PrimaryColor, row.MenuColor, row.HeaderColor, row.AlternateRowColor, row.MenuAccentColor, row.Font),
+            new SystemPresentationBrandResponse(row.AppName, brand.LogoVersion, brand.IconVersion));
+    }
 
     // Without the row, default(RegistrationMode) is InviteOnly: the closed mode.
     private static Task<RegistrationMode> ReadRegistrationModeAsync(ApplicationDbContext db, CancellationToken cancellationToken) =>

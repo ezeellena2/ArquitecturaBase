@@ -33,3 +33,5 @@ UnavailableStructuredAttachmentReader: sin el dueño de los adjuntos nadie puede
 UnavailableStructuredDocumentRowsChannel no registra filas de una planilla: `Unavailable`.
 
 UnavailableBusinessKnowledgeSource responde `NotInstalled` sin zonas cuando falta la IA: el asistente no tiene hechos para usar y el canal no los inventa.
+
+`BrandImageRetentionSource` le dice a la limpieza de archivos qué claves `branding/` siguen en uso: las que tiene la fila de ajustes (ME2c). Sólo lee.

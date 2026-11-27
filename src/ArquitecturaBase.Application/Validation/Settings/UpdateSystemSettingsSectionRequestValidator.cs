@@ -30,6 +30,14 @@ internal sealed class UpdateSystemSettingsSectionRequestValidator : AbstractVali
                 .WithMessage(_ => ValidationMessages.SettingsColorInvalid);
             RuleFor(request => request.Appearance!.AlternateRowColor).Must(AppearancePalette.IsValidColor)
                 .WithMessage(_ => ValidationMessages.SettingsColorInvalid);
+            // ME3-B: the accent paints the current item's name on the menu, so it has to read as text there.
+            RuleFor(request => request.Appearance!.MenuAccentColor).Cascade(CascadeMode.Stop)
+                .Must(AppearancePalette.IsValidColor).WithMessage(_ => ValidationMessages.SettingsColorInvalid)
+                .Must((request, accent) => !AppearancePalette.IsValidColor(request.Appearance!.MenuColor)
+                    || AppearancePalette.HasReadableMenuAccent(accent, request.Appearance.MenuColor))
+                .WithMessage(_ => ValidationMessages.SettingsMenuAccentContrast);
+            RuleFor(request => request.Appearance!.Font).Must(AppearanceFont.IsSupported)
+                .WithMessage(_ => ValidationMessages.SettingsFontInvalid);
         });
         // RC6-B: each field says its own problem; the domain repeats the rules before changing anything.
         When(request => request.Branding is not null, () =>
@@ -42,9 +50,6 @@ internal sealed class UpdateSystemSettingsSectionRequestValidator : AbstractVali
                 .Must(name => !string.IsNullOrWhiteSpace(name)).WithMessage(_ => ValidationMessages.Required)
                 .MaximumLength(SystemBranding.MaxNameLength).WithMessage(_ => ValidationMessages.MaxLength)
                 .Must(SystemBranding.IsValidName).WithMessage(_ => ValidationMessages.SettingsNameInvalid);
-            RuleFor(request => request.Branding!.EmailLogoUrl).Cascade(CascadeMode.Stop)
-                .MaximumLength(SystemBranding.MaxLogoUrlLength).WithMessage(_ => ValidationMessages.MaxLength)
-                .Must(SystemBranding.IsValidLogoUrl).WithMessage(_ => ValidationMessages.SettingsLogoUrlInvalid);
         });
         // RC1-A: the message names the range of each period, in the request's language.
         When(request => request.Retention is not null, () =>

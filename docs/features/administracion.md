@@ -147,8 +147,8 @@ revisión actual y mantiene la paleta completa del borrador.
 ### Nombre y correos (RC6-B, 2026-11-22)
 
 Apariencia suma la zona «Nombre y correos»: el nombre de la aplicación (`AppName`, «Acceso», hasta 60 caracteres), el nombre
-del remitente (`EmailSenderName`, «Acceso», hasta 60) y el logo de los correos (`EmailLogoUrl`, vacío, una dirección `https://`
-absoluta de hasta 2048). Reemplazan a `Email:AppName`, `Email:Smtp:FromName` y `Email:LogoUrl`, que salen de `appsettings`; la
+del remitente (`EmailSenderName`, «Acceso», hasta 60) y el logo de los correos (`EmailLogoUrl`, una dirección `https://`, que
+desde el 2026-11-27 reemplaza el logo subido: véase «Marca por empresa»). Reemplazan a `Email:AppName`, `Email:Smtp:FromName` y `Email:LogoUrl`, que salen de `appsettings`; la
 cuenta, la dirección del remitente y los cupos de invitaciones siguen ahí. PATCH /api/settings acepta `branding` como objeto
 completo, junto a `appearance` y con la misma revisión (`SystemBranding` valida y recorta antes de mutar; inválido,
 `Settings.System.BrandingInvalid`). La pantalla guarda colores y nombres con un solo Guardar y muestra «Así llega», el correo
@@ -158,6 +158,40 @@ Se leen en cada uso, de la base y por `settings:branding:v1` (caché propio, des
 correos al armarlos (`EmailTemplateRenderer`, `IAppName` para invitaciones y PDF) y el remitente al mandarlos (los dos
 `IEmailSender`). Un correo encolado antes de un cambio sale con el remitente nuevo. Una instalación nueva arranca «sólo por
 invitación»: `appsettings.json` pone `Registration:Mode` en `InviteOnly`, que sólo lee el seeder; las existentes conservan el suyo.
+
+### Marca por empresa (ME, 2026-11-27)
+
+Cada empresa tiene su instalación y le pone su marca desde Apariencia, sin código propio ([plan](../plans/2026-11-27-produccion-por-cliente.md#marca-por-empresa-me),
+[diseño](../../../ArquitecturaBaseFront/docs/design/marca-por-empresa.md)).
+
+- **Acento del menú (ME3-B).** `appearance` suma `menuAccentColor`: el acento que antes el front derivaba del color del menú
+  (la barra del ítem activo, el foco y el avatar del menú principal), que además pinta el texto del ítem activo. Tiene que
+  dar 4,5:1 contra `menuColor` (`AppearancePalette.HasReadableMenuAccent`): si no, 400 en `appearance.menuAccentColor`. La
+  columna admite nulo, que significa «el derivado del menú» (`AppearancePalette.DeriveMenuAccent`, la mezcla de siempre
+  llevada a 4,5:1): la migración no cambia ninguna instalación y la API responde siempre el efectivo (`#D3D7D5` con Campo).
+- **Letra (ME4).** `appearance.font` es un código de una lista cerrada (`AppearanceFont`: `public-sans`, la inicial, `inter`,
+  `ibm-plex-sans`, `source-sans-3`, `hanken-grotesk` y `nunito-sans`); otro responde 400 en `appearance.font`. El front
+  trae las familias y carga sólo la elegida. Los correos y el PDF siguen con la suya.
+- **Logo e ícono (ME2).** Son archivos del almacén privado de la instalación, con una clave nueva por subida
+  (`branding/logo/{guid}.png|.jpg`, `branding/icon/{guid}.png`) que `SystemSettings` guarda en `LogoFileKey` e
+  `IconFileKey`. El logo es PNG o JPG, igual de ancho o más ancho que alto, de hasta 4000 px; el ícono, PNG cuadrado de 64 a
+  1024 px; los dos hasta 1 MB. `IImageInspector` lee formato y medidas de los bytes (SkiaSharp, sin decodificar píxeles):
+  el nombre o el tipo declarado no cuentan. Si no sirve, 400 en `file` con `Settings.System.LogoInvalid` o `IconInvalid`.
+- **Se guardan al subirlos (ME2b).** `PUT api/settings/brand/logo` e `…/icon` (multipart: `file` y `expectedRevision`) y
+  `DELETE` con `?expectedRevision=`, con `settings.manage`, el lock, la revisión (409) y un commit, como el `PATCH`. El archivo
+  se escribe antes de la transacción; responden `{ revision, version }` (`version` nulo al quitar). `BrandImageService` es
+  aparte de `SystemSettingsService`.
+- **Limpieza (ME2c).** `BrandImageRetentionSource` (en `Application/Channels`) le dice a la limpieza de archivos que conserve
+  las claves actuales; una reemplazada o quitada se borra en la próxima pasada, como un archivo sin metadata.
+- **Se sirven sin sesión (ME2d).** `GET api/settings/brand/logo` e `…/icon` responden la imagen con `ETag` y `nosniff`; con
+  `?v=` igual a la versión actual, `Cache-Control: public, max-age=31536000, immutable`, y si no, `no-cache` (con 304 ante
+  `If-None-Match`). Sin imagen, 404.
+- **Presentación (ME7).** `GET api/settings/presentation` suma `brand`: `appName`, `logoVersion` e `iconVersion` (nulos sin
+  imagen), para el ingreso y el caparazón. `branding` del panel suma las mismas dos versiones; nunca se publica la clave.
+  Los cachés pasan a `settings:presentation:v3` y `settings:branding:v2`.
+- **Correos (ME2e).** El encabezado lleva `<origen público>api/settings/brand/logo?v=<versión>` o, sin logo, el nombre.
+  `EmailLogoUrl` salió del dominio, del contrato y de los textos; su columna se borra en el despliegue siguiente, porque la
+  imagen anterior todavía la lee mientras corre el bundle ([migración](../guides/migracion.md#convivencia-de-versiones)).
 
 ### Privacidad y retención (RC1-A, 2026-11-22)
 

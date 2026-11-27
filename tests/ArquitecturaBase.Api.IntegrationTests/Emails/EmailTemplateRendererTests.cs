@@ -2,6 +2,7 @@ using System.Collections;
 using System.Globalization;
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Infrastructure.Emails;
 using ArquitecturaBase.Infrastructure.Emails.Resources;
 
@@ -124,13 +125,15 @@ public sealed class EmailTemplateRendererTests
         Assert.DoesNotContain("<Test>", message.HtmlBody, StringComparison.Ordinal);
     }
 
+    // ME2e: the uploaded logo, served by the installation's public address with its version.
     [Fact]
-    public async Task Logo_is_shown_only_when_configured()
+    public async Task Logo_is_shown_only_when_uploaded()
     {
-        var withLogo = await Renderer(logoUrl: "https://cdn.example.com/logo.png").RenderLoginCodeAsync("ana@example.com", "482913", 10, English, Ct);
+        var withLogo = await Renderer(logoVersion: "0193a4c27d1e7c3a9f001a2b3c4d5e6f").RenderLoginCodeAsync("ana@example.com", "482913", 10, English, Ct);
         var withoutLogo = await Renderer().RenderLoginCodeAsync("ana@example.com", "482913", 10, English, Ct);
 
-        Assert.Contains("<img src=\"https://cdn.example.com/logo.png\"", withLogo.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("<img src=\"https://app.test/api/settings/brand/logo?v=0193a4c27d1e7c3a9f001a2b3c4d5e6f\"", withLogo.HtmlBody,
+            StringComparison.Ordinal);
         Assert.DoesNotContain("<img", withoutLogo.HtmlBody, StringComparison.Ordinal);
     }
 
@@ -138,14 +141,15 @@ public sealed class EmailTemplateRendererTests
     [Fact]
     public async Task The_name_and_the_logo_saved_in_appearance_are_read_for_each_email()
     {
-        var settings = FixedBrandingReader.Of("Campo", "Campo Avisos", "https://cdn.example.com/campo.png");
-        var renderer = new EmailTemplateRenderer(settings);
+        var settings = FixedBrandingReader.Of("Campo", "Campo Avisos", "0193a4c27d1e7c3a9f001a2b3c4d5e6f");
+        var renderer = new EmailTemplateRenderer(settings, Origin);
 
         var code = await renderer.RenderLoginCodeAsync("ana@example.com", "482913", 10, Spanish, Ct);
         var invitation = await renderer.RenderInvitationAsync("ana@example.com", "Ana", "https://app.test/login", Spanish, Ct);
 
         Assert.Equal("482913 es tu código de acceso a Campo", code.Subject);
-        Assert.Contains("<img src=\"https://cdn.example.com/campo.png\" alt=\"Campo\"", code.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("<img src=\"https://app.test/api/settings/brand/logo?v=0193a4c27d1e7c3a9f001a2b3c4d5e6f\" alt=\"Campo\"",
+            code.HtmlBody, StringComparison.Ordinal);
         Assert.Equal("Te dieron acceso a Campo", invitation.Subject);
         Assert.Equal(2, settings.Reads);
     }
@@ -158,8 +162,12 @@ public sealed class EmailTemplateRendererTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static EmailTemplateRenderer Renderer(string appName = "Arquitectura Base", string? logoUrl = null) =>
-        new(FixedBrandingReader.Of(appName, logoUrl: logoUrl));
+    private static EmailTemplateRenderer Renderer(string appName = "Arquitectura Base", string? logoVersion = null) =>
+        new(FixedBrandingReader.Of(appName, logoVersion: logoVersion), Origin);
+
+    private static FixedPublicOrigin Origin { get; } = new(new Uri("https://app.test/"));
+
+    private sealed record FixedPublicOrigin(Uri? Value) : IPublicOrigin;
 
     private static string[] Keys(CultureInfo culture) =>
         EmailTexts.ResourceManager.GetResourceSet(culture, createIfNotExists: true, tryParents: false)!

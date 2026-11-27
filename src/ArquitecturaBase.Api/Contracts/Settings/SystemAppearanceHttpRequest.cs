@@ -9,4 +9,6 @@ public sealed record SystemAppearanceHttpRequest
     public required string MenuColor { get; init; }
     public required string HeaderColor { get; init; }
     public required string AlternateRowColor { get; init; }
+    public required string MenuAccentColor { get; init; }
+    public required string Font { get; init; }
 }

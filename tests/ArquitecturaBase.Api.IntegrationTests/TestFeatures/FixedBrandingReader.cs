@@ -12,8 +12,8 @@ internal sealed class FixedBrandingReader(SystemBrandingResponse? branding) : IS
 {
     public static FixedBrandingReader Unavailable { get; } = new(null);
 
-    public static FixedBrandingReader Of(string appName = "Arquitectura Base", string senderName = "Arquitectura Base", string? logoUrl = null) =>
-        new(new SystemBrandingResponse(appName, senderName, logoUrl));
+    public static FixedBrandingReader Of(string appName = "Arquitectura Base", string senderName = "Arquitectura Base", string? logoVersion = null) =>
+        new(new SystemBrandingResponse(appName, senderName, logoVersion, null));
 
     public int Reads { get; private set; }
 

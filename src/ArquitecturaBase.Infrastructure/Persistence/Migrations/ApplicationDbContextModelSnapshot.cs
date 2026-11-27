@@ -5110,10 +5110,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasDefaultValue("America/Argentina/Buenos_Aires");
 
-                    b.Property<string>("EmailLogoUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
                     b.Property<string>("EmailSenderName")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -5121,12 +5117,23 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(60)")
                         .HasDefaultValue("Acceso");
 
+                    b.Property<string>("Font")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("public-sans");
+
                     b.Property<string>("HeaderColor")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(7)
                         .HasColumnType("character varying(7)")
                         .HasDefaultValue("#DFE8D9");
+
+                    b.Property<string>("IconFileKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<int>("InvitationRetentionDays")
                         .ValueGeneratedOnAdd()
@@ -5142,6 +5149,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(30);
+
+                    b.Property<string>("LogoFileKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("MenuAccentColor")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
 
                     b.Property<string>("MenuColor")
                         .IsRequired()

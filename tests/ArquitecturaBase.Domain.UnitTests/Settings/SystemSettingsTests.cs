@@ -18,15 +18,146 @@ public sealed class SystemSettingsTests
     public void Appearance_changes_are_normalized_and_advance_one_revision_without_changing_general_settings()
     {
         var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
-        var palette = new AppearancePalette("#335f85", "#243b53", "#d9e8f5", "#eef4fa");
+        var palette = new AppearancePalette("#335f85", "#243b53", "#d9e8f5", "#eef4fa", "#ffc10e");
         Assert.True(settings.Update(null, null, null, null, palette).IsSuccess);
         Assert.Equal("#335F85", settings.PrimaryColor);
         Assert.Equal("#243B53", settings.MenuColor);
         Assert.Equal("#D9E8F5", settings.HeaderColor);
         Assert.Equal("#EEF4FA", settings.AlternateRowColor);
+        Assert.Equal("#FFC10E", settings.MenuAccentColor);
+        Assert.Equal("#FFC10E", settings.EffectiveMenuAccentColor);
         Assert.Equal("es", settings.DefaultCulture);
         Assert.Equal(2, settings.Revision);
     }
+
+    // ME3-B: without a saved accent, the one the front derived from the menu until 2026-11-27, now readable as text.
+    [Fact]
+    public void Without_a_saved_accent_the_effective_one_derives_from_the_menu()
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+
+        Assert.Null(settings.MenuAccentColor);
+        Assert.Equal(AppearancePalette.InitialMenuAccentColor, settings.EffectiveMenuAccentColor);
+        Assert.Equal("#D3D7D5", AppearancePalette.DeriveMenuAccent("#24352B"));
+        Assert.True(AppearancePalette.ContrastRatio(AppearancePalette.DeriveMenuAccent("#6B7280"), "#6B7280") >= 4.5);
+        Assert.True(AppearancePalette.ContrastRatio(AppearancePalette.DeriveMenuAccent("#F4F6F0"), "#F4F6F0") >= 4.5);
+    }
+
+    [Theory]
+    [InlineData("#24352B", "#2B4150")]
+    [InlineData("#223340", "#3A4C59")]
+    [InlineData("#FFFFFF", "#FFC10E")]
+    public void An_accent_that_cannot_be_read_on_the_menu_keeps_every_color(string menu, string accent)
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+
+        var result = settings.Update(null, null, null, null, new AppearancePalette("#2B4150", menu, "#F6F2E9", "#FBF7EE", accent));
+
+        Assert.Equal(SettingsErrors.AppearanceInvalid, result.Error);
+        Assert.Equal(AppearancePalette.InitialMenuColor, settings.MenuColor);
+        Assert.Null(settings.MenuAccentColor);
+        Assert.Equal(1, settings.Revision);
+    }
+
+    [Fact]
+    public void The_contrast_ratio_follows_wcag()
+    {
+        Assert.Equal(21, AppearancePalette.ContrastRatio("#000000", "#FFFFFF"), 2);
+        Assert.Equal(1, AppearancePalette.ContrastRatio("#FFC10E", "#FFC10E"), 2);
+        Assert.Equal(7.98, AppearancePalette.ContrastRatio("#FFC10E", "#223340"), 2);
+    }
+
+    // ME4: one font for the whole application, from a closed list.
+    [Fact]
+    public void The_font_is_one_of_the_list_and_changes_with_one_revision()
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+        Assert.Equal("public-sans", settings.Font);
+
+        Assert.True(settings.Update(null, null, null, null, font: "hanken-grotesk").IsSuccess);
+
+        Assert.Equal("hanken-grotesk", settings.Font);
+        Assert.Equal(2, settings.Revision);
+        Assert.Equal(["public-sans", "inter", "ibm-plex-sans", "source-sans-3", "hanken-grotesk", "nunito-sans"], AppearanceFont.Supported);
+    }
+
+    [Theory]
+    [InlineData("comic-sans")]
+    [InlineData("Inter")]
+    [InlineData("")]
+    public void A_font_out_of_the_list_keeps_every_value(string font)
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+
+        var result = settings.Update("en", null, null, null, font: font);
+
+        Assert.Equal(SettingsErrors.AppearanceInvalid, result.Error);
+        Assert.Equal(("public-sans", "es", 1L), (settings.Font, settings.DefaultCulture, settings.Revision));
+    }
+
+    // ME2: the logo and the icon are files of the installation's store, one new key per upload.
+    [Fact]
+    public void A_logo_and_an_icon_are_set_and_cleared_with_one_revision_each()
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+        var logo = BrandImage.NewKey(BrandImageKind.Logo, Guid.Parse("0193a4c2-7d1e-7c3a-9f00-1a2b3c4d5e6f"), BrandImageFormat.Png);
+        var icon = BrandImage.NewKey(BrandImageKind.Icon, Guid.Parse("0193a4c2-7d1e-7c3a-9f00-6f5e4d3c2b1a"), BrandImageFormat.Png);
+
+        Assert.True(settings.SetBrandImage(BrandImageKind.Logo, logo).IsSuccess);
+        Assert.True(settings.SetBrandImage(BrandImageKind.Icon, icon).IsSuccess);
+
+        Assert.Equal("branding/logo/0193a4c27d1e7c3a9f001a2b3c4d5e6f.png", settings.LogoFileKey);
+        Assert.Equal("branding/icon/0193a4c27d1e7c3a9f006f5e4d3c2b1a.png", settings.IconFileKey);
+        Assert.Equal("0193a4c27d1e7c3a9f001a2b3c4d5e6f", BrandImage.VersionOf(logo));
+        Assert.Equal(3, settings.Revision);
+
+        Assert.True(settings.SetBrandImage(BrandImageKind.Logo, null).IsSuccess);
+        Assert.Null(settings.LogoFileKey);
+        Assert.Equal(icon, settings.IconFileKey);
+        Assert.Equal(4, settings.Revision);
+    }
+
+    [Theory]
+    [InlineData("branding/icon/0193a4c27d1e7c3a9f001a2b3c4d5e6f.png")]
+    [InlineData("branding/logo/0193a4c27d1e7c3a9f001a2b3c4d5e6f.gif")]
+    [InlineData("branding/logo/not-a-guid.png")]
+    [InlineData("form-files/0193a4c27d1e7c3a9f001a2b3c4d5e6f.png")]
+    [InlineData("")]
+    public void A_key_that_is_not_a_logo_key_is_refused(string key)
+    {
+        var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
+
+        Assert.Equal(SettingsErrors.LogoInvalid, settings.SetBrandImage(BrandImageKind.Logo, key).Error);
+        Assert.Null(settings.LogoFileKey);
+        Assert.Equal(1, settings.Revision);
+    }
+
+    [Fact]
+    public void A_jpeg_logo_keeps_its_type_and_an_icon_is_only_png()
+    {
+        var id = Guid.Parse("0193a4c2-7d1e-7c3a-9f00-1a2b3c4d5e6f");
+        var jpeg = BrandImage.NewKey(BrandImageKind.Logo, id, BrandImageFormat.Jpeg);
+
+        Assert.Equal("branding/logo/0193a4c27d1e7c3a9f001a2b3c4d5e6f.jpg", jpeg);
+        Assert.Equal("image/jpeg", BrandImage.ContentTypeOf(jpeg));
+        Assert.True(BrandImage.Allows(BrandImageKind.Logo, BrandImageFormat.Jpeg, 400, 112));
+        Assert.False(BrandImage.Allows(BrandImageKind.Icon, BrandImageFormat.Jpeg, 192, 192));
+        Assert.Equal(SettingsErrors.IconInvalid, SystemSettings.Create(RegistrationMode.InviteOnly)
+            .SetBrandImage(BrandImageKind.Icon, BrandImage.NewKey(BrandImageKind.Icon, id, BrandImageFormat.Jpeg)).Error);
+    }
+
+    [Theory]
+    [InlineData(BrandImageKind.Logo, 400, 112, true)]
+    [InlineData(BrandImageKind.Logo, 112, 112, true)]
+    [InlineData(BrandImageKind.Logo, 112, 400, false)]
+    [InlineData(BrandImageKind.Logo, 4001, 112, false)]
+    [InlineData(BrandImageKind.Icon, 64, 64, true)]
+    [InlineData(BrandImageKind.Icon, 1024, 1024, true)]
+    [InlineData(BrandImageKind.Icon, 63, 63, false)]
+    [InlineData(BrandImageKind.Icon, 192, 190, false)]
+    [InlineData(BrandImageKind.Icon, 1025, 1025, false)]
+    public void Each_image_has_its_shape_and_its_limits(BrandImageKind kind, int width, int height, bool allowed) =>
+        Assert.Equal(allowed, BrandImage.Allows(kind, BrandImageFormat.Png, width, height));
 
     [Theory]
     [InlineData("#FFF")]
@@ -37,7 +168,7 @@ public sealed class SystemSettingsTests
     public void Invalid_appearance_keeps_all_colors_and_general_settings(string? color)
     {
         var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
-        var invalid = new AppearancePalette("#FFFFFF", color!, "#000000", "#FFFFFF");
+        var invalid = new AppearancePalette("#FFFFFF", color!, "#000000", "#FFFFFF", "#FFFFFF");
         Assert.True(settings.Update("en", "UTC", 50, RegistrationMode.Open, invalid).IsFailure);
         Assert.Equal(AppearancePalette.InitialPrimaryColor, settings.PrimaryColor);
         Assert.Equal(AppearancePalette.InitialMenuColor, settings.MenuColor);
@@ -159,63 +290,52 @@ public sealed class SystemSettingsTests
         Assert.Equal(RegistrationMode.Open, settings.RegistrationMode);
     }
 
-    // RC6-B: the name, the sender and the logo start as the installation had them in Email:AppName, Email:Smtp:FromName and
-    // Email:LogoUrl; RC1-A: the sign-in data keep the periods decided on 2026-11-14.
+    // RC6-B: the name and the sender start as the installation had them in Email:AppName and Email:Smtp:FromName; ME2: no
+    // logo or icon until the administrator uploads them; RC1-A: the sign-in data keep the periods decided on 2026-11-14.
     [Fact]
-    public void New_installations_keep_the_current_name_sender_logo_and_retention_periods()
+    public void New_installations_keep_the_current_name_sender_and_retention_periods_without_logo()
     {
         var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
 
-        Assert.Equal(("Acceso", "Acceso", (string?)null), (settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl));
+        Assert.Equal(("Acceso", "Acceso"), (settings.AppName, settings.EmailSenderName));
+        Assert.Null(settings.LogoFileKey);
+        Assert.Null(settings.IconFileKey);
         Assert.Equal((12, 30, 30), (settings.LoginAuditRetentionMonths, settings.LoginCodeRetentionDays, settings.InvitationRetentionDays));
     }
 
     [Fact]
-    public void Branding_is_trimmed_an_empty_logo_means_none_and_one_revision_advances()
+    public void Branding_is_trimmed_and_one_revision_advances()
     {
         var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
-        Assert.True(settings.Update(null, null, null, null, branding: new SystemBranding("  Campo  ", " Campo Avisos ",
-            " https://example.com/logo.png ")).IsSuccess);
-        Assert.Equal(("Campo", "Campo Avisos", (string?)"https://example.com/logo.png"),
-            (settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl));
-        Assert.Equal(2, settings.Revision);
-
-        Assert.True(settings.Update(null, null, null, null, branding: new SystemBranding("Campo", "Campo", "  ")).IsSuccess);
-        Assert.Null(settings.EmailLogoUrl);
+        Assert.True(settings.Update(null, null, null, null, branding: new SystemBranding("  Campo  ", " Campo Avisos ")).IsSuccess);
+        Assert.Equal(("Campo", "Campo Avisos"), (settings.AppName, settings.EmailSenderName));
         Assert.Equal("es", settings.DefaultCulture);
-        Assert.Equal(3, settings.Revision);
+        Assert.Equal(2, settings.Revision);
     }
 
     [Theory]
-    [InlineData("", "Acceso", null)]
-    [InlineData("   ", "Acceso", null)]
-    [InlineData("Acceso", "", null)]
-    [InlineData("Dos\nlíneas", "Acceso", null)]
-    [InlineData("Acceso", "Con\ttabulación", null)]
-    [InlineData("Acceso", "Acceso", "http://example.com/logo.png")]
-    [InlineData("Acceso", "Acceso", "/logo.png")]
-    [InlineData("Acceso", "Acceso", "https://example.com/un logo.png")]
-    [InlineData("Acceso", "Acceso", "javascript:alert(1)")]
-    public void Invalid_branding_keeps_every_value_and_the_revision(string appName, string senderName, string? logoUrl)
+    [InlineData("", "Acceso")]
+    [InlineData("   ", "Acceso")]
+    [InlineData("Acceso", "")]
+    [InlineData("Dos\nlíneas", "Acceso")]
+    [InlineData("Acceso", "Con\ttabulación")]
+    public void Invalid_branding_keeps_every_value_and_the_revision(string appName, string senderName)
     {
         var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
 
-        var result = settings.Update("en", null, null, null, branding: new SystemBranding(appName, senderName, logoUrl));
+        var result = settings.Update("en", null, null, null, branding: new SystemBranding(appName, senderName));
 
         Assert.Equal(SettingsErrors.BrandingInvalid, result.Error);
-        Assert.Equal(("Acceso", "Acceso", (string?)null), (settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl));
+        Assert.Equal(("Acceso", "Acceso"), (settings.AppName, settings.EmailSenderName));
         Assert.Equal("es", settings.DefaultCulture);
         Assert.Equal(1, settings.Revision);
     }
 
     [Fact]
-    public void Names_and_logo_have_a_length_limit()
+    public void Names_have_a_length_limit()
     {
         Assert.True(SystemBranding.IsValidName(new string('a', SystemBranding.MaxNameLength)));
         Assert.False(SystemBranding.IsValidName(new string('a', SystemBranding.MaxNameLength + 1)));
-        var longest = "https://example.com/" + new string('a', SystemBranding.MaxLogoUrlLength - 20);
-        Assert.True(SystemBranding.IsValidLogoUrl(longest));
-        Assert.False(SystemBranding.IsValidLogoUrl(longest + "a"));
     }
 
     [Fact]
@@ -239,7 +359,7 @@ public sealed class SystemSettingsTests
     public void A_period_out_of_range_keeps_every_value_and_the_revision(int auditMonths, int codeDays, int invitationDays)
     {
         var settings = SystemSettings.Create(RegistrationMode.InviteOnly);
-        var palette = new AppearancePalette("#335F85", "#243B53", "#D9E8F5", "#EEF4FA");
+        var palette = new AppearancePalette("#335F85", "#243B53", "#D9E8F5", "#EEF4FA", "#FFC10E");
 
         var result = settings.Update(null, null, null, null, palette, retention: new IdentityRetentionPeriods(auditMonths, codeDays, invitationDays));
 

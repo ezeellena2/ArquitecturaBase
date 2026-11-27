@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Support;
 
 /// <summary>
-/// RC6-B y RC1-A: cambia el nombre, el remitente, el logo y los plazos de retención de la base (y descarta el caché de los
+/// RC6-B y RC1-A: cambia el nombre, el remitente y los plazos de retención de la base (y descarta el caché de los
 /// ajustes) mientras dure el scope, y los deja como estaban al salir, aunque el test los cambie con el endpoint. Los tests de la
 /// colección corren en serie, así que no se pisan entre ellos.
 /// </summary>
@@ -29,7 +29,7 @@ internal sealed class SystemSettingsScope(ApiFactory factory, SystemBranding bra
             var cancellationToken = TestContext.Current.CancellationToken;
             var dbContext = services.GetRequiredService<ApplicationDbContext>();
             var settings = await dbContext.SystemSettings.SingleAsync(cancellationToken);
-            var previous = (new SystemBranding(settings.AppName, settings.EmailSenderName, settings.EmailLogoUrl),
+            var previous = (new SystemBranding(settings.AppName, settings.EmailSenderName),
                 new IdentityRetentionPeriods(settings.LoginAuditRetentionMonths, settings.LoginCodeRetentionDays, settings.InvitationRetentionDays));
 
             if (branding is not null || retention is not null)

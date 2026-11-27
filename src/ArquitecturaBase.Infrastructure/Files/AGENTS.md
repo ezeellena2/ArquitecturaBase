@@ -13,3 +13,5 @@ F5: limpieza técnica cada hora de objetos mayores a un día sin metadata confir
 El lector devuelve ausencia para un blob 404; no transforma otras fallas de Azure en ausencia. Fotos: comprobar dimensiones originales antes de decodificar (16.384 por lado y 32 Mi píxeles). Imágenes como documento se inspeccionan sin rasterizar. Documentos dañados devuelven tipo inválido, no excepción recuperable.
 
 G2: `WriteOnceAsync` usa la condición Azure If-None-Match:* para conservar el primer objeto y sus headers. Sólo BlobAlreadyExists (409) o ConditionNotMet (412) significan que ya existe; otras fallas siguen siendo técnicas. Las carreras se prueban con dos stores y Azurite en la integración final.
+
+`SkiaImageInspector` implementa `IImageInspector` con el códec de SkiaSharp: lee el encabezado y nunca decodifica; un archivo dañado devuelve null, no excepción.

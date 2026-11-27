@@ -91,7 +91,11 @@ tenga los datos del primero. T6 a T8 van en paralelo, con los contratos fijados 
 
 ## Marca por empresa (ME)
 
-Estado: **el titular eligió ME1-A y ME3-B el 2026-11-27; T9 a T13 en programación.** Lienzo:
+Estado: **el titular eligió ME1-A y ME3-B el 2026-11-27. El backend de T9 y T10 está en `main` (salvo el logo en el PDF),
+con sus tests unitarios, de arquitectura y de integración en verde; siguen el front (T11 y T12) y T13.** Quedan anotados: el
+logo en el encabezado del PDF de una respuesta (módulo de Formularios) y borrar la columna `EmailLogoUrl` en el despliegue
+siguiente, con una migración escrita a mano (la de T9 la dejó porque la imagen anterior la lee mientras corre el bundle).
+Lienzo:
 [Marca por empresa](https://claude.ai/artifact/YKWuNW5xwL4EfSgstiMWrn).
 
 El titular quiere que cada empresa vea el producto con su logo, sus colores y su letra. Preguntó si convenía una rama

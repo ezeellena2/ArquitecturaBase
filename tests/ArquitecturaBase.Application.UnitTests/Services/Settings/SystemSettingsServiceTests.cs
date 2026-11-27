@@ -261,18 +261,51 @@ public sealed class SystemSettingsServiceTests
             fixture.Logger.Collector.GetSnapshot().Select(record => record.Message));
     }
 
-    // RC6-B and RC1-A: the panel reads the name, the sender, the logo and the sign-in periods with the rest of the row.
+    // RC6-B and RC1-A: the panel reads the name, the sender, the logo and the sign-in periods with the rest of the row; ME2:
+    // the logo as the version of its file, never its key; ME3-B: the accent derived from the menu until one is saved.
     [Fact]
     public async Task Get_returns_the_branding_and_the_sign_in_retention_periods()
     {
         var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
-        fixture.Settings.Update(null, null, null, null, branding: new SystemBranding("Campo", "Campo Avisos", "https://example.com/logo.png"),
+        fixture.Settings.Update(null, null, null, null, branding: new SystemBranding("Campo", "Campo Avisos"),
             retention: new IdentityRetentionPeriods(6, 2, 10));
+        fixture.Settings.SetBrandImage(BrandImageKind.Logo, "branding/logo/0193a4c27d1e7c3a9f001a2b3c4d5e6f.png");
 
         var result = await fixture.Service.GetAsync(Ct);
 
-        Assert.Equal(new SystemBrandingResponse("Campo", "Campo Avisos", "https://example.com/logo.png"), result.Value.Branding);
+        Assert.Equal(new SystemBrandingResponse("Campo", "Campo Avisos", "0193a4c27d1e7c3a9f001a2b3c4d5e6f", null), result.Value.Branding);
         Assert.Equal(new IdentityRetentionResponse(6, 2, 10), result.Value.Retention);
+        Assert.Equal(("#D3D7D5", "public-sans"), (result.Value.Appearance.MenuAccentColor, result.Value.Appearance.Font));
+    }
+
+    [Fact]
+    public async Task The_accent_and_the_font_are_saved_with_the_colors()
+    {
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+
+        var result = await fixture.Service.UpdateSectionAsync(new(1,
+            Appearance: new("#2b4150", "#223340", "#f6f2e9", "#fbf7ee", "#ffc10e", "hanken-grotesk")), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(("#223340", "#FFC10E", "hanken-grotesk"), (fixture.Settings.MenuColor, fixture.Settings.MenuAccentColor, fixture.Settings.Font));
+        Assert.Equal(["commit", "invalidate"], fixture.Events);
+    }
+
+    [Theory]
+    [InlineData("es", "Elegí un acento que se lea sobre el color del menú.", "Elegí una letra de la lista.")]
+    [InlineData("en", "Choose an accent that reads on the menu color.", "Choose a font from the list.")]
+    public async Task An_unreadable_accent_and_an_unknown_font_report_their_own_problem(string culture, string accent, string font)
+    {
+        using var cultureScope = new CultureScope(culture);
+        var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
+
+        var result = await fixture.Service.UpdateSectionAsync(new(1,
+            Appearance: new("#2B4150", "#223340", "#F6F2E9", "#FBF7EE", "#3A4C59", "comic-sans")), Ct);
+
+        var error = Assert.IsType<ValidationError>(result.Error);
+        Assert.Equal([accent], error.Errors["appearance.menuAccentColor"]);
+        Assert.Equal([font], error.Errors["appearance.font"]);
+        Assert.Equal(0, fixture.UnitOfWork.Transactions);
     }
 
     [Fact]
@@ -280,11 +313,11 @@ public sealed class SystemSettingsServiceTests
     {
         var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
 
-        var result = await fixture.Service.UpdateSectionAsync(new(1, Branding: new(" Campo ", "Campo", ""),
+        var result = await fixture.Service.UpdateSectionAsync(new(1, Branding: new(" Campo ", "Campo"),
             Retention: new(24, 7, 14)), Ct);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(("Campo", "Campo", (string?)null), (fixture.Settings.AppName, fixture.Settings.EmailSenderName, fixture.Settings.EmailLogoUrl));
+        Assert.Equal(("Campo", "Campo"), (fixture.Settings.AppName, fixture.Settings.EmailSenderName));
         Assert.Equal((24, 7, 14), (fixture.Settings.LoginAuditRetentionMonths, fixture.Settings.LoginCodeRetentionDays, fixture.Settings.InvitationRetentionDays));
         Assert.Equal(2, fixture.Settings.Revision);
         Assert.Equal(["commit", "invalidate"], fixture.Events);
@@ -292,19 +325,18 @@ public sealed class SystemSettingsServiceTests
     }
 
     [Theory]
-    [InlineData("es", "Este campo es obligatorio.", "Escribilo en una sola línea, sin caracteres de control.", "Escribí una dirección que empiece con https://.")]
-    [InlineData("en", "This field is required.", "Write it on a single line, without control characters.", "Enter an address that starts with https://.")]
-    public async Task Each_branding_field_reports_its_own_problem_before_the_transaction(string culture, string required, string singleLine, string https)
+    [InlineData("es", "Este campo es obligatorio.", "Escribilo en una sola línea, sin caracteres de control.")]
+    [InlineData("en", "This field is required.", "Write it on a single line, without control characters.")]
+    public async Task Each_branding_field_reports_its_own_problem_before_the_transaction(string culture, string required, string singleLine)
     {
         using var cultureScope = new CultureScope(culture);
         var fixture = new Fixture { Settings = SystemSettings.Create(RegistrationMode.InviteOnly) };
 
-        var result = await fixture.Service.UpdateSectionAsync(new(1, Branding: new("  ", "Dos\nlíneas", "http://example.com/logo.png")), Ct);
+        var result = await fixture.Service.UpdateSectionAsync(new(1, Branding: new("  ", "Dos\nlíneas")), Ct);
 
         var error = Assert.IsType<ValidationError>(result.Error);
         Assert.Equal([required], error.Errors["branding.appName"]);
         Assert.Equal([singleLine], error.Errors["branding.emailSenderName"]);
-        Assert.Equal([https], error.Errors["branding.emailLogoUrl"]);
         Assert.Equal(0, fixture.UnitOfWork.Transactions);
     }
 
