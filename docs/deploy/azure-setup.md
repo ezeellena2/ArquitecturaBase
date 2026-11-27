@@ -1,12 +1,13 @@
 # Desplegar a Azure Container Apps
 
-Receta técnica de recursos para `.github/workflows/deploy.yml`. Para este ambiente de pruebas, empezá por [Azure dev](azure-dev.md): explica conceptos, etapas, región/tamaños pendientes y la configuración exacta de GitHub. Los bloques Bash se ejecutan en Azure Cloud Shell con Bash; no copiarlos directamente en PowerShell.
+Receta técnica de recursos para `.github/workflows/deploy.yml`. Para el ambiente dev, [`provision-azure-dev.sh`](provision-azure-dev.sh) hace todo esto de una vez y se puede volver a correr; [Azure dev](azure-dev.md) explica cómo correrlo, la región, los tamaños y la configuración de GitHub. Esta receta conserva los pasos sueltos y sus porqués. Los bloques Bash se ejecutan en Azure Cloud Shell con Bash; no copiarlos directamente en PowerShell.
 El pipeline no crea recursos: solo sube una imagen nueva y actualiza la aplicación.
 
 Este procedimiento prepara Container Apps, PostgreSQL, el registry y el almacenamiento de archivos privados. **También hace
-falta Redis**: provisionarlo con red privada/TLS y configurar `ConnectionStrings__cache` y `Caching__KeyPrefix`
-según la [guía de despliegue](../guides/despliegue.md#redis). Los comandos de esta guía no crean
-ese recurso. El workflow ya compila y empaqueta el front con la API; su ejecución real en Azure sigue en los [pendientes](../plans/verificacion-y-produccion.md).
+falta Redis**: con red privada y configurar `ConnectionStrings__cache` y `Caching__KeyPrefix`
+según la [guía de despliegue](../guides/despliegue.md#redis). En dev, el script lo levanta como otra Container App con
+ingress TCP interno, contraseña y `noeviction` ([Azure dev](azure-dev.md#etapa-2-elegir-y-crear-los-recursos)); los comandos
+de esta guía no lo crean.
 
 > **Costo.** Container Apps tiene una cuota gratuita mensual, pero PostgreSQL Flexible
 > Server, el registry, el almacenamiento y Redis pueden generar cargos. Revisá los precios de la región y los
@@ -73,6 +74,12 @@ az postgres flexible-server create --resource-group $RG --name $PG --location $L
 ```
 
 `--public-access None` crea el servidor con acceso público habilitado pero sin reglas de firewall. El acceso se habilita por reglas posteriores. La pipeline abre una regla temporal para su runner y la borra al terminar. `0.0.0.0` tiene otro significado: permite recursos de Azure. [Referencia de Azure CLI](https://learn.microsoft.com/en-us/cli/azure/postgres/flexible-server?view=azure-cli-latest#az-postgres-flexible-server-create).
+
+**Con az 2.93 o más nueva** cambiaron tres cosas, que el script y el workflow ya contemplan: `--public-access None` deja el
+acceso público apagado (se prende con `az postgres flexible-server update --public-access Enabled`, que no abre nada sin
+reglas); `db create` pide `--name appdb` en lugar de `--database-name`; y en `firewall-rule` el servidor va en
+`--server-name` y la regla en `--name`, en lugar de `--name` y `--rule-name`. Si la región no tiene B1ms para la suscripción
+(`SkuNotAvailable`) o restringe PostgreSQL, se elige otra cercana: el intento fallido deja el nombre ocupado un rato.
 
 `--backup-retention 7` es el plazo para restaurar a un momento dado: Azure guarda los respaldos y el registro de
 transacciones de los últimos 7 días. Es el mínimo y el valor por defecto; llega hasta 35 y se cambia después con
@@ -371,6 +378,8 @@ az role assignment create --assignee $APP_ID --role AcrPush --scope $ACR_ID
 
 Usar el modo de permisos RBAC del registry para esta receta. Los recursos con ABAC requieren otros roles y una revisión de la configuración.
 
+El script de dev usa en su lugar una identidad administrada del grupo, con la misma credencial federada y los mismos roles: no deja una App Registration en Entra ID y se borra con el grupo. Las dos formas sirven para `azure/login`.
+
 Solo el job deploy usa Azure y apunta al environment dev. Agregar una credencial federada con el subject de ese environment; build no necesita otra. Para el formato inmutable por defecto de este repositorio:
 
 ```bash
@@ -381,7 +390,7 @@ Si el repo personalizó sus claims, usar el subject realmente emitido. Ver [la e
 
 ## 8. Configuración en GitHub
 
-Crear el environment **dev** en el backend y permitir solo main. Identificadores y nombres son variables de ese environment; DB_CONNECTION_STRING es un secret del environment. DEV_DEPLOY_ENABLED es una variable **de repositorio**, inicialmente false.
+Crear el environment **dev** en el backend y permitir solo main. Identificadores y nombres son variables de ese environment, sin secretos: el bundle de migraciones lee la conexión del secreto `db-connection` de la Container App con la identidad de OIDC. DEV_DEPLOY_ENABLED es una variable **de repositorio**, inicialmente false.
 
 La [tabla de Azure dev](azure-dev.md#etapa-4-conectar-github-con-azure) es la fuente exacta de los nombres. El front tiene su propio interruptor y el secret BACKEND_WORKFLOW_TOKEN limitado a solicitar el workflow del backend; su [configuración](azure-dev.md#etapa-5-permitir-que-un-push-del-front-solicite-la-publicación) no requiere credenciales de Azure.
 

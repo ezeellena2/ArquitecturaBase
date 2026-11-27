@@ -1,6 +1,6 @@
 # Costos de Azure dev — comparación del 2026-10-02
 
-Estado: comparación de referencia, sin recursos creados. El titular descartó el costo mensual de USD 50 y pide un ambiente gratuito. La configuración paga 24/7 de abajo no se adopta. Se compararon East US y Brazil South; la elegibilidad de servicios gratuitos y la disponibilidad en esta suscripción se verifican después de iniciar sesión.
+Estado: el 2026-11-26 el titular aprobó el ambiente pago siempre prendido, unos USD 35 a 60 por mes, que quedó en Central US con las tarifas de East US ([Azure dev](azure-dev.md#etapa-2-elegir-y-crear-los-recursos)). La restricción de un ambiente gratuito de abajo quedó sin efecto y se conserva como comparación. La suscripción es «Azure Plan» con servicios gratuitos de 12 meses hasta el 2026-12-17, entre ellos PostgreSQL B1ms, su disco y sus respaldos. Redis quedó como Container App interna de 0,25 vCPU y 0,5 GiB, y la Api en 0,5 vCPU y 1 GiB.
 
 ## Restricción vigente: ambiente gratuito
 

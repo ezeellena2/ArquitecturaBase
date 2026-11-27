@@ -1,6 +1,6 @@
 # Azure dev: aprender y configurar el despliegue
 
-Estado al 2026-10-02: workflows preparados en los repositorios locales. No se crearon recursos ni se ejecutó un despliegue en Azure. Los dos repositorios son públicos, confirmado mediante la API de GitHub. La suscripción fue identificada por el titular; región, tamaños y presupuesto quedan por elegir. La CLI local necesita iniciar sesión.
+Estado al 2026-11-26: el ambiente existe. Lo creó [`provision-azure-dev.sh`](provision-azure-dev.sh) en Central US, con el gasto aprobado por el titular ese día (etapa 2), y `deploy.yml` lo publica con `DEV_DEPLOY_ENABLED=true`. Los dos repositorios son públicos.
 
 ## Qué estamos armando
 
@@ -87,24 +87,31 @@ La pipeline debe llegar a GitHub para ejecutarse: los cambios locales no aparece
 
 ## Etapa 2: elegir y crear los recursos
 
-El titular descartó el gasto de USD 50/mes y pide un ambiente gratuito. La [comparación actualizada](azure-dev-costos.md#restricción-vigente-ambiente-gratuito) conserva el escenario pago como referencia y evalúa App Service F1 y beneficios gratuitos de datos. No crear los recursos pagos de esta receta ni activar el deploy actual. Si elegimos F1, se adapta el destino del workflow conservando las pruebas y el empaquetado de React/API; ese cambio todavía no se implementó.
+**Decisión del 2026-11-26.** El titular aprobó el ambiente pago, siempre prendido, en la región más barata de las comparadas: allí PostgreSQL cuesta la mitad que en Brazil South y hay unos 150 ms desde Argentina. Eligió East US 2, pero para esta suscripción no tiene B1ms (`SkuNotAvailable`, aunque `list-skus` lo ofrece) y East US tiene restringida la creación de PostgreSQL. Por eso quedó todo en **Central US**, con las mismas tarifas: la Api y la base en la misma región, sin sumarle unos 25 ms a cada consulta. El registry quedó en Brazil South, la región del grupo, y sólo cambia dónde se descargan las imágenes. Un intento fallido deja el nombre del servidor ocupado en esa región por un tiempo; por eso la base se llama `psql-arqbase-dev-cus-…`. Son unos USD 35 a 60 por mes según el uso (la Api activa o en reposo); hasta el 2026-12-17 PostgreSQL B1ms entra en los servicios gratuitos de la suscripción. La [comparación de costos](azure-dev-costos.md) conserva el detalle de las tarifas. La restricción anterior, un ambiente gratuito, queda sin efecto.
 
-La región se elige comparando disponibilidad de servicios, latencia y costo. Brazil South es un candidato por cercanía a Argentina; East US es otro candidato para comparar precios. No fijamos una región ni tamaños sin revisar la suscripción. Ver [productos por región](https://azure.microsoft.com/en-us/explore/global-infrastructure/products-by-region/) y [calculadora de Azure](https://azure.microsoft.com/en-us/pricing/calculator/).
+Todo sale de un script que se puede volver a correr sin regenerar nada de lo que ya existe:
 
-Usaremos nombres con dev y un único grupo de recursos, por ejemplo rg-arquitecturabase-dev. ACR, PostgreSQL y Storage requieren nombres disponibles; los ejemplos no garantizan disponibilidad.
+```bash
+LOCATION=centralus PG=psql-arqbase-dev-cus-689638 ACA_ENV=cae-arquitecturabase-dev-cus \
+AZURE_SUBSCRIPTION_ID=<id> GITHUB_OIDC_SUBJECT='repo:ezeellena2@128924334/ArquitecturaBase@1376411164:environment:dev' \
+GITHUB_REPOSITORY=ezeellena2/ArquitecturaBase SMTP_USERNAME=... SMTP_PASSWORD=... SMTP_FROM_ADDRESS=... \
+SEED_ADMIN_EMAIL=... GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... bash docs/deploy/provision-azure-dev.sh
+```
+
+Corre en Cloud Shell o en Git Bash con Azure CLI y `az login`. Los valores del titular (SMTP, administrador inicial y Google) son los mismos de los user-secrets de la Api, y se pasan como variables sin escribirlos en archivos. El resto de los secretos los genera el script dentro de Azure. Si el grupo ya existe, se reusa aunque esté en otra región: el de dev existía en Brazil South con la cuenta de Storage que usa el desarrollo local (`starqbaseezedev`), que el ambiente no comparte, porque su limpieza de huérfanos borraría los archivos locales.
 
 | Recurso | Responsabilidad | Configuración inicial a resolver |
 |---|---|---|
-| Resource Group | Agrupa los recursos del ambiente | Suscripción correcta, región y etiqueta environment=dev. |
-| Container Registry | Guarda imágenes | Basic como candidato; administración por credenciales deshabilitada, acceso por identidad. |
-| Container Apps Environment | Entorno de ejecución y red | Misma región; decidir red y logs. |
-| Container App | API y React | Ingress HTTPS externo, puerto 8080, revisiones Single; una réplica como punto de partida para workers. |
-| PostgreSQL Flexible Server | Base appdb | Versión 18 si está disponible en la región, con mínimo [PostgreSQL 16](../guides/despliegue.md#el-orden-bundle-después-imagen); tamaño a cotizar; TLS y firewall. |
-| Redis | Caché obligatorio y coordinación | Decidir servicio administrado frente a Redis interno para dev, costo y acceso privado. No publicar el puerto de Redis en Internet. |
-| Storage Account GPv2 | Objetos de Files | Contenedores privados, Hot/LRS como candidato para pruebas; integración de la API pendiente. |
-| Presupuesto | Ayuda a controlar gastos | Alerta mensual; una alerta no corta el consumo automáticamente. |
+| Resource Group | Agrupa los recursos del ambiente | `rg-arquitecturabase-dev`. |
+| Container Registry | Guarda imágenes, también la de Redis | Basic, sin usuario administrador; las apps leen con su identidad (AcrPull). |
+| Container Apps Environment | Entorno de ejecución y red | `cae-arquitecturabase-dev-cus`, plan de consumo, logs a Log Analytics. |
+| Container App | API y React | `ca-arquitecturabase-dev`: ingress HTTPS externo al 8080, revisiones Single, una réplica de 0,5 vCPU y 1 GiB (la Api arranca con unos 170 MB), probes y apagado de 60 s. |
+| Redis | Caché obligatorio y coordinación | `ca-redis-dev`: Redis 8.6 en otra Container App, con ingress TCP interno (sin puerto en Internet), contraseña, 256 MB y `noeviction`, sin persistencia. Es el mismo servidor que en local y lo comparten todas las revisiones de la Api. |
+| PostgreSQL Flexible Server | Base appdb | B1ms, 32 GB, versión 18, respaldos de 7 días, TLS y regla para servicios de Azure. |
+| Storage Account GPv2 | Archivos privados | `files-content` privado, sin claves compartidas, con borrado temporal, versiones y restauración; la Api entra con su identidad. |
+| Identidad de GitHub | Publicar sin contraseña | `id-github-arquitecturabase-dev`, identidad administrada con credencial federada del environment dev, Contributor del grupo y AcrPush. |
 
-La [receta técnica](azure-setup.md) crea Container Apps/ACR/PostgreSQL y muestra certificados. No crea Redis ni Blob ni resuelve toda la red. Antes de usarla completamos esas elecciones; no es todavía un script de infraestructura integral. Un registry, una base, Redis y los logs pueden generar cargos aunque no visites la web.
+Los nombres del registry, la base y el Storage llevan un sufijo derivado de la suscripción, porque son únicos en Azure. La [receta técnica](azure-setup.md) explica cada pieza y sus porqués. Un registry, una base, Redis y los logs generan cargos aunque no visites la web. Queda pendiente una alerta de presupuesto, que avisa pero no corta el consumo.
 
 Para consultar Azure desde Windows:
 ```powershell
@@ -125,6 +132,8 @@ falta una clave de proveedor para arrancar. El workflow no crea ese anillo. Conf
 probar Azure son pasos pendientes del primer despliegue.
 
 En Container App, los secrets guardan conexiones/contraseñas/PFX; las variables de entorno los referencian. .NET interpreta doble guion bajo como sección: ConnectionStrings__appdb equivale a ConnectionStrings:appdb.
+
+El script carga esta tabla. Genera dentro de Azure, sin mostrarlos, la contraseña de PostgreSQL y la de Redis, la HashKey, los tres PFX con su contraseña y los anillos de IA y ARCA, cada uno con un ID propio de esta instalación. Quedan como secretos de la Container App (`db-connection`, `redis-connection`, `login-code-hash-key`, `signing-pfx`, `encryption-pfx`, `dataprotection-pfx`, `pfx-password`, `ai-installation-id`, `ai-key-v1`, `arca-installation-id`, `arca-key-v1`, `smtp-password` y `google-client-secret`). Una segunda corrida sólo agrega los que faltan: regenerar un PFX o un anillo cerraría las sesiones y dejaría ilegible lo cifrado. El respaldo es `az containerapp secret show`, guardado aparte de la base. Antes de cargar la tabla, la imagen se probó en Production contra una base y un Redis locales: arranca, `/health` da Healthy y .NET acepta los PFX de openssl.
 
 El ambiente del producto se llama dev, pero ASPNETCORE_ENVIRONMENT=Production selecciona el comportamiento del host desplegado: certificados persistentes, sin migraciones automáticas ni secretos locales. Esa palabra no convierte los datos de prueba en producción.
 
@@ -163,7 +172,7 @@ Configurar los probes de la [receta](azure-setup.md#probes): Startup y Liveness 
 
 En el backend, Settings → Environments → New environment → dev. Restringir deployment branches a main. Para dev automático no agregamos revisores obligatorios.
 
-En Microsoft Entra ID, crear una App Registration y su service principal para GitHub. Agregar una credencial federada con issuer https://token.actions.githubusercontent.com, audience api://AzureADTokenExchange y subject del environment dev. Solo deploy se autentica, por eso se necesita una credencial de dev, no otra para build.
+El script crea una identidad administrada en el grupo (`id-github-arquitecturabase-dev`) con una credencial federada: issuer https://token.actions.githubusercontent.com, audience api://AzureADTokenExchange y el subject del environment dev. Vive y se borra con el grupo, sin una App Registration en Entra ID. Solo deploy se autentica, por eso se necesita una credencial de dev, no otra para build.
 
 **Atención al formato del subject:** GitHub cambió el formato por defecto para repositorios creados después del 2026-07-15. Este backend fue creado el 2026-09-18; con esa política por defecto corresponde:
 ```text
@@ -182,7 +191,8 @@ En Settings → Environments → dev, cargar:
 | Variable | AZURE_REGISTRY | Nombre ACR sin .azurecr.io |
 | Variable | AZURE_CONTAINER_APP | Nombre de la Container App |
 | Variable | AZURE_POSTGRES_SERVER | Nombre del servidor sin .postgres.database.azure.com |
-| Secret | DB_CONNECTION_STRING | Conexión a appdb dev utilizada solo por el bundle |
+
+Con `GITHUB_REPOSITORY` y `gh` autenticado, el script crea el environment, lo limita a main y carga estas variables. No hay secretos de GitHub: el bundle de migraciones lee la conexión del secreto `db-connection` de la Container App, la misma que usa la Api, con la identidad de OIDC.
 
 En Settings → Secrets and variables → Actions del **repositorio backend**, crear la variable DEV_DEPLOY_ENABLED=false inicialmente. Debe ser variable de repositorio, porque se evalúa antes de entrar al environment.
 
