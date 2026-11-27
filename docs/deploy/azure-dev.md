@@ -240,11 +240,18 @@ Para pausar futuros despliegues, DEV_DEPLOY_ENABLED=false en ambos repos. Esto n
 
 ## Comprobaciones todavía externas
 
+**Primera publicación, 2026-11-26.** La corrida 45922520503 de `deploy.yml` (back cd318660) publicó en
+https://ca-arquitecturabase-dev.lemonmushroom-745a5099.centralus.azurecontainerapps.io: OIDC, probes, imagen, migraciones,
+revisión sana y comprobación desde Internet en verde. Un shard de vitest se cortó por tiempo
+(`MissingFormsPage`, «gives the wait of a 429…») y pasó al repetir sólo los jobs fallidos. Después, `/health` responde
+Healthy, la página sale con Brotli e `index.html` con `no-cache`, el issuer es el origen público y el ingreso con Google
+entra como el administrador inicial, con Administración visible. Falta activar el front (etapa 5) y probar el código por
+correo, la renovación de la sesión y un reinicio.
+
 Validación local del 2026-10-02: build .NET Release sin advertencias; 2.057 tests backend (incluida integración con Docker); lint, 829 tests y build front; ambos workflows validados con actionlint 1.7.12. Se generó y cargó la imagen linux/amd64, y se compararon los 76 archivos de React por SHA-256 tanto en el publicado como dentro de la imagen. El bundle Linux se generó y arrancó sin appsettings, hasta intentar la conexión ficticia de prueba; no aplicó migraciones a una base real. El wwwroot temporal se retiró después de probar para conservar el desarrollo local con Vite.
 
-- Crear recursos y configurar red, identidades y secrets en Azure/GitHub.
-- Ejecutar realmente ambos disparadores en Actions y confirmar el paquete publicado.
-- Verificar ingreso, renovación y reinicio contra Azure.
+- Ejecutar el disparador del front (etapa 5): falta su variable y el secret `BACKEND_WORKFLOW_TOKEN`.
+- Verificar el código por correo, la renovación y un reinicio contra Azure.
 - Implementar Files y probar permisos/upload/download de Blob desde local y desde la identidad de la Container App.
 
 El build local, actionlint y los tests no sustituyen estas comprobaciones.

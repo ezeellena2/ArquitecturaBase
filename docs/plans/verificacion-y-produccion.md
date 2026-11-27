@@ -195,10 +195,13 @@ El código y la corrida completa del 2026-11-26 están en verde; queda mirarlos 
 
 ## Despliegue y operación
 
-- [ ] Ejecutar los dos disparadores y validar el primer despliegue real con la [guía Azure dev](../deploy/azure-dev.md).
-  La preparación local de los workflows no acredita Actions, login ni arranque en Azure.
-- [ ] Completar la [lista antes del primer despliegue](../guides/despliegue.md#lista-antes-del-primer-despliegue),
-  con Redis privado/TLS, prefijos por instalación, secretos, issuer, redirects y certificados.
+- [x] Primer despliegue real (2026-11-26): el push del backend publicó Azure dev con `deploy.yml` (corrida 45922520503);
+  `/health` sano, el issuer público y el ingreso con Google como administrador ([Azure dev](../deploy/azure-dev.md#comprobaciones-todavía-externas)).
+- [ ] El disparador del front: su variable `DEV_DEPLOY_ENABLED` y el secret `BACKEND_WORKFLOW_TOKEN`, un PAT que crea el
+  titular ([etapa 5](../deploy/azure-dev.md#etapa-5-permitir-que-un-push-del-front-solicite-la-publicación)).
+- [ ] Lo que queda de la [lista antes del primer despliegue](../guides/despliegue.md#lista-antes-del-primer-despliegue): respaldo
+  de los PFX aparte de la Container App, destino de OpenTelemetry y alerta de 5xx, cupo de Gmail anotado y una alerta de
+  presupuesto. Probar en Azure el código por correo, la renovación de la sesión y un reinicio.
 - [ ] Planificar WhatsApp en producción: el piloto de formularios del 2026-10-11 ya usó una cuenta
   configurada, con pago y número reales. Falta el número de producción y su PIN, las plantillas en su
   cuenta, HTTPS/webhook propio, secreto de la app requerido, monitoreo del token y del costo, y el
