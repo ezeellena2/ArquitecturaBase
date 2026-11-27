@@ -259,6 +259,10 @@ sesión y un reinicio.
   (variables `WHATSAPP_*` del script). El webhook de la app de Meta pasó del túnel de la PC a
   `https://<origen>/webhooks/whatsapp`, con los mismos campos: desde ahí, los mensajes que llegan van a Azure dev y no a
   la PC ([en local](../guides/whatsapp-en-local.md#el-túnel-para-recibir-los-webhooks)).
+- **IA.** Los perfiles calificados (`ArtificialIntelligence:Assistant:*`: texto, documentos y audio) y la clave de Google
+  Places se copiaron de los user-secrets a la Container App: sin perfiles, el asistente no anda aunque haya conexión. La
+  clave del proveedor no está en los user-secrets: se guarda cifrada en la base de cada instalación, con su anillo, así
+  que en Azure dev se carga de nuevo en Configuración › Inteligencia artificial.
 - **La publicación desde el front quedó activa (etapa 5).** El PAT fine-grained «ArquitecturaBaseFront publica Azure dev»
   tiene sólo Actions de lectura y escritura sobre el backend y vence el 2027-11-26. Su prueba con `workflow_dispatch`
   pidió la corrida 45928247791 del backend.
