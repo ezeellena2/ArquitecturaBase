@@ -21,6 +21,7 @@ public static class WhatsAppApiRegistration
     public const string WebhookRateLimitPolicy = "whatsapp-webhook";
     public const string ChatReadRateLimitPolicy = "whatsapp-chat-read";
     public const string ChatWriteRateLimitPolicy = "whatsapp-chat-write";
+    public const string UsageRateLimitPolicy = "whatsapp-usage";
 
     public static IServiceCollection AddWhatsAppApi(this IServiceCollection services)
     {
@@ -48,22 +49,19 @@ public static class WhatsAppApiRegistration
             .ValidateDataAnnotations().ValidateOnStart();
         services.Configure<RateLimiterOptions>(options =>
         {
-            options.AddPolicy(ChatReadRateLimitPolicy, context => ChatLimit(context, false));
-            options.AddPolicy(ChatWriteRateLimitPolicy, context => ChatLimit(context, true));
+            options.AddPolicy(ChatReadRateLimitPolicy, context => ActorLimit(context, settings => settings.WhatsAppChatReadPermitLimit));
+            options.AddPolicy(ChatWriteRateLimitPolicy, context => ActorLimit(context, settings => settings.WhatsAppChatWritePermitLimit));
+            options.AddPolicy(UsageRateLimitPolicy, context => ActorLimit(context, settings => settings.WhatsAppUsagePermitLimit));
         });
 
         return services;
     }
 
-    private static RateLimitPartition<string> ChatLimit(HttpContext context, bool writing)
+    private static RateLimitPartition<string> ActorLimit(HttpContext context, Func<WhatsAppChatRateLimitOptions, int> permitLimit)
     {
         var settings = context.RequestServices.GetRequiredService<IOptions<WhatsAppChatRateLimitOptions>>().Value;
         var actor = context.RequestServices.GetRequiredService<ICurrentUser>().UserId;
         return RateLimitPartition.GetFixedWindowLimiter(actor?.ToString() ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = writing ? settings.WhatsAppChatWritePermitLimit : settings.WhatsAppChatReadPermitLimit,
-                Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
-            });
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit(settings), Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
     }
 }

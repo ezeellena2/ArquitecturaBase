@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
+using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
@@ -69,12 +70,31 @@ internal sealed class AiAssistantRetentionService(IAiAssistantRepository reposit
                 else turn.PurgeContent();
                 foreach (var tool in await repository.ListToolsAsync(turn.Id, ct)) repository.RemoveTool(tool);
             }
+            var zone = BusinessDay.Zone((await settings.FindPresentationAsync(ct)).DefaultTimeZoneId);
+            // PR12: their turns go with them, so what they sent is added first to its month, in this same unit and under the budget lock.
+            if (conversations.Count > 0) await KeepUsageAsync([.. conversations.Select(c => c.Id)], zone, ct);
             foreach (var conversation in conversations) repository.RemoveConversation(conversation);
             // I1: what the business day in course accepted counts in its quotas until its midnight, in the zone of the settings.
-            var today = BusinessDay.Of(now, BusinessDay.Zone((await settings.FindPresentationAsync(ct)).DefaultTimeZoneId));
+            var today = BusinessDay.Of(now, zone);
             var receipts = await repository.ListExpiredReceiptsAsync(now, today.StartUtc, home,
                 limits.MaintenanceBatchSize - turns.Count - retiring.Count - conversations.Count, ct);
             foreach (var receipt in receipts) repository.RemoveReceipt(receipt);
             return Result.Success(turns.Count + retiring.Count + conversations.Count + receipts.Count);
         }, CommitPolicy.OnSuccess, cancellationToken));
+
+    private async Task KeepUsageAsync(IReadOnlyCollection<Guid> conversationIds, TimeZoneInfo zone, CancellationToken cancellationToken)
+    {
+        // I4: a provider that a newer version saved is read Unsupported and never written; its turns go without being counted here.
+        foreach (var row in AiUsagePolicy.Summarize(await repository.ListTurnUsageAsync(conversationIds, cancellationToken), zone)
+            .Where(row => AiProviders.IsSupported(row.Usage.Provider)))
+        {
+            var usage = await repository.GetUsageMonthAsync(row.Month, row.Usage.Provider, row.Usage.Model, cancellationToken);
+            if (usage is null)
+            {
+                usage = AiUsageMonth.Create(row.Month, row.Usage.Provider, row.Usage.Model);
+                repository.AddUsageMonth(usage);
+            }
+            usage.Add(row.Usage.Requests, row.Usage.UnknownUsageRequests, row.Usage.InputTokens, row.Usage.OutputTokens, row.Usage.AudioSeconds);
+        }
+    }
 }

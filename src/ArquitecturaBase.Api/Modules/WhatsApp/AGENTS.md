@@ -29,3 +29,5 @@ Las rutas assistant-suggestions requieren Read+Send: POST solicita un análisis 
 Casos del asistente: `WhatsAppAssistantAgentController` (`api/whatsapp/assistant-agent`, `whatsapp.configureassistant`, mensajería) expone GET y PUT del agente (cuerpo cerrado, 400 por ruta y 409 por revisión) y las tres rutas de Probar, que exigen además `whatsapp.read`: POST `tests` (202), GET `tests/{requestId}?contactId=` y GET `test-recipients?search=`. Los contratos sobrescriben `ToString()`; la lista y el hilo del chat suman el filtro `needsPerson`.
 
 Configuración › WhatsApp (RC3-A): `WhatsAppSettingsController` (`api/whatsapp/settings`, `settings.manage` como Configuración › General) expone GET y PUT de los tres valores de la instalación (cuerpo cerrado, 400 por ruta y 409 por revisión), con el transporte prendido o apagado: la retención corre igual.
+
+Consumo (T7): `WhatsAppUsageController` (`GET api/whatsapp/usage?month=`, `settings.manage`, con el transporte prendido o apagado) devuelve lo que informa Meta del mes del negocio; sin cuenta o sin número, `configured: false` ([regla](../../../../docs/features/whatsapp.md#consumo-2026-11-27)).

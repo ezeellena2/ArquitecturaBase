@@ -31,6 +31,7 @@ public static class WhatsAppApplicationRegistration
         services.Replace(ServiceDescriptor.Scoped<IPhoneChannel, WhatsAppPhoneChannel>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IClientCapabilitySource, WhatsAppClientCapabilitySource>());
         services.AddScoped<IWhatsAppSettingsService, WhatsAppSettingsService>();
+        services.AddScoped<IWhatsAppUsageService, WhatsAppUsageService>();
         services.Replace(ServiceDescriptor.Singleton<IAssistantOperationCompletionSignal, WhatsAppAssistantOperationCompletionSignal>());
 
         // Compilación local de formularios; disponible sin transporte, sin efectos externos ni aceptación durable.

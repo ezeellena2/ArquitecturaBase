@@ -3,7 +3,7 @@
 Adaptadores del módulo opcional. Leé [WhatsApp](../../../../docs/features/whatsapp.md) antes de tocarlo; el núcleo no nombra este módulo.
 
 - `Persistence/`: modelo, lectores, repositorios y `WhatsAppLockKeys` ([guía](Persistence/AGENTS.md)).
-- Clientes de Graph: `WhatsAppCloudClient` (mensajes), `WhatsAppFlowClient` (Flows, preview y retiro), `WhatsAppMediaClient` (descarga), `WhatsAppMediaUploadClient` (documentos) y `WhatsAppFlowEnvironment` (cuenta WABA y número).
+- Clientes de Graph: `WhatsAppCloudClient` (mensajes), `WhatsAppFlowClient` (Flows, preview y retiro), `WhatsAppMediaClient` (descarga), `WhatsAppMediaUploadClient` (documentos), `WhatsAppPricingAnalyticsClient` (consumo) y `WhatsAppFlowEnvironment` (cuenta WABA y número).
 - Webhook: firma, lectura del lote, reintento único y señal al procesador. Cola de acceso cifrada: `WhatsAppSendQueue`, codec y `WhatsAppMessageSource`. Protectores de Flows, sesiones y respuestas.
 - Workers: cola de acceso (`Sender`), salida durable (`Outgoing`), procesador entrante, publicación y retiro de Flows, respuestas de Flow y retención; `WhatsAppDispatchCoordinator` da la lease por destino.
 - Registro, opciones, salud y versiones `Disabled*` para el transporte apagado.

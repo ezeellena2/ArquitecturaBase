@@ -46,6 +46,8 @@ ReadDocument tiene su cliente (`OpenAiDocumentReadingClient`), que sólo llama e
 
 NormalizeAudio convierte las excepciones de almacenamiento no canceladas (también AggregateException por reintentos y las de apertura, lectura y cierre del stream) a ContentUnavailable sólo antes del cliente STT: un archivo que no llegó al proveedor no queda incierto; cancelación y errores del POST conservan su clasificación.
 
+Consumo: `AiUsageReader` junta `AiUsageMonths` con los turnos vivos del mes (sin filtros, `ProviderSteps > 0`) y cuenta los montos informados para no confundir nulo con cero.
+
 Retención física (I3): ninguna conversación, de Inicio o de un canal, necesita retirada cuando vencieron contenido y recibos y no hay turnos activos; una de Inicio retirada no espera los recibos. La consulta usa ConversationId de recibos independientes, sin FK/cascade ni inferencia desde el vencimiento del turno. Las conversaciones de una cuenta borrada se listan por dueño para retirarlas aun sin contenido; como `IgnoreQueryFilters` vale para toda la consulta, el estado activo va explícito.
 
 I20: la purga y la medición no recorren la historia. Cada motivo (vencido, conversación retirada, cuenta borrada y las fuentes sin nombrar de I2) es una consulta sobre el índice filtrado de los turnos con contenido (`ContentExpiresAtUtc`, `Id`) o el de las conversaciones retiradas, con el orden y el tope del lote; el repositorio junta sus `Id` y la consulta final los ordena y corta el tope: eligen lo mismo que una sola condición. Las conversaciones a borrar se buscan igual, retiradas y activas aparte, y sus recibos vigentes por (`ConversationId`, `ExpiresAtUtc`). El bootstrap de Inicio sólo cuenta los pendientes.

@@ -83,6 +83,8 @@ public sealed partial class ApiFactory
             .ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
         services.AddHttpClient(WhatsAppInfrastructureRegistration.HttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
+        services.AddHttpClient(WhatsAppInfrastructureRegistration.UsageHttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
     }
 
     private sealed class NoNetworkHandler : HttpMessageHandler

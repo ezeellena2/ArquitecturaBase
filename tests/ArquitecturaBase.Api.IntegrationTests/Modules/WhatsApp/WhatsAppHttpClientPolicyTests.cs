@@ -11,6 +11,7 @@ public sealed class WhatsAppHttpClientPolicyTests
     [InlineData(WhatsAppInfrastructureRegistration.FlowHttpClientName)]
     [InlineData("WhatsAppMedia")]
     [InlineData("WhatsAppMediaUpload")]
+    [InlineData(WhatsAppInfrastructureRegistration.UsageHttpClientName)]
     public void Graph_clients_do_not_follow_redirects(string clientName)
     {
         var configuration = new ConfigurationBuilder()

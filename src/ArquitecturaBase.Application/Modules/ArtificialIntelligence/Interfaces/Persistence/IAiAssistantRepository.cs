@@ -62,4 +62,8 @@ public interface IAiAssistantRepository
     void RemoveTool(AiAssistantToolExecution execution);
     void RemoveReceipt(AiAssistantRequestReceipt receipt);
     void RemoveConversation(AiConversation conversation);
+    /// <summary>PR12: the turns of these conversations that reached the provider, to add them to their month before removing them.</summary>
+    Task<IReadOnlyList<AiUsageTurnRow>> ListTurnUsageAsync(IReadOnlyCollection<Guid> conversationIds, CancellationToken cancellationToken);
+    Task<AiUsageMonth?> GetUsageMonthAsync(DateOnly month, AiProvider provider, string model, CancellationToken cancellationToken);
+    void AddUsageMonth(AiUsageMonth usage);
 }

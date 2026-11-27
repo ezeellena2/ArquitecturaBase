@@ -22,4 +22,6 @@ TraceParent (I10) guarda una sola vez el contexto de traza de quien aceptó el t
 
 ChannelConversationId conserva sólo la identidad opaca de conversación aportada al crear el turno; no cambia al reclamar, cerrar ni purgar contenido. No es ConversationId del motor ni un permiso o una identidad heredada.
 
+Consumo (2026-11-27): `AiUsageMonth` suma lo que mandaron los turnos de un mes a un modelo, con los montos desconocidos nulos; `AiModelPrice` guarda los precios que carga el administrador, opcionales y acotados, con revisión.
+
 Un turno con planilla (Etapa 2), propia o heredada, guarda en claro la clave de la copia privada (retención y herencia) y lo que se mandó, SHA-256 y tamaño, y aparte, cifrados, el descriptor y lo preparado. La purga borra lo cifrado y conserva lo que está en claro.

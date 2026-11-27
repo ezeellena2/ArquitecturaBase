@@ -144,6 +144,35 @@ public sealed partial class AiAssistantDispatchServiceTests
         Assert.Equal(1, host.Work.Commits);
     }
 
+    // PR12: deleting a conversation deletes its turns, so what they sent goes first to its month, in the same unit.
+    [Fact]
+    public async Task Before_removing_a_conversation_the_retention_keeps_what_its_turns_sent_in_their_month()
+    {
+        var host = new Host();
+        var nowUtc = host.Clock.GetUtcNow().UtcDateTime;
+        Assert.True(host.Store.Turn.BeginProviderStep(host.Store.Turn.Fence, nowUtc, 5).IsSuccess);
+        host.Store.Turn.RecordUsage(1_200, 80);
+        host.Store.Conversation.Remove(nowUtc);
+        host.Clock.Advance(TimeSpan.FromDays(31));
+        host.Store.Turn.Reconcile(host.Clock.GetUtcNow().UtcDateTime, 120, 15);
+        host.Store.Purgeable = true;
+        host.Store.Removable = true;
+        var retention = new AiAssistantRetentionService(host.Store, host.Work, new AiAssistantLimits(), host.Clock,
+            NullLogger<AiAssistantRetentionService>.Instance, new InMemoryUserAccounts(), host.Store, new FakeSystemSettingsReader());
+
+        Assert.True((await retention.PurgeBatchAsync(Ct)).IsSuccess);
+
+        Assert.True(host.Store.PhysicallyRemoved);
+        var month = Assert.Single(host.Store.UsageMonths);
+        Assert.Equal(new DateOnly(2026, 10, 1), month.Month);
+        Assert.Equal("model", month.Model);
+        Assert.Equal(1, month.Requests);
+        Assert.Equal(0, month.UnknownUsageRequests);
+        Assert.Equal(1_200, month.InputTokens);
+        Assert.Equal(80, month.OutputTokens);
+        Assert.Equal(1, host.Work.Commits);
+    }
+
     // I1: a receipt of the business day in course counts in its quotas, so the cleanup keeps it until the day's midnight in the zone of
     // the settings, even past one day of retention: the day the clocks go back lasts 25 hours.
     [Fact]
@@ -294,6 +323,13 @@ public sealed partial class AiAssistantDispatchServiceTests
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiConversation>>(Removable ? [Conversation] : []);
         public void RemoveConversation(AiConversation conversation) => PhysicallyRemoved = true;
+        public List<AiUsageMonth> UsageMonths { get; } = [];
+        public Task<IReadOnlyList<AiUsageTurnRow>> ListTurnUsageAsync(IReadOnlyCollection<Guid> conversationIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AiUsageTurnRow>>(conversationIds.Contains(Turn.ConversationId) && Turn.ProviderSteps > 0
+                ? [new(Turn.SubmittedAtUtc, Turn.Provider, Turn.Model, Turn.UsageUnknown, Turn.InputTokens, Turn.OutputTokens, Turn.AudioSeconds)] : []);
+        public Task<AiUsageMonth?> GetUsageMonthAsync(DateOnly month, AiProvider provider, string model, CancellationToken cancellationToken) =>
+            Task.FromResult(UsageMonths.SingleOrDefault(usage => usage.Month == month && usage.Provider == provider && usage.Model == model));
+        public void AddUsageMonth(AiUsageMonth usage) => UsageMonths.Add(usage);
         public DateTime? ReceiptsKeptFromUtc { get; private set; }
         public Task<IReadOnlyList<AiAssistantRequestReceipt>> ListExpiredReceiptsAsync(DateTime nowUtc, DateTime businessDayStartUtc,
             AiAssistantHomeRetention? home, int limit, CancellationToken cancellationToken)

@@ -1468,6 +1468,105 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("AiKeyRingControls", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiModelPrice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("AudioUsdPerMinute")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("InputUsdPerMillion")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("OutputUsdPerMillion")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Provider", "Model")
+                        .IsUnique();
+
+                    b.ToTable("AiModelPrices", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiUsageMonth", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("AudioSeconds")
+                        .HasColumnType("numeric");
+
+                    b.Property<long?>("InputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<long?>("OutputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("Requests")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnknownUsageRequests")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Month", "Provider", "Model")
+                        .IsUnique();
+
+                    b.ToTable("AiUsageMonths", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AiUsageMonths_Amounts", "\"Requests\" >= 0 AND \"UnknownUsageRequests\" >= 0 AND \"UnknownUsageRequests\" <= \"Requests\"");
+
+                            t.HasCheckConstraint("CK_AiUsageMonths_FirstDay", "EXTRACT(DAY FROM \"Month\") = 1");
+                        });
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormActionRun", b =>
                 {
                     b.Property<Guid>("Id")

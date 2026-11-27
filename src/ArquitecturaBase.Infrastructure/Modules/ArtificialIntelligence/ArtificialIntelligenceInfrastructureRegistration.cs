@@ -40,6 +40,8 @@ public static class ArtificialIntelligenceInfrastructureRegistration
         services.AddScoped<IAiBusinessInformationReader, AiBusinessInformationReader>();
         services.AddScoped<IAiConnectionRepository, AiConnectionRepository>();
         services.AddScoped<IAiConnectionReader, AiConnectionReader>();
+        services.AddScoped<IAiUsageReader, AiUsageReader>();
+        services.AddScoped<IAiUsageRepository, AiUsageRepository>();
         services.AddAiAssistantProvidersAndProtection();
         services.AddScoped<IAiAssistantRepository, AiAssistantRepository>();
         services.AddScoped<IAiAssistantReader, AiAssistantReader>();

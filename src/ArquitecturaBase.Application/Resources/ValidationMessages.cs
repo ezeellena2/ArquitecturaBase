@@ -71,5 +71,8 @@ public static class ValidationMessages
     public static string InvitationWhatsAppUnavailable => Get(nameof(InvitationWhatsAppUnavailable));
 
     public static string AiPlaceSearchInvalid => Get(nameof(AiPlaceSearchInvalid));
+    public static string AiUsageMonthInvalid => Get(nameof(AiUsageMonthInvalid));
+    public static string AiModelTokenPriceInvalid => Get(nameof(AiModelTokenPriceInvalid));
+    public static string AiModelAudioPriceInvalid => Get(nameof(AiModelAudioPriceInvalid));
     private static string Get(string key) => ResourceManager.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 }

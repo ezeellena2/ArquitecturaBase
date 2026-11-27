@@ -49,6 +49,9 @@ public static class ArtificialIntelligenceApplicationRegistration
         services.TryAddScoped<IAiKeyRingControlService, AiKeyRingControlService>();
         services.TryAddScoped<IBusinessPlacesService, BusinessPlacesService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<Models.SearchBusinessPlacesRequest>, SearchBusinessPlacesRequestValidator>());
+        services.TryAddScoped<IAiUsageService, AiUsageService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<Models.AiUsageRequest>, AiUsageRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<Models.UpdateAiModelPriceRequest>, UpdateAiModelPriceRequestValidator>());
         services.TryAddScoped<IAiConnectionTestService, AiConnectionTestService>();
         services.TryAddScoped<AiConnectionCandidatePolicy>();
         services.TryAddScoped<AiConnectionChangeRecorder>();

@@ -332,4 +332,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public void RemoveTool(AiAssistantToolExecution execution) => throw new NotSupportedException();
     public void RemoveReceipt(AiAssistantRequestReceipt receipt) => throw new NotSupportedException();
     public void RemoveConversation(AiConversation conversation) => throw new NotSupportedException();
+    public Task<IReadOnlyList<AiUsageTurnRow>> ListTurnUsageAsync(IReadOnlyCollection<Guid> conversationIds, CancellationToken ct) => throw new NotSupportedException();
+    public Task<AiUsageMonth?> GetUsageMonthAsync(DateOnly month, AiProvider provider, string model, CancellationToken ct) => throw new NotSupportedException();
+    public void AddUsageMonth(AiUsageMonth usage) => throw new NotSupportedException();
 }

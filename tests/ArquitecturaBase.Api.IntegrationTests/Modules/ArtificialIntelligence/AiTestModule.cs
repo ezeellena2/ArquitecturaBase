@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.ArtificialIntelligence;
 
 internal sealed class AiTestModule : IApiTestModule
 {
-    public IReadOnlyCollection<string> Routes => ["GET /api/ai/connection", "PUT /api/ai/connection",
+    public IReadOnlyCollection<string> Routes => ["GET /api/ai/connection", "PUT /api/ai/connection", "GET /api/ai/usage", "PUT /api/ai/usage/prices",
         "GET /api/ai/connection/changes/{requestid:guid}", "POST /api/ai/connection/test", "POST /api/ai/connection/models",
         "GET /api/ai/business-information", "PUT /api/ai/business-information", "GET /api/ai/business-information/changes/{requestid:guid}", "POST /api/ai/business-information/places/search",
         "GET /api/ai/assistant/bootstrap", "GET /api/ai/assistant/conversations", "GET /api/ai/assistant/conversations/{conversationid:guid}",

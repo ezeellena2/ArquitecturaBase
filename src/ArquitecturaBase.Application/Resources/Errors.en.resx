@@ -130,6 +130,8 @@
   <data name="Ai.Places.NotConfigured" xml:space="preserve"><value>Configure the server Google Places key to enable place search.</value></data>
   <data name="Ai.Places.ConfigurationInvalid" xml:space="preserve"><value>Review the Google Places key, its server restrictions, API access and billing.</value></data>
   <data name="Ai.Places.Unavailable" xml:space="preserve"><value>Place search is unavailable. Try again later.</value></data>
+  <data name="Ai.ModelPrice.Invalid" xml:space="preserve"><value>Check the prices: each one goes from zero to its maximum, with up to six decimals.</value></data>
+  <data name="Ai.ModelPrice.RevisionConflict" xml:space="preserve"><value>The prices changed while you were editing them. Open them again to see the current ones.</value></data>
   <data name="Ai.Places.ResponseInvalid" xml:space="preserve"><value>We could not interpret the place search response.</value></data>
   <data name="Ai.Places.RateLimited" xml:space="preserve"><value>Place search is limited. Wait before searching again.</value></data>
   <data name="Ai.Places.Busy" xml:space="preserve"><value>Other place searches are in progress. Wait before searching again.</value></data>
@@ -450,6 +452,9 @@
   <data name="WhatsApp.AssistantAgent.RevisionConflict" xml:space="preserve"><value>Someone else changed the assistant. Check their changes before saving.</value></data>
   <data name="WhatsApp.Settings.Invalid" xml:space="preserve"><value>Check the WhatsApp settings.</value></data>
   <data name="WhatsApp.Settings.RevisionConflict" xml:space="preserve"><value>Someone else changed the WhatsApp settings. Check their changes before saving.</value></data>
+  <data name="WhatsApp.Usage.MonthInvalid" xml:space="preserve"><value>Enter the month as yyyy-mm, for example 2026-11.</value></data>
+  <data name="WhatsApp.Usage.MonthOutOfRange" xml:space="preserve"><value>Choose the current month or one of the eleven before it: Meta keeps a year of usage.</value></data>
+  <data name="WhatsApp.Usage.Unavailable" xml:space="preserve"><value>Meta did not report the WhatsApp usage. Try again in a few minutes.</value></data>
   <data name="Forms.MissingRequest.ContentInvalid" xml:space="preserve">
     <value>The missing form request is invalid.</value>
   </data>

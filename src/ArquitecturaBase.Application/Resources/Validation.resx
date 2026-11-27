@@ -46,4 +46,7 @@
   <data name="AiRevisionInvalid" xml:space="preserve"><value>Consultá la revisión actual antes de guardar.</value></data>
   <data name="AiCredentialInvalid" xml:space="preserve"><value>Ingresá una clave válida solo al reemplazarla; no incluyas espacios ni saltos de línea.</value></data>
   <data name="AiPlaceSearchInvalid" xml:space="preserve"><value>Ingresá entre 3 y 200 caracteres, sin caracteres de control.</value></data>
+  <data name="AiUsageMonthInvalid" xml:space="preserve"><value>Elegí un mes con el formato año-mes, por ejemplo 2026-11.</value></data>
+  <data name="AiModelTokenPriceInvalid" xml:space="preserve"><value>Ingresá un precio de 0 a 1.000 dólares por millón de tokens, con hasta seis decimales, o dejalo vacío.</value></data>
+  <data name="AiModelAudioPriceInvalid" xml:space="preserve"><value>Ingresá un precio de 0 a 10 dólares por minuto, con hasta seis decimales, o dejalo vacío.</value></data>
 </root>

@@ -25,6 +25,7 @@ Casos de uso del módulo (`*Service`, detrás de `Interfaces/Services`), sus hel
 - [Documentos recibidos](../../../../../docs/features/whatsapp-servicios.md#documentos-recibidos): decidir, bajar, preparar, copiar y leer una foto, un PDF o un Word, contestar su rechazo y derivar a quien no puede cargar ni armar (`WhatsAppReceivedDocument*`). Quién lo baja, o si espera su pedido, se decide antes del I/O y bajo lock; se lee sólo si se usa. El circuito de la tarea 9 (`WhatsAppAssistantDocument*`) registra en la bandeja fuera de la UoW, contesta por la salida del asistente y atiende el toque de su pregunta antes de interpretar.
 - [Retención](../../../../../docs/features/whatsapp-servicios.md#retención): `WhatsAppAssistantContentRetentionService` vacía un lote de hasta 500 por UoW; lo invoca la retención diaria de Infrastructure, sin otro job ni plazo.
 - [Configuración › WhatsApp](../../../../../docs/features/whatsapp.md#configuración--whatsapp-rc3-a-2026-11-22): `WhatsAppSettingsService` guarda los tres valores juntos con la revisión leída, bajo `whatsapp-settings:main`; cada uso los lee con `IWhatsAppSettingsReader`, sin caché.
+- [Consumo](../../../../../docs/features/whatsapp.md#consumo-2026-11-27): `WhatsAppUsageService` valida el mes del negocio, sin cuenta o sin número no llama a Meta, y `WhatsAppUsagePolicy` suma por categoría lo que devuelve `IWhatsAppPricingAnalyticsClient`, sin guardar nada.
 
 ## Referencias
 

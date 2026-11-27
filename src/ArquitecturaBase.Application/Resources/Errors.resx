@@ -130,6 +130,8 @@
   <data name="Ai.Places.NotConfigured" xml:space="preserve"><value>Configurá la clave de Google Places en el servidor para habilitar la búsqueda.</value></data>
   <data name="Ai.Places.ConfigurationInvalid" xml:space="preserve"><value>Revisá la clave de Google Places, sus restricciones de servidor, la API habilitada y la facturación.</value></data>
   <data name="Ai.Places.Unavailable" xml:space="preserve"><value>La búsqueda de lugares no está disponible. Probá más tarde.</value></data>
+  <data name="Ai.ModelPrice.Invalid" xml:space="preserve"><value>Revisá los precios: cada uno va de cero a su máximo, con hasta seis decimales.</value></data>
+  <data name="Ai.ModelPrice.RevisionConflict" xml:space="preserve"><value>Los precios cambiaron mientras los editabas. Volvé a abrirlos para ver los actuales.</value></data>
   <data name="Ai.Places.ResponseInvalid" xml:space="preserve"><value>No pudimos interpretar la respuesta del buscador de lugares.</value></data>
   <data name="Ai.Places.RateLimited" xml:space="preserve"><value>La búsqueda de lugares está limitada. Esperá antes de buscar de nuevo.</value></data>
   <data name="Ai.Places.Busy" xml:space="preserve"><value>Hay otras búsquedas de lugares en curso. Esperá antes de buscar de nuevo.</value></data>
@@ -450,6 +452,9 @@
   <data name="WhatsApp.AssistantAgent.RevisionConflict" xml:space="preserve"><value>Otra persona cambió el asistente. Revisá sus cambios antes de guardar.</value></data>
   <data name="WhatsApp.Settings.Invalid" xml:space="preserve"><value>Revisá la configuración de WhatsApp.</value></data>
   <data name="WhatsApp.Settings.RevisionConflict" xml:space="preserve"><value>Otra persona cambió la configuración de WhatsApp. Revisá sus cambios antes de guardar.</value></data>
+  <data name="WhatsApp.Usage.MonthInvalid" xml:space="preserve"><value>Indicá el mes como aaaa-mm, por ejemplo 2026-11.</value></data>
+  <data name="WhatsApp.Usage.MonthOutOfRange" xml:space="preserve"><value>Elegí el mes actual o uno de los once anteriores: Meta guarda el consumo de un año.</value></data>
+  <data name="WhatsApp.Usage.Unavailable" xml:space="preserve"><value>Meta no informó el consumo de WhatsApp. Probá de nuevo en unos minutos.</value></data>
   <data name="Forms.MissingRequest.ContentInvalid" xml:space="preserve">
     <value>El pedido de formulario no es válido.</value>
   </data>

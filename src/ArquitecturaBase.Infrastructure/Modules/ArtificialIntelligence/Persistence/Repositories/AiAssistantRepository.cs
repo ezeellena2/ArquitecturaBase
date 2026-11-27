@@ -212,4 +212,16 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     public void RemoveTool(AiAssistantToolExecution execution) { dbContext.RequireTransaction(); dbContext.Set<AiAssistantToolExecution>().Remove(execution); }
     public void RemoveReceipt(AiAssistantRequestReceipt receipt) { dbContext.RequireTransaction(); dbContext.Set<AiAssistantRequestReceipt>().Remove(receipt); }
     public void RemoveConversation(AiConversation conversation) { dbContext.RequireTransaction(); dbContext.Set<AiConversation>().Remove(conversation); }
+
+    // PR12: a retired conversation's turns are hidden by the filters but still count, so the query ignores them.
+    public async Task<IReadOnlyList<AiUsageTurnRow>> ListTurnUsageAsync(IReadOnlyCollection<Guid> conversationIds, CancellationToken cancellationToken) =>
+        await dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters()
+            .Where(x => conversationIds.Contains(x.ConversationId) && x.ProviderSteps > 0)
+            .Select(x => new AiUsageTurnRow(x.SubmittedAtUtc, x.Provider, x.Model, x.UsageUnknown, x.InputTokens, x.OutputTokens, x.AudioSeconds))
+            .ToListAsync(cancellationToken);
+
+    public Task<AiUsageMonth?> GetUsageMonthAsync(DateOnly month, AiProvider provider, string model, CancellationToken cancellationToken) =>
+        dbContext.Set<AiUsageMonth>().SingleOrDefaultAsync(x => x.Month == month && x.Provider == provider && x.Model == model, cancellationToken);
+
+    public void AddUsageMonth(AiUsageMonth usage) { dbContext.RequireTransaction(); dbContext.Set<AiUsageMonth>().Add(usage); }
 }

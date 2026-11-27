@@ -234,6 +234,29 @@ Cuotas diarias, capacidad y unicidad se coordinan en PostgreSQL entre réplicas.
 
 **Los días de Inicio los elige el administrador (RC1-A, 2026-11-22).** Configuración › IA suma la zona «Privacidad»: «Guardar las conversaciones del asistente de Inicio», 30 días, de 1 a `Limits:RetentionDays`, el techo de la instalación (también 30). Se guarda con la conexión, en el mismo PUT, revisión y comprobante (`conversationRetentionDays`; sin el campo conserva lo guardado, acotado al techo; pasado el techo, 400), y entra en su historia y, cuando viene, en su huella: sin el campo la huella es la de antes, así un reintento a través del despliegue encuentra su comprobante. Un turno de Inicio, con su audio o su documento, vence a esos días desde que se aceptó, igual que su recibo; los demás canales siguen con el techo. La purga lee los días en cada corrida: por debajo del techo, el contenido de Inicio aceptado antes del corte vence en ese lote (`ExpireContent`), sus recibos se borran y un turno de Inicio aceptado antes del corte ya no retiene su conversación aunque su contenido se haya ido antes (una conversación retirada), así la conversación se borra cuando no le queda nada vigente; en el techo, cada turno sigue con el vencimiento con que se guardó. Ningún recibo aceptado desde que empezó el día del negocio se borra antes de su medianoche, aunque el plazo sea de un día: cuenta en los cupos del día (I1) y el día en que se atrasa el reloj dura 25 horas. Lo guardado antes lee 30. La política de privacidad es un sitio aparte (P1-A): la (i) de la zona avisa que tiene que prometer los mismos días.
 
+## Consumo — 2026-11-27
+
+Configuración › Consumo muestra, por mes del negocio, lo que la instalación mandó a cada modelo, para calcular el costo
+mensual de cada cliente ([plan, PR12 a PR16](../plans/2026-11-27-produccion-por-cliente.md); tablero CO1-B).
+
+| Verbo/ruta | Permisos | Resultado |
+| --- | --- | --- |
+| GET `/api/ai/usage?month=yyyy-MM` | `ai.read` | una fila por proveedor y modelo: pedidos, tokens de entrada y de salida, segundos de audio, pedidos sin uso informado, precio y costo estimado; total estimado, modelos sin precio y pedidos sin uso |
+| PUT `/api/ai/usage/prices` | `ai.read` + `ai.manage` | los precios del modelo con su revisión; 409 `Ai.ModelPrice.RevisionConflict` si cambiaron |
+
+- **Qué cuenta.** Un turno cuenta cuando llegó al proveedor (`ProviderSteps > 0`), en el mes del negocio en que se aceptó
+  (`BusinessMonth`, la zona de Configuración), también si su conversación está retirada. Los tokens y los segundos son
+  los que informó el proveedor; un monto que nadie informó queda nulo, no cero, y el turno suma en «sin uso informado», salvo
+  una transcripción que informó sus segundos. Un proveedor que guardó una versión más nueva (I4) no se muestra ni se suma al
+  borrar su conversación.
+- **Lo que sobrevive a la retención.** La purga borra la conversación con sus turnos; antes, en la misma unidad y bajo el
+  lock del presupuesto, suma sus turnos a `AiUsageMonths` (mes, proveedor y modelo). La pantalla junta esas filas con los
+  turnos que siguen vivos, así que cada turno cuenta una sola vez.
+- **El costo es una estimación.** Sale de los precios por modelo que carga el administrador (`AiModelPrices`: USD por
+  millón de tokens de entrada y de salida, y por minuto de audio, opcionales, de 0 a 1.000 y a 10, con hasta seis
+  decimales), redondeado a centavos. Sin precio para algo que el modelo midió, el costo queda nulo y el modelo no suma al
+  total. No hay precios en el código: el importe real está en el panel del proveedor.
+
 ## Panel interno e identificación del historial — 2026-10-05
 
 `/` abre una conversación nueva y `/?conversacion=<id>` restaura una elegida; abrir o paginar no escribe ni genera, y la primera aceptación crea las filas. El panel lista 20 conversaciones por página, por actividad e Id. El título sale de la primera pregunta cifrada, con permisos actuales y contenido vigente (`ReadPolicy`, `ResponsePolicy`), y se corta a 80 grafemas (`ConversationTitlePolicy`); bloqueo, purga o vencimiento muestran un genérico localizado. Una conversación sin turnos activos, con todo su contenido vencido y sin recibos vigentes se borra y deja de listarse (I3): el genérico queda para la que todavía tiene algo vigente. Una fila que no se puede descifrar (dañada o cifrada con una clave del anillo retirada antes de tiempo) es estado de esa fila y no de la página: título genérico, `contentAccess` `unavailable` y ningún contenido, en el listado, el detalle, la página de turnos y el turno, con un solo log por pedido con cuántas son y el primer id (nunca el contenido); las demás se siguen viendo y se borra desde el panel. El contexto del worker saltea un turno anterior ilegible como uno vencido: ni él ni la historia anterior viajan, con el mismo log; y una pregunta nueva que heredaría un archivo ilegible sigue sin él, también con ese log (I8). Sólo cuenta lo que no se descifra: una respuesta guardada que no se decodifica o la propuesta de una capacidad que esta copia no conoce fallan como antes. No hay columna de título ni llamada al LLM. `AiAssistantReader` resuelve cada página en dos consultas, sin N+1 ni leer respuestas o herramientas. La capacidad sigue en el [plan](../plans/2026-10-04-panel-conversaciones-inicio.md).

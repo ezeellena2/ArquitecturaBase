@@ -64,7 +64,7 @@ Todo cuelga de la sección `WhatsApp` y se lee **al arrancar**: cambiar cualquie
 | Clave | Por defecto | Para qué |
 |---|---|---|
 | `PhoneNumberId` | — | **el interruptor.** Sin él, WhatsApp queda apagado; con él y sin `AccessToken`, la Api **no** arranca |
-| `WabaId` | — | cuenta de la conexión, solo para Flows; sin ella no hay aceptación, pero sí chequeo local |
+| `WabaId` | — | cuenta de la conexión, para Flows y el [consumo](#consumo-2026-11-27); sin ella no hay aceptación, pero sí chequeo local |
 | `AccessToken` | — | secreto: token del usuario del sistema |
 | `AppSecret` y `VerifyToken` | — | secretos que prenden el webhook, **solo juntos**. Sin ninguno, el envío funciona y el webhook queda apagado con un Warning; con uno solo, la Api no arranca |
 | `GraphApiVersion` | `v25.0` | versión de la Graph API |
@@ -144,6 +144,39 @@ de `WhatsAppClientCapabilitySource`):
 - **Lectura.** Cada uso lee la fila (`IWhatsAppSettingsReader`), sin caché: un cambio vale desde el pedido siguiente, sin
   reiniciar. Un formulario ya enviado conserva el vencimiento con que salió; un contenido ya guardado se borra con el plazo
   vigente en la corrida que lo encuentra.
+
+### Consumo (2026-11-27)
+
+La zona de WhatsApp de Configuración › Consumo ([plan](../plans/2026-11-27-produccion-por-cliente.md), PR14 a PR16) muestra lo
+que informa Meta, que es lo que cobra. `GET /api/whatsapp/usage?month=yyyy-MM` (`WhatsAppUsageController`) exige
+`settings.manage`, como Configuración › WhatsApp, y existe con el transporte prendido o apagado.
+
+- **El mes** es el del negocio (`BusinessMonth`, en la zona horaria de Configuración › General): obligatorio, `yyyy-MM`, entre el
+  actual y los once anteriores, porque Meta guarda un año. Si no, 400 en `month` (`WhatsApp.Usage.MonthInvalid` o
+  `WhatsApp.Usage.MonthOutOfRange`).
+- **Sin cuenta o sin número** (WhatsApp apagado, sin `WabaId` o sin `DisplayPhoneNumber`) responde 200 con `configured: false`,
+  `displayPhoneNumber` y `currency` en null, `categories` vacío y los totales en 0, sin llamar a Meta.
+- **Meta:** un GET a la WABA con `fields=currency,pricing_analytics.start(S).end(E).granularity(DAILY).phone_numbers(["<dígitos>"])`
+  `.dimensions(["PRICING_CATEGORY"])`, codificado entero y con el token como Bearer (`WhatsAppPricingAnalyticsClient`). `S` es el
+  comienzo del mes y `E`, su fin o ahora, lo que llegue antes, en segundos UNIX; el número son los dígitos de `DisplayPhoneNumber`.
+  `volume` y `cost` se suman por `pricing_category` en todos los puntos (`WhatsAppUsagePolicy`), con la categoría tal como la manda
+  Meta (también una que la app no conoce), de la más cara a la más barata y después por nombre; el costo va en la moneda de la
+  cuenta (`currency`) y sin redondear. El número se muestra con el formato internacional (`+54 9 3406 40-1234`).
+- **Sin reintentos ni caché ni nada guardado** ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): espera 15 s.
+  Una respuesta que no es 2xx, el plazo vencido, una falla de red o un cuerpo que no se entiende (más de 1 MiB, sin `currency` o un
+  punto sin categoría, `volume` entero o `cost`) son `WhatsApp.Usage.Unavailable`, que sale como 500 con su código, como los demás
+  proveedores que no contestan (`Ai.Places.Unavailable`): la pantalla lo dice y ofrece reintentar. Un `pricing_analytics`, un
+  `data` o un `data_points` que falta es un mes sin mensajes. Un 401 o un 403 también llegan a la salud (`whatsapp_business_management`).
+  El log dice el status, el plazo o el tipo de falla, nunca el token ni el número.
+- **Cupo de Meta:** cada lectura gasta el cupo de `whatsapp_business_management` de la app en la WABA, el mismo de Flows, así que
+  la ruta tiene su rate limit por operador (`whatsapp-usage`, `RateLimiting:WhatsAppUsagePermitLimit`, 10 por minuto).
+- **Lo que no se verifica todavía:** Meta arma los días en su propia zona (su ejemplo empieza a las 07:00 UTC), así que el día
+  del borde entre dos meses puede caer en el otro según cómo recorte; y si `DisplayPhoneNumber` no coincide con el número de Meta
+  (por ejemplo, con o sin el 9 de los celulares argentinos), el mes sale vacío, igual que uno sin mensajes. Se contrasta con una
+  respuesta real de Meta en la prueba a mano.
+- Lo prueban `WhatsAppUsagePolicyTests` y `WhatsAppUsageServiceTests` (unitarios), `WhatsAppPricingAnalyticsClientTests` (sin
+  Docker: la consulta, el parseo, el plazo con `FakeTimeProvider` y los logs) y `WhatsAppUsageEndpointsTests` (la ruta con Meta
+  simulado: 200, `configured: false`, 400, 401, 403 y la falla de Meta).
 
 ## Perfil local de formularios — 2026-10-10
 

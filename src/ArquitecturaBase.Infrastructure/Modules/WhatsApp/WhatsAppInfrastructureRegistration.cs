@@ -26,6 +26,7 @@ public static class WhatsAppInfrastructureRegistration
     /// <summary>El nombre del HttpClient de Meta. Los tests le cambian el handler por uno que no sale a internet.</summary>
     public const string HttpClientName = "WhatsAppCloud";
     public const string FlowHttpClientName = "WhatsAppFlows";
+    public const string UsageHttpClientName = "WhatsAppUsage";
 
     /// <summary>Sin un valor: dice qué clave falta, para qué sirve y cuál es la de desarrollo.</summary>
     public const string MissingPublicOriginMessage =
@@ -118,6 +119,7 @@ public static class WhatsAppInfrastructureRegistration
             services.AddSingleton<IWhatsAppSendQueue, DisabledWhatsAppSendQueue>();
             services.AddScoped<IWhatsAppFlowEnvironment, DisabledWhatsAppFlowEnvironment>();
             services.AddSingleton<IWhatsAppFlowProvider, DisabledWhatsAppFlowProvider>();
+            services.AddSingleton<IWhatsAppPricingAnalyticsClient, DisabledWhatsAppPricingAnalyticsClient>();
 
             return services;
         }
@@ -169,6 +171,13 @@ public static class WhatsAppInfrastructureRegistration
             .RemoveAllLoggers()
             .RemoveAllResilienceHandlers()
             .AddStandardResilienceHandler(resilience => resilience.Retry.DisableForUnsafeHttpMethods());
+
+        // Consumo (T7): one read when the screen opens, with its own deadline and no retries; if Meta does not answer, the screen says so.
+        services.AddHttpClient<IWhatsAppPricingAnalyticsClient, WhatsAppPricingAnalyticsClient>(UsageHttpClientName,
+                client => client.BaseAddress = WhatsAppCloudClient.GraphApiAddress)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+            .RemoveAllLoggers()
+            .RemoveAllResilienceHandlers();
 
         AddWebhook(services, webhookEnabled);
 

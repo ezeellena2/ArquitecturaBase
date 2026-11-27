@@ -1,6 +1,6 @@
 # Producción por cliente: una instalación por empresa
 
-Estado: **T1 a T5 hechas el 2026-11-27: La Clementina es el primer cliente publicado.** La receta para usarlo está en [producción por cliente](../deploy/produccion-por-cliente.md). El titular ya tiene clientes y decidió que, mientras el multitenant
+Estado: **T1 a T5 hechas el 2026-11-27: La Clementina es el primer cliente publicado. T6 y T7 (el consumo en el backend) programadas el mismo día; T8, la pantalla, en curso.** La receta para usarlo está en [producción por cliente](../deploy/produccion-por-cliente.md). El titular ya tiene clientes y decidió que, mientras el multitenant
 no esté terminado, cada empresa que lo contrata tenga su propia instalación en Azure. Cuando el multitenant esté listo, los
 clientes pasan a él con un plan aparte. [Azure dev](../deploy/azure-dev.md) sigue siendo el ambiente para probar y romper,
 con el número de prueba de WhatsApp.
@@ -46,6 +46,19 @@ Lo que el plan fija, con la opción más simple que cumple las reglas del proyec
   repartido con `EMAIL_DAILY_LIMIT` entre las instalaciones que la usan. Una cuenta por cliente o un proveedor
   transaccional, cuando el cupo no alcance.
 
+**Consumo por instalación (2026-11-27).** Para calcular el costo mensual de cada cliente, el titular pidió ver en su
+instalación el consumo de IA y de WhatsApp. Eligió el tablero **CO1-B** del lienzo
+[Consumo de IA y WhatsApp](https://claude.ai/artifact/JgHE2i54i9wFsGtcenGH1o): Configuración › Consumo, con el mes en la
+dirección, un resumen arriba (IA, WhatsApp y el total si las dos van en dólares) y una zona por módulo.
+
+| # | Decisión | Por qué |
+|---|---|---|
+| PR12 | La IA suma por mes y modelo los turnos que llegaron al proveedor (`ProviderSteps > 0`): pedidos, tokens de entrada y de salida, segundos de audio y los de uso desconocido. Antes de que la retención borre una conversación, sus turnos se suman a `AiUsageMonths` en la misma unidad | La retención borra los turnos a los 30 días como mucho; sin el resumen, los meses anteriores quedarían en cero |
+| PR13 | El costo de la IA es una estimación con precios por modelo que carga el administrador (USD por millón de tokens de entrada y de salida, y por minuto de audio), con revisión y 409. Sin precio, el modelo no suma y la pantalla lo dice | No hay precios en el código ([reglas en Configuración](2026-11-22-reglas-a-configuracion.md)); la API de costos de OpenAI pide una clave de administrador de la organización |
+| PR14 | WhatsApp muestra lo que informa Meta (`pricing_analytics` de la WABA filtrado por el número de la instalación): mensajes entregados y costo por categoría, en la moneda de la cuenta. Se lee al abrir la pantalla, sin caché ni estado guardado; si Meta no responde, la zona lo dice y ofrece reintentar | Es la fuente del cobro; leer un dato externo para mostrarlo no necesita recuperación durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)) |
+| PR15 | Sin permisos nuevos: la zona de IA pide `ai.read` y sus precios `ai.manage`; la de WhatsApp, `settings.manage`, como su configuración | Son datos de la configuración de cada módulo, para quien ya la administra |
+| PR16 | El mes es el del negocio, en la zona horaria de la Configuración general (`BusinessMonth`), como los cupos diarios | Un mes que empieza a la medianoche del negocio, no a la de UTC |
+
 ## Tareas
 
 | # | Qué | Dónde |
@@ -55,9 +68,12 @@ Lo que el plan fija, con la opción más simple que cumple las reglas del proyec
 | T3 | El paquete de dev se guarda 30 días | `deploy.yml` |
 | T4 | Guía de alta, actualización y baja de un cliente, con los registros DNS, el número de WhatsApp y la primera promoción | `docs/deploy/produccion-por-cliente.md`, y las referencias en `azure-dev.md`, `azure-setup.md` y el `AGENTS.md` de workflows |
 | T5 | El primer cliente: script, DNS, WhatsApp, promoción, `/health` e ingreso del administrador | Azure y GitHub |
+| T6 | Consumo de IA: `AiUsageMonth` y su suma en la retención, `AiModelPrice`, `GET api/ai/usage?month=` y `PUT api/ai/usage/prices` | Módulo de IA (Domain, Application, Infrastructure, Api) y sus pruebas |
+| T7 | Consumo de WhatsApp: lectura de `pricing_analytics` y `GET api/whatsapp/usage?month=` | Módulo de WhatsApp y sus pruebas |
+| T8 | Pantalla Consumo igual al tablero CO1-B: resumen, zona de IA con el diálogo de precios, zona de WhatsApp y los estados del tablero «Estados» | `ArquitecturaBaseFront`, registrado en `docs/design` |
 
 T1 a T4 se programan juntas: sin T2 no hay cómo publicar en un cliente, y sin T1 no hay cliente. T5 va cuando el titular
-tenga los datos del primero.
+tenga los datos del primero. T6 a T8 van en paralelo, con los contratos fijados en este plan.
 
 ## Lo que hace el titular por cada cliente
 
