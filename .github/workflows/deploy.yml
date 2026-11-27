@@ -334,7 +334,6 @@ jobs:
       AZURE_REGISTRY: ${{ vars.AZURE_REGISTRY }}
       AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
       AZURE_POSTGRES_SERVER: ${{ vars.AZURE_POSTGRES_SERVER }}
-      DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
     steps:
       - name: Recuperar paquete
         uses: actions/download-artifact@v4
@@ -362,7 +361,7 @@ jobs:
       - name: Validar configuración sin mostrar valores
         if: steps.current.outputs.deploy == 'true'
         run: |
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_REGISTRY AZURE_CONTAINER_APP AZURE_POSTGRES_SERVER DB_CONNECTION_STRING; do
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_REGISTRY AZURE_CONTAINER_APP AZURE_POSTGRES_SERVER; do
             if [[ -z "${!name}" ]]; then
               echo "::error::Falta configurar $name en el environment dev."
               exit 1
@@ -394,24 +393,34 @@ jobs:
             fi
           done
 
+      # La imagen sale del manifest y no de IMAGE_TAG: al repetir sólo este job cambia el intento, no el paquete.
       - name: Subir imagen al registry
         if: steps.current.outputs.deploy == 'true'
+        id: image
         run: |
+          image=$(jq -r .image package/manifest.json)
           az acr login --name "$AZURE_REGISTRY"
           docker load --input package/image.tar.gz
-          target="$AZURE_REGISTRY.azurecr.io/$IMAGE_REPOSITORY:$IMAGE_TAG"
-          docker tag "$IMAGE_REPOSITORY:$IMAGE_TAG" "$target"
+          target="$AZURE_REGISTRY.azurecr.io/$image"
+          docker tag "$image" "$target"
           docker push "$target"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
 
       - name: Abrir acceso temporal para migraciones
         if: steps.current.outputs.deploy == 'true'
         id: firewall
+        # az 2.93 renombró los argumentos (el servidor pasó a --server-name y la regla a --name): se usa la forma que
+        # entiende la CLI del runner, que cambia de versión sin aviso.
         run: |
           runner_ip=$(curl --fail --silent --show-error --max-time 20 https://api.ipify.org)
           [[ "$runner_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          az postgres flexible-server firewall-rule create \
-            --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_POSTGRES_SERVER" \
-            --rule-name "gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+          rule="gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          if az postgres flexible-server firewall-rule create --help | grep -q -- '--rule-name'; then
+            rule_args=(--name "$AZURE_POSTGRES_SERVER" --rule-name "$rule")
+          else
+            rule_args=(--server-name "$AZURE_POSTGRES_SERVER" --name "$rule")
+          fi
+          az postgres flexible-server firewall-rule create --resource-group "$AZURE_RESOURCE_GROUP" "${rule_args[@]}" \
             --start-ip-address "$runner_ip" --end-ip-address "$runner_ip" --output none
 
       - name: Aplicar migraciones
@@ -419,27 +428,39 @@ jobs:
         env:
           ConnectionStrings__appdb: Host=localhost;Database=design;Username=design;Password=design
           ConnectionStrings__cache: localhost:6379,abortConnect=false
+        # La conexión es la de la Api: vive como secreto de la Container App y no se copia a GitHub.
         run: |
+          connection=$(az containerapp secret show --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP" --secret-name db-connection --query value --output tsv)
+          [[ -n "$connection" ]] || { echo "::error::Falta el secreto db-connection en la Container App."; exit 1; }
+          echo "::add-mask::$connection"
           chmod +x package/efbundle
-          package/efbundle --connection "$DB_CONNECTION_STRING" -- --environment Development
+          package/efbundle --connection "$connection" -- --environment Development
 
       - name: Cerrar acceso temporal incluso ante fallas
         if: always() && steps.firewall.outcome != 'skipped' && steps.current.outputs.deploy == 'true'
         run: |
-          az postgres flexible-server firewall-rule delete \
-            --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_POSTGRES_SERVER" \
-            --rule-name "gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --yes --output none
+          rule="gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          if az postgres flexible-server firewall-rule delete --help | grep -q -- '--rule-name'; then
+            rule_args=(--name "$AZURE_POSTGRES_SERVER" --rule-name "$rule")
+          else
+            rule_args=(--server-name "$AZURE_POSTGRES_SERVER" --name "$rule")
+          fi
+          az postgres flexible-server firewall-rule delete --resource-group "$AZURE_RESOURCE_GROUP" "${rule_args[@]}" \
+            --yes --output none
 
       - name: Crear revisión de la aplicación
         if: success() && steps.current.outputs.deploy == 'true'
         id: revision
+        env:
+          IMAGE: ${{ steps.image.outputs.target }}
         run: |
           mode=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_CONTAINER_APP" --query properties.configuration.activeRevisionsMode --output tsv)
           [[ "$mode" == "Single" ]] || { echo "::error::La Container App debe usar revisiones Single."; exit 1; }
           az containerapp update --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_CONTAINER_APP" \
-            --image "$AZURE_REGISTRY.azurecr.io/$IMAGE_REPOSITORY:$IMAGE_TAG" \
+            --image "$IMAGE" \
             --revision-suffix "gh$GITHUB_RUN_ID-a$GITHUB_RUN_ATTEMPT" --output none
           revision=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_CONTAINER_APP" --query properties.latestRevisionName --output tsv)
@@ -465,6 +486,8 @@ jobs:
 
       - name: Comprobar salud, web y autenticación desde Internet
         if: steps.current.outputs.deploy == 'true'
+        env:
+          IMAGE: ${{ steps.image.outputs.target }}
         run: |
           host=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_CONTAINER_APP" --query properties.configuration.ingress.fqdn --output tsv)
@@ -481,5 +504,5 @@ jobs:
           {
             echo "### Azure dev verificado"
             echo "- URL: $origin"
-            echo "- Imagen: $IMAGE_REPOSITORY:$IMAGE_TAG"
+            echo "- Imagen: $IMAGE"
           } >> "$GITHUB_STEP_SUMMARY"
