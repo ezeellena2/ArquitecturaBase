@@ -87,7 +87,12 @@ deployments»), y después:
    ([webhook overrides](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/override)).
    El webhook de la app de Meta sigue en dev; cada número entrega sólo en su instalación.
 
-Después, el administrador del cliente entra con su correo y queda como Admin.
+Después, el administrador del cliente entra con su correo y queda como Admin. Desde la pantalla:
+- **Configuración › Inteligencia artificial:** la clave del proveedor (OpenAI), el modelo con perfil calificado
+  (`gpt-6.1-sol`), «Disponible», «Probar conexión» y «Guardar». La clave puede ser la misma de dev o una aparte para
+  ver el consumo del cliente.
+- **Configuración › Información del negocio:** los datos reales del cliente (qué hace, horario, ubicación, servicios y
+  políticas), con los que el asistente contesta por WhatsApp.
 
 ## Actualizar un cliente
 
