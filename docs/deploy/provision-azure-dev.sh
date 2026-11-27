@@ -15,6 +15,9 @@
 #   SEED_ADMIN_EMAIL         el correo del administrador inicial (InviteOnly: es la única cuenta que se puede crear).
 #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 #                            opcionales: con ellas se prende el ingreso con Google.
+#   WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN, WHATSAPP_WABA_ID,
+#   WHATSAPP_DISPLAY_PHONE_NUMBER, WHATSAPP_SEND_ARGENTINE_MOBILES_WITHOUT_NINE
+#                            opcionales: con el número se prende WhatsApp; el webhook se carga después en Meta.
 #   GITHUB_REPOSITORY        opcional (owner/repo): con `gh` autenticado, crea el environment dev y sus variables.
 #   LOCATION, RG y los nombres de abajo tienen valores por defecto; los que deben ser únicos en Azure llevan un sufijo
 #   derivado de la suscripción, así una segunda corrida encuentra los mismos recursos.
@@ -290,6 +293,13 @@ elif ! has_secret smtp-password; then
   exit 1
 fi
 [[ -n "${GOOGLE_CLIENT_SECRET:-}" ]] && new_secrets+=("google-client-secret=$GOOGLE_CLIENT_SECRET")
+if [[ -n "${WHATSAPP_PHONE_NUMBER_ID:-}" ]]; then
+  : "${WHATSAPP_ACCESS_TOKEN:?Con WHATSAPP_PHONE_NUMBER_ID hace falta WHATSAPP_ACCESS_TOKEN}"
+  : "${WHATSAPP_APP_SECRET:?El webhook necesita WHATSAPP_APP_SECRET}"
+  : "${WHATSAPP_VERIFY_TOKEN:?El webhook necesita WHATSAPP_VERIFY_TOKEN}"
+  new_secrets+=("whatsapp-access-token=$WHATSAPP_ACCESS_TOKEN" "whatsapp-app-secret=$WHATSAPP_APP_SECRET"
+    "whatsapp-verify-token=$WHATSAPP_VERIFY_TOKEN")
+fi
 if ((${#new_secrets[@]})); then
   az containerapp secret set --resource-group "$RG" --name "$APP" --secrets "${new_secrets[@]}" --output none
 fi
@@ -330,6 +340,19 @@ settings=(
 [[ -n "${SEED_ADMIN_EMAIL:-}" ]] && settings+=("Seed__AdminEmail=$SEED_ADMIN_EMAIL")
 if [[ -n "${GOOGLE_CLIENT_ID:-}" ]]; then
   settings+=("Authentication__Google__ClientId=$GOOGLE_CLIENT_ID" Authentication__Google__ClientSecret=secretref:google-client-secret)
+fi
+# WhatsApp: PhoneNumberId es el interruptor; el webhook (https://<origen>/webhooks/whatsapp) se carga después en Meta.
+if [[ -n "${WHATSAPP_PHONE_NUMBER_ID:-}" ]]; then
+  settings+=(
+    "WhatsApp__PhoneNumberId=$WHATSAPP_PHONE_NUMBER_ID"
+    WhatsApp__AccessToken=secretref:whatsapp-access-token
+    WhatsApp__AppSecret=secretref:whatsapp-app-secret
+    WhatsApp__VerifyToken=secretref:whatsapp-verify-token
+  )
+  [[ -n "${WHATSAPP_WABA_ID:-}" ]] && settings+=("WhatsApp__WabaId=$WHATSAPP_WABA_ID")
+  [[ -n "${WHATSAPP_DISPLAY_PHONE_NUMBER:-}" ]] && settings+=("WhatsApp__DisplayPhoneNumber=$WHATSAPP_DISPLAY_PHONE_NUMBER")
+  [[ -n "${WHATSAPP_SEND_ARGENTINE_MOBILES_WITHOUT_NINE:-}" ]] &&
+    settings+=("WhatsApp__SendArgentineMobilesWithoutNine=$WHATSAPP_SEND_ARGENTINE_MOBILES_WITHOUT_NINE")
 fi
 az containerapp update --resource-group "$RG" --name "$APP" --set-env-vars "${settings[@]}" --output none
 

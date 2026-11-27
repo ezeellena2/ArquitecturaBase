@@ -197,8 +197,10 @@ El código y la corrida completa del 2026-11-26 están en verde; queda mirarlos 
 
 - [x] Primer despliegue real (2026-11-26): el push del backend publicó Azure dev con `deploy.yml` (corrida 45922520503);
   `/health` sano, el issuer público y el ingreso con Google como administrador ([Azure dev](../deploy/azure-dev.md#comprobaciones-todavía-externas)).
-- [ ] El disparador del front: su variable `DEV_DEPLOY_ENABLED` y el secret `BACKEND_WORKFLOW_TOKEN`, un PAT que crea el
-  titular ([etapa 5](../deploy/azure-dev.md#etapa-5-permitir-que-un-push-del-front-solicite-la-publicación)).
+- [x] El disparador del front (2026-11-26): variable `DEV_DEPLOY_ENABLED` y secret `BACKEND_WORKFLOW_TOKEN`, un PAT que
+  vence el 2027-11-26 ([etapa 5](../deploy/azure-dev.md#etapa-5-permitir-que-un-push-del-front-solicite-la-publicación)).
+- [ ] WhatsApp en Azure dev: prendido y con el webhook de Meta apuntando a Azure (2026-11-26); falta un mensaje real que
+  llegue a la bandeja de Azure.
 - [ ] Lo que queda de la [lista antes del primer despliegue](../guides/despliegue.md#lista-antes-del-primer-despliegue): respaldo
   de los PFX aparte de la Container App, destino de OpenTelemetry y alerta de 5xx, cupo de Gmail anotado y una alerta de
   presupuesto. Probar en Azure el código por correo, la renovación de la sesión y un reinicio.

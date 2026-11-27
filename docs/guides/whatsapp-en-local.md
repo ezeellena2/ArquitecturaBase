@@ -93,6 +93,11 @@ Para confirmar qué claves quedaron cargadas, sin mostrar los valores:
 
 ## El túnel, para recibir los webhooks
 
+**Desde el 2026-11-26 el webhook de la app de Meta apunta a Azure dev** ([Azure dev](../deploy/azure-dev.md#comprobaciones-todavía-externas)):
+lo que llega por WhatsApp va allá, no a la PC. Meta admite una sola URL por app. Para probar en local lo que llega, se cambia
+la URL al túnel (paso 4) y, al terminar, se vuelve a poner la de Azure, con la misma palabra de verificación. El envío
+desde la PC sigue andando sin el webhook.
+
 Meta le pega al webhook desde internet y exige HTTPS con un certificado válido: el de desarrollo de `localhost` no le sirve. Por eso el AppHost puede levantar un [dev tunnel](https://aspire.dev/integrations/devtools/dev-tunnels/) de Microsoft. **Viene apagado**, así `aspire run` no le pide la CLI a quien no la usa.
 
 1. **Una sola vez:** instalá la CLI con `winget install Microsoft.devtunnel`, abrí una terminal nueva (para que tome el `PATH`) e iniciá sesión con `devtunnel user login`. La sesión dura unos días: si el túnel no arranca, `devtunnel user show` dice si venció, y se renueva con el mismo `devtunnel user login`.

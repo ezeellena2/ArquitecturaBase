@@ -95,7 +95,10 @@ Todo sale de un script que se puede volver a correr sin regenerar nada de lo que
 LOCATION=centralus PG=psql-arqbase-dev-cus-689638 ACA_ENV=cae-arquitecturabase-dev-cus \
 AZURE_SUBSCRIPTION_ID=<id> GITHUB_OIDC_SUBJECT='repo:ezeellena2@128924334/ArquitecturaBase@1376411164:environment:dev' \
 GITHUB_REPOSITORY=ezeellena2/ArquitecturaBase SMTP_USERNAME=... SMTP_PASSWORD=... SMTP_FROM_ADDRESS=... \
-SEED_ADMIN_EMAIL=... GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... bash docs/deploy/provision-azure-dev.sh
+SEED_ADMIN_EMAIL=... GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
+WHATSAPP_PHONE_NUMBER_ID=... WHATSAPP_ACCESS_TOKEN=... WHATSAPP_APP_SECRET=... WHATSAPP_VERIFY_TOKEN=... \
+WHATSAPP_WABA_ID=... WHATSAPP_DISPLAY_PHONE_NUMBER=... WHATSAPP_SEND_ARGENTINE_MOBILES_WITHOUT_NINE=true \
+bash docs/deploy/provision-azure-dev.sh
 ```
 
 Corre en Cloud Shell o en Git Bash con Azure CLI y `az login`. Los valores del titular (SMTP, administrador inicial y Google) son los mismos de los user-secrets de la Api, y se pasan como variables sin escribirlos en archivos. El resto de los secretos los genera el script dentro de Azure. Si el grupo ya existe, se reusa aunque esté en otra región: el de dev existía en Brazil South con la cuenta de Storage que usa el desarrollo local (`starqbaseezedev`), que el ambiente no comparte, porque su limpieza de huérfanos borraría los archivos locales.
@@ -162,7 +165,7 @@ Con ORIGIN=https://<fqdn-de-la-container-app>:
 | ForwardedHeaders__TrustAll | true con acceso a Kestrel solo por ingress de Container Apps |
 | AllowedHosts | no se define: queda en `*`, porque el ingress ya filtra por host ([por qué](../guides/despliegue.md#proxy-y-encabezados-reenviados)) |
 
-Los nombres exactos de SMTP se contrastan con la [tabla canónica](../guides/despliegue.md#configuración-obligatoria-en-production) y appsettings.json. WhatsApp queda apagado hasta configurar su cuenta/webhook de dev. Los PFX son certificados de tokens, distintos del HTTPS que ofrece Azure.
+Los nombres exactos de SMTP se contrastan con la [tabla canónica](../guides/despliegue.md#configuración-obligatoria-en-production) y appsettings.json. WhatsApp se prende con las variables `WHATSAPP_*` del script, y el webhook de Meta se carga después ([comprobaciones](#comprobaciones-todavía-externas)). Los PFX son certificados de tokens, distintos del HTTPS que ofrece Azure.
 
 La identidad de la Container App recibe AcrPull sobre el registry. GitHub recibe permisos de despliegue distintos: subir imágenes, actualizar la app y abrir/cerrar el firewall de PostgreSQL. Contributor sobre el grupo dev simplifica el arranque; declarar además AcrPush sobre el registry hace explícito el permiso de publicar imágenes y permite acotar Contributor más adelante. Esta receta usa el modo RBAC clásico, sin ABAC; los roles de repositorio para ABAC son distintos. [Roles de ACR](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-rbac-built-in-roles-overview).
 
@@ -245,13 +248,26 @@ https://ca-arquitecturabase-dev.lemonmushroom-745a5099.centralus.azurecontainera
 revisión sana y comprobación desde Internet en verde. Un shard de vitest se cortó por tiempo
 (`MissingFormsPage`, «gives the wait of a 429…») y pasó al repetir sólo los jobs fallidos. Después, `/health` responde
 Healthy, la página sale con Brotli e `index.html` con `no-cache`, el issuer es el origen público y el ingreso con Google
-entra como el administrador inicial, con Administración visible. Falta activar el front (etapa 5) y probar el código por
-correo, la renovación de la sesión y un reinicio.
+entra como el administrador inicial, con Administración visible. Falta probar el código por correo, la renovación de la
+sesión y un reinicio.
+
+**Esa misma noche:**
+- **El idioma de la cuenta.** La cuenta del administrador nació en inglés. La toma del `Accept-Language` del navegador en
+  su primer ingreso, y ese Chrome está en inglés; el idioma general de Configuración sólo cuenta cuando el navegador no
+  pide uno de los dos. Se cambió a español desde el menú del usuario y quedó guardado en la cuenta.
+- **WhatsApp prendido en Azure**, con el número, el token, el App Secret y la palabra de verificación de los user-secrets
+  (variables `WHATSAPP_*` del script). El webhook de la app de Meta pasó del túnel de la PC a
+  `https://<origen>/webhooks/whatsapp`, con los mismos campos: desde ahí, los mensajes que llegan van a Azure dev y no a
+  la PC ([en local](../guides/whatsapp-en-local.md#el-túnel-para-recibir-los-webhooks)).
+- **La publicación desde el front quedó activa (etapa 5).** El PAT fine-grained «ArquitecturaBaseFront publica Azure dev»
+  tiene sólo Actions de lectura y escritura sobre el backend y vence el 2027-11-26. Su prueba con `workflow_dispatch`
+  pidió la corrida 45928247791 del backend.
 
 Validación local del 2026-10-02: build .NET Release sin advertencias; 2.057 tests backend (incluida integración con Docker); lint, 829 tests y build front; ambos workflows validados con actionlint 1.7.12. Se generó y cargó la imagen linux/amd64, y se compararon los 76 archivos de React por SHA-256 tanto en el publicado como dentro de la imagen. El bundle Linux se generó y arrancó sin appsettings, hasta intentar la conexión ficticia de prueba; no aplicó migraciones a una base real. El wwwroot temporal se retiró después de probar para conservar el desarrollo local con Vite.
 
-- Ejecutar el disparador del front (etapa 5): falta su variable y el secret `BACKEND_WORKFLOW_TOKEN`.
-- Verificar el código por correo, la renovación y un reinicio contra Azure.
+- Verificar el código por correo, la renovación y un reinicio contra Azure, y un mensaje de WhatsApp que llegue a la
+  bandeja de Azure dev.
+- Renovar el PAT del front antes del 2027-11-26.
 - Implementar Files y probar permisos/upload/download de Blob desde local y desde la identidad de la Container App.
 
 El build local, actionlint y los tests no sustituyen estas comprobaciones.
