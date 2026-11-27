@@ -1,6 +1,6 @@
 # Azure dev: aprender y configurar el despliegue
 
-Estado al 2026-11-26: el ambiente existe. Lo creó [`provision-azure-dev.sh`](provision-azure-dev.sh) en Central US, con el gasto aprobado por el titular ese día (etapa 2), y `deploy.yml` lo publica con `DEV_DEPLOY_ENABLED=true`. Los dos repositorios son públicos.
+Estado al 2026-11-26: el ambiente existe. Lo creó [`provision-azure.sh`](provision-azure.sh) en Central US, con el gasto aprobado por el titular ese día (etapa 2), y `deploy.yml` lo publica con `DEV_DEPLOY_ENABLED=true`. Los dos repositorios son públicos.
 
 ## Qué estamos armando
 
@@ -89,16 +89,17 @@ La pipeline debe llegar a GitHub para ejecutarse: los cambios locales no aparece
 
 **Decisión del 2026-11-26.** El titular aprobó el ambiente pago, siempre prendido, en la región más barata de las comparadas: allí PostgreSQL cuesta la mitad que en Brazil South y hay unos 150 ms desde Argentina. Eligió East US 2, pero para esta suscripción no tiene B1ms (`SkuNotAvailable`, aunque `list-skus` lo ofrece) y East US tiene restringida la creación de PostgreSQL. Por eso quedó todo en **Central US**, con las mismas tarifas: la Api y la base en la misma región, sin sumarle unos 25 ms a cada consulta. El registry quedó en Brazil South, la región del grupo, y sólo cambia dónde se descargan las imágenes. Un intento fallido deja el nombre del servidor ocupado en esa región por un tiempo; por eso la base se llama `psql-arqbase-dev-cus-…`. Son unos USD 35 a 60 por mes según el uso (la Api activa o en reposo); hasta el 2026-12-17 PostgreSQL B1ms entra en los servicios gratuitos de la suscripción. La [comparación de costos](azure-dev-costos.md) conserva el detalle de las tarifas. La restricción anterior, un ambiente gratuito, queda sin efecto.
 
-Todo sale de un script que se puede volver a correr sin regenerar nada de lo que ya existe:
+Todo sale de un script que se puede volver a correr sin regenerar nada de lo que ya existe. Es el mismo que crea la
+instalación de cada cliente ([producción por cliente](produccion-por-cliente.md)); para dev, `INSTALLATION=dev`:
 
 ```bash
-LOCATION=centralus PG=psql-arqbase-dev-cus-689638 ACA_ENV=cae-arquitecturabase-dev-cus \
-AZURE_SUBSCRIPTION_ID=<id> GITHUB_OIDC_SUBJECT='repo:ezeellena2@128924334/ArquitecturaBase@1376411164:environment:dev' \
-GITHUB_REPOSITORY=ezeellena2/ArquitecturaBase SMTP_USERNAME=... SMTP_PASSWORD=... SMTP_FROM_ADDRESS=... \
+INSTALLATION=dev LOCATION=centralus PG=psql-arqbase-dev-cus-689638 ACA_ENV=cae-arquitecturabase-dev-cus \
+AZURE_SUBSCRIPTION_ID=<id> GITHUB_REPOSITORY=ezeellena2/ArquitecturaBase ALERT_EMAIL=<correo del titular> \
+SMTP_USERNAME=... SMTP_PASSWORD=... SMTP_FROM_ADDRESS=... \
 SEED_ADMIN_EMAIL=... GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
 WHATSAPP_PHONE_NUMBER_ID=... WHATSAPP_ACCESS_TOKEN=... WHATSAPP_APP_SECRET=... WHATSAPP_VERIFY_TOKEN=... \
 WHATSAPP_WABA_ID=... WHATSAPP_DISPLAY_PHONE_NUMBER=... WHATSAPP_SEND_ARGENTINE_MOBILES_WITHOUT_NINE=true \
-bash docs/deploy/provision-azure-dev.sh
+bash docs/deploy/provision-azure.sh
 ```
 
 Corre en Cloud Shell o en Git Bash con Azure CLI y `az login`. Los valores del titular (SMTP, administrador inicial y Google) son los mismos de los user-secrets de la Api, y se pasan como variables sin escribirlos en archivos. El resto de los secretos los genera el script dentro de Azure. Si el grupo ya existe, se reusa aunque esté en otra región: el de dev existía en Brazil South con la cuenta de Storage que usa el desarrollo local (`starqbaseezedev`), que el ambiente no comparte, porque su limpieza de huérfanos borraría los archivos locales.
@@ -114,7 +115,7 @@ Corre en Cloud Shell o en Git Bash con Azure CLI y `az login`. Los valores del t
 | Storage Account GPv2 | Archivos privados | `files-content` privado, sin claves compartidas, con borrado temporal, versiones y restauración; la Api entra con su identidad. |
 | Identidad de GitHub | Publicar sin contraseña | `id-github-arquitecturabase-dev`, identidad administrada con credencial federada del environment dev, Contributor del grupo y AcrPush. |
 
-Los nombres del registry, la base y el Storage llevan un sufijo derivado de la suscripción, porque son únicos en Azure. La [receta técnica](azure-setup.md) explica cada pieza y sus porqués. Un registry, una base, Redis y los logs generan cargos aunque no visites la web. Queda pendiente una alerta de presupuesto, que avisa pero no corta el consumo.
+Los nombres del registry, la base y el Storage llevan un sufijo derivado de la suscripción, porque son únicos en Azure. La [receta técnica](azure-setup.md) explica cada pieza y sus porqués. Un registry, una base, Redis y los logs generan cargos aunque no visites la web. Con `ALERT_EMAIL`, el script crea un presupuesto mensual del grupo (USD 70; avisa al 80 % del gasto real y al 100 % del pronosticado) y una alerta de errores 5xx de la Api; una alerta avisa, no corta el consumo.
 
 Para consultar Azure desde Windows:
 ```powershell

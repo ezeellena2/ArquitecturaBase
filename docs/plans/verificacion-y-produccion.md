@@ -202,8 +202,9 @@ El código y la corrida completa del 2026-11-26 están en verde; queda mirarlos 
 - [ ] WhatsApp en Azure dev: prendido y con el webhook de Meta apuntando a Azure (2026-11-26); falta un mensaje real que
   llegue a la bandeja de Azure.
 - [ ] Lo que queda de la [lista antes del primer despliegue](../guides/despliegue.md#lista-antes-del-primer-despliegue): respaldo
-  de los PFX aparte de la Container App, destino de OpenTelemetry y alerta de 5xx, cupo de Gmail anotado y una alerta de
-  presupuesto. Probar en Azure el código por correo, la renovación de la sesión y un reinicio.
+  de los PFX aparte de la Container App, destino de OpenTelemetry y cupo de Gmail anotado (la alerta de 5xx y el
+  presupuesto los crea el script desde el 2026-11-27). Probar en Azure el código por correo, la renovación de la sesión y
+  un reinicio.
 - [ ] Planificar WhatsApp en producción: el piloto de formularios del 2026-10-11 ya usó una cuenta
   configurada, con pago y número reales. Falta el número de producción y su PIN, las plantillas en su
   cuenta, HTTPS/webhook propio, secreto de la app requerido, monitoreo del token y del costo, y el

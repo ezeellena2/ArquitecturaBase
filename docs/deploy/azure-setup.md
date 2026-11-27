@@ -1,6 +1,6 @@
 # Desplegar a Azure Container Apps
 
-Receta técnica de recursos para `.github/workflows/deploy.yml`. Para el ambiente dev, [`provision-azure-dev.sh`](provision-azure-dev.sh) hace todo esto de una vez y se puede volver a correr; [Azure dev](azure-dev.md) explica cómo correrlo, la región, los tamaños y la configuración de GitHub. Esta receta conserva los pasos sueltos y sus porqués. Los bloques Bash se ejecutan en Azure Cloud Shell con Bash; no copiarlos directamente en PowerShell.
+Receta técnica de recursos para `.github/workflows/deploy.yml`. Para el ambiente dev, [`provision-azure.sh`](provision-azure.sh) hace todo esto de una vez y se puede volver a correr; [Azure dev](azure-dev.md) explica cómo correrlo, la región, los tamaños y la configuración de GitHub. Esta receta conserva los pasos sueltos y sus porqués. Los bloques Bash se ejecutan en Azure Cloud Shell con Bash; no copiarlos directamente en PowerShell.
 El pipeline no crea recursos: solo sube una imagen nueva y actualiza la aplicación.
 
 Este procedimiento prepara Container Apps, PostgreSQL, el registry y el almacenamiento de archivos privados. **También hace

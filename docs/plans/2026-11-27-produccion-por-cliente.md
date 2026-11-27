@@ -1,6 +1,6 @@
 # Producción por cliente: una instalación por empresa
 
-Estado: **propuesta del 2026-11-27, sin programar.** El titular ya tiene clientes y decidió que, mientras el multitenant
+Estado: **T1 a T4 programadas el 2026-11-27; falta T5, el primer cliente.** La receta para usarlo está en [producción por cliente](../deploy/produccion-por-cliente.md). El titular ya tiene clientes y decidió que, mientras el multitenant
 no esté terminado, cada empresa que lo contrata tenga su propia instalación en Azure. Cuando el multitenant esté listo, los
 clientes pasan a él con un plan aparte. [Azure dev](../deploy/azure-dev.md) sigue siendo el ambiente para probar y romper,
 con el número de prueba de WhatsApp.
@@ -37,19 +37,20 @@ Lo que el plan fija, con la opción más simple que cumple las reglas del proyec
 | PR8 | Respaldos de PostgreSQL de 14 días en producción (7 en dev) | Más margen para restaurar un error de un cliente |
 | PR9 | Una alerta de presupuesto y una de errores 5xx por grupo, al correo del titular | Una alerta avisa, no corta el consumo; cada cliente se ve por separado |
 
-**Pendiente del titular (no se programa sin su respuesta):**
-- **PR10. De quién es la cuenta de WhatsApp de cada cliente.** Lo más rápido para los primeros es que el número del cliente
-  quede en el portfolio del titular: misma app de Meta y un webhook propio por número hacia su instalación, como el de
-  prueba hacia la PC. La alternativa, para cuando sean más, es registrarse como proveedor de tecnología (Embedded Signup):
+**Resueltas por el titular el 2026-11-27, con lo recomendado:**
+- **PR10. De quién es la cuenta de WhatsApp de cada cliente.** Para los primeros, el número del cliente queda en el
+  portfolio del titular: misma app de Meta y un webhook propio por número hacia su instalación, como el de
+  prueba hacia la PC; `publish-azure.yml` se lo pone al publicar. Para cuando sean más, es registrarse como proveedor de tecnología (Embedded Signup):
   cada empresa conecta su propia cuenta, con su verificación y su medio de pago.
-- **PR11. Con qué cuenta salen los correos.** La de Gmail del titular tiene un cupo de unos 500 por día para todas las
-  instalaciones que la usen. La alternativa es una cuenta por cliente o un proveedor transaccional.
+- **PR11. Con qué cuenta salen los correos.** Por defecto, la de Gmail del titular, con su cupo de unos 500 por día
+  repartido con `EMAIL_DAILY_LIMIT` entre las instalaciones que la usan. Una cuenta por cliente o un proveedor
+  transaccional, cuando el cupo no alcance.
 
 ## Tareas
 
 | # | Qué | Dónde |
 |---|---|---|
-| T1 | El script acepta `ACR_RESOURCE_GROUP` (registry compartido), `CUSTOM_DOMAIN` (origen público y certificado), `GITHUB_ENVIRONMENT` (`dev` por defecto; `prod-<cliente>` con el titular como revisor obligatorio), los días de respaldo, y crea las dos alertas | `docs/deploy/provision-azure-dev.sh` (pasa a `provision-azure.sh`) |
+| T1 | El script acepta `ACR_RESOURCE_GROUP` (registry compartido), `CUSTOM_DOMAIN` (origen público y certificado), `GITHUB_ENVIRONMENT` (`dev` por defecto; `prod-<cliente>` con el titular como revisor obligatorio), los días de respaldo, y crea las dos alertas | `docs/deploy/provision-azure.sh` |
 | T2 | El job que publica pasa a un workflow reutilizable (`workflow_call`), con el environment y la corrida del paquete como entradas. `deploy.yml` lo llama para dev; `deploy-production.yml` (`workflow_dispatch`) lo llama para un cliente con el paquete de una corrida verde de dev | `.github/workflows/` |
 | T3 | El paquete de dev se guarda 30 días | `deploy.yml` |
 | T4 | Guía de alta, actualización y baja de un cliente, con los registros DNS, el número de WhatsApp y la primera promoción | `docs/deploy/produccion-por-cliente.md`, y las referencias en `azure-dev.md`, `azure-setup.md` y el `AGENTS.md` de workflows |

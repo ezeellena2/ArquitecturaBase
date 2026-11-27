@@ -1,14 +1,25 @@
 #!/usr/bin/env bash
-# Crea o completa el ambiente Azure dev de ArquitecturaBase y lo deja listo para que deploy.yml publique.
+# Crea o completa una instalación de ArquitecturaBase en Azure: dev, o la de un cliente (una por empresa), y la deja
+# lista para que GitHub publique en ella.
 #
 # Se puede volver a correr: lo que existe se deja como está y los secretos generados no se regeneran (regenerar un PFX
 # o un anillo de claves cerraría las sesiones y dejaría ilegible lo cifrado). Corre en Azure Cloud Shell (Bash) o en
-# Git Bash con Azure CLI y `az login` hecho. Receta, porqués y costos: docs/deploy/azure-dev.md.
+# Git Bash con Azure CLI y `az login` hecho. Dev: docs/deploy/azure-dev.md. Clientes: docs/deploy/produccion-por-cliente.md.
 #
 # Datos de entrada, como variables de entorno:
 #   AZURE_SUBSCRIPTION_ID    obligatoria.
-#   GITHUB_OIDC_SUBJECT      obligatoria: el subject que GitHub emite para el environment dev, por ejemplo
-#                            repo:<owner>@<owner-id>/<repo>@<repo-id>:environment:dev (azure-dev.md, etapa 4).
+#   INSTALLATION             «dev» (por defecto) o el nombre corto del cliente: de 2 a 9 minúsculas y dígitos, empezando
+#                            con una letra. De él salen los nombres de los recursos y el environment de GitHub
+#                            («dev» o «prod-<cliente>», que pide la aprobación del titular).
+#   GITHUB_REPOSITORY        owner/repo del backend. Con `gh` autenticado crea el environment y sus variables, y deduce
+#                            el subject de OIDC.
+#   GITHUB_OIDC_SUBJECT      opcional: el subject que GitHub emite para el environment; sin él se arma con el prefijo
+#                            que devuelve la API de GitHub (azure-dev.md, etapa 4).
+#   CUSTOM_DOMAIN            opcional: el origen público propio (por ejemplo cliente.midominio.com), con certificado
+#                            administrado de Container Apps. Hasta que estén sus registros DNS se usa el FQDN de Azure.
+#   ALERT_EMAIL, BUDGET_USD  opcionales: el correo de las alertas de errores 5xx y de presupuesto, y el presupuesto
+#                            mensual del grupo en dólares (70 por defecto).
+#   EMAIL_DAILY_LIMIT        opcional: el tope diario de correos de la instalación, si comparte la cuenta de Gmail.
 #   SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_ADDRESS
 #                            obligatorias la primera vez: sin SMTP la Api no arranca en Production. La contraseña es
 #                            una contraseña de aplicación de Gmail.
@@ -17,8 +28,8 @@
 #                            opcionales: con ellas se prende el ingreso con Google.
 #   WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN, WHATSAPP_WABA_ID,
 #   WHATSAPP_DISPLAY_PHONE_NUMBER, WHATSAPP_SEND_ARGENTINE_MOBILES_WITHOUT_NINE
-#                            opcionales: con el número se prende WhatsApp; el webhook se carga después en Meta.
-#   GITHUB_REPOSITORY        opcional (owner/repo): con `gh` autenticado, crea el environment dev y sus variables.
+#                            opcionales: con el número se prende WhatsApp. En dev el webhook de la app de Meta se carga
+#                            a mano; en un cliente, la publicación le pone al número un webhook propio hacia su origen.
 #   LOCATION, RG y los nombres de abajo tienen valores por defecto; los que deben ser únicos en Azure llevan un sufijo
 #   derivado de la suscripción, así una segunda corrida encuentra los mismos recursos.
 set -euo pipefail
@@ -28,23 +39,45 @@ set -euo pipefail
 export MSYS_NO_PATHCONV=1
 
 : "${AZURE_SUBSCRIPTION_ID:?Falta AZURE_SUBSCRIPTION_ID}"
-: "${GITHUB_OIDC_SUBJECT:?Falta GITHUB_OIDC_SUBJECT (ver docs/deploy/azure-dev.md, etapa 4)}"
+INSTALLATION=${INSTALLATION:-dev}
+if [[ ! "$INSTALLATION" =~ ^[a-z][a-z0-9]{1,8}$ ]]; then
+  echo "INSTALLATION va en minúsculas y dígitos, de 2 a 9, empezando con una letra (entra en el nombre del Storage)." >&2
+  exit 1
+fi
+if [[ "$INSTALLATION" == dev ]]; then default_environment=dev default_backup_days=7; else
+  default_environment="prod-$INSTALLATION" default_backup_days=14
+fi
+GITHUB_ENVIRONMENT=${GITHUB_ENVIRONMENT:-$default_environment}
 
 suffix=$(printf %s "$AZURE_SUBSCRIPTION_ID" | sha256sum | cut -c1-6)
 LOCATION=${LOCATION:-centralus}
-RG=${RG:-rg-arquitecturabase-dev}
+RG=${RG:-rg-arquitecturabase-$INSTALLATION}
+# Un solo registry para todas las instalaciones, en el grupo de dev: todas corren la misma imagen.
+ACR_RESOURCE_GROUP=${ACR_RESOURCE_GROUP:-rg-arquitecturabase-dev}
 ACR=${ACR:-acrarqbasedev$suffix}
-PG=${PG:-psql-arqbase-dev-$suffix}
+PG=${PG:-psql-arqbase-$INSTALLATION-$suffix}
 PG_ADMIN=${PG_ADMIN:-pgadmin}
 # PostgreSQL puede ir en otra región cercana si la del resto no tiene el tamaño B1ms para la suscripción (SkuNotAvailable).
 PG_LOCATION=${PG_LOCATION:-$LOCATION}
-ST=${ST:-starqbasedev$suffix}
-ACA_ENV=${ACA_ENV:-cae-arquitecturabase-dev}
-APP=${APP:-ca-arquitecturabase-dev}
-REDIS_APP=${REDIS_APP:-ca-redis-dev}
-DEPLOY_IDENTITY=${DEPLOY_IDENTITY:-id-github-arquitecturabase-dev}
-CACHE_KEY_PREFIX=${CACHE_KEY_PREFIX:-arquitecturabase:dev}
+PG_BACKUP_DAYS=${PG_BACKUP_DAYS:-$default_backup_days}
+ST=${ST:-starqbase$INSTALLATION$suffix}
+ACA_ENV=${ACA_ENV:-cae-arquitecturabase-$INSTALLATION}
+APP=${APP:-ca-arquitecturabase-$INSTALLATION}
+REDIS_APP=${REDIS_APP:-ca-redis-$INSTALLATION}
+DEPLOY_IDENTITY=${DEPLOY_IDENTITY:-id-github-arquitecturabase-$INSTALLATION}
+CACHE_KEY_PREFIX=${CACHE_KEY_PREFIX:-arquitecturabase:$INSTALLATION}
 REDIS_IMAGE_SOURCE=${REDIS_IMAGE_SOURCE:-docker.io/library/redis:8.6}
+BUDGET_USD=${BUDGET_USD:-70}
+
+if [[ -z "${GITHUB_OIDC_SUBJECT:-}" ]]; then
+  if [[ -z "${GITHUB_REPOSITORY:-}" ]] || ! command -v gh >/dev/null; then
+    echo "Falta GITHUB_OIDC_SUBJECT, o GITHUB_REPOSITORY con gh autenticado para deducirlo." >&2
+    exit 1
+  fi
+  oidc_prefix=$(gh api "repos/$GITHUB_REPOSITORY/actions/oidc/customization/sub" --jq '.sub_claim_prefix // empty')
+  [[ -n "$oidc_prefix" ]] || oidc_prefix="repo:$GITHUB_REPOSITORY"
+  GITHUB_OIDC_SUBJECT="$oidc_prefix:environment:$GITHUB_ENVIRONMENT"
+fi
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -64,21 +97,25 @@ random_pg_password() { printf '%s%s' "$(random_hex 16)" "$(random_hex 8 | tr 'a-
 
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 for namespace in Microsoft.App Microsoft.OperationalInsights Microsoft.ContainerRegistry Microsoft.DBforPostgreSQL \
-  Microsoft.Storage Microsoft.ManagedIdentity; do
+  Microsoft.Storage Microsoft.ManagedIdentity Microsoft.Insights; do
   az provider register --namespace "$namespace" --wait --only-show-errors
 done
 
-log "Grupo de recursos $RG"
+log "Grupo de recursos $RG (instalación $INSTALLATION)"
 # Si ya existe se reusa aunque esté en otra región: la del grupo es sólo dónde guarda sus datos de gestión.
 if ! exists az group show --name "$RG"; then
-  az group create --name "$RG" --location "$LOCATION" --tags environment=dev --output none
+  az group create --name "$RG" --location "$LOCATION" --tags "installation=$INSTALLATION" --output none
 fi
 
-log "Registry $ACR (Basic, sin usuario administrador)"
-if ! exists az acr show --resource-group "$RG" --name "$ACR"; then
+log "Registry compartido $ACR, en $ACR_RESOURCE_GROUP (Basic, sin usuario administrador)"
+if ! exists az acr show --resource-group "$ACR_RESOURCE_GROUP" --name "$ACR"; then
+  if [[ "$ACR_RESOURCE_GROUP" != "$RG" ]]; then
+    echo "No está el registry $ACR en $ACR_RESOURCE_GROUP: se crea con la instalación dev, antes que los clientes." >&2
+    exit 1
+  fi
   az acr create --resource-group "$RG" --name "$ACR" --location "$LOCATION" --sku Basic --admin-enabled false --output none
 fi
-ACR_ID=$(az acr show --resource-group "$RG" --name "$ACR" --query id --output tsv)
+ACR_ID=$(az acr show --resource-group "$ACR_RESOURCE_GROUP" --name "$ACR" --query id --output tsv)
 # Redis sale del registry propio: Container Apps no depende del límite de descargas anónimas de Docker Hub.
 redis_image="$ACR.azurecr.io/redis:${REDIS_IMAGE_SOURCE##*:}"
 if ! exists az acr repository show --name "$ACR" --image "redis:${REDIS_IMAGE_SOURCE##*:}"; then
@@ -191,6 +228,25 @@ az role assignment create --assignee-object-id "$APP_IDENTITY" --assignee-princi
   --role AcrPull --scope "$ACR_ID" --output none
 az containerapp registry set --resource-group "$RG" --name "$APP" --server "$ACR.azurecr.io" --identity system --output none
 
+# Dominio propio con certificado administrado (gratis). Azure pide antes dos registros DNS: el CNAME hacia el FQDN y el
+# TXT asuid con el ID de verificación de la app. Sin ellos se sigue con el FQDN y se vuelve a correr cuando estén.
+domain_pending=""
+if [[ -n "${CUSTOM_DOMAIN:-}" ]]; then
+  log "Dominio $CUSTOM_DOMAIN"
+  binding=$(az containerapp hostname list --resource-group "$RG" --name "$APP" \
+    --query "[?name=='$CUSTOM_DOMAIN'].bindingType | [0]" --output tsv 2>/dev/null || true)
+  if [[ "$binding" != SniEnabled ]]; then
+    if { [[ -n "$binding" ]] || exists az containerapp hostname add --resource-group "$RG" --name "$APP" --hostname "$CUSTOM_DOMAIN"; } &&
+      exists az containerapp hostname bind --resource-group "$RG" --name "$APP" --hostname "$CUSTOM_DOMAIN" \
+        --environment "$ACA_ENV" --validation-method CNAME; then
+      binding=SniEnabled
+    else
+      domain_pending=$(az containerapp show --resource-group "$RG" --name "$APP" --query properties.customDomainVerificationId --output tsv)
+    fi
+  fi
+  [[ "$binding" == SniEnabled ]] && ORIGIN="https://$CUSTOM_DOMAIN"
+fi
+
 log "Archivos privados en $ST"
 if ! exists az storage account show --resource-group "$RG" --name "$ST"; then
   az storage account create --resource-group "$RG" --name "$ST" --location "$LOCATION" --kind StorageV2 \
@@ -215,7 +271,7 @@ existing_secrets=" $(az containerapp secret list --resource-group "$RG" --name "
 has_secret() { [[ "$existing_secrets" == *" $1 "* ]]; }
 new_secrets=()
 
-log "PostgreSQL $PG (B1ms, 32 GB, versión 18) y base appdb"
+log "PostgreSQL $PG (B1ms, 32 GB, versión 18, respaldos de $PG_BACKUP_DAYS días) y base appdb"
 if ! has_secret db-connection; then
   pg_password=$(random_pg_password)
   if exists az postgres flexible-server show --resource-group "$RG" --name "$PG"; then
@@ -224,7 +280,7 @@ if ! has_secret db-connection; then
   else
     az postgres flexible-server create --resource-group "$RG" --name "$PG" --location "$PG_LOCATION" \
       --admin-user "$PG_ADMIN" --admin-password "$pg_password" --sku-name Standard_B1ms --tier Burstable \
-      --version 18 --storage-size 32 --public-access None --backup-retention 7 --geo-redundant-backup Disabled \
+      --version 18 --storage-size 32 --public-access None --backup-retention "$PG_BACKUP_DAYS" --geo-redundant-backup Disabled \
       --yes --output none
   fi
   # Se guarda enseguida: si la corrida se corta después, la próxima no vuelve a cambiar la contraseña.
@@ -246,6 +302,9 @@ fi
 # firewall. Prenderlo no abre nada: sólo entran las IP de las reglas.
 if [[ "$(az postgres flexible-server show --resource-group "$RG" --name "$PG" --query network.publicNetworkAccess --output tsv)" != Enabled ]]; then
   az postgres flexible-server update --resource-group "$RG" --name "$PG" --public-access Enabled --yes --output none
+fi
+if [[ "$(az postgres flexible-server show --resource-group "$RG" --name "$PG" --query backup.backupRetentionDays --output tsv)" != "$PG_BACKUP_DAYS" ]]; then
+  az postgres flexible-server update --resource-group "$RG" --name "$PG" --backup-retention "$PG_BACKUP_DAYS" --output none
 fi
 if ! exists az postgres flexible-server db show --resource-group "$RG" "${database_args[@]}"; then
   az postgres flexible-server db create --resource-group "$RG" "${database_args[@]}" --output none
@@ -338,6 +397,8 @@ settings=(
 [[ -n "${SMTP_USERNAME:-}" ]] && settings+=("Email__Smtp__UserName=$SMTP_USERNAME")
 [[ -n "${SMTP_FROM_ADDRESS:-}" ]] && settings+=("Email__Smtp__FromAddress=$SMTP_FROM_ADDRESS")
 [[ -n "${SEED_ADMIN_EMAIL:-}" ]] && settings+=("Seed__AdminEmail=$SEED_ADMIN_EMAIL")
+# Varias instalaciones con la misma cuenta de Gmail comparten su cupo: cada una cuenta sólo lo suyo (despliegue.md).
+[[ -n "${EMAIL_DAILY_LIMIT:-}" ]] && settings+=("Email__DailyLimit=$EMAIL_DAILY_LIMIT")
 if [[ -n "${GOOGLE_CLIENT_ID:-}" ]]; then
   settings+=("Authentication__Google__ClientId=$GOOGLE_CLIENT_ID" Authentication__Google__ClientSecret=secretref:google-client-secret)
 fi
@@ -362,8 +423,8 @@ if ! exists az identity show --resource-group "$RG" --name "$DEPLOY_IDENTITY"; t
 fi
 DEPLOY_CLIENT_ID=$(az identity show --resource-group "$RG" --name "$DEPLOY_IDENTITY" --query clientId --output tsv)
 DEPLOY_PRINCIPAL=$(az identity show --resource-group "$RG" --name "$DEPLOY_IDENTITY" --query principalId --output tsv)
-if ! exists az identity federated-credential show --resource-group "$RG" --identity-name "$DEPLOY_IDENTITY" --name github-dev; then
-  az identity federated-credential create --resource-group "$RG" --identity-name "$DEPLOY_IDENTITY" --name github-dev \
+if ! exists az identity federated-credential show --resource-group "$RG" --identity-name "$DEPLOY_IDENTITY" --name "github-$GITHUB_ENVIRONMENT"; then
+  az identity federated-credential create --resource-group "$RG" --identity-name "$DEPLOY_IDENTITY" --name "github-$GITHUB_ENVIRONMENT" \
     --issuer https://token.actions.githubusercontent.com --subject "$GITHUB_OIDC_SUBJECT" \
     --audiences api://AzureADTokenExchange --output none
 fi
@@ -372,6 +433,9 @@ az role assignment create --assignee-object-id "$DEPLOY_PRINCIPAL" --assignee-pr
   --role Contributor --scope "$RG_ID" --output none
 az role assignment create --assignee-object-id "$DEPLOY_PRINCIPAL" --assignee-principal-type ServicePrincipal \
   --role AcrPush --scope "$ACR_ID" --output none
+# `az acr login` busca el registry por nombre: un cliente, con Contributor sólo en su grupo, necesita leerlo.
+az role assignment create --assignee-object-id "$DEPLOY_PRINCIPAL" --assignee-principal-type ServicePrincipal \
+  --role Reader --scope "$ACR_ID" --output none
 
 TENANT_ID=$(az account show --query tenantId --output tsv)
 github_variables=(
@@ -384,20 +448,60 @@ github_variables=(
   "AZURE_POSTGRES_SERVER=$PG"
 )
 if [[ -n "${GITHUB_REPOSITORY:-}" ]] && command -v gh >/dev/null; then
-  log "Environment dev de $GITHUB_REPOSITORY"
-  gh api --method PUT "repos/$GITHUB_REPOSITORY/environments/dev" --input - >/dev/null <<'JSON'
-{"deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}
+  log "Environment $GITHUB_ENVIRONMENT de $GITHUB_REPOSITORY"
+  # Dev publica con cada push; un cliente espera la aprobación del titular (el dueño del repositorio).
+  if [[ "$GITHUB_ENVIRONMENT" == dev ]]; then reviewers='[]'; else
+    reviewers="[{\"type\": \"User\", \"id\": $(gh api user --jq .id)}]"
+  fi
+  gh api --method PUT "repos/$GITHUB_REPOSITORY/environments/$GITHUB_ENVIRONMENT" --input - >/dev/null <<JSON
+{"reviewers": $reviewers, "deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}
 JSON
-  if ! gh api "repos/$GITHUB_REPOSITORY/environments/dev/deployment-branch-policies" --jq '.branch_policies[].name' | grep -qx main; then
-    gh api --method POST "repos/$GITHUB_REPOSITORY/environments/dev/deployment-branch-policies" -f name=main -f type=branch >/dev/null
+  if ! gh api "repos/$GITHUB_REPOSITORY/environments/$GITHUB_ENVIRONMENT/deployment-branch-policies" --jq '.branch_policies[].name' | grep -qx main; then
+    gh api --method POST "repos/$GITHUB_REPOSITORY/environments/$GITHUB_ENVIRONMENT/deployment-branch-policies" -f name=main -f type=branch >/dev/null
   fi
   for variable in "${github_variables[@]}"; do
-    gh variable set "${variable%%=*}" --env dev --body "${variable#*=}" --repo "$GITHUB_REPOSITORY"
+    gh variable set "${variable%%=*}" --env "$GITHUB_ENVIRONMENT" --body "${variable#*=}" --repo "$GITHUB_REPOSITORY"
   done
+fi
+
+# Una alerta avisa, no corta el consumo: la de presupuesto mira el gasto real y el pronosticado del grupo, y la de 5xx,
+# los errores de la Api o del ingress (despliegue.md, «Logs, trazas y alertas»).
+if [[ -n "${ALERT_EMAIL:-}" ]]; then
+  log "Alertas de errores y de presupuesto a $ALERT_EMAIL"
+  action_group="ag-arquitecturabase-$INSTALLATION"
+  az monitor action-group create --resource-group "$RG" --name "$action_group" --short-name "ab-$INSTALLATION" \
+    --action email titular "$ALERT_EMAIL" --output none
+  if ! exists az monitor metrics alert show --resource-group "$RG" --name api-5xx; then
+    az monitor metrics alert create --resource-group "$RG" --name api-5xx \
+      --scopes "$(az containerapp show --resource-group "$RG" --name "$APP" --query id --output tsv)" \
+      --condition "total Requests > 5 where statusCodeCategory includes 5xx" --window-size 5m --evaluation-frequency 1m \
+      --action "$action_group" --description "La Api respondió errores 5xx" --output none
+  fi
+  cat > "$tmp/budget.json" <<JSON
+{"properties": {"category": "Cost", "amount": $BUDGET_USD, "timeGrain": "Monthly",
+  "timePeriod": {"startDate": "$(date -u +%Y-%m-01T00:00:00Z)"},
+  "notifications": {
+    "actual80": {"enabled": true, "operator": "GreaterThanOrEqualTo", "threshold": 80, "thresholdType": "Actual", "contactEmails": ["$ALERT_EMAIL"]},
+    "forecast100": {"enabled": true, "operator": "GreaterThanOrEqualTo", "threshold": 100, "thresholdType": "Forecasted", "contactEmails": ["$ALERT_EMAIL"]}
+  }}}
+JSON
+  if ! exists az rest --method GET --url "https://management.azure.com$RG_ID/providers/Microsoft.Consumption/budgets/budget-arquitecturabase-$INSTALLATION?api-version=2021-10-01"; then
+    az rest --method PUT --url "https://management.azure.com$RG_ID/providers/Microsoft.Consumption/budgets/budget-arquitecturabase-$INSTALLATION?api-version=2021-10-01" \
+      --body "@$tmp/budget.json" --output none
+  fi
 fi
 
 log "Listo"
 echo "URL: $ORIGIN"
-echo "Variables del environment dev de GitHub:"
+if [[ -n "$domain_pending" ]]; then
+  echo "El dominio $CUSTOM_DOMAIN todavía no se pudo enlazar. Creá estos registros DNS y volvé a correr el script:"
+  echo "  CNAME  $CUSTOM_DOMAIN  ->  $FQDN"
+  echo "  TXT    asuid.$CUSTOM_DOMAIN  ->  $domain_pending"
+fi
+echo "Variables del environment $GITHUB_ENVIRONMENT de GitHub:"
 printf '  %s\n' "${github_variables[@]}"
-echo "Después: DEV_DEPLOY_ENABLED=true como variable de repositorio y correr deploy.yml en main."
+if [[ "$GITHUB_ENVIRONMENT" == dev ]]; then
+  echo "Después: DEV_DEPLOY_ENABLED=true como variable de repositorio y correr deploy.yml en main."
+else
+  echo "Después: Actions > «Publicar en un cliente» > Run workflow, con el environment $GITHUB_ENVIRONMENT, y aprobarlo."
+fi

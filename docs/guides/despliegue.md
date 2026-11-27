@@ -262,9 +262,10 @@ Nada de esto se probó todavía contra Azure real.
 
 ## Lista antes del primer despliegue
 
-Azure dev la cumplió el 2026-11-26 con [`provision-azure-dev.sh`](../deploy/provision-azure-dev.sh) y su primera publicación,
+Azure dev la cumplió el 2026-11-26 con [`provision-azure.sh`](../deploy/provision-azure.sh) y su primera publicación,
 salvo tres ítems: los PFX viven sólo como secretos de la Container App, sin un respaldo aparte; no hay destino de
-OpenTelemetry ni alerta de 5xx; y falta anotar el cupo de la cuenta de Gmail. La lista se conserva para producción.
+OpenTelemetry (la alerta de 5xx y el presupuesto sí, desde el 2026-11-27); y falta anotar el cupo de la cuenta de Gmail.
+La lista vale también para cada cliente ([producción por cliente](../deploy/produccion-por-cliente.md)).
 
 - [ ] La configuración de [azure-dev.md](../deploy/azure-dev.md) completada, con infraestructura, base `appdb`, GitHub environment `dev`, identidades y secrets; ambos workflows en GitHub.
 - [ ] Los probes Startup y Liveness en `/alive` y Readiness en `/health` configurados en la Container App ([Probes](../deploy/azure-setup.md#probes)); sin ellos el workflow no despliega.
