@@ -314,195 +314,21 @@ jobs:
           name: azure-dev-package
           path: backend/.artifacts/deploy/
           if-no-files-found: error
-          retention-days: 3
+          # Un cliente recibe el paquete de una corrida verde de dev (deploy-production.yml): se guarda un mes.
+          retention-days: 30
 
+  # Publica dev con el paso compartido con los clientes. Cada push lo intenta; un paquete superado por main se omite.
   deploy:
     name: Publicar en Azure dev
     needs: build
     if: github.ref == 'refs/heads/main' && vars.DEV_DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment: dev
     permissions:
       contents: read
       id-token: write
-    env:
-      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      AZURE_REGISTRY: ${{ vars.AZURE_REGISTRY }}
-      AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
-      AZURE_POSTGRES_SERVER: ${{ vars.AZURE_POSTGRES_SERVER }}
-    steps:
-      - name: Recuperar paquete
-        uses: actions/download-artifact@v4
-        with:
-          name: azure-dev-package
-          path: package
-
-      - name: Omitir paquetes superados por cambios nuevos
-        id: current
-        env:
-          GH_TOKEN: ${{ github.token }}
-          FRONTEND_TOKEN: ${{ secrets.FRONTEND_READ_TOKEN || github.token }}
-        run: |
-          backend_sha=$(jq -r .backend package/manifest.json)
-          frontend_sha=$(jq -r .frontend package/manifest.json)
-          backend_head=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
-          frontend_head=$(GH_TOKEN="$FRONTEND_TOKEN" gh api "repos/$FRONTEND_REPOSITORY/commits/main" --jq .sha)
-          if [[ "$backend_sha" != "$backend_head" || "$frontend_sha" != "$frontend_head" ]]; then
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "### Despliegue omitido: hay cambios más recientes en main." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Validar configuración sin mostrar valores
-        if: steps.current.outputs.deploy == 'true'
-        run: |
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_REGISTRY AZURE_CONTAINER_APP AZURE_POSTGRES_SERVER; do
-            if [[ -z "${!name}" ]]; then
-              echo "::error::Falta configurar $name en el environment dev."
-              exit 1
-            fi
-          done
-
-      - name: Autenticarse en Azure sin contraseña
-        if: steps.current.outputs.deploy == 'true'
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      # Antes de cambiar algo en Azure: sin Readiness, la revisión nueva recibe tráfico aunque no tenga base. Sin Redis lo
-      # recibe igual, con /health en Degraded (ADR 0032).
-      - name: Exigir los probes de la Container App
-        if: steps.current.outputs.deploy == 'true'
-        run: |
-          probes=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_CONTAINER_APP" --query "properties.template.containers[0].probes" --output json)
-          for expected in Startup:/alive Liveness:/alive Readiness:/health; do
-            type=${expected%%:*}
-            path=${expected#*:}
-            if ! jq -e --arg type "$type" --arg path "$path" \
-              'any(.[]?; .type == $type and .httpGet.path == $path)' <<< "$probes" > /dev/null; then
-              echo "::error::Falta el probe $type en $path. Configuralo según docs/deploy/azure-setup.md#probes."
-              exit 1
-            fi
-          done
-
-      # La imagen sale del manifest y no de IMAGE_TAG: al repetir sólo este job cambia el intento, no el paquete.
-      - name: Subir imagen al registry
-        if: steps.current.outputs.deploy == 'true'
-        id: image
-        run: |
-          image=$(jq -r .image package/manifest.json)
-          az acr login --name "$AZURE_REGISTRY"
-          docker load --input package/image.tar.gz
-          target="$AZURE_REGISTRY.azurecr.io/$image"
-          docker tag "$image" "$target"
-          docker push "$target"
-          echo "target=$target" >> "$GITHUB_OUTPUT"
-
-      - name: Abrir acceso temporal para migraciones
-        if: steps.current.outputs.deploy == 'true'
-        id: firewall
-        # az 2.93 renombró los argumentos (el servidor pasó a --server-name y la regla a --name): se usa la forma que
-        # entiende la CLI del runner, que cambia de versión sin aviso.
-        run: |
-          runner_ip=$(curl --fail --silent --show-error --max-time 20 https://api.ipify.org)
-          [[ "$runner_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          rule="gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          if az postgres flexible-server firewall-rule create --help | grep -q -- '--rule-name'; then
-            rule_args=(--name "$AZURE_POSTGRES_SERVER" --rule-name "$rule")
-          else
-            rule_args=(--server-name "$AZURE_POSTGRES_SERVER" --name "$rule")
-          fi
-          az postgres flexible-server firewall-rule create --resource-group "$AZURE_RESOURCE_GROUP" "${rule_args[@]}" \
-            --start-ip-address "$runner_ip" --end-ip-address "$runner_ip" --output none
-
-      - name: Aplicar migraciones
-        if: steps.current.outputs.deploy == 'true'
-        env:
-          ConnectionStrings__appdb: Host=localhost;Database=design;Username=design;Password=design
-          ConnectionStrings__cache: localhost:6379,abortConnect=false
-        # La conexión es la de la Api: vive como secreto de la Container App y no se copia a GitHub.
-        run: |
-          connection=$(az containerapp secret show --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_CONTAINER_APP" --secret-name db-connection --query value --output tsv)
-          [[ -n "$connection" ]] || { echo "::error::Falta el secreto db-connection en la Container App."; exit 1; }
-          echo "::add-mask::$connection"
-          chmod +x package/efbundle
-          package/efbundle --connection "$connection" -- --environment Development
-
-      - name: Cerrar acceso temporal incluso ante fallas
-        if: always() && steps.firewall.outcome != 'skipped' && steps.current.outputs.deploy == 'true'
-        run: |
-          rule="gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          if az postgres flexible-server firewall-rule delete --help | grep -q -- '--rule-name'; then
-            rule_args=(--name "$AZURE_POSTGRES_SERVER" --rule-name "$rule")
-          else
-            rule_args=(--server-name "$AZURE_POSTGRES_SERVER" --name "$rule")
-          fi
-          az postgres flexible-server firewall-rule delete --resource-group "$AZURE_RESOURCE_GROUP" "${rule_args[@]}" \
-            --yes --output none
-
-      - name: Crear revisión de la aplicación
-        if: success() && steps.current.outputs.deploy == 'true'
-        id: revision
-        env:
-          IMAGE: ${{ steps.image.outputs.target }}
-        run: |
-          mode=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_CONTAINER_APP" --query properties.configuration.activeRevisionsMode --output tsv)
-          [[ "$mode" == "Single" ]] || { echo "::error::La Container App debe usar revisiones Single."; exit 1; }
-          az containerapp update --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_CONTAINER_APP" \
-            --image "$IMAGE" \
-            --revision-suffix "gh$GITHUB_RUN_ID-a$GITHUB_RUN_ATTEMPT" --output none
-          revision=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_CONTAINER_APP" --query properties.latestRevisionName --output tsv)
-          echo "name=$revision" >> "$GITHUB_OUTPUT"
-
-      - name: Esperar revisión nueva lista
-        if: steps.current.outputs.deploy == 'true'
-        env:
-          EXPECTED_REVISION: ${{ steps.revision.outputs.name }}
-        run: |
-          for attempt in {1..60}; do
-            ready=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
-              --name "$AZURE_CONTAINER_APP" --query properties.latestReadyRevisionName --output tsv)
-            health=$(az containerapp revision show --resource-group "$AZURE_RESOURCE_GROUP" \
-              --name "$AZURE_CONTAINER_APP" --revision "$EXPECTED_REVISION" --query properties.healthState --output tsv)
-            if [[ "$ready" == "$EXPECTED_REVISION" && "$health" == "Healthy" ]]; then
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "::error::La revisión nueva no llegó a estar lista."
-          exit 1
-
-      - name: Comprobar salud, web y autenticación desde Internet
-        if: steps.current.outputs.deploy == 'true'
-        env:
-          IMAGE: ${{ steps.image.outputs.target }}
-        run: |
-          host=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_CONTAINER_APP" --query properties.configuration.ingress.fqdn --output tsv)
-          origin="https://$host"
-          curl --fail --silent --show-error --retry 5 --retry-delay 5 --max-time 30 "$origin/health"
-          curl --fail --silent --show-error --max-time 30 "$origin/" --output /tmp/index.html
-          curl --fail --silent --show-error --max-time 30 "$origin/silent-renew.html" --output /tmp/silent-renew.html
-          curl --fail --silent --show-error --max-time 30 "$origin/.well-known/openid-configuration" --output /tmp/discovery.json
-          grep -qi '<html' /tmp/index.html
-          grep -qi '<html' /tmp/silent-renew.html
-          jq -e --arg origin "$origin" \
-            '(.issuer | rtrimstr("/")) == $origin and (.authorization_endpoint | startswith($origin + "/"))' \
-            /tmp/discovery.json > /dev/null
-          {
-            echo "### Azure dev verificado"
-            echo "- URL: $origin"
-            echo "- Imagen: $IMAGE"
-          } >> "$GITHUB_STEP_SUMMARY"
+      actions: read
+    uses: ./.github/workflows/publish-azure.yml
+    with:
+      environment: dev
+      package-run-id: ${{ github.run_id }}
+      skip-superseded: true
+    secrets: inherit

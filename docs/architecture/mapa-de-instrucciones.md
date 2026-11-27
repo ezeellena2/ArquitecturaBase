@@ -17,7 +17,7 @@ Cada desarrollo sigue además la [rutina compartida de revisión y validación](
 | Ámbito | Para qué sirve |
 |---|---|
 | [`./`](../../AGENTS.md) | Reglas de la plantilla, comandos, capas y dónde ubicar cada pieza. |
-| [`.github/workflows/`](../../.github/workflows/AGENTS.md) | Verifica ambos repositorios, empaqueta SPA/API y bundle, y coordina el despliegue Azure dev con OIDC, activación explícita y comprobación de la revisión. |
+| [`.github/workflows/`](../../.github/workflows/AGENTS.md) | Verifica ambos repositorios, empaqueta SPA/API y bundle, y publica con OIDC y comprobación de la revisión: en Azure dev con cada push y en cada cliente con aprobación del titular. |
 | [`docs/`](../AGENTS.md) | Arquitectura y premisas, reglas funcionales, guías y auditoría documental, ADR, planes pendientes y procedencia recuperable desde Git; diseños y materiales de operación. |
 | [`harnesses/`](../../harnesses/AGENTS.md) | Tareas repetibles de desarrollo: procedimiento compartido para Codex y Claude, adaptadores de invocación, controles y aplicación de propuestas documentales. |
 | [`src/ArquitecturaBase.Api/`](../../src/ArquitecturaBase.Api/AGENTS.md) | `Program.cs` compone capas y ordena el pipeline. |

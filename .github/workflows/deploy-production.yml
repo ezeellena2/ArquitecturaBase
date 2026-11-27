@@ -1,0 +1,77 @@
+name: Publicar en un cliente
+
+# Promueve a la instalación de un cliente un paquete que ya pasó por dev: la misma imagen y el mismo bundle, sin volver a
+# compilar. Se corre a mano y espera la aprobación del titular en el environment prod-<cliente>
+# (docs/deploy/produccion-por-cliente.md).
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment del cliente (prod-<cliente>)
+        required: true
+        type: string
+      package-run-id:
+        description: Corrida verde de «Verificar y desplegar Azure dev» cuyo paquete se publica (vacío = la última de main)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  package:
+    name: Elegir el paquete probado en dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run-id: ${{ steps.pick.outputs.run-id }}
+    steps:
+      - name: Elegir y comprobar la corrida
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+          REQUESTED_RUN: ${{ inputs.package-run-id }}
+        run: |
+          [[ "$TARGET_ENVIRONMENT" =~ ^prod-[a-z][a-z0-9]{1,8}$ ]] ||
+            { echo "::error::El environment de un cliente es prod-<cliente>, como lo crea provision-azure.sh."; exit 1; }
+          run_id=$REQUESTED_RUN
+          if [[ -z "$run_id" ]]; then
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy.yml --branch main --status success \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          fi
+          [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "::error::No hay una corrida verde de deploy.yml en main."; exit 1; }
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id")
+          jq -e '.path == ".github/workflows/deploy.yml" and .head_branch == "main" and .conclusion == "success"' \
+            <<< "$run" > /dev/null ||
+            { echo "::error::La corrida $run_id no es una de deploy.yml en main terminada en verde."; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
+            --jq '.artifacts[] | select(.name == "azure-dev-package" and (.expired | not)) | .id' | grep -q . ||
+            { echo "::error::El paquete de la corrida $run_id ya venció (se guarda 30 días)."; exit 1; }
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Paquete elegido"
+            echo "- Corrida de dev: $run_id ($(jq -r '.head_sha[0:8]' <<< "$run"))"
+            echo "- Destino: $TARGET_ENVIRONMENT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Publicar en el cliente
+    needs: package
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+    uses: ./.github/workflows/publish-azure.yml
+    with:
+      environment: ${{ inputs.environment }}
+      package-run-id: ${{ needs.package.outputs.run-id }}
+      whatsapp-webhook-override: true
+    secrets: inherit
