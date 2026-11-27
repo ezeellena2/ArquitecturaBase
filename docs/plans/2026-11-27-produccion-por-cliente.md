@@ -72,3 +72,61 @@ tenga los datos del primero.
 - Pasar los clientes al multitenant, con sus datos: plan aparte cuando el multitenant esté listo.
 - Compartir un servidor de PostgreSQL entre clientes para bajar el costo: se decide si el costo lo pide.
 - Red privada para la base y Key Vault: siguen en [verificación y producción](verificacion-y-produccion.md#despliegue-y-operación).
+
+## Marca por empresa (ME)
+
+Estado: **tableros publicados el 2026-11-27; faltan las elecciones ME1 y ME3 del titular.** Lienzo:
+[Marca por empresa](https://claude.ai/artifact/YKWuNW5xwL4EfSgstiMWrn).
+
+El titular quiere que cada empresa vea el producto con su logo, sus colores y su letra. Preguntó si convenía una rama
+por empresa y eligió un solo código: lo de todos va a `main` y lo de cada empresa son datos de su instalación, que
+carga su administrador en Configuración › Apariencia. Así se sigue publicando la misma imagen probada en dev (PR3) y los
+clientes pueden pasar al multitenant. Lo que sólo sirve a una empresa se convierte primero en una capacidad genérica
+([dinamismo para el campo](2026-11-19-procesos-del-campo.md)); si no se puede, va en un repo aparte que usa la API de su
+instalación, nunca en una copia de este.
+
+Hoy cada instalación ya guarda cuatro colores, el nombre de la aplicación, el remitente y la dirección de un logo para
+los correos ([Apariencia](../features/administracion.md#apariencia-global-2026-10-01)). Faltan el logo dentro de la
+app, subirlo como archivo, el ícono de la pestaña y la letra. La prueba es La Clementina: su logo y su paleta (azul
+pizarra `#2B4150`, crema `#F6F2E9`) cargados en su instalación, sin código propio.
+
+**Para elegir** (la recomendada primero):
+
+| # | Opción | Tablero |
+|---|---|---|
+| ME1-A | El logo va en la banda de arriba del menú, que hoy está vacía, y lleva al inicio. Con el menú contraído va el ícono | ME1-A · El logo arriba del menú |
+| ME1-B | El logo va en la barra superior, a la izquierda de las migas; la banda del menú sigue vacía | ME1-B · El logo en la barra superior |
+| ME3-A | Los cuatro colores de hoy alcanzan: el amarillo de La Clementina queda en su logo | ME3 · ¿Alcanzan los cuatro colores? |
+| ME3-B | Un quinto color, «Acento del menú», para la barra y el texto del ítem activo, con 3:1 contra el menú | ME3 · ¿Alcanzan los cuatro colores? |
+
+Por qué las recomendadas: con ME1-A, la marca es lo primero que se ve, en un lugar que hoy no tiene nada; ME1-B compite
+con las migas y, en el teléfono, con el ☰. Con ME3-A no hay datos nuevos y se mantiene que la marca de la interfaz
+significa acción ([fundamento visual](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md#principios-del-sistema)).
+
+**Fijadas por el plan**, con la opción más simple que cumple las reglas:
+
+| # | Decisión | Por qué |
+|---|---|---|
+| ME2 | Logo e ícono son archivos subidos en Apariencia (zona «Marca»), igual al tablero ME2. Logo: PNG o JPG apaisado, hasta 1 MB. Ícono: PNG cuadrado, desde 64 px. Se validan por su contenido, su tamaño y sus medidas en el navegador y en el servidor | Los correos necesitan PNG o JPG (Gmail no muestra SVG); un archivo propio no depende de una dirección ajena |
+| ME2b | Se guardan al subirlos y al quitarlos: `PUT` y `DELETE` en `api/settings/brand/logo` y `api/settings/brand/icon`, con la revisión leída, lock, transacción y 409, como el `PATCH`. La respuesta trae la revisión nueva y la pantalla conserva el borrador del resto. Quitar pide confirmación | Un archivo no es borrador; mandar el archivo dentro del `PATCH` cambiaría su contrato JSON |
+| ME2c | Los bytes van al almacén privado de la instalación (`IPrivateFileStore`) con clave nueva por subida; `SystemSettings` guarda la clave, el tipo y una versión. Una fuente de retención (`IPrivateFileRetentionSource`) los declara usados, y la limpieza de siempre borra los reemplazados | Las mismas reglas que los demás archivos ([almacenamiento](2026-10-02-almacenamiento-de-archivos.md)); sin limpieza nueva |
+| ME2d | `GET api/settings/brand/logo` y `…/icon` son anónimos y responden la imagen con `ETag`; pedidos con `?v=<versión>`, se guardan en caché un año | El ingreso, los correos y la pestaña los muestran sin sesión |
+| ME2e | El logo subido reemplaza a «Logo de los correos» (`EmailLogoUrl` sale del dominio, del contrato, de la base y de los textos). Los correos lo toman del origen público de la instalación y el PDF lo dibuja donde hoy va el nombre | Un solo logo para todo. El contrato sólo lo usa el front ([ADR 0005](../decisions/0005-sin-versionado-de-api-por-ahora.md) no aplica); antes de la migración se mira que dev y La Clementina no tengan uno cargado |
+| ME4 | Una sola letra para toda la app, de una lista cerrada: Public Sans (la inicial), Inter, IBM Plex Sans, Source Sans 3, Hanken Grotesk y Nunito Sans. El front las trae con `@fontsource-variable` y carga sólo la elegida. Los correos y el PDF siguen con la suya | Mismo origen y sin Google Fonts; cinco niveles tipográficos con una familia, como hoy |
+| ME5 | La pestaña dice «pantalla · nombre de la aplicación» y usa el ícono; sin ícono, el de siempre | Distinguir la instalación entre pestañas |
+| ME6 | Sin logo, la banda del menú dice el nombre de la aplicación en texto; el ingreso, los correos y el PDF, también el nombre. Sin ícono, el menú contraído deja la banda vacía | La marca es el nombre, como dice hoy el fundamento visual |
+| ME7 | `GET api/settings/presentation` (anónimo) suma `brand`: nombre, versión del logo y del ícono (o nada) y letra | El ingreso y el caparazón se pintan antes de la sesión, como los colores |
+| ME8 | Sin permisos nuevos: todo pide `settings.manage`, como Apariencia | Es la configuración de la instalación |
+
+**Tareas** (cada una cierra con sus tests, el build sin advertencias y la integración de lo que cambió):
+
+| # | Qué | Dónde |
+|---|---|---|
+| T9 | Logo e ícono: dominio, almacén, fuente de retención, `PUT`, `DELETE` y `GET` anónimos, `brand` en la presentación, correos y PDF con el logo, migración que quita `EmailLogoUrl`; con sus pruebas de ruta, de 409 y de archivo inválido | Back (Domain, Application, Infrastructure, Api) y `ExplicitRouteInventoryTests` |
+| T10 | Letra (y el acento, si va ME3-B) en `SystemSettings`, el `PATCH` y la presentación | Back |
+| T11 | Apariencia igual al tablero ME2, con los estados del tablero «Estados y recorrido» | Front, registrado en `docs/design` |
+| T12 | Caparazón igual al tablero elegido de ME1, el ingreso, la pestaña y la letra aplicada, según «Dónde más aparece»; escenas visuales con logo y sin logo | Front (`layouts`, `AuthLayout`, `shared/lib/appearance`) |
+| T13 | El fundamento visual cambia «Quitados: cuadrado de logo» por la regla de ME1 y ME6; Apariencia en `administracion.md`; publicar en La Clementina y cargar su marca desde la pantalla | Docs de los dos repos, Azure |
+
+T9 y T10 van primero porque fijan el contrato; T11 y T12 después, en paralelo. Nada de esto entra en código propio de
+una empresa.
