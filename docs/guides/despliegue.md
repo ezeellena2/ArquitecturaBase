@@ -1,5 +1,7 @@
 # Despliegue
 
+Para subir a Azure o cambiar una instalación, empezá por [Publicar en Azure](../deploy/README.md).
+
 Para quien despliega la Api fuera de Development: en qué orden sale cada cosa, qué hace la Api al arrancar, qué configuración tiene que estar sí o sí y qué queda pendiente. La infraestructura de Azure, paso a paso y una sola vez, está en [`docs/deploy/azure-setup.md`](../deploy/azure-setup.md); la decisión de fondo, en el [ADR 0006](../decisions/0006-migraciones-y-seed-fuera-de-development.md). La puesta en marcha de dev y GitHub está en [azure-dev.md](../deploy/azure-dev.md). Reconciliada con el código y el workflow local el 2026-10-02; los valores por defecto, los límites, el cupo del correo, la retención y el apagado se volvieron a contrastar con el código el **2026-11-18**. Describe su configuración, no acredita un despliegue ejecutado en Azure.
 
 Índice:
