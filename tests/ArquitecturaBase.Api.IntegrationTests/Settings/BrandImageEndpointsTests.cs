@@ -74,7 +74,8 @@ public sealed class BrandImageEndpointsTests(ApiFactory factory)
         var tokens = await client.LoginAsync(factory, ApiFactory.AdminEmail);
         var revision = await RevisionAsync(client, tokens.AccessToken);
 
-        using var response = await UploadAsync(client, tokens.AccessToken, "icon", revision - 1, Png(192, 192));
+        // A revision the screen could have read before another save; a fresh database starts at 1, so it goes ahead, not behind.
+        using var response = await UploadAsync(client, tokens.AccessToken, "icon", revision + 1, Png(192, 192));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("Settings.System.RevisionConflict", (await response.ReadJsonAsync()).GetProperty("code").GetString());
