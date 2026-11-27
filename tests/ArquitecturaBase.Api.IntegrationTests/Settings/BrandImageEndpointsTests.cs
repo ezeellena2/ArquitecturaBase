@@ -120,7 +120,7 @@ public sealed class BrandImageEndpointsTests(ApiFactory factory)
         using var client = host.CreateClient();
         var tokens = await client.LoginAsync(factory, TestEmails.Unique("nobrand"));
 
-        using var anonymous = await client.PutAsync("/api/settings/brand/logo", Form(1, Png(400, 112)), Ct);
+        using var anonymous = await client.PostAsync("/api/settings/brand/logo", Form(1, Png(400, 112)), Ct);
         using var forbidden = await UploadAsync(client, tokens.AccessToken, "logo", 1, Png(400, 112));
         using var forbiddenRemove = await RemoveAsync(client, tokens.AccessToken, "icon", 1);
 
@@ -145,7 +145,7 @@ public sealed class BrandImageEndpointsTests(ApiFactory factory)
     private static async Task<HttpResponseMessage> UploadAsync(HttpClient client, string accessToken, string kind, long revision, byte[] content,
         string? language = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/settings/brand/{kind}") { Content = Form(revision, content) };
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/settings/brand/{kind}") { Content = Form(revision, content) };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         if (language is not null) request.Headers.AcceptLanguage.ParseAdd(language);
         return await client.SendAsync(request, Ct);

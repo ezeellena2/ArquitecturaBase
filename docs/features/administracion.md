@@ -177,7 +177,7 @@ Cada empresa tiene su instalación y le pone su marca desde Apariencia, sin cód
   `IconFileKey`. El logo es PNG o JPG, igual de ancho o más ancho que alto, de hasta 4000 px; el ícono, PNG cuadrado de 64 a
   1024 px; los dos hasta 1 MB. `IImageInspector` lee formato y medidas de los bytes (SkiaSharp, sin decodificar píxeles):
   el nombre o el tipo declarado no cuentan. Si no sirve, 400 en `file` con `Settings.System.LogoInvalid` o `IconInvalid`.
-- **Se guardan al subirlos (ME2b).** `PUT api/settings/brand/logo` e `…/icon` (multipart: `file` y `expectedRevision`) y
+- **Se guardan al subirlos (ME2b).** `POST api/settings/brand/logo` e `…/icon` (multipart: `file` y `expectedRevision`) y
   `DELETE` con `?expectedRevision=`, con `settings.manage`, el lock, la revisión (409) y un commit, como el `PATCH`. El archivo
   se escribe antes de la transacción; responden `{ revision, version }` (`version` nulo al quitar). `BrandImageService` es
   aparte de `SystemSettingsService`.

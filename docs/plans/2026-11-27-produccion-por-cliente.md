@@ -91,10 +91,16 @@ tenga los datos del primero. T6 a T8 van en paralelo, con los contratos fijados 
 
 ## Marca por empresa (ME)
 
-Estado: **el titular eligió ME1-A y ME3-B el 2026-11-27. El backend de T9 y T10 está en `main` (salvo el logo en el PDF),
-con sus tests unitarios, de arquitectura y de integración en verde; siguen el front (T11 y T12) y T13.** Quedan anotados: el
-logo en el encabezado del PDF de una respuesta (módulo de Formularios) y borrar la columna `EmailLogoUrl` en el despliegue
-siguiente, con una migración escrita a mano (la de T9 la dejó porque la imagen anterior la lee mientras corre el bundle).
+Estado: **el titular eligió ME1-A y ME3-B el 2026-11-27. T9 a T12 están en `main` (back y front) con sus tests en verde,
+y la documentación de T13 también.** Faltan:
+- el logo en el encabezado del PDF de una respuesta (módulo de Formularios);
+- borrar la columna `EmailLogoUrl` en el despliegue siguiente, con una migración escrita a mano (la de T9 la dejó porque la
+  imagen anterior la lee mientras corre el bundle);
+- publicar en dev y en La Clementina (push y «Publicar en un cliente», con el visto bueno del titular), cargar ahí su marca
+  y probarla a mano.
+
+Las escenas visuales de siempre no traen marca (la banda queda vacía, como antes) para no rehacer las ~500 capturas; las
+escenas `brand-…` muestran un logo, un acento y una letra genéricos.
 Lienzo:
 [Marca por empresa](https://claude.ai/artifact/YKWuNW5xwL4EfSgstiMWrn).
 
@@ -124,7 +130,7 @@ Se descartaron ME1-B (el logo en la barra superior) y ME3-A (sólo los cuatro co
 | # | Decisión | Por qué |
 |---|---|---|
 | ME2 | Logo e ícono son archivos subidos en Apariencia (zona «Marca»), igual al tablero ME2. Logo: PNG o JPG apaisado, hasta 1 MB. Ícono: PNG cuadrado, desde 64 px. Se validan por su contenido, su tamaño y sus medidas en el navegador y en el servidor | Los correos necesitan PNG o JPG (Gmail no muestra SVG); un archivo propio no depende de una dirección ajena |
-| ME2b | Se guardan al subirlos y al quitarlos: `PUT` y `DELETE` en `api/settings/brand/logo` y `api/settings/brand/icon`, con la revisión leída, lock, transacción y 409, como el `PATCH`. La respuesta trae la revisión nueva y la pantalla conserva el borrador del resto. Quitar pide confirmación | Un archivo no es borrador; mandar el archivo dentro del `PATCH` cambiaría su contrato JSON |
+| ME2b | Se guardan al subirlos y al quitarlos: `POST` (como las demás subidas) y `DELETE` en `api/settings/brand/logo` y `api/settings/brand/icon`, con la revisión leída, lock, transacción y 409, como el `PATCH`. La respuesta trae la revisión nueva y la pantalla conserva el borrador del resto. Quitar pide confirmación | Un archivo no es borrador; mandar el archivo dentro del `PATCH` cambiaría su contrato JSON |
 | ME2c | Los bytes van al almacén privado de la instalación (`IPrivateFileStore`) con clave nueva por subida; `SystemSettings` guarda la clave, el tipo y una versión. Una fuente de retención (`IPrivateFileRetentionSource`) los declara usados, y la limpieza de siempre borra los reemplazados | Las mismas reglas que los demás archivos ([almacenamiento](2026-10-02-almacenamiento-de-archivos.md)); sin limpieza nueva |
 | ME2d | `GET api/settings/brand/logo` y `…/icon` son anónimos y responden la imagen con `ETag`; pedidos con `?v=<versión>`, se guardan en caché un año | El ingreso, los correos y la pestaña los muestran sin sesión |
 | ME2e | El logo subido reemplaza a «Logo de los correos» (`EmailLogoUrl` sale del dominio, del contrato, de la base y de los textos). Los correos lo toman del origen público de la instalación y el PDF lo dibuja donde hoy va el nombre | Un solo logo para todo. El contrato sólo lo usa el front ([ADR 0005](../decisions/0005-sin-versionado-de-api-por-ahora.md) no aplica); antes de la migración se mira que dev y La Clementina no tengan uno cargado |
@@ -138,7 +144,7 @@ Se descartaron ME1-B (el logo en la barra superior) y ME3-A (sólo los cuatro co
 
 | # | Qué | Dónde |
 |---|---|---|
-| T9 | Logo e ícono: dominio, almacén, fuente de retención, `PUT`, `DELETE` y `GET` anónimos, `brand` en la presentación, correos y PDF con el logo, migración que quita `EmailLogoUrl`; con sus pruebas de ruta, de 409 y de archivo inválido | Back (Domain, Application, Infrastructure, Api) y `ExplicitRouteInventoryTests` |
+| T9 | Logo e ícono: dominio, almacén, fuente de retención, `POST`, `DELETE` y `GET` anónimos, `brand` en la presentación, correos y PDF con el logo, migración que quita `EmailLogoUrl`; con sus pruebas de ruta, de 409 y de archivo inválido | Back (Domain, Application, Infrastructure, Api) y `ExplicitRouteInventoryTests` |
 | T10 | La letra y el acento del menú (ME3-B) en `SystemSettings`, el `PATCH` y la presentación | Back |
 | T11 | Apariencia igual al tablero ME2, con el acento como quinto color y los estados del tablero «Estados y recorrido» | Front, registrado en `docs/design` |
 | T12 | Caparazón igual al tablero ME1-A, con el acento de la columna B de ME3, el ingreso, la pestaña y la letra aplicada, según «Dónde más aparece»; escenas visuales con logo y sin logo | Front (`layouts`, `AuthLayout`, `shared/lib/appearance`) |

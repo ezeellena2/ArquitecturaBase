@@ -67,7 +67,7 @@ public sealed class SettingsController(ISystemSettingsService service, IBrandIma
     public Task<IActionResult> OpenIcon([FromQuery(Name = "v")] string? version, CancellationToken cancellationToken) =>
         OpenBrandImageAsync(BrandImageKind.Icon, version, cancellationToken);
 
-    [HttpPut("brand/logo")]
+    [HttpPost("brand/logo")]
     [HasPermission(Permissions.Settings.Manage)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaximumBrandImageRequestBytes)]
@@ -78,7 +78,7 @@ public sealed class SettingsController(ISystemSettingsService service, IBrandIma
     public Task<IActionResult> UploadLogo([FromForm] UploadBrandImageHttpRequest request, CancellationToken cancellationToken) =>
         UploadBrandImageAsync(BrandImageKind.Logo, request, cancellationToken);
 
-    [HttpPut("brand/icon")]
+    [HttpPost("brand/icon")]
     [HasPermission(Permissions.Settings.Manage)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaximumBrandImageRequestBytes)]
