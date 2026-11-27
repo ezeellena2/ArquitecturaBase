@@ -257,8 +257,10 @@ sesión y un reinicio.
   pide uno de los dos. Se cambió a español desde el menú del usuario y quedó guardado en la cuenta.
 - **WhatsApp prendido en Azure**, con el número, el token, el App Secret y la palabra de verificación de los user-secrets
   (variables `WHATSAPP_*` del script). El webhook de la app de Meta pasó del túnel de la PC a
-  `https://<origen>/webhooks/whatsapp`, con los mismos campos: desde ahí, los mensajes que llegan van a Azure dev y no a
-  la PC ([en local](../guides/whatsapp-en-local.md#el-túnel-para-recibir-los-webhooks)).
+  `https://<origen>/webhooks/whatsapp`, con los mismos campos. El 2026-11-27 el número de prueba recibió un webhook propio
+  hacia el túnel de la PC, para depurar en local: mientras Azure dev use ese mismo número, no recibe mensajes. Azure pasa a
+  un número propio (un chip) cambiando `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WABA_ID` y `WHATSAPP_DISPLAY_PHONE_NUMBER`
+  ([en local](../guides/whatsapp-en-local.md#el-túnel-para-recibir-los-webhooks)).
 - **IA.** Los perfiles calificados (`ArtificialIntelligence:Assistant:*`: texto, documentos y audio) y la clave de Google
   Places se copiaron de los user-secrets a la Container App: sin perfiles, el asistente no anda aunque haya conexión. La
   clave del proveedor no está en los user-secrets: se guarda cifrada en la base de cada instalación, con su anillo, así

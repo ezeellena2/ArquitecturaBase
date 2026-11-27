@@ -93,10 +93,22 @@ Para confirmar qué claves quedaron cargadas, sin mostrar los valores:
 
 ## El túnel, para recibir los webhooks
 
-**Desde el 2026-11-26 el webhook de la app de Meta apunta a Azure dev** ([Azure dev](../deploy/azure-dev.md#comprobaciones-todavía-externas)):
-lo que llega por WhatsApp va allá, no a la PC. Meta admite una sola URL por app. Para probar en local lo que llega, se cambia
-la URL al túnel (paso 4) y, al terminar, se vuelve a poner la de Azure, con la misma palabra de verificación. El envío
-desde la PC sigue andando sin el webhook.
+**Desde el 2026-11-27, un número para cada lado, en la misma app de Meta.** El webhook de la app (el del paso 4) apunta a
+Azure dev ([Azure dev](../deploy/azure-dev.md#comprobaciones-todavía-externas)). El número de prueba (+1 555 163 2662, el
+`PhoneNumberId` de estos user-secrets) tiene además un **webhook propio** con la URL del túnel. Meta busca primero el del
+número y, si no tiene, usa el de la app ([webhook overrides](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/override)).
+Así, lo que le escriben al número de prueba llega a la PC con el túnel prendido, y lo que le escriben al número de Azure,
+a Azure. Con la PC apagada, lo del número de prueba no llega a ningún lado. El del número no se ve en el panel; se lee y se
+cambia por la Graph API, con el token de la app:
+
+```bash
+curl -H "Authorization: Bearer <token>" "https://graph.facebook.com/v25.0/<PhoneNumberId>?fields=webhook_configuration"
+curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" "https://graph.facebook.com/v25.0/<PhoneNumberId>" \
+  -d '{"webhook_configuration":{"override_callback_uri":"https://<túnel>/webhooks/whatsapp","verify_token":"<WhatsApp:VerifyToken>"}}'
+```
+
+Meta verifica la URL al guardarla, así que el túnel tiene que estar prendido; con `override_callback_uri` vacío el número
+vuelve a usar el de la app. El número de prueba sólo le escribe a hasta 5 destinatarios registrados en el paso 1 de la app.
 
 Meta le pega al webhook desde internet y exige HTTPS con un certificado válido: el de desarrollo de `localhost` no le sirve. Por eso el AppHost puede levantar un [dev tunnel](https://aspire.dev/integrations/devtools/dev-tunnels/) de Microsoft. **Viene apagado**, así `aspire run` no le pide la CLI a quien no la usa.
 
