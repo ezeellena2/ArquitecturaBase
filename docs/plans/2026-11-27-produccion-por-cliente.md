@@ -1,6 +1,6 @@
 # Producción por cliente: una instalación por empresa
 
-Estado: **T1 a T4 programadas el 2026-11-27; falta T5, el primer cliente.** La receta para usarlo está en [producción por cliente](../deploy/produccion-por-cliente.md). El titular ya tiene clientes y decidió que, mientras el multitenant
+Estado: **T1 a T5 hechas el 2026-11-27: La Clementina es el primer cliente publicado.** La receta para usarlo está en [producción por cliente](../deploy/produccion-por-cliente.md). El titular ya tiene clientes y decidió que, mientras el multitenant
 no esté terminado, cada empresa que lo contrata tenga su propia instalación en Azure. Cuando el multitenant esté listo, los
 clientes pasan a él con un plan aparte. [Azure dev](../deploy/azure-dev.md) sigue siendo el ambiente para probar y romper,
 con el número de prueba de WhatsApp.

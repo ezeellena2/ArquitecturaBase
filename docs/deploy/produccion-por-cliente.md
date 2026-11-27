@@ -13,6 +13,15 @@ compilar.
 **Costo:** unos USD 35 a 60 por mes por cliente (PostgreSQL B1ms, la Api y Redis siempre prendidos, Storage y logs), más
 los mensajes de WhatsApp que cobre Meta. El script deja un presupuesto mensual del grupo que avisa al titular.
 
+## Clientes
+
+| Cliente | Instalación | Origen | WhatsApp | Desde |
+|---|---|---|---|---|
+| La Clementina | `clementina` (`rg-arquitecturabase-clementina`, environment `prod-clementina`) | https://ca-arquitecturabase-clementina.ambitiousplant-1538edac.centralus.azurecontainerapps.io, sin dominio propio todavía | sin número todavía | 2026-11-27, corrida 46018782806 |
+
+El administrador inicial de cada instalación es el titular, que después invita a la gente del cliente. Su cuenta nace con el
+idioma del navegador (`Accept-Language`); se cambia desde su menú.
+
 ## Alta de un cliente
 
 ### 1. Lo que junta el titular
