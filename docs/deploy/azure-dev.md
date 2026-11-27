@@ -265,7 +265,9 @@ sesión y un reinicio.
 - **IA.** Los perfiles calificados (`ArtificialIntelligence:Assistant:*`: texto, documentos y audio) y la clave de Google
   Places se copiaron de los user-secrets a la Container App: sin perfiles, el asistente no anda aunque haya conexión. La
   clave del proveedor no está en los user-secrets: se guarda cifrada en la base de cada instalación, con su anillo, así
-  que en Azure dev se carga de nuevo en Configuración › Inteligencia artificial.
+  que en Azure dev se carga de nuevo en Configuración › Inteligencia artificial. La clave de Places copiada era la del
+  navegador y Google la rechazaba; el 2026-11-27 se reemplazó, en la PC, dev y La Clementina, por una de servidor sin
+  restricción de IP ([búsqueda de lugares](../guides/configurar-google-places.md#credencial)).
 - **La publicación desde el front quedó activa (etapa 5).** El PAT fine-grained «ArquitecturaBaseFront publica Azure dev»
   tiene sólo Actions de lectura y escritura sobre el backend y vence el 2027-11-26. Su prueba con `workflow_dispatch`
   pidió la corrida 45928247791 del backend.

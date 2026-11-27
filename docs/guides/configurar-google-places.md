@@ -9,13 +9,15 @@ Google Maps. Elegir prepara el borrador; Guardar confirma el Place ID con revisi
 1. En el proyecto de Google Cloud de esta instalación, habilitar facturación y **Places API (New)**.
 2. Crear una clave independiente, por ejemplo `ArquitecturaBase Places Servidor`.
 3. Restringir sus APIs **sólo a Places API (New)**.
-4. Restricción de aplicación: **Direcciones IP**, con la IP pública de salida del servidor.
-   En local es la IP pública de tu conexión, no localhost, 127.0.0.1 ni una dirección privada.
-   Si cambia, actualizarla. Production usa su propia clave y salida estable.
+4. Restricción de aplicación: **Direcciones IP** sólo si el servidor sale siempre por la misma IP pública (en local, la
+   de tu conexión, no localhost ni una privada). Azure Container Apps en Consumption no tiene una IP de salida fija, así
+   que la clave que usan dev y los clientes va con **Ninguna** y sólo la restricción de API; el consumo se acota con
+   una cuota diaria de Places API (New) en el proyecto.
 5. Guardar y esperar la propagación de restricciones antes de probar.
 
-La clave previa de **Sitios web** corresponde al SDK JavaScript del navegador; no sirve
-para este REST de servidor. Se conserva sin debilitar sus restricciones. Esta integración
+La clave previa de **Sitios web** (restringida por URL de referencia) corresponde al SDK JavaScript del navegador; no
+sirve para este REST de servidor: Google contesta `PERMISSION_DENIED` desde cualquier servidor, también desde la PC, y
+la Api lo registra como `Ai.Places.ConfigurationInvalid`. Se conserva sin debilitar sus restricciones. Esta integración
 no necesita Maps JavaScript API. No copiar claves al front, VITE_*, Git, capturas o chat.
 
 Desde la raíz del backend, cargar mediante stdin sin escribir su valor en el historial:
@@ -59,11 +61,12 @@ en un destino fijo con query_place_id; no se acepta una URL arbitraria. Los punt
 siguen siendo legibles. No requiere migración: PlaceId es opcional en el JSONB existente y
 los comprobantes anteriores conservan exactamente su huella.
 
-## Prueba real pendiente
+## Prueba real
 
-Con la clave configurada y ambos permisos ai.business.read/ai.business.manage, buscar un
-lugar por nombre/ciudad, abrir su ficha, guardar y recargar. Revisar restricciones, cuotas y
-rotación de la clave. Esta prueba puede tener costo y se hace manualmente con la cuenta real.
+El 2026-11-27, con la clave «ArquitecturaBase Places Servidor», se buscó un lugar en Azure dev y en La Clementina, y en
+La Clementina se eligió y guardó su ubicación. Queda revisar la cuota diaria y la rotación de la clave. Repetir la
+prueba (buscar por nombre y ciudad, abrir la ficha, guardar y recargar) con ambos permisos
+ai.business.read/ai.business.manage; puede tener costo.
 Sin clave, el resto del módulo funciona y el buscador no se muestra (`place-search` no se publica; la ruta da 409
 `Ai.Places.NotConfigured`). Los 429 conservan
 espera y requieren una nueva acción; cancelar no demuestra que Google no haya procesado/cobrado.
